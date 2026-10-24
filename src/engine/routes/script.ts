@@ -41,7 +41,8 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
 
     const job = context.jobs.enqueue("대본 추천", async ({ signal, progress }) => {
       progress(0.1, "Codex 실행 중");
-      const result = await codexCliRunner({ bin }).runScript({
+      const settings = await context.store.readSettings();
+      const result = await codexCliRunner({ bin, model: typeof settings.codexModel === "string" ? settings.codexModel : "gpt-6-luna", effort: typeof settings.codexEffort === "string" ? settings.codexEffort : "medium" }).runScript({
         ...request,
         signal,
         transcribe: context.transcribeInput,

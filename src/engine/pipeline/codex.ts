@@ -53,13 +53,13 @@ export function codexFailureReason(text: string): string {
   return "Codex CLI 요청이 실패했습니다";
 }
 
-export function codexCliArgs(params: { schemaFile: string; outputFile: string; cwd: string; images?: readonly string[] }): string[] {
+export function codexCliArgs(params: { schemaFile: string; outputFile: string; cwd: string; images?: readonly string[]; model?: string; effort?: string }): string[] {
   return [
     "exec", "--ephemeral", "--skip-git-repo-check", "--sandbox", "read-only",
     "--disable", "apps", "--disable", "shell_tool", "--disable", "unified_exec", "--disable", "image_generation",
     "-c", "mcp_servers={}", "--json", "--output-schema", params.schemaFile,
     "--output-last-message", params.outputFile, "-C", params.cwd,
-    "-m", "gpt-6-luna",
+    "-m", params.model ?? "gpt-6-luna", "-c", `model_reasoning_effort=${JSON.stringify(params.effort ?? "medium")}`,
     ...(params.images ?? []).flatMap(image => ["--image", image]),
     "-",
   ];
@@ -125,6 +125,8 @@ export const runCodexProcess: CodexProcessRunner = request => new Promise((resol
 
 export interface CodexRunnerOptions {
   bin: string;
+  model?: string;
+  effort?: string;
   env?: NodeJS.ProcessEnv;
   timeoutMs?: number;
   run?: CodexProcessRunner;
@@ -209,7 +211,7 @@ export function codexCliRunner(options: CodexRunnerOptions) {
           ? `${request.prompt}\n\n영상별 받아 적은 말소리:\n${transcripts.map(item => `- ${item.inputId}: ${item.text}`).join("\n")}`
           : request.prompt;
         const absoluteImages = images.map(image => path.resolve(image));
-        const result = await execute(codexCliArgs({ schemaFile, outputFile, cwd: work, images: absoluteImages }), prompt, options.timeoutMs ?? 10 * 60_000);
+        const result = await execute(codexCliArgs({ schemaFile, outputFile, cwd: work, images: absoluteImages, model: options.model, effort: options.effort }), prompt, options.timeoutMs ?? 10 * 60_000);
         const events = parseCodexEvents(result.stdout);
         usage = events.usage;
         if (result.aborted) throw new CodexError("Codex 요청이 취소되었습니다", usage);

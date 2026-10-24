@@ -114,6 +114,12 @@ describe("Codex CLI", () => {
       .toEqual(expect.arrayContaining(["exec", "--output-schema", "schema.json", "--image", "one.jpg", "-m", "gpt-6-luna"]));
   });
 
+  it("passes the saved model and effort to Codex CLI", () => {
+    const args = codexCliArgs({ schemaFile: "schema.json", outputFile: "result.json", cwd: "/tmp", model: "gpt-6-sol", effort: "high" });
+    expect(args).toContain("gpt-6-sol");
+    expect(args).toContain('model_reasoning_effort="high"');
+  });
+
   it("passes existing absolute image paths to Codex when the data root is relative", async () => {
     const relativeRoot = path.relative(process.cwd(), await mkdtemp(path.join(os.tmpdir(), "u3-relative-data-")));
     const imagePath = path.join(relativeRoot, "projects", "test", "input", ".frames", "frame.jpg");
