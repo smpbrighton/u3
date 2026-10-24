@@ -8,6 +8,7 @@ import { access, mkdir, readFile, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { memeDoc, topBySimilarity } from "../../core/meme-rank";
 import { listMemes, type LibraryEntry } from "./library";
+import { bgeM3Ready } from "./models";
 
 export type MemeEmbedderStatus = "idle" | "loading" | "ready" | "error";
 
@@ -28,8 +29,11 @@ export function bgeM3Embedder(opts: { cacheDir: string }): MemeEmbedder {
 
   const load = () => {
     loading ??= (async () => {
-      state = "loading";
       try {
+        if (!await bgeM3Ready(opts.cacheDir)) {
+          throw new Error("bge-m3 모델 파일이 모두 준비되지 않았습니다");
+        }
+        state = "loading";
         const cachedModel = path.join(opts.cacheDir, "models--Xenova--bge-m3");
         await access(cachedModel);
         const { pipeline, env } = await import("@huggingface/transformers");
@@ -44,8 +48,7 @@ export function bgeM3Embedder(opts: { cacheDir: string }): MemeEmbedder {
         state = "ready";
         return (texts: string[]) => extractor(texts, { pooling: "cls", normalize: true });
       } catch (e) {
-        state = "error";
-        loading = null;
+        if (state === "loading") state = "error";
         throw e;
       }
     })();
