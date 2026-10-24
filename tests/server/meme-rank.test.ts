@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { answerFor, fakeJevClient } from "../../src/engine/pipeline/jev";
 import { rankSceneMemes, searchMemeCandidates } from "../../src/engine/pipeline/meme-rank";
 import { memoryUsageLog } from "../../src/engine/pipeline/usage";
+import { fakeMemeEmbedder, memeIndex } from "../../src/engine/pipeline/meme-embed";
 import type { LibraryEntry } from "../../src/engine/pipeline/library";
 
 const memes: LibraryEntry[] = [
@@ -29,5 +30,20 @@ describe("meme ranking", () => {
     expect(ranked.by).toBe("jev");
     expect(ranked.list[0]!.meme.id).toBe("laugh");
     expect(usage.entries[0]!.provider).toBe("jev");
+  });
+
+  it("keeps rule ranking as the source when embedding fails", async () => {
+    const usage = memoryUsageLog();
+    const embedder = fakeMemeEmbedder();
+    embedder.error = new Error("bge-m3 모델 없음");
+    const index = memeIndex("/tmp/u3-meme-rank-no-model", embedder, async () => memes);
+    const jev = fakeJevClient((_id, question) => answerFor(question, 0.95, "3"));
+
+    const result = await rankSceneMemes({ jev, usage, index }, scene, memes, "project-1");
+
+    expect(result.by).toBe("rule");
+    expect(result.search.embedError).toContain("모델 없음");
+    expect(result.list[0]!.meme.id).toBe("laugh");
+    expect(usage.entries).toHaveLength(0);
   });
 });
