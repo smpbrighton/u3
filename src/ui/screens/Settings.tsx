@@ -4,7 +4,7 @@ import { ActionButton } from "../../../seed-design/ui/action-button";
 import { PageBanner } from "../../../seed-design/ui/page-banner";
 import { ProgressCircle } from "../../../seed-design/ui/progress-circle";
 import { Select } from "@seed-design/react";
-import { Tick01Icon } from "@hugeicons/core-free-icons";
+import { ArrowDown01Icon, Tick01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { api, watchJob, watchJobs, type EngineJob } from "../api";
 import type { SystemStatus } from "../types";
@@ -14,9 +14,15 @@ type ModelStatus = {
   whisper: { available: boolean; sizeBytes: number };
 };
 
+type CodexModel = { slug: string; displayName: string; efforts: string[] };
+type CodexModelCatalog = { source: "codex-cli" | "fallback"; models: CodexModel[] };
+
 export function Settings(props: { onSnackbar: (message: string) => void; onError: (message: string) => void }) {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [models, setModels] = useState<ModelStatus | null>(null);
+  const [codexCatalog, setCodexCatalog] = useState<CodexModelCatalog>({ source: "fallback", models: [] });
+  const [customModel, setCustomModel] = useState("");
+  const [showCustomModel, setShowCustomModel] = useState(false);
   const [jobs, setJobs] = useState<EngineJob[]>([]);
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -30,6 +36,7 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
         api<SystemStatus>("GET", "/api/system").then(setStatus),
         api<ModelStatus>("GET", "/api/models").then(setModels),
         api<typeof codexSettings>("GET", "/api/system/codex-settings").then(setCodexSettings),
+        api<CodexModelCatalog>("GET", "/api/system/codex-models").then(setCodexCatalog),
       ]);
       const failed = [systemResult, modelResult].find(result => result.status === "rejected");
       if (failed?.status === "rejected") throw failed.reason;
@@ -95,6 +102,11 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
     ? "터미널에서 codex login 을 실행한 뒤 다시 확인해 주세요."
     : "codex CLI를 설치한 뒤 터미널에서 codex login 을 실행해 주세요.";
   const codexState = !status ? "확인 중" : status.codex.loggedIn ? "사용할 수 있어요" : status.codex.installed ? "로그인이 필요해요" : "설치가 필요해요";
+  const selectedModel = codexCatalog.models.find(model => model.slug === codexSettings.model);
+  const modelOptions = selectedModel
+    ? codexCatalog.models
+    : [...codexCatalog.models, { slug: codexSettings.model, displayName: codexSettings.model, efforts: [] }];
+  const effortOptions = selectedModel?.efforts.length ? selectedModel.efforts : ["low", "medium", "high"];
 
   async function updateCodexSettings(value: typeof codexSettings) {
     setCodexSettings(value);
@@ -110,7 +122,59 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
         <div className="settings-card-heading"><h2 id="codex-title">codex</h2><span className={`status-label ${status?.codex.loggedIn ? "is-ready" : "is-warning"}`}>{codexState}</span></div>
         {codexMessage ? <div className="page-banner-wrap settings-warning"><PageBanner tone="warning" variant="weak" description={codexMessage} /></div> : null}
         {status && !status.codex.installed ? <div className="action-row"><ActionButton variant="neutralWeak" onClick={() => void chooseCodexPath()}>직접 지정</ActionButton></div> : null}
-        <div className="settings-model-fields"><label>모델<ModelSelect label="모델" value={codexSettings.model} items={["gpt-6-astra", "gpt-6-luna", "gpt-6-sol", "gpt-6.1-sol", "gpt-5.6-luna", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.5"]} onChange={model => void updateCodexSettings({ ...codexSettings, model })} /></label><label>추론 강도<ModelSelect label="추론 강도" value={codexSettings.effort} items={["low", "medium", "high", "xhigh", "max"]} onChange={effort => void updateCodexSettings({ ...codexSettings, effort })} /></label></div>
+        <div className="settings-model-fields">
+          <label>
+            모델
+            <ModelSelect
+              label="모델"
+              value={codexSettings.model}
+              items={modelOptions.map(model => ({ value: model.slug, label: model.displayName }))}
+              onChange={model => {
+                const efforts = codexCatalog.models.find(item => item.slug === model)?.efforts ?? [];
+                const effort = efforts.includes(codexSettings.effort) ? codexSettings.effort : efforts.includes("medium") ? "medium" : efforts[0] ?? "medium";
+                void updateCodexSettings({ model, effort });
+              }}
+            />
+          </label>
+          <label>
+            추론 강도
+            <ModelSelect
+              label="추론 강도"
+              value={codexSettings.effort}
+              items={effortOptions.map(effort => ({ value: effort, label: effort }))}
+              onChange={effort => void updateCodexSettings({ ...codexSettings, effort })}
+            />
+          </label>
+        </div>
+        {codexCatalog.source === "fallback" ? (
+          <div className="settings-custom-model">
+            {showCustomModel ? (
+              <>
+                <label htmlFor="custom-codex-model">모델 이름 직접 입력</label>
+                <input
+                  id="custom-codex-model"
+                  value={customModel}
+                  onChange={event => setCustomModel(event.target.value)}
+                />
+                <ActionButton
+                  variant="neutralWeak"
+                  disabled={!customModel.trim()}
+                  onClick={() => {
+                    const model = customModel.trim();
+                    void updateCodexSettings({ ...codexSettings, model });
+                    setShowCustomModel(false);
+                  }}
+                >
+                  적용
+                </ActionButton>
+              </>
+            ) : (
+              <ActionButton variant="ghost" onClick={() => setShowCustomModel(true)}>
+                직접 입력
+              </ActionButton>
+            )}
+          </div>
+        ) : null}
         <div className="action-row settings-actions"><ActionButton className="settings-refresh-button" variant="neutralWeak" disabled={checking} loading={checking} aria-label={checking ? "다시 확인 중" : "다시 확인"} onClick={() => void refresh()}>{checking ? "다시 확인 중" : "다시 확인"}</ActionButton></div>
       </section>
       <section className="section-card settings-row" aria-labelledby="jev-title"><h2 id="jev-title">Jev 짤 판정</h2><span className={`status-label ${status?.jev.available ? "is-ready" : "is-warning"}`}>{status?.jev.available ? "연결됨" : "연결 안 됨"}</span></section>
@@ -127,10 +191,24 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
   );
 }
 
-function ModelSelect(props: { label: string; value: string; items: string[]; onChange: (value: string) => void }) {
+function ModelSelect(props: { label: string; value: string; items: Array<{ value: string; label: string }>; onChange: (value: string) => void }) {
   return <Select.Root value={[props.value]} onValueChange={value => { if (value[0]) props.onChange(value[0]); }}>
     <Select.HiddenSelect aria-label={props.label} />
-    <Select.Trigger className="settings-select" aria-label={props.label}><Select.Value /></Select.Trigger>
-    <Select.Positioner><Select.Content><Select.ScrollArea>{props.items.map(item => <Select.Item key={item} value={item}><Select.ItemLabel>{item}</Select.ItemLabel><Select.ItemIndicator selected={<HugeiconsIcon icon={Tick01Icon} size={16} />} /></Select.Item>)}</Select.ScrollArea></Select.Content></Select.Positioner>
+    <Select.Trigger className="settings-select" aria-label={props.label}>
+      <Select.Value />
+      <HugeiconsIcon icon={ArrowDown01Icon} size={16} aria-hidden="true" />
+    </Select.Trigger>
+    <Select.Positioner>
+      <Select.Content>
+        <Select.ScrollArea>
+          {props.items.map(item => (
+            <Select.Item key={item.value} value={item.value}>
+              <Select.ItemLabel>{item.label}</Select.ItemLabel>
+              <Select.ItemIndicator selected={<HugeiconsIcon icon={Tick01Icon} size={16} />} />
+            </Select.Item>
+          ))}
+        </Select.ScrollArea>
+      </Select.Content>
+    </Select.Positioner>
   </Select.Root>;
 }
