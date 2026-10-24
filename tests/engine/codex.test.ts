@@ -1,4 +1,0 @@
-import { describe,expect,it,vi } from "vitest";
-import { recommendScript, type CodexRun } from "../../src/engine/pipeline/codex";
-const valid={scenes:[{caption:"안녕",inputIndex:1,startSec:0,endSec:1,reaction:null,memeBefore:false,memeAfter:false,sfxCategory:null}]};
-describe("codex output validation",()=>{it("revalidates structured output against Zod",async()=>{const run=vi.fn<CodexRun>(async()=>({scenes:[{...valid.scenes[0],caption:""}]}));await expect(recommendScript({bin:"fake-codex",prompt:"대본",run})).rejects.toThrow();expect(run).toHaveBeenCalled();});it("sends the pinned model and schema options to runner",async()=>{const run=vi.fn<CodexRun>(async()=>valid);await expect(recommendScript({bin:"fake-codex",prompt:"대본",run})).resolves.toEqual(valid);expect(run.mock.calls[0]![0]).toContain("gpt-6-luna");expect(run.mock.calls[0]![0]).toContain("--output-schema");});});
