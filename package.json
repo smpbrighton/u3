@@ -17,6 +17,8 @@
     "tauri": "tauri"
   },
   "dependencies": {
+    "@hono/node-server": "^2.1.5",
+    "@huggingface/transformers": "^4.3.1",
     "@remotion/bundler": "4.0.529",
     "@remotion/fonts": "4.0.529",
     "@remotion/media": "4.0.529",
@@ -26,6 +28,9 @@
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "remotion": "4.0.529",
+    "hono": "^4.13.13",
+    "p-queue": "^10.0.0",
+    "opentype.js": "^2.0.0",
     "zod": "4.6.5"
   },
   "devDependencies": {

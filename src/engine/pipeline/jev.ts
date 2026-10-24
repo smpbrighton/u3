@@ -1,0 +1,7 @@
+export const JEV_MODEL="jev-1.13.0";
+export type JevClient={judge:(scene:string,candidates:readonly {id:string;description:string}[])=>Promise<readonly {id:string;score:number}[]>};
+export function fakeJevClient(score:(scene:string,candidate:{id:string;description:string})=>number=()=>3):JevClient & {calls:{scene:string;candidates:readonly {id:string;description:string}[]}[];error:Error|null}{const self={calls:[] as {scene:string;candidates:readonly {id:string;description:string}[]}[],error:null as Error|null,async judge(scene:string,candidates:readonly {id:string;description:string}[]){self.calls.push({scene,candidates});if(self.error)throw self.error;return candidates.map(candidate=>({id:candidate.id,score:score(scene,candidate)}));}};return self;}
+export function createJevClient(apiKey=process.env.TYPESAFE_API_KEY, fetchImpl:typeof fetch=fetch):JevClient|null {
+  if(!apiKey)return null;
+  return {async judge(scene,candidates){const res=await fetchImpl("https://api.typesafe.ai/v1/systemone",{method:"POST",headers:{authorization:`Bearer ${apiKey}`,"content-type":"application/json"},body:JSON.stringify({state:{장면:scene},model:JEV_MODEL,questions:Object.fromEntries(candidates.map((m,i)=>[`m${i}`,{type:"score",instructions:{질문:"장면에 대한 짤 적합도를 평가한다",짤:m.description},criteria:["낮음","보통","높음","매우 높음"]}]))})});if(!res.ok)throw new Error(`Jev HTTP ${res.status}`);const json=await res.json() as any;return candidates.map((m,i)=>({id:m.id,score:Number(json.answers?.[`m${i}`]?.score)||0}));}};
+}

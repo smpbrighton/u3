@@ -1,0 +1,2 @@
+import { spawn } from "node:child_process";
+export function runFfmpeg(args:string[],signal?:AbortSignal):Promise<void>{return new Promise((resolve,reject)=>{const bin=process.env.FFMPEG_PATH||"ffmpeg",p=spawn(bin,args,{stdio:"ignore"});signal?.addEventListener("abort",()=>p.kill("SIGTERM"),{once:true});p.on("error",reject);p.on("close",code=>code===0?resolve():reject(new Error(`ffmpeg 종료 코드 ${code}`)));});}
