@@ -3,7 +3,6 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { promisify } from "node:util";
 import { execFile as execFileCallback } from "node:child_process";
-import { bundle } from "@remotion/bundler";
 import { renderMedia, selectComposition, type CancelSignal, type RenderMediaProgress } from "@remotion/renderer";
 import type { Input, Timeline } from "../../core/schema";
 import { timelineToRender } from "../../core/timeline/to-render";
@@ -15,11 +14,14 @@ const bundleCache = new Map<string, Promise<string>>();
 const execFile = promisify(execFileCallback);
 
 /** Remotion 번들을 한 번 생성하고 같은 asset 폴더에 대해 재사용한다. */
-export function getBundle(assetsDir?: string): Promise<string> {
+export async function getBundle(assetsDir?: string): Promise<string> {
+  const packagedBundle = process.env.U3_REMOTION_BUNDLE;
+  if (packagedBundle) return Promise.resolve(packagedBundle);
   const publicDir = assetsDir ?? DEFAULT_ASSETS_DIR;
   const key = publicDir;
   let pending = bundleCache.get(key);
   if (!pending) {
+    const { bundle } = await import("@remotion/bundler");
     pending = bundle({ entryPoint: REMOTION_ENTRY, publicDir });
     bundleCache.set(key, pending);
     pending.catch(() => bundleCache.delete(key));
@@ -82,7 +84,7 @@ export async function renderShort(options: RenderShortOptions) {
   const audio = render.audio.map((layer) => layer.file ? { ...layer, file: asUrl(layer.file, options.projectFolder, options.resolveMediaUrl) } : layer);
   const props: U3ShortProps = { render: { ...render, audio }, inputs, inputKinds, memes, memeFrames };
   const serveUrl = await getBundle();
-  const executable = options.browserExecutable;
+  const executable = options.browserExecutable ?? process.env.U3_CHROME_EXECUTABLE;
   const composition = await selectComposition({ serveUrl, id: "U3Short", inputProps: props, ...(executable ? { browserExecutable: executable } : {}) });
   await mkdir(path.dirname(options.outputPath), { recursive: true });
   await renderMedia({

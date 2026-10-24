@@ -7,7 +7,7 @@ import { findCodexPath } from "./pipeline/codex-path";
 import path from "node:path";
 import { bgeM3Embedder, memeIndex } from "./pipeline/meme-embed";
 import { startMediaServer } from "./pipeline/media-server";
-import { stat } from "node:fs/promises";
+import { access, cp, mkdir, stat } from "node:fs/promises";
 import { parseWhisperOutput } from "../core/transcript";
 import { transcribeAudio } from "./pipeline/whisper";
 import { bgeM3Ready, downloadBgeM3 } from "./pipeline/models";
@@ -30,11 +30,25 @@ const token = await readToken();
 if (!token) throw new Error("U3_TOKEN이 비어 있습니다");
 const store = new Store(); await store.init();
 const tauriOrigin = process.env.TAURI_ORIGIN ?? "tauri://localhost";
-const configuredLibraryRoot = process.env.U3_LIBRARY_DIR ?? path.join(process.cwd(), "resources");
+const resourceRoot = process.env.U3_RESOURCE_DIR ?? path.join(process.cwd(), "resources");
+const configuredLibraryRoot = process.env.U3_LIBRARY_DIR ?? path.join(resourceRoot, "library");
 const libraryRoot = path.basename(configuredLibraryRoot) === "library"
   ? configuredLibraryRoot
   : path.join(configuredLibraryRoot, "library");
 const resourceDir = path.dirname(libraryRoot);
+const bundledIndex = path.join(resourceDir, "library/meme-embed");
+const dataIndex = path.join(store.root, "cache/meme-embed");
+try {
+  await access(path.join(dataIndex, "bge-m3.json"));
+} catch {
+  try {
+    await access(path.join(bundledIndex, "bge-m3.json"));
+    await mkdir(path.dirname(dataIndex), { recursive: true });
+    await cp(bundledIndex, dataIndex, { recursive: true, force: false });
+  } catch {
+    // The development server can start before resource files exist.
+  }
+}
 const mediaServer = await startMediaServer({
   roots: { projects: path.join(store.root, "projects"), library: libraryRoot },
   token,
