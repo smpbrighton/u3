@@ -32,12 +32,33 @@ describe("timeline ops", () => {
     const after = deleteVideoClip(base(), "photo");
     expect(videoStartTimes(after)).toEqual({ v1: 0, meme: 4 });
   });
+  it("영상·사진·짤은 원본 한계와 길이 범위 안에서 다시 늘릴 수 있다", () => {
+    const timeline: Timeline = { ...empty(), video: [
+      { id: "v", kind: "main", inputId: "in", inStartSec: 1, inEndSec: 4 },
+      { id: "photo", kind: "main", inputId: "p", durationSec: 2 },
+      { id: "meme", kind: "meme", memeId: "m", durationSec: 2 },
+    ] };
+    const videoExtended = trimVideoClip(timeline, "v", "start", -0.5, 5);
+    expect(videoExtended.video[0]).toMatchObject({ inStartSec: 0.5, inEndSec: 4 });
+    const photoExtended = trimVideoClip(timeline, "photo", "end", 6.5);
+    expect(photoExtended.video[1]).toMatchObject({ durationSec: 3.5 });
+    const memeExtended = trimVideoClip(timeline, "meme", "end", 9, 10);
+    expect(memeExtended.video[2]).toMatchObject({ durationSec: 4 });
+    expect(() => trimVideoClip(timeline, "meme", "end", 9.1, 10)).toThrow(/0.5~4초/u);
+    expect(() => trimVideoClip(timeline, "photo", "end", 2.9)).toThrow(/0보다 커야/u);
+    const shortMeme: Timeline = { ...empty(), video: [{ id: "short-meme", kind: "meme", memeId: "m", durationSec: 0.8 }] };
+    expect(() => splitVideoClip(shortMeme, "short-meme", 0.4)).toThrow(/0.5~4초/u);
+  });
   it("자막·오디오 클립은 독립적으로 이동·트림·삭제한다", () => {
     const timeline: Timeline = { ...empty(), captions: [{ id: "c", startSec: 1, endSec: 3, text: "말" }], voice: [{ id: "a", startSec: 2, file: "v.wav", inStartSec: 0, inEndSec: 4, gain: 1 }] };
     expect(moveCaptionClip(timeline, "c", 4).captions[0]).toMatchObject({ startSec: 4, endSec: 6 });
     expect(trimCaptionClip(timeline, "c", "start", 1.5).captions[0]?.startSec).toBe(1.5);
     expect(moveAudioClip(timeline.voice, "a", 5)[0]?.startSec).toBe(5);
-    expect(trimAudioClip(timeline.voice, "a", "start", 3)[0]).toMatchObject({ startSec: 3, inStartSec: 1 });
+    expect(trimAudioClip(timeline.voice, "a", "start", 3, 5)[0]).toMatchObject({ startSec: 3, inStartSec: 1 });
+    expect(trimAudioClip(timeline.voice, "a", "end", 8, 10)[0]).toMatchObject({ inEndSec: 6 });
+    expect(() => trimAudioClip(timeline.voice, "a", "end", 13, 10)).toThrow(/파일 길이/u);
+    const extendable: Timeline["voice"] = [{ id: "long", startSec: 2, file: "v.wav", inStartSec: 1, inEndSec: 4, gain: 1 }];
+    expect(trimAudioClip(extendable, "long", "start", 1, 5)[0]).toMatchObject({ startSec: 1, inStartSec: 0 });
     expect(deleteCaptionClip(timeline.captions, "c")).toEqual([]);
   });
 });

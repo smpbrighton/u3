@@ -1,6 +1,6 @@
 import { buildCaptionChunks, type CaptionOptions } from "./captions";
 import type { Measurer } from "./measure";
-import type { TextClip, Timeline, VideoClip, WordStamp } from "./schema";
+import type { AudioClip, TextClip, Timeline, WordStamp } from "./schema";
 import { clipDuration } from "./timeline/ops";
 
 type JsonObject = Record<string, unknown>;
@@ -14,33 +14,20 @@ function seconds(offsets: unknown, field: "from" | "to"): number | undefined {
   return typeof value === "number" && Number.isFinite(value) ? value / 1000 : undefined;
 }
 
-/** `whisper-cli -ojf --vad -ml 1 -sow` 출력에서 입력 기준 단어 시각을 읽는다. */
+/** `whisper-cli -ojf --vad -ml 1 -sow` 출력에서 segment 단위 입력 시각을 읽는다. */
 export function parseWhisperOutput(value: unknown): WordStamp[] {
   const transcription = object(value).transcription;
   if (!Array.isArray(transcription)) throw new TypeError("whisper JSON에 transcription 배열이 없습니다");
   const words: WordStamp[] = [];
   for (const rawSegment of transcription) {
     const segment = object(rawSegment);
-    const segmentStart = seconds(segment.offsets, "from");
-    if (segmentStart === undefined || !Array.isArray(segment.tokens)) continue;
-    for (const rawToken of segment.tokens) {
-      const token = object(rawToken);
-      const text = typeof token.text === "string" ? token.text.trim() : "";
-      const startOffset = seconds(token.offsets, "from");
-      const endOffset = seconds(token.offsets, "to");
-      if (!text || /^\[_.+_\]$/u.test(text) || startOffset === undefined || endOffset === undefined) continue;
-      const start = segmentStart + startOffset;
-      const end = segmentStart + endOffset;
-      if (end > start) words.push({ text, start, end });
-    }
+    const text = typeof segment.text === "string" ? segment.text.trim() : "";
+    const start = seconds(segment.offsets, "from");
+    const end = seconds(segment.offsets, "to");
+    if (!text || /^\[_.*_\]$/u.test(text) || start === undefined || end === undefined || end <= start) continue;
+    words.push({ text, start, end });
   }
   return words;
-}
-
-export interface TranscriptClip extends Pick<VideoClip, "id" | "kind"> {
-  inputId: string;
-  inStartSec: number;
-  inEndSec: number;
 }
 
 export interface TranscriptResult {
@@ -48,6 +35,17 @@ export interface TranscriptResult {
   captions: TextClip[];
   replaced: TextClip[];
   timeline: Timeline;
+}
+
+/** 음성 clip의 원본 구간 안에 있는 단어 시각을 타임라인 시각으로 옮긴다. */
+export function wordsForAudioClip(clip: AudioClip, sourceWords: readonly WordStamp[]): WordStamp[] {
+  return sourceWords
+    .filter((word) => word.start >= clip.inStartSec && word.start < clip.inEndSec && word.end <= clip.inEndSec)
+    .map((word) => ({
+      text: word.text,
+      start: clip.startSec + (word.start - clip.inStartSec),
+      end: clip.startSec + (word.end - clip.inStartSec),
+    }));
 }
 
 export function captionsFromTranscript(

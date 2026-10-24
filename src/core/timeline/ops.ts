@@ -36,6 +36,9 @@ export function splitVideoClip(timeline: Timeline, clipId: string, atSec: number
         { ...clip, id: ids[0], inEndSec: clip.inStartSec + offset },
         { ...clip, id: ids[1], inStartSec: clip.inStartSec + offset },
       ];
+  if (clip.kind === "meme" && pieces.some((piece) => "durationSec" in piece && (piece.durationSec < 0.5 || piece.durationSec > 4))) {
+    throw new RangeError("짤 길이는 0.5~4초여야 합니다");
+  }
   const video = timeline.video.flatMap((item) => item.id === clipId ? pieces : [item]);
   return { ...timeline, video };
 }
@@ -44,17 +47,17 @@ export function trimVideoClip(timeline: Timeline, clipId: string, edge: "start" 
   const clip = requireClip(timeline.video, clipId, "video");
   const start = videoStartTimes(timeline)[clipId]!;
   const duration = clipDuration(clip);
-  if (edge === "start" ? toSec <= start : toSec >= start + duration) throw new RangeError("클립을 늘리는 트림은 지원하지 않습니다");
   const remaining = edge === "start" ? start + duration - toSec : toSec - start;
   if (!(remaining > 0)) throw new RangeError("트림 결과 길이는 0보다 커야 합니다");
   if ("durationSec" in clip) {
+    if (clip.kind === "meme" && (remaining < 0.5 || remaining > 4)) throw new RangeError("짤 길이는 0.5~4초여야 합니다");
     const video = timeline.video.map((item) => item.id === clipId ? { ...clip, durationSec: remaining } : item);
     return { ...timeline, video };
   }
   if (inputDurationSec === undefined || !Number.isFinite(inputDurationSec) || inputDurationSec <= 0) throw new RangeError("영상 원본 길이가 필요합니다");
   const nextStart = edge === "start" ? clip.inStartSec + (toSec - start) : clip.inStartSec;
   const nextEnd = edge === "end" ? clip.inStartSec + remaining : clip.inEndSec;
-  if (inputDurationSec !== undefined && nextEnd > inputDurationSec) throw new RangeError("영상 구간이 원본 길이를 넘습니다");
+  if (nextStart < 0 || nextEnd > inputDurationSec) throw new RangeError("영상 구간이 원본 길이를 넘습니다");
   if (nextStart < 0 || nextEnd <= nextStart) throw new RangeError("원본 구간이 올바르지 않습니다");
   return { ...timeline, video: timeline.video.map((item) => item.id === clipId ? { ...clip, inStartSec: nextStart, inEndSec: nextEnd } : item) };
 }
@@ -88,10 +91,9 @@ export function moveCaptionClip(timeline: Timeline, clipId: string, startSec: nu
   return { ...timeline, captions: timeline.captions.map((item) => item.id === clipId ? next : item) };
 }
 
-export function trimAudioClip(clips: readonly AudioClip[], clipId: string, edge: "start" | "end", toSec: number): AudioClip[] {
+export function trimAudioClip(clips: readonly AudioClip[], clipId: string, edge: "start" | "end", toSec: number, fileDurationSec: number): AudioClip[] {
   const clip = requireClip(clips, clipId, "audio");
-  const timelineEnd = clip.startSec + clip.inEndSec - clip.inStartSec;
-  if (edge === "start" ? toSec <= clip.startSec : toSec >= timelineEnd) throw new RangeError("클립을 늘리는 트림은 지원하지 않습니다");
+  if (!Number.isFinite(fileDurationSec) || fileDurationSec <= 0) throw new RangeError("오디오 파일 길이가 필요합니다");
   const duration = clip.inEndSec - clip.inStartSec;
   const offset = toSec - clip.startSec;
   let next: AudioClip;
@@ -101,7 +103,7 @@ export function trimAudioClip(clips: readonly AudioClip[], clipId: string, edge:
   } else {
     next = { ...clip, inEndSec: clip.inStartSec + offset };
   }
-  if (next.startSec < 0 || next.inEndSec <= next.inStartSec || next.inEndSec > clip.inStartSec + duration) throw new RangeError("오디오 구간이 올바르지 않습니다");
+  if (next.startSec < 0 || next.inStartSec < 0 || next.inEndSec <= next.inStartSec || next.inEndSec > fileDurationSec) throw new RangeError("오디오 구간이 파일 길이를 넘거나 올바르지 않습니다");
   return clips.map((item) => item.id === clipId ? next : item);
 }
 

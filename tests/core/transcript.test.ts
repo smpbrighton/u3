@@ -1,8 +1,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { CAPTION_STYLE, CAPTION_MAX_LINE_WIDTH, CAPTION_MAX_LINES } from "../../src/core/layout";
-import { captionsFromTranscript, parseWhisperOutput, transcriptForTimeline } from "../../src/core/transcript";
-import type { Timeline } from "../../src/core/schema";
+import { captionsFromTranscript, parseWhisperOutput, transcriptForTimeline, wordsForAudioClip } from "../../src/core/transcript";
+import type { AudioClip, Timeline } from "../../src/core/schema";
 import type { Measurer } from "../../src/core/measure";
 
 const fixture = JSON.parse(readFileSync(new URL("../fixtures/whisper-output.json", import.meta.url), "utf8")) as unknown;
@@ -14,14 +14,28 @@ describe("whisper transcript", () => {
   it("실제 whisper JSON fixture에서 입력 기준 단어 시각을 읽는다", () => {
     const words = parseWhisperOutput(fixture);
     expect(words[0]?.text).toBe("오늘은");
-    expect(words[0]?.start).toBeCloseTo(1.04, 8);
-    expect(words[0]?.end).toBeCloseTo(1.36, 8);
+    expect(words[0]?.start).toBeCloseTo(1, 8);
+    expect(words[0]?.end).toBeCloseTo(1.32, 8);
+    expect(words[1]).toMatchObject({ text: "제가", start: 1.32, end: 1.56 });
+    expect(words.find((word) => word.text === "동네")).toMatchObject({ start: 2.13, end: 2.28 });
+    expect(words.some((word) => word.text === "동" || word.text === "네")).toBe(false);
     expect(words.every((word) => word.end > word.start)).toBe(true);
+  });
+  it("음성 클립의 입력 기준 단어를 클립 시각으로 옮기고 구간 밖 단어를 버린다", () => {
+    const words = parseWhisperOutput(fixture);
+    const clip: AudioClip = { id: "voice-clip", startSec: 10, file: "voice.wav", inStartSec: 1, inEndSec: 2.28, gain: 1 };
+    const mapped = wordsForAudioClip(clip, words);
+    expect(mapped[0]).toMatchObject({ text: "오늘은", start: 10, end: 10.32 });
+    expect(mapped[1]).toMatchObject({ text: "제가", start: 10.32, end: 10.56 });
+    expect(mapped.at(-1)?.text).toBe("동네");
+    expect(mapped.at(-1)?.start).toBeCloseTo(11.13, 8);
+    expect(mapped.at(-1)?.end).toBeCloseTo(11.28, 8);
+    expect(mapped.some((word) => word.start < 10 || word.end > 11.28)).toBe(false);
   });
   it("자른 클립과 재정렬된 클립에 시각을 옮기고 클립 밖 단어를 버린다", () => {
     const timeline = { ...blank(), video: [
       { id: "later-first", kind: "main" as const, inputId: "in", inStartSec: 2, inEndSec: 3 },
-      { id: "cut", kind: "main" as const, inputId: "in", inStartSec: 1, inEndSec: 1.56 },
+      { id: "cut", kind: "main" as const, inputId: "in", inStartSec: 1, inEndSec: 1.55 },
     ] };
     const result = transcriptForTimeline(timeline, "in", fixture, measurer, options);
     expect(result.words.map((word) => word.text)).toContain("오늘은");
