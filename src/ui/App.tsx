@@ -61,7 +61,7 @@ export function App() {
 
   const go = (target: Screen) => {
     if ((target === "input" || target === "script" || target === "studio") && !project) {
-      setSnackbar("먼저 프로젝트를 열어 주세요.");
+      setSnackbar("먼저 영상을 열어 주세요.");
       return;
     }
     setScreen(target);

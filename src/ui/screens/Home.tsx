@@ -60,7 +60,7 @@ export function Home(props: {
   const createProject = async () => {
     setError(null);
     try {
-      const project = await api<Project>("POST", "/api/projects", { name: "새 프로젝트" });
+      const project = await api<Project>("POST", "/api/projects", { name: "새 영상" });
       props.onNew(project);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
@@ -91,7 +91,7 @@ export function Home(props: {
         <div>
           <h1 id="home-title" className="screen-title">영상</h1>
         </div>
-        <ActionButton variant="brandSolid" onClick={() => void createProject()}>새 프로젝트</ActionButton>
+        <ActionButton variant="brandSolid" onClick={() => void createProject()}>새 영상</ActionButton>
       </header>
       {error ? <div className="page-banner-wrap" role="alert"><PageBanner tone="warning" variant="weak" description={error} /></div> : null}
       {codexMessage ? (
@@ -100,7 +100,7 @@ export function Home(props: {
         </div>
       ) : null}
       {projects.length ? (
-        <div className="project-grid" aria-label="프로젝트 목록">
+        <div className="project-grid" aria-label="영상 목록">
           {projects.map(project => {
             const inputCount = project.inputs.filter(input => input.id !== "placeholder").length;
             const scenes = project.timeline.captions.length;
@@ -123,8 +123,8 @@ export function Home(props: {
       ) : (
         <div className="empty-state">
           <div>
-            <p>아직 프로젝트가 없어요.</p>
-            <ActionButton variant="neutralWeak" onClick={() => void createProject()}>새 프로젝트 만들기</ActionButton>
+            <p>아직 영상이 없어요.</p>
+            <ActionButton variant="neutralWeak" onClick={() => void createProject()}>새 영상 만들기</ActionButton>
           </div>
         </div>
       )}

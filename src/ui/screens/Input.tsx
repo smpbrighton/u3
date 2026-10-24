@@ -149,9 +149,9 @@ export function Input(props: {
   return (
     <section className="screen" aria-labelledby="input-title">
       <div className="flow-top">
-        <ActionButton variant="ghost" onClick={props.onBack}><HugeiconsIcon icon={ArrowLeft01Icon} size={18} /> 프로젝트 목록</ActionButton>
+        <ActionButton variant="ghost" onClick={props.onBack}><HugeiconsIcon icon={ArrowLeft01Icon} size={18} /> 영상 목록</ActionButton>
         <div className="project-name-input">
-          <TextField label="프로젝트 이름" value={name} onValueChange={({ value }) => setName(value)}>
+          <TextField label="영상 이름" value={name} onValueChange={({ value }) => setName(value)}>
             <TextFieldInput maxLength={120} />
           </TextField>
         </div>
