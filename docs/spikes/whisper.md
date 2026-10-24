@@ -10,6 +10,7 @@
 - whisper.cpp 소스와 모델, WAV, 빌드 결과는 `/Volumes/X31/workspace/smp_workspace/u3-spike-cache/whisper/`에 두었다. 공용 클립 원본은 읽기만 했다.
 - 모델 출처는 whisper.cpp 문서가 가리키는 공식 저장소 `https://huggingface.co/ggerganov/whisper.cpp`다. 모델 크기는 574 MB(547 MiB)이며 SHA-256은 `394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2`다.
 - VAD 모델은 whisper.cpp v1.9.5 README와 다운로드 스크립트가 가리키는 `https://huggingface.co/ggml-org/whisper-vad`의 `ggml-silero-v6.2.0.bin`이다. 크기는 864.35 KiB이며 SHA-256은 `2aa269b785eeb53a82983a20501ddf7c1d9c48e33ab63a41391ac6c9f7fb6987`다.
+- whisper-vad 모델 카드(`https://huggingface.co/ggml-org/whisper-vad`)는 MIT를 표시한다. 원본 Silero VAD 저장소도 README와 라이선스 파일(`https://github.com/snakers4/silero-vad`, `https://github.com/snakers4/silero-vad/blob/master/LICENSE`)에서 MIT를 명시한다. 864.35 KiB이고 MIT이므로 MIT 고지를 포함해 앱 리소스로 번들하는 방식을 추천한다.
 
 ## 빌드와 dylib 확인
 
@@ -125,7 +126,7 @@ DTW는 clip1 무음·음악 구간에 `감사합니다.`를, clip3 무음 구간
 
 W6에는 `--vad -vm "$VAD_MODEL" -ml 1 -sow`를 사용한다. VAD는 첫 단어를 놓친 구간이 있어도 전체 CER 기준을 통과했다. W6에서 VAD 모델을 함께 배포하거나 공식 저장소에서 받도록 연결해야 한다.
 
-JSON fixture 후보는 `spikes/whisper/sample-output.json`에 둔다. clip2의 `-ml 1 -sow` 실행에서 나온 whisper-cli 전체 JSON 출력이다.
+JSON fixture 후보는 `spikes/whisper/sample-output.json`에 둔다. clip2를 `--vad -vm ggml-silero-v6.2.0.bin -ml 1 -sow -sns -l ko -ojf`로 실행한 whisper-cli 전체 JSON 출력이다.
 
 ## 재현 정보
 
