@@ -120,7 +120,6 @@ try {
   await mkdir(cache, { recursive: true });
   await rm(resources, { recursive: true, force: true });
   await mkdir(resources, { recursive: true });
-  execFileSync("sips", ["-z", "128", "128", join(root, "src-tauri/icons/icon.png"), "--out", join(resources, "package-icon.png")], { stdio: "ignore" });
   const nodeBinary = await installNodeRuntime();
   const runtimeStage = join(temporary, "runtime");
   await mkdir(runtimeStage, { recursive: true });
