@@ -14,9 +14,9 @@ export function registerRenderRoutes(app: Hono, context: AppContext, render = re
     if (!path.isAbsolute(outputPath) || path.extname(outputPath).toLowerCase() !== ".mp4") {
       throw new HttpError(400, "invalid-output", "내보낼 mp4의 절대 경로를 지정해야 합니다");
     }
-    const projectFolder = context.store.projectDir(project.id);
+    const projectFolder = path.resolve(context.store.projectDir(project.id));
     const configuredLibrary = process.env.U3_LIBRARY_DIR ?? path.join(process.cwd(), "resources");
-    const libraryFolder = path.basename(configuredLibrary) === "library" ? configuredLibrary : path.join(configuredLibrary, "library");
+    const libraryFolder = path.resolve(path.basename(configuredLibrary) === "library" ? configuredLibrary : path.join(configuredLibrary, "library"));
     const job = context.jobs.start({ kind: "render", projectId: project.id, label: "영상 내보내기", cancellable: true }, async jobContext => {
       const resolveMediaUrl = (absolutePath: string) => {
         if (absolutePath === projectFolder || absolutePath.startsWith(projectFolder + path.sep)) {
