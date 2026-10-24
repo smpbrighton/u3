@@ -1,4 +1,6 @@
-import { writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
 import { CodexScript } from "../../src/core/schema";
 import { codexCliArgs, codexCliRunner, parseCodexEvents, type CodexProcessRunner } from "../../src/engine/pipeline/codex";
@@ -110,5 +112,38 @@ describe("Codex CLI", () => {
   it("constructs strict output arguments with the required model", () => {
     expect(codexCliArgs({ schemaFile: "schema.json", outputFile: "output.json", cwd: "/tmp", images: ["one.jpg"] }))
       .toEqual(expect.arrayContaining(["exec", "--output-schema", "schema.json", "--image", "one.jpg", "-m", "gpt-6-luna"]));
+  });
+
+  it("passes existing absolute image paths to Codex when the data root is relative", async () => {
+    const relativeRoot = path.relative(process.cwd(), await mkdtemp(path.join(os.tmpdir(), "u3-relative-data-")));
+    const imagePath = path.join(relativeRoot, "projects", "test", "input", ".frames", "frame.jpg");
+    const absoluteImagePath = path.resolve(imagePath);
+    const calls: string[][] = [];
+    try {
+      await mkdir(path.dirname(absoluteImagePath), { recursive: true });
+      await writeFile(absoluteImagePath, "image");
+      const runner: CodexProcessRunner = vi.fn(async request => {
+        calls.push(request.args);
+        if (request.args[0] === "login") return success("Logged in using ChatGPT");
+        if (request.args.includes("--help")) return success("--output-schema --output-last-message --json --ephemeral --sandbox --image");
+        await writeFile(request.args[request.args.indexOf("--output-last-message") + 1]!, JSON.stringify(validScript));
+        return success();
+      });
+      await codexCliRunner({ bin: "fake-codex", run: runner }).runScript({
+        prompt: "대본",
+        prepareImages: async () => [imagePath],
+      });
+
+      const args = calls.at(-1)!;
+      const imageArgs = args.flatMap((argument, index) => argument === "--image" ? [args[index + 1]!] : []);
+      expect(imageArgs).toEqual([absoluteImagePath]);
+      for (const image of imageArgs) {
+        expect(path.isAbsolute(image)).toBe(true);
+        await expect(writeFile(path.join(path.dirname(image), ".read-check"), "ok")).resolves.toBeUndefined();
+        await rm(path.join(path.dirname(image), ".read-check"));
+      }
+    } finally {
+      await rm(path.resolve(relativeRoot), { recursive: true, force: true });
+    }
   });
 });
