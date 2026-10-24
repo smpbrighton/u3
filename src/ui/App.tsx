@@ -5,6 +5,7 @@ import { api } from "./api";
 import { Home } from "./screens/Home";
 import { Input } from "./screens/Input";
 import { Script } from "./screens/Script";
+import { Settings } from "./screens/Settings";
 import type { Project, SystemStatus } from "./types";
 
 type Screen = "home" | "input" | "script" | "studio" | "settings";
@@ -74,12 +75,7 @@ export function App() {
       <header className="screen-header"><div><h1 id="studio-title" className="screen-title">스튜디오</h1><p className="screen-subtitle">타임라인 편집 화면은 다음 단계에서 제공해요.</p></div><ActionButton variant="neutralWeak" onClick={() => go("home")}>프로젝트로</ActionButton></header>
       <div className="studio-placeholder">스튜디오 자리</div>
     </section>
-  ) : (
-    <section className="screen" aria-labelledby="settings-title">
-      <header className="screen-header"><div><h1 id="settings-title" className="screen-title">설정</h1></div></header>
-      <div className="settings-placeholder">설정 화면은 다음 단계에서 제공해요.</div>
-    </section>
-  );
+  ) : <Settings onSnackbar={setSnackbar} onError={setSnackbar} />;
 
   return (
     <div className="app-shell" data-engine-connected={Boolean(connection)}>

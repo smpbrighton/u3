@@ -66,3 +66,34 @@ button:disabled { cursor: not-allowed; }
   .screen { padding: 28px 24px; }
   .frame-grid { grid-template-columns: repeat(3, minmax(90px, 1fr)); }
 }
+
+.settings-card, .settings-row { margin-bottom: 16px; }
+.settings-card-heading, .settings-row { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+.settings-card-heading h2, .settings-row h2, .settings-section-title { margin: 0; font-size: 16px; }
+.status-label { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; font-weight: 700; }
+.status-label::before { width: 8px; height: 8px; border-radius: 50%; background: currentColor; content: ""; }
+.status-label.is-ready { color: var(--seed-color-fg-positive); }
+.status-label.is-warning { color: var(--seed-color-fg-warning); }
+.settings-warning { margin: 14px 0 0; }
+.settings-details { display: grid; grid-template-columns: 120px minmax(0, 1fr); gap: 12px 16px; margin: 18px 0 0; font-size: 14px; }
+.settings-details dt { color: var(--seed-color-palette-gray-600); }
+.settings-details dd { display: flex; min-width: 0; align-items: center; gap: 10px; margin: 0; }
+.settings-details code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.settings-actions { margin-top: 16px; }
+.settings-section-title { margin-bottom: 16px; }
+.model-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 0; border-top: 1px solid var(--seed-color-palette-gray-200); }
+.model-row h3 { margin: 0; font-size: 14px; }
+.model-row p { margin: 6px 0 0; color: var(--seed-color-palette-gray-600); font-size: 13px; }
+.model-progress { display: flex; align-items: center; gap: 10px; font-size: 13px; }
+.export-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; background: rgb(20 24 31 / 55%); }
+.export-dialog { width: min(100%, 480px); padding: 28px; box-shadow: 0 20px 60px #0003; }
+.export-dialog h1 { margin: 0; font-size: 20px; }
+.export-location { display: grid; gap: 8px; margin-top: 20px; }
+.export-field-label { font-size: 14px; font-weight: 700; }
+.export-path-row { display: flex; align-items: center; gap: 8px; }
+.export-path { min-width: 0; flex: 1; overflow: hidden; padding: 10px 12px; border-radius: 10px; background: var(--seed-color-palette-gray-100); text-overflow: ellipsis; white-space: nowrap; }
+.export-meta { color: var(--seed-color-palette-gray-600); font-size: 13px; }
+.export-progress { display: flex; align-items: center; gap: 12px; margin-top: 24px; }
+.export-progress > div { display: flex; flex: 1; justify-content: space-between; font-size: 14px; }
+.export-complete { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; }
+.export-actions { margin-top: 24px; }

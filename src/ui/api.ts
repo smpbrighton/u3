@@ -65,6 +65,7 @@ export async function mediaUrl(projectId: string, relativePath: string): Promise
 export interface EngineJob {
   id: string;
   kind: string;
+  label?: string;
   projectId: string | null;
   status: "queued" | "running" | "done" | "failed" | "discarded";
   progress: number | null;
@@ -121,4 +122,33 @@ export async function watchJob(
   }
   if (latest) return latest;
   throw new Error("작업이 끝나기 전에 진행 연결이 닫혔습니다");
+}
+
+export async function watchJobs(onUpdate: (jobs: EngineJob[]) => void, signal: AbortSignal): Promise<void> {
+  const [engine, url] = await Promise.all([connection(), apiUrl("/api/events")]);
+  const response = await fetch(url, { headers: requestHeaders(engine), signal });
+  if (!response.ok || !response.body) throw new Error("진행 상태를 불러오지 못했습니다");
+  const reader = response.body.getReader();
+  const decoder = new TextDecoder();
+  let buffer = "";
+  try {
+    while (!signal.aborted) {
+      const chunk = await reader.read();
+      if (chunk.done) return;
+      buffer += decoder.decode(chunk.value, { stream: true });
+      let boundary = buffer.indexOf("\n\n");
+      while (boundary >= 0) {
+        const block = buffer.slice(0, boundary);
+        buffer = buffer.slice(boundary + 2);
+        const dataLine = block.split("\n").find(line => line.startsWith("data: "));
+        if (dataLine) {
+          const event = JSON.parse(dataLine.slice(6)) as EngineJob | { jobs: EngineJob[] };
+          onUpdate("jobs" in event ? event.jobs : [event]);
+        }
+        boundary = buffer.indexOf("\n\n");
+      }
+    }
+  } finally {
+    await reader.cancel().catch(() => undefined);
+  }
 }
