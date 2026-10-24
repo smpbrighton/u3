@@ -74,22 +74,31 @@ export function readFloatWav(file: string): Promise<AudioBuffer> {
     const reader = new Reader();
     const buffers: Buffer[] = [];
     reader.on("format", format => {
-      if (format.audioFormat !== 3 || format.bitDepth !== 32) {
-        reject(new Error("MRX 입력 WAV는 float32여야 합니다"));
+      const isFloat32 = format.audioFormat === 3 && format.bitDepth === 32;
+      const isPcm16 = format.audioFormat === 1 && format.bitDepth === 16;
+      if (!isFloat32 && !isPcm16) {
+        reject(new Error("MRX 입력 WAV는 float32 또는 PCM 16-bit여야 합니다"));
         reader.destroy();
         return;
       }
       reader.on("data", (chunk: Buffer) => buffers.push(chunk));
       reader.on("end", () => {
         const pcm = Buffer.concat(buffers);
-        const data = new Float32Array(pcm.byteLength / 4);
-        for (let i = 0; i < data.length; i++) data[i] = pcm.readFloatLE(i * 4);
+        const data = isFloat32 ? new Float32Array(pcm.byteLength / 4) : pcm16ToFloat32(pcm);
+        if (isFloat32) for (let i = 0; i < data.length; i++) data[i] = pcm.readFloatLE(i * 4);
         resolve({ data, channels: format.channels, rate: format.sampleRate });
       });
     });
     reader.on("error", reject);
     createReadStream(file).pipe(reader);
   });
+}
+
+export function pcm16ToFloat32(pcm: Buffer): Float32Array {
+  if (pcm.byteLength % 2) throw new Error("PCM 16-bit 데이터 길이가 맞지 않습니다");
+  const data = new Float32Array(pcm.byteLength / 2);
+  for (let i = 0; i < data.length; i++) data[i] = pcm.readInt16LE(i * 2) / 32768;
+  return data;
 }
 
 export async function writeFloatWav(file: string, data: Float32Array, channels = CHANNELS, rate = SAMPLE_RATE): Promise<void> {

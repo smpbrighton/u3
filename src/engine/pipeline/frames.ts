@@ -1,10 +1,8 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
-import { runFfmpeg } from "./ffmpeg";
+import { FFPROBE, runFfmpeg, createMediaRunner } from "./ffmpeg";
 
-const execFileAsync = promisify(execFile);
+const mediaRunner = createMediaRunner();
 export const frameCountForInputs = (count: number) => Math.min(40, Math.max(0, count) * 10);
 
 /** 사진은 한 장씩 예약한다. 영상은 같은 장수에서 비율로 줄이고 각 영상에 세 장을 보장한다. */
@@ -24,10 +22,10 @@ export function frameAllocation(videoCount: number, photoCount = 0, limit = 40):
 }
 
 async function durationOf(file: string): Promise<number> {
-  const { stdout } = await execFileAsync(process.env.FFPROBE_BIN ?? "ffprobe", [
+  const { stdout } = await mediaRunner.run(FFPROBE, [
     "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", file,
   ], { timeout: 15_000 });
-  return Number(stdout.trim()) || 0;
+  return Number(stdout.toString().trim()) || 0;
 }
 
 export async function extractFrames(

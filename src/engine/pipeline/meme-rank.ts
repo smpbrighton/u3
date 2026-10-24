@@ -110,6 +110,7 @@ export async function rankSceneMemes(
     list: matchMemes(scene, library, MEME_RULE_ONLY_TOP).slice(0, MEME_RULE_TOP),
     search: found,
   });
+  if (found.embedError) return fallback();
   if (!deps.jev) return fallback();
   try {
     const judged = await judgeMemes({ jev: deps.jev, usage: deps.usage }, memeSceneState(scene), byId, found.ids, projectId);

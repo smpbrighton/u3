@@ -30,11 +30,12 @@ export function bgeM3Embedder(opts: { cacheDir: string }): MemeEmbedder {
     loading ??= (async () => {
       state = "loading";
       try {
-      const cachedModel = path.join(opts.cacheDir, "models--Xenova--bge-m3");
-      await access(cachedModel);
+        const cachedModel = path.join(opts.cacheDir, "models--Xenova--bge-m3");
+        await access(cachedModel);
         const { pipeline, env } = await import("@huggingface/transformers");
         env.cacheDir = opts.cacheDir;
-      env.allowRemoteModels = false;
+        env.localModelPath = opts.cacheDir;
+        env.allowRemoteModels = false;
         // 타입이 너무 복잡해 함수 하나로 좁혀 쓴다
         const extractor = (await (pipeline as unknown as (task: string, model: string, o: object) => Promise<unknown>)("feature-extraction", BGE_M3, {
           dtype: "fp32",

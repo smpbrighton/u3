@@ -1,4 +1,5 @@
 import { mkdtemp, rm } from "node:fs/promises";
+import type { ExecFileOptions } from "node:child_process";
 import { existsSync } from "node:fs";
 import os from "node:os";
 import path from "node:path";
@@ -7,7 +8,7 @@ import { createMediaRunner } from "../../src/engine/pipeline/ffmpeg";
 
 describe("bundled ffmpeg execution", () => {
   it("runs configured ffmpeg and ffprobe from their binary directory", async () => {
-    const calls: { file: string; options: { cwd?: string } }[] = [];
+    const calls: { file: string; options: ExecFileOptions }[] = [];
     const runner = createMediaRunner(async (file, _args, options) => {
       calls.push({ file, options });
       return { stdout: "", stderr: "" };

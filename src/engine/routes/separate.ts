@@ -35,7 +35,7 @@ export function registerSeparateRoutes(app: Hono, context: AppContext, separate 
       const normalized = path.join(work, "audio.wav");
       try {
         jobContext.progress(0, "오디오 준비 중");
-        await runFfmpeg(["-i", source, "-vn", "-ac", "2", "-ar", "44100", "-c:a", "pcm_f32le", normalized], jobContext.signal);
+        await runFfmpeg(["-i", source, "-vn", "-ac", "2", "-ar", "44100", "-c:a", "pcm_s16le", normalized], jobContext.signal);
         await separate({
           modelPath,
           inputPath: normalized,

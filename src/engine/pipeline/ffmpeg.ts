@@ -1,13 +1,27 @@
 import { execFile } from "node:child_process";
+import type { ExecFileOptions } from "node:child_process";
+import path from "node:path";
 import { promisify } from "node:util";
 
-const execFileP = promisify(execFile);
+type MediaExecResult = { stdout: string | Buffer; stderr: string | Buffer };
+type MediaExec = (file: string, args: string[], options: ExecFileOptions) => Promise<MediaExecResult>;
+const execFileP = promisify(execFile) as MediaExec;
+
+export function createMediaRunner(execute: MediaExec = execFileP) {
+  return {
+    run(file: string, args: string[], options: ExecFileOptions = {}) {
+      return execute(file, args, { ...options, cwd: path.dirname(path.resolve(file)) });
+    },
+  };
+}
+
+const mediaRunner = createMediaRunner();
 
 export const FFMPEG = process.env.FFMPEG_BIN ?? "ffmpeg";
 export const FFPROBE = process.env.FFPROBE_BIN ?? "ffprobe";
 
 export async function runFfmpeg(args: string[], signal?: AbortSignal): Promise<void> {
-  await execFileP(FFMPEG, ["-hide_banner", "-loglevel", "error", "-y", ...args], {
+  await mediaRunner.run(FFMPEG, ["-hide_banner", "-loglevel", "error", "-y", ...args], {
     maxBuffer: 64 * 1024 * 1024,
     signal,
   });
@@ -33,12 +47,12 @@ export interface ProbeResult {
 }
 
 export async function ffprobe(file: string): Promise<ProbeResult> {
-  const { stdout } = await execFileP(
+  const { stdout } = await mediaRunner.run(
     FFPROBE,
     ["-v", "error", "-show_streams", "-show_format", "-of", "json", file],
     { maxBuffer: 16 * 1024 * 1024 },
   );
-  return JSON.parse(stdout) as ProbeResult;
+  return JSON.parse(stdout.toString()) as ProbeResult;
 }
 
 export function parseRate(rate: string | undefined): number {
@@ -97,13 +111,14 @@ export async function readRgba(file: string): Promise<RgbaImage> {
   const v = probe.streams.find((s) => s.codec_type === "video");
   const width = v?.width ?? 0;
   const height = v?.height ?? 0;
-  const { stdout } = await execFileP(
+  const { stdout } = await mediaRunner.run(
     FFMPEG,
     ["-hide_banner", "-loglevel", "error", "-i", file, "-frames:v", "1", "-f", "rawvideo", "-pix_fmt", "rgba", "pipe:1"],
     { encoding: "buffer", maxBuffer: 256 * 1024 * 1024 },
   );
-  if (stdout.length !== width * height * 4) {
-    throw new Error(`readRgba: 크기 불일치 ${file} (${stdout.length} != ${width}x${height}x4)`);
+  const data = Buffer.isBuffer(stdout) ? stdout : Buffer.from(stdout);
+  if (data.length !== width * height * 4) {
+    throw new Error(`readRgba: 크기 불일치 ${file} (${data.length} != ${width}x${height}x4)`);
   }
-  return { width, height, data: stdout };
+  return { width, height, data };
 }

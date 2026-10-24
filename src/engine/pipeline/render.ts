@@ -1,17 +1,16 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { promisify } from "node:util";
-import { execFile as execFileCallback } from "node:child_process";
 import { renderMedia, selectComposition, type CancelSignal, type RenderMediaProgress } from "@remotion/renderer";
 import type { Input, Timeline } from "../../core/schema";
 import { timelineToRender } from "../../core/timeline/to-render";
 import type { U3ShortProps } from "../../remotion/types";
+import { createMediaRunner, FFPROBE } from "./ffmpeg";
 
 export const REMOTION_ENTRY = fileURLToPath(new URL("../../remotion/index.ts", import.meta.url));
 export const DEFAULT_ASSETS_DIR = fileURLToPath(new URL("../../../assets/", import.meta.url));
 const bundleCache = new Map<string, Promise<string>>();
-const execFile = promisify(execFileCallback);
+const mediaRunner = createMediaRunner();
 
 /** Remotion 번들을 한 번 생성하고 같은 asset 폴더에 대해 재사용한다. */
 export async function getBundle(assetsDir?: string): Promise<string> {
@@ -67,8 +66,8 @@ function abortSignal(signal?: AbortSignal): CancelSignal | undefined {
 }
 
 async function videoFrames(file: string): Promise<number> {
-  const { stdout } = await execFile("ffprobe", ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=duration,r_frame_rate", "-of", "json", file]);
-  const stream = (JSON.parse(stdout) as { streams?: { duration?: string; r_frame_rate?: string }[] }).streams?.[0];
+  const { stdout } = await mediaRunner.run(FFPROBE, ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=duration,r_frame_rate", "-of", "json", file]);
+  const stream = (JSON.parse(stdout.toString()) as { streams?: { duration?: string; r_frame_rate?: string }[] }).streams?.[0];
   if (!stream?.duration || !stream.r_frame_rate) return 1;
   const [n, d] = stream.r_frame_rate.split("/").map(Number);
   return Math.max(1, Math.round(Number(stream.duration) * (n! / d!)));
