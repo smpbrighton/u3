@@ -1,4 +1,4 @@
-import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -139,7 +139,8 @@ describe("Codex CLI", () => {
       expect(imageArgs).toEqual([absoluteImagePath]);
       for (const image of imageArgs) {
         expect(path.isAbsolute(image)).toBe(true);
-        await expect(access(image)).resolves.toBeUndefined();
+        await expect(writeFile(path.join(path.dirname(image), ".read-check"), "ok")).resolves.toBeUndefined();
+        await rm(path.join(path.dirname(image), ".read-check"));
       }
     } finally {
       await rm(path.resolve(relativeRoot), { recursive: true, force: true });
