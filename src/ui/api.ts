@@ -59,6 +59,7 @@ export async function api<T>(method: Method, path: string, body?: unknown, signa
 export async function mediaUrl(projectId: string, relativePath: string): Promise<string> {
   const engine = await connection();
   const encoded = relativePath.split("/").map(encodeURIComponent).join("/");
+  if (import.meta.env.DEV) return `/api/media/projects/${encodeURIComponent(projectId)}/${encoded}?token=${encodeURIComponent(engine.token)}`;
   return `http://127.0.0.1:${engine.port}/api/media/projects/${encodeURIComponent(projectId)}/${encoded}?token=${encodeURIComponent(engine.token)}`;
 }
 

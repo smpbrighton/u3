@@ -1,0 +1,193 @@
+import { useEffect, useMemo, useState } from "react";
+import type { AudioClip, Project, Timeline as TimelineData } from "../../core/schema";
+import { moveVideoClip, videoStartTimes } from "../../core/timeline/ops";
+import { ActionButton } from "../../../seed-design/ui/action-button";
+import { PageBanner } from "../../../seed-design/ui/page-banner";
+import { ProgressCircle } from "../../../seed-design/ui/progress-circle";
+import { api, watchJob, type EngineJob } from "../api";
+
+interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
+interface SfxItem { id: string; category: string; title: string; file: string; url: string; durationSec: number }
+
+export function Inspector(props: {
+  project: Project;
+  selectedId: string | null;
+  selectedTrack: string | null;
+  timeline: TimelineData;
+  onChange: (timeline: TimelineData) => void;
+  onProject: (project: Project) => void;
+  onSnackbar: (message: string) => void;
+}) {
+  const [memes, setMemes] = useState<MemeItem[]>([]);
+  const [sfxItems, setSfxItems] = useState<SfxItem[]>([]);
+  const [job, setJob] = useState<EngineJob | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [sttTarget, setSttTarget] = useState<"source" | "voice">("source");
+  const [modelAvailable, setModelAvailable] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    void api<MemeItem[]>("GET", "/api/library/memes").then(setMemes).catch(() => undefined);
+    void api<SfxItem[]>("GET", "/api/library/sfx").then(setSfxItems).catch(() => undefined);
+    void api<{ whisper: { available: boolean } }>("GET", "/api/models").then((models) => setModelAvailable(models.whisper.available)).catch(() => setModelAvailable(false));
+  }, []);
+
+  const videoStarts = useMemo(() => videoStartTimes(props.timeline), [props.timeline]);
+  const video = props.timeline.video.find((clip) => clip.id === props.selectedId);
+  const caption = props.timeline.captions.find((clip) => clip.id === props.selectedId);
+  const voiceClip = props.timeline.voice.find((clip) => clip.id === props.selectedId);
+  const sfxClip = props.timeline.sfx.find((clip) => clip.id === props.selectedId);
+  const sourceId = props.selectedId?.startsWith("source:") ? props.selectedId.slice("source:".length) : props.selectedId?.startsWith("stem-") ? props.selectedId.split(":")[1] : null;
+  const sourceClip = sourceId ? props.timeline.video.find((clip) => clip.id === sourceId) : undefined;
+  const input = sourceClip?.kind === "main" ? props.project.inputs.find((item) => item.id === sourceClip.inputId) : undefined;
+  const audioGain = props.timeline.audio;
+  const separated = input ? audioGain.stems?.[input.id] : undefined;
+
+  const updateGain = (track: "source" | "voice" | "sfx", gain: number) => props.onChange({ ...props.timeline, audio: { ...audioGain, [track]: { ...audioGain[track], gain } } });
+  const toggleMute = (track: "source" | "voice" | "sfx") => props.onChange({ ...props.timeline, audio: { ...audioGain, [track]: { ...audioGain[track], muted: !audioGain[track].muted } } });
+  const updateClip = (clipId: string, changes: Partial<AudioClip>, track: "voice" | "sfx") => {
+    const clips = props.timeline[track].map((clip) => clip.id === clipId ? { ...clip, ...changes } : clip);
+    props.onChange({ ...props.timeline, [track]: clips });
+  };
+
+  async function persistTimeline(): Promise<Project> {
+    const saved = await api<Project>("PUT", `/api/projects/${props.project.id}`, { ...props.project, timeline: props.timeline, savedAt: new Date().toISOString() });
+    props.onProject(saved);
+    return saved;
+  }
+
+  async function startSeparate() {
+    if (!input || input.kind !== "video") return;
+    setError(null);
+    const controller = new AbortController();
+    try {
+      await persistTimeline();
+      const started = await api<EngineJob>("POST", `/api/projects/${props.project.id}/inputs/${input.id}/separate`);
+      const finished = await watchJob(started.id, setJob, controller.signal);
+      if (finished.status !== "done") throw new Error(finished.error ?? finished.message ?? "음성 분리를 마치지 못했어요.");
+      const fresh = await api<Project>("GET", `/api/projects/${props.project.id}`);
+      props.onChange(fresh.timeline);
+      props.onProject(fresh);
+      props.onSnackbar("목소리와 배경을 나눴어요.");
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  }
+
+  async function cancelJob() {
+    if (!job?.cancellable) return;
+    await api("DELETE", `/api/jobs/${job.id}`).catch(() => undefined);
+    setJob({ ...job, status: "discarded", message: "취소했어요." });
+  }
+
+  async function revertSeparate() {
+    if (!input) return;
+    try {
+      await persistTimeline();
+      await api("DELETE", `/api/projects/${props.project.id}/inputs/${input.id}/separate`);
+      const fresh = await api<Project>("GET", `/api/projects/${props.project.id}`);
+      props.onChange(fresh.timeline);
+      props.onProject(fresh);
+      props.onSnackbar("원본 소리로 되돌렸어요.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+  }
+
+  async function createCaptions() {
+    setError(null);
+    try {
+      if (modelAvailable === false) {
+        if (!window.confirm("whisper 모델을 받으려면 574 MB가 필요해요. 받을까요?")) return;
+        const download = await api<EngineJob>("POST", "/api/models/download", { model: "whisper" });
+        const result = await watchJob(download.id, setJob, new AbortController().signal);
+        if (result.status !== "done") throw new Error(result.error ?? "모델을 받지 못했어요.");
+        setModelAvailable(true);
+      }
+      const saved = await persistTimeline();
+      const voiceClipId = props.selectedTrack === "voice" ? props.selectedId : saved.timeline.voice[0]?.id;
+      const target = sttTarget === "voice"
+        ? { kind: "voice", clipId: voiceClipId }
+        : { kind: "source", inputId: input?.id };
+      if (!target.clipId && sttTarget === "voice") throw new Error("받아 적을 음성 클립을 선택해 주세요.");
+      if (!target.inputId && sttTarget === "source") throw new Error("받아 적을 영상 클립을 선택해 주세요.");
+      const started = await api<EngineJob>("POST", `/api/projects/${props.project.id}/transcribe`, target);
+      const finished = await watchJob(started.id, setJob, new AbortController().signal);
+      if (finished.status !== "done") throw new Error(finished.error ?? finished.message ?? "자막을 만들지 못했어요.");
+      const result = finished.result as { captions: TimelineData["captions"]; replaced: TimelineData["captions"] };
+      if (result.replaced.length && !window.confirm(`기존 자막 ${result.replaced.length}개를 새 자막으로 바꿀까요?`)) return;
+      const applied = await api<{ project: Project }>("POST", `/api/projects/${props.project.id}/transcribe/apply`, {
+        captions: result.captions,
+        replaceIds: result.replaced.map((item) => item.id),
+      });
+      props.onChange(applied.project.timeline);
+      props.onProject(applied.project);
+      props.onSnackbar("말소리로 자막을 만들었어요.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+  }
+
+  if (video) {
+    const start = videoStarts[video.id]!;
+    const selectedInput = video.kind === "main" ? props.project.inputs.find((item) => item.id === video.inputId) : undefined;
+    const duration = "durationSec" in video ? video.durationSec : video.inEndSec - video.inStartSec;
+    const editTrim = (edge: "start" | "end", value: number) => {
+      if (video.kind !== "main" || !("inStartSec" in video)) return;
+      const updated = props.timeline.video.map((item) => item.id === video.id ? { ...video, [edge === "start" ? "inStartSec" : "inEndSec"]: value } : item);
+      props.onChange({ ...props.timeline, video: updated });
+    };
+    return <InspectorShell title={video.kind === "meme" ? "짤 속성" : "영상 클립"} error={error}>
+      {video.kind === "main" && "inStartSec" in video ? <div className="studio-inspector-grid">
+        <label>원본 시작<input type="number" min="0" step="0.1" value={video.inStartSec} onChange={(event) => editTrim("start", Number(event.currentTarget.value))} /></label>
+        <label>원본 끝<input type="number" min="0.1" max={selectedInput?.durationSec} step="0.1" value={video.inEndSec} onChange={(event) => editTrim("end", Number(event.currentTarget.value))} /></label>
+      </div> : null}
+      {video.kind === "meme" ? <>
+        <label className="studio-range-label">길이 <b>{duration.toFixed(1)}초</b><input type="range" min="0.5" max="4" step="0.1" value={duration} onChange={(event) => props.onChange({ ...props.timeline, video: props.timeline.video.map((item) => item.id === video.id ? { ...video, durationSec: Number(event.currentTarget.value) } : item) })} /></label>
+        <div className="studio-inspector-actions"><ActionButton variant="neutralWeak" onClick={() => props.onChange(moveVideoClip(props.timeline, video.id, Math.max(0, props.timeline.video.findIndex((item) => item.id === video.id) - 1)))}>본 화면 앞</ActionButton><ActionButton variant="ghost" onClick={() => props.onChange(moveVideoClip(props.timeline, video.id, Math.min(props.timeline.video.length - 1, props.timeline.video.findIndex((item) => item.id === video.id) + 1)))}>본 화면 뒤</ActionButton></div>
+        <label>다른 짤로 바꾸기<select value={video.memeId} onChange={(event) => props.onChange({ ...props.timeline, video: props.timeline.video.map((item) => item.id === video.id ? { ...video, memeId: event.currentTarget.value } : item) })}>{memes.map((item) => <option value={item.id} key={item.id}>{item.description ?? item.id}</option>)}</select></label>
+        <p className="studio-help">왼쪽 짤 탭에서 후보를 검색할 수 있어요.</p>
+      </> : <CaptionEditor caption={props.timeline.captions.find((item) => item.startSec <= start + duration && item.endSec >= start)} timeline={props.timeline} onChange={props.onChange} />}
+      <p className="studio-help">클립 위치 {start.toFixed(1)}초 · 길이 {duration.toFixed(1)}초</p>
+    </InspectorShell>;
+  }
+
+  if (caption) return <InspectorShell title="자막 속성" error={error}><label>자막<textarea rows={4} value={caption.text} onChange={(event) => props.onChange({ ...props.timeline, captions: props.timeline.captions.map((item) => item.id === caption.id ? { ...caption, text: event.currentTarget.value } : item) })} /></label></InspectorShell>;
+  if (voiceClip || sfxClip) {
+    const clip = voiceClip ?? sfxClip!;
+    const track = voiceClip ? "voice" : "sfx";
+    return <InspectorShell title={track === "voice" ? "음성 속성" : "효과음 속성"} error={error}>
+      <GainControl label="트랙 볼륨" gain={audioGain[track].gain} muted={audioGain[track].muted} onChange={(value) => updateGain(track, value)} onMute={() => toggleMute(track)} />
+      <GainControl label="클립 볼륨" gain={clip.gain} onChange={(value) => updateClip(clip.id, { gain: value }, track)} />
+      {track === "sfx" ? <label>효과음 바꾸기<select value={clip.file} onChange={(event) => { const item = sfxItems.find((sfx) => sfx.url === event.currentTarget.value); if (item) updateClip(clip.id, { file: item.url, inStartSec: 0, inEndSec: item.durationSec }, "sfx"); }}>{sfxItems.map((item) => <option key={item.id} value={item.url}>{item.title}</option>)}</select></label> : null}
+      {track === "voice" ? <label className="studio-radio"><input type="radio" name="sttTarget" checked={sttTarget === "voice"} onChange={() => setSttTarget("voice")} /> 음성 트랙에서 받아 적기</label> : null}
+      {track === "voice" ? <ActionButton variant="neutralWeak" onClick={() => void createCaptions()}>자막 만들기</ActionButton> : null}
+    </InspectorShell>;
+  }
+
+  if (sourceClip && input) return <InspectorShell title={separated ? "분리한 소리" : "원본 소리"} error={error}>
+    {separated ? <>
+      <GainControl label="목소리" gain={separated.voice.gain} muted={separated.voice.muted} onChange={(value) => props.onChange({ ...props.timeline, audio: { ...audioGain, stems: { ...audioGain.stems, [input.id]: { ...separated, voice: { ...separated.voice, gain: value } } } } })} onMute={() => props.onChange({ ...props.timeline, audio: { ...audioGain, stems: { ...audioGain.stems, [input.id]: { ...separated, voice: { ...separated.voice, muted: !separated.voice.muted } } } } })} />
+      <GainControl label="배경" gain={separated.bg.gain} muted={separated.bg.muted} onChange={(value) => props.onChange({ ...props.timeline, audio: { ...audioGain, stems: { ...audioGain.stems, [input.id]: { ...separated, bg: { ...separated.bg, gain: value } } } } })} onMute={() => props.onChange({ ...props.timeline, audio: { ...audioGain, stems: { ...audioGain.stems, [input.id]: { ...separated, bg: { ...separated.bg, muted: !separated.bg.muted } } } } })} />
+      <ActionButton variant="neutralWeak" onClick={() => void revertSeparate()}>분리 되돌리기</ActionButton>
+      <fieldset className="studio-stt-options"><legend>받아 적을 트랙</legend><label><input type="radio" name="sttTrack" checked={sttTarget === "source"} onChange={() => setSttTarget("source")} /> 목소리 트랙</label><label><input type="radio" name="sttTrack" checked={sttTarget === "voice"} onChange={() => setSttTarget("voice")} /> 음성 트랙</label></fieldset>
+      <ActionButton variant="neutralWeak" onClick={() => void createCaptions()}>자막 만들기</ActionButton>
+    </> : <>
+      <GainControl label="원본 소리 볼륨" gain={audioGain.source.gain} muted={audioGain.source.muted} onChange={(value) => updateGain("source", value)} onMute={() => toggleMute("source")} />
+      <ActionButton variant="neutralWeak" onClick={() => void startSeparate()}>음성 분리</ActionButton>
+      <fieldset className="studio-stt-options"><legend>받아 적을 트랙</legend><label><input type="radio" name="sttTrack" checked={sttTarget === "source"} onChange={() => setSttTarget("source")} /> 원본 소리</label><label><input type="radio" name="sttTrack" checked={sttTarget === "voice"} onChange={() => setSttTarget("voice")} /> 음성</label></fieldset>
+      <ActionButton variant="ghost" onClick={() => void createCaptions()}>자막 만들기</ActionButton>
+    </>}
+    {job && ["queued", "running"].includes(job.status) ? <div className="studio-job"><ProgressCircle size="24" tone="brand" value={job.progress === null ? undefined : job.progress * 100} /><span>{job.message ?? "작업 중이에요."}</span><ActionButton variant="ghost" size="small" onClick={() => void cancelJob()}>취소</ActionButton></div> : null}
+  </InspectorShell>;
+
+  return <InspectorShell title="속성"><p className="studio-help">클립을 선택하면 속성을 편집할 수 있어요.</p></InspectorShell>;
+}
+
+function InspectorShell(props: { title: string; error?: string | null; children: React.ReactNode }) {
+  return <aside className="studio-inspector" aria-label="속성"><h2>{props.title}</h2>{props.error ? <PageBanner tone="warning" variant="weak" description={props.error} /> : null}<div className="studio-inspector-content">{props.children}</div></aside>;
+}
+
+function GainControl(props: { label: string; gain: number; muted?: boolean; onChange: (value: number) => void; onMute?: () => void }) {
+  return <label className="studio-range-label">{props.label} <b>{Math.round(props.gain * 100)}%</b><input type="range" min="0" max="1.5" step="0.01" value={props.gain} onChange={(event) => props.onChange(Number(event.currentTarget.value))} />{props.onMute ? <button type="button" onClick={props.onMute}>{props.muted ? "음소거 해제" : "음소거"}</button> : null}</label>;
+}
+
+function CaptionEditor(props: { caption?: TimelineData["captions"][number]; timeline: TimelineData; onChange: (timeline: TimelineData) => void }) {
+  if (!props.caption) return null;
+  return <label>자막<textarea rows={3} value={props.caption.text} onChange={(event) => props.onChange({ ...props.timeline, captions: props.timeline.captions.map((item) => item.id === props.caption!.id ? { ...props.caption!, text: event.currentTarget.value } : item) })} /></label>;
+}

@@ -1,11 +1,11 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
-import { ActionButton } from "../../seed-design/ui/action-button";
 import { api } from "./api";
 import { Home } from "./screens/Home";
 import { Input } from "./screens/Input";
 import { Script } from "./screens/Script";
 import { Settings } from "./screens/Settings";
+import { Studio } from "./screens/Studio";
 import type { Project, SystemStatus } from "./types";
 
 type Screen = "home" | "input" | "script" | "studio" | "settings";
@@ -70,15 +70,12 @@ export function App() {
     <Input project={project} onProject={setProject} onBack={() => go("home")} onNext={() => go("script")} onError={setSnackbar} />
   ) : screen === "script" && project ? (
     <Script project={project} status={status} onProject={setProject} onStudio={() => go("studio")} onBack={() => go("input")} onSnackbar={setSnackbar} onError={setSnackbar} />
-  ) : screen === "studio" ? (
-    <section className="screen" aria-labelledby="studio-title">
-      <header className="screen-header"><div><h1 id="studio-title" className="screen-title">스튜디오</h1><p className="screen-subtitle">타임라인 편집 화면은 다음 단계에서 제공해요.</p></div><ActionButton variant="neutralWeak" onClick={() => go("home")}>프로젝트로</ActionButton></header>
-      <div className="studio-placeholder">스튜디오 자리</div>
-    </section>
+  ) : screen === "studio" && project ? (
+    <Studio project={project} onProject={setProject} onBack={() => go("script")} onSnackbar={setSnackbar} onError={setSnackbar} />
   ) : <Settings onSnackbar={setSnackbar} onError={setSnackbar} />;
 
   return (
-    <div className="app-shell" data-engine-connected={Boolean(connection)}>
+    <div className={`app-shell${screen === "studio" ? " app-shell--studio" : ""}`} data-engine-connected={Boolean(connection)}>
       <nav className="sidebar" aria-label="주 메뉴">
         <p className="brand">U3</p>
         {NAVIGATION.map(item => (

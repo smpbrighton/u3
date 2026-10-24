@@ -1,25 +1,7 @@
-import type { CodexScript } from "../core/schema";
+import type { CodexScript, Input as CoreInput, Project as CoreProject } from "../core/schema";
 
-export interface Project {
-  id: string;
-  name: string;
-  inputs: Input[];
-  timeline: {
-    video: unknown[];
-    captions: unknown[];
-    voice: unknown[];
-    sfx: unknown[];
-    audio: { source: { gain: number; muted: boolean }; voice: { gain: number; muted: boolean }; sfx: { gain: number; muted: boolean } };
-  };
-  savedAt: string;
-}
-
-export interface Input {
-  id: string;
-  kind: "video" | "photo";
-  file: string;
-  durationSec?: number;
-}
+export type Project = CoreProject;
+export type Input = CoreInput;
 
 export interface SystemStatus {
   codexPath: string | null;
