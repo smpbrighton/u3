@@ -6,7 +6,13 @@ use std::io::{BufRead, BufReader, Error, ErrorKind};
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::Mutex;
+use std::thread::sleep;
+use std::time::{Duration, Instant};
 use tauri::{Manager, State};
+
+// 엔진이 멈춰도 앱 종료가 5초 넘게 대기하지 않도록 제한한다.
+const ENGINE_EXIT_TIMEOUT: Duration = Duration::from_secs(5);
+const ENGINE_EXIT_POLL_INTERVAL: Duration = Duration::from_millis(50);
 
 #[derive(Clone, Serialize)]
 struct EngineConnection {
@@ -161,7 +167,20 @@ fn main() {
                     if let Ok(mut child) = engine.child.lock() {
                         if let Some(mut child) = child.take() {
                             drop(child.stdin.take());
-                            let _ = child.wait();
+                            let deadline = Instant::now() + ENGINE_EXIT_TIMEOUT;
+                            loop {
+                                match child.try_wait() {
+                                    Ok(Some(_)) => break,
+                                    Ok(None) if Instant::now() < deadline => {
+                                        sleep(ENGINE_EXIT_POLL_INTERVAL)
+                                    }
+                                    Ok(None) | Err(_) => {
+                                        let _ = child.kill();
+                                        let _ = child.wait();
+                                        break;
+                                    }
+                                }
+                            }
                         }
                     }
                 }

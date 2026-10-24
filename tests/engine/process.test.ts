@@ -119,4 +119,48 @@ describe("engine process lifecycle", () => {
     children.delete(child);
     await rm(root, { recursive: true, force: true });
   }, 30_000);
+
+  it("exits within the shutdown limit when a job does not finish after abort", async () => {
+    const script = `
+      import { installEngineShutdown } from "./src/engine/shutdown.ts";
+      installEngineShutdown({ jobs: { shutdown: () => new Promise(() => {}) } });
+      process.stdout.write("READY\\n");
+      process.stdin.resume();
+    `;
+    const child = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
+      cwd: process.cwd(),
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    children.add(child);
+    let output = "";
+    child.stdout.setEncoding("utf8");
+    child.stdout.on("data", chunk => { output += chunk; });
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error(`가짜 작업 프로세스가 준비되지 않았습니다: ${output}`)), 10_000);
+      child.stdout.on("data", () => {
+        if (output.includes("READY")) {
+          clearTimeout(timeout);
+          resolve();
+        }
+      });
+      child.once("error", error => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+    });
+
+    const closingStarted = Date.now();
+    child.stdin.end();
+    const exitCode = await new Promise<number | null>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error("가짜 작업을 강제 정리하지 못했습니다")), 5_000);
+      child.once("exit", code => {
+        clearTimeout(timeout);
+        resolve(code);
+      });
+    });
+
+    expect(exitCode).toBe(0);
+    expect(Date.now() - closingStarted).toBeLessThan(5_000);
+    children.delete(child);
+  }, 20_000);
 });
