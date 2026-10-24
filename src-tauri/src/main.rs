@@ -71,6 +71,7 @@ fn start_engine(app: &tauri::AppHandle) -> Result<(Child, EngineConnection), Box
         .env("U3_TOKEN", &token)
         .env("TAURI_ORIGIN", "tauri://localhost")
         .env("U3_RESOURCE_DIR", &resources)
+        .env("U3_FONT_DIR", resources.join("assets/fonts"))
         .env("U3_LIBRARY_DIR", &library)
         .env("U3_MRX_MODEL", resources.join("models/mrx.int8.onnx"))
         .env("U3_WHISPER_CLI", resources.join("bin/whisper-cli"))

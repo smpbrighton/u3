@@ -4,14 +4,15 @@ import { fileURLToPath } from "node:url";
 import { FONT_FILES } from "./fonts";
 import { createMeasurer, type FontData, type Measurer } from "./measure";
 
-const defaultAssetsDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../assets");
-let shared: Measurer | null = null;
+const defaultFontDir = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "../../assets/fonts");
+let shared: { directory: string; measurer: Measurer } | null = null;
 
-/** Node에서 assets/fonts 파일을 읽어 자막 측정기를 만든다. */
-export function loadMeasurer(assetsDir = defaultAssetsDir): Measurer {
-  if (assetsDir === defaultAssetsDir && shared) return shared;
+/** Node에서 U3_FONT_DIR 또는 레포 assets/fonts의 폰트를 읽어 자막 측정기를 만든다. */
+export function loadMeasurer(fontDir = process.env.U3_FONT_DIR ?? defaultFontDir): Measurer {
+  const directory = path.resolve(fontDir);
+  if (shared?.directory === directory) return shared.measurer;
   const fonts: FontData[] = FONT_FILES.map((font) => {
-    const buffer = readFileSync(path.join(assetsDir, font.file));
+    const buffer = readFileSync(path.join(directory, path.basename(font.file)));
     return {
       role: font.role,
       weight: Number(font.weight),
@@ -19,6 +20,6 @@ export function loadMeasurer(assetsDir = defaultAssetsDir): Measurer {
     };
   });
   const measurer = createMeasurer(fonts);
-  if (assetsDir === defaultAssetsDir) shared = measurer;
+  shared = { directory, measurer };
   return measurer;
 }

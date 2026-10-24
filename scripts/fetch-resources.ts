@@ -63,6 +63,7 @@ async function main(): Promise<void> {
   await requireDirectory(library, "UUU_LIBRARY_DIR");
   await requireDirectory(embed, "UUU_EMBED_DIR");
   await mkdir(join(target, "models"), { recursive: true });
+  await cp(join(root, "assets/fonts"), join(target, "assets/fonts"), { recursive: true, force: true });
   await copyLibrary(library, join(target, "library"));
   await cp(embed, join(target, "library/meme-embed"), { recursive: true, force: true });
 
