@@ -82,7 +82,8 @@ export type CodexProcessRunner = (request: {
   timeoutMs: number;
   signal?: AbortSignal;
 }) => Promise<CodexProcessResult>;
-export type TranscribeInput = (input: { file: string; inputId: string; signal?: AbortSignal }) => Promise<string>;
+export type TranscribeInputResult = { text: string; warning?: string } | null;
+export type TranscribeInput = (input: { file: string; inputId: string; signal?: AbortSignal }) => Promise<TranscribeInputResult>;
 
 export const runCodexProcess: CodexProcessRunner = request => new Promise((resolve, reject) => {
   const child = spawn(request.bin, request.args, { cwd: request.cwd, env: request.env, stdio: ["pipe", "pipe", "pipe"] });
@@ -141,6 +142,7 @@ export function codexCliRunner(options: CodexRunnerOptions) {
       signal?: AbortSignal;
       transcribe?: TranscribeInput;
       transcriptInputs?: { file: string; inputId: string }[];
+      prepareImages?: () => Promise<string[]>;
     }) {
       const work = await mkdtemp(path.join(tmpdir(), "u3-codex-"));
       let usage: Record<string, number> = {};
@@ -171,16 +173,42 @@ export function codexCliRunner(options: CodexRunnerOptions) {
         const outputFile = path.join(work, "result.json");
         const compiled = compileCodexSchema(z.toJSONSchema(CodexScript) as Record<string, unknown>);
         await writeFile(schemaFile, JSON.stringify(compiled.schema), { mode: 0o600 });
-        const transcripts = request.transcribe && request.transcriptInputs
-          ? await Promise.all(request.transcriptInputs.map(async input => ({
-            inputId: input.inputId,
-            text: await request.transcribe!({ ...input, signal: request.signal }),
-          })))
+        const transcriptionTasks = request.transcribe && request.transcriptInputs
+          ? request.transcriptInputs.map(input => {
+            const controller = new AbortController();
+            const abort = () => controller.abort();
+            request.signal?.addEventListener("abort", abort, { once: true });
+            const promise = request.transcribe!({ ...input, signal: controller.signal })
+              .catch(error => ({ text: "", warning: error instanceof Error ? error.message : String(error) }))
+              .finally(() => request.signal?.removeEventListener("abort", abort));
+            return { inputId: input.inputId, controller, promise };
+          })
           : [];
+        let images: readonly string[];
+        try {
+          images = request.prepareImages ? await request.prepareImages() : request.images ?? [];
+        } catch (error) {
+          transcriptionTasks.forEach(task => task.controller.abort());
+          throw error;
+        }
+        const transcriptResults = await Promise.all(transcriptionTasks.map(async task => {
+          let timeout: ReturnType<typeof setTimeout> | undefined;
+          const delayed = new Promise<{ text: string; warning: string }>(resolve => {
+            timeout = setTimeout(() => {
+              task.controller.abort();
+              resolve({ text: "", warning: "프레임 추출이 끝난 뒤 60초 안에 받아 적기를 끝내지 못했습니다" });
+            }, 60_000);
+          });
+          const result = await Promise.race([task.promise, delayed]);
+          if (timeout) clearTimeout(timeout);
+          return { inputId: task.inputId, result };
+        }));
+        const transcripts = transcriptResults.filter(item => item.result?.text).map(item => ({ inputId: item.inputId, text: item.result!.text }));
+        const transcriptWarnings = transcriptResults.filter(item => item.result?.warning).map(item => ({ inputId: item.inputId, warning: item.result!.warning! }));
         const prompt = transcripts.length
           ? `${request.prompt}\n\n영상별 받아 적은 말소리:\n${transcripts.map(item => `- ${item.inputId}: ${item.text}`).join("\n")}`
           : request.prompt;
-        const result = await execute(codexCliArgs({ schemaFile, outputFile, cwd: work, images: request.images }), prompt, options.timeoutMs ?? 10 * 60_000);
+        const result = await execute(codexCliArgs({ schemaFile, outputFile, cwd: work, images }), prompt, options.timeoutMs ?? 10 * 60_000);
         const events = parseCodexEvents(result.stdout);
         usage = events.usage;
         if (result.aborted) throw new CodexError("Codex 요청이 취소되었습니다", usage);
@@ -200,7 +228,7 @@ export function codexCliRunner(options: CodexRunnerOptions) {
         }
         const output = CodexScript.safeParse(compiled.restore(raw));
         if (!output.success) throw new CodexError("Codex 결과가 대본 스키마와 맞지 않습니다", usage);
-        return { output: output.data, usage };
+        return { output: output.data, usage, transcriptWarnings };
       } catch (error) {
         if (error instanceof CodexError) throw error;
         throw new CodexError("Codex CLI를 실행하지 못했습니다", usage);

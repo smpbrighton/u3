@@ -30,5 +30,18 @@ export function registerSystemRoutes(app: Hono, context: AppContext): void {
     return c.json({ path: null });
   });
 
+  app.get("/api/system/model-paths", async c => {
+    const settings = await context.store.readSettings();
+    const modelPaths = settings.modelPaths && typeof settings.modelPaths === "object" ? settings.modelPaths : {};
+    return c.json(modelPaths);
+  });
+
+  app.put("/api/system/model-paths", async c => {
+    const paths = await parseJson(c, z.object({ mrx: z.string().trim().min(1).optional(), whisperCli: z.string().trim().min(1).optional(), silero: z.string().trim().min(1).optional() }));
+    const settings = await context.store.readSettings();
+    await context.store.saveSettings({ ...settings, modelPaths: paths });
+    return c.json(paths);
+  });
+
   app.get("/api/usage", async c => c.json(await readUsage(context.store.root)));
 }

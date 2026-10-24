@@ -15,6 +15,10 @@ import { registerLibraryRoutes } from "./routes/library";
 import { registerSystemRoutes } from "./routes/system";
 import { registerMediaRoutes } from "./routes/media";
 import { registerFrameRoutes } from "./routes/frames";
+import { registerRenderRoutes } from "./routes/render";
+import { registerSeparateRoutes } from "./routes/separate";
+import { registerTranscribeRoutes } from "./routes/transcribe";
+import { registerModelRoutes } from "./routes/models";
 
 export interface AppContext {
   store: Store;
@@ -26,6 +30,10 @@ export interface AppContext {
   memeIndex?: MemeIndex;
   mediaServer?: MediaServer;
   transcribeInput?: TranscribeInput;
+  resourceDir?: string;
+  whisperPath?: string;
+  sileroPath?: string;
+  mrxPath?: string;
 }
 
 export function createApp(context: AppContext) {
@@ -44,6 +52,10 @@ export function createApp(context: AppContext) {
   registerSystemRoutes(app, context);
   registerMediaRoutes(app, context);
   registerFrameRoutes(app, context);
+  registerRenderRoutes(app, context);
+  registerSeparateRoutes(app, context);
+  registerTranscribeRoutes(app, context);
+  registerModelRoutes(app, context);
   registerEventRoutes(app, context);
   return app;
 }

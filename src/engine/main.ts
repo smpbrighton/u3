@@ -7,6 +7,12 @@ import { findCodexPath } from "./pipeline/codex-path";
 import path from "node:path";
 import { bgeM3Embedder, memeIndex } from "./pipeline/meme-embed";
 import { startMediaServer } from "./pipeline/media-server";
+import { stat } from "node:fs/promises";
+import { parseWhisperOutput } from "../core/transcript";
+import { transcribeAudio } from "./pipeline/whisper";
+import { bgeM3Ready, downloadBgeM3 } from "./pipeline/models";
+import { done } from "./jobs";
+import { configuredModelPath } from "./pipeline/model-paths";
 
 // Tauri는 U3_TOKEN 환경 변수로 일회용 토큰을 준다. 개발 실행은 stdin 첫 줄에서 읽는다.
 async function readToken(): Promise<string> {
@@ -28,19 +34,55 @@ const configuredLibraryRoot = process.env.U3_LIBRARY_DIR ?? path.join(process.cw
 const libraryRoot = path.basename(configuredLibraryRoot) === "library"
   ? configuredLibraryRoot
   : path.join(configuredLibraryRoot, "library");
+const resourceDir = path.dirname(libraryRoot);
 const mediaServer = await startMediaServer({
   roots: { projects: path.join(store.root, "projects"), library: libraryRoot },
   token,
   allowedOrigin: tauriOrigin,
 });
+const whisperPath = process.env.U3_WHISPER_CLI ?? path.join(resourceDir, "bin/whisper-cli");
+const sileroPath = process.env.U3_SILERO_MODEL ?? path.join(resourceDir, "models/ggml-silero-v6.2.0.bin");
+const whisperModelPath = path.join(store.root, "cache/models/ggml-large-v3-turbo-q5_0.bin");
+const transcribeInput = async ({ file, signal }: { file: string; inputId: string; signal?: AbortSignal }) => {
+  const configuredWhisper = await configuredModelPath(store, "whisperCli", whisperPath);
+  const configuredSilero = await configuredModelPath(store, "silero", sileroPath);
+  const available = await Promise.all([configuredWhisper, configuredSilero, whisperModelPath].map(filePath => stat(filePath).then(info => info.isFile()).catch(() => false)));
+  if (!available.every(Boolean)) return null;
+  const controller = new AbortController();
+  const abort = () => controller.abort();
+  signal?.addEventListener("abort", abort, { once: true });
+  try {
+    const json = await transcribeAudio({ file, whisperPath: configuredWhisper, modelPath: whisperModelPath, vadModelPath: configuredSilero, signal: controller.signal });
+    return { text: parseWhisperOutput(json).map(word => `[${word.start.toFixed(2)}s] ${word.text}`).join(" ") };
+  } catch (error) {
+    if (signal?.aborted) throw error;
+    return { text: "", warning: error instanceof Error ? error.message : String(error) };
+  } finally {
+    signal?.removeEventListener("abort", abort);
+  }
+};
+const jobs = new Jobs();
 const app = createApp({
   store,
-  jobs: new Jobs(),
+  jobs,
   token,
   tauriOrigin,
   codexPath: () => findCodexPath(store),
   jevAvailable: !!process.env.TYPESAFE_API_KEY,
+  transcribeInput,
   memeIndex: memeIndex(store.root, bgeM3Embedder({ cacheDir: path.join(store.root, "cache/models") }), () => import("./pipeline/library").then(({ listMemes }) => listMemes(libraryRoot))),
   mediaServer,
+  resourceDir,
+  whisperPath,
+  sileroPath,
+  mrxPath: process.env.U3_MRX_MODEL ?? path.join(resourceDir, "models/mrx.int8.onnx"),
 });
+const bgeCache = path.join(store.root, "cache/models");
+const bgeModel = path.join(bgeCache, "Xenova/bge-m3/onnx/model.onnx");
+if (!(await bgeM3Ready(bgeCache))) {
+  jobs.start({ kind: "models", label: "bge-m3 모델 받기", key: "model-download", cancellable: true }, async jobContext => {
+    await downloadBgeM3({ cacheDir: bgeCache, signal: jobContext.signal, onProgress: progress => jobContext.progress(progress, "bge-m3 받는 중") });
+    return done({ model: "bge-m3", path: bgeModel });
+  });
+}
 serve({ fetch: app.fetch, hostname: "127.0.0.1", port: 0 }, info => process.stdout.write(`PORT ${info.port}\n`));

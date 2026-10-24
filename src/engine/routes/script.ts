@@ -7,6 +7,7 @@ import type { AppContext } from "../app";
 import { HttpError, parseJson } from "../http";
 import { codexCliRunner } from "../pipeline/codex";
 import { recordUsage } from "../pipeline/usage";
+import { extractFrames, frameAllocation } from "../pipeline/frames";
 
 export function registerScriptRoutes(app: Hono, context: AppContext): void {
   app.get("/api/projects/:id/script", async c => {
@@ -44,6 +45,26 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
         ...request,
         signal,
         transcribe: context.transcribeInput,
+        prepareImages: async () => {
+          if (request.images?.length) return request.images;
+          const videos = project.inputs.filter(input => input.kind === "video");
+          const photos = project.inputs.filter(input => input.kind === "photo");
+          const counts = frameAllocation(videos.length, photos.length);
+          const images: string[] = [];
+          for (const [index, input] of videos.entries()) {
+            const source = path.resolve(context.store.projectDir(project.id), input.file);
+            const directory = path.join(context.store.projectDir(project.id), "input", ".frames", input.id);
+            await mkdir(directory, { recursive: true });
+            images.push(...await extractFrames(source, directory, counts[index] ?? 10));
+          }
+          for (const input of photos) {
+            const source = path.resolve(context.store.projectDir(project.id), input.file);
+            const directory = path.join(context.store.projectDir(project.id), "input", ".frames", input.id);
+            await mkdir(directory, { recursive: true });
+            images.push(...await extractFrames(source, directory, 1, undefined, true));
+          }
+          return images;
+        },
         transcriptInputs: project.inputs.filter(input => input.kind === "video").map(input => ({
           inputId: input.id,
           file: path.resolve(context.store.projectDir(project.id), input.file),
@@ -54,7 +75,7 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
       const tokenCount = Object.values(result.usage).reduce((total, amount) => total + amount, 0);
       if (tokenCount > 0) await recordUsage(context.store.root, "codex", tokenCount);
       progress(1, "대본 추천 완료");
-      return result.output;
+      return { script: result.output, transcriptWarnings: result.transcriptWarnings };
     });
     return c.json(job, 202);
   });
