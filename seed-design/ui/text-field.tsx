@@ -12,7 +12,8 @@ import {
   VisuallyHidden,
   PrefixIcon,
 } from "@seed-design/react";
-import { IconExclamationmarkCircleFill } from "@karrotmarket/react-monochrome-icon";
+import { AlertCircleIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 
 export interface TextFieldProps
   extends Omit<SeedTextField.RootProps, "prefix" | "onValueChange" | "asChild"> {
@@ -137,7 +138,7 @@ export const TextField = React.forwardRef<HTMLDivElement, TextFieldProps>(
               ))}
             {renderErrorMessage && (
               <SeedField.ErrorMessage>
-                <PrefixIcon svg={<IconExclamationmarkCircleFill />} />
+                <PrefixIcon svg={<HugeiconsIcon icon={AlertCircleIcon} size={16} />} />
                 {errorMessage}
               </SeedField.ErrorMessage>
             )}

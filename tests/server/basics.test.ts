@@ -58,6 +58,27 @@ describe("sidecar basics", () => {
     })).toHaveProperty("status", 200);
   });
 
+  it("deletes an existing project", async () => {
+    const app = await appAt();
+    const response = await app.request("http://127.0.0.1/api/projects", { method: "POST", headers: { authorization: "Bearer one-time-token", "content-type": "application/json" }, body: JSON.stringify({ name: "삭제 대상" }) });
+    const project = await response.json() as { id: string };
+    const deleted = await app.request(`http://127.0.0.1/api/projects/${project.id}`, { method: "DELETE", headers: { authorization: "Bearer one-time-token" } });
+    expect(deleted.status).toBe(204);
+    expect((await app.request(`http://127.0.0.1/api/projects/${project.id}`, { headers: { authorization: "Bearer one-time-token" } })).status).toBe(404);
+  });
+
+  it("returns 404 when deleting an unknown project", async () => {
+    const response = await (await appAt()).request("http://127.0.0.1/api/projects/20260101-010101-abcd", { method: "DELETE", headers: { authorization: "Bearer one-time-token" } });
+    expect(response.status).toBe(404);
+  });
+
+  it("rejects project path traversal", async () => {
+    const response = await (await appAt()).request("http://127.0.0.1/api/projects/%2e%2e", { method: "DELETE", headers: { authorization: "Bearer one-time-token" } });
+    expect(response.status).toBe(404);
+    const invalidId = await (await appAt()).request("http://127.0.0.1/api/projects/..%5C..%5Csettings.json", { method: "DELETE", headers: { authorization: "Bearer one-time-token" } });
+    expect(invalidId.status).toBe(400);
+  });
+
   it("returns a JSON error for a malformed JSON body", async () => {
     const response = await (await appAt()).request("http://127.0.0.1/api/projects", {
       method: "POST",

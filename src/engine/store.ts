@@ -1,6 +1,6 @@
 // 파일 저장소. uUu src/server/store.ts의 키별 잠금과 임시 파일 rename 저장을 옮겼다.
 import { randomBytes } from "node:crypto";
-import { readFile, readdir, mkdir, rename, writeFile } from "node:fs/promises";
+import { readFile, readdir, mkdir, rename, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { Project } from "../core/schema";
@@ -104,6 +104,15 @@ export class Store {
     const project = await this.getProject(id);
     if (!project) throw new HttpError(404, "not-found", `프로젝트가 없습니다: ${id}`);
     return project;
+  }
+
+  async deleteProject(id: string): Promise<void> {
+    if (!/^\d{8}-\d{6}-[a-f0-9]{4}$/.test(id)) throw new HttpError(400, "invalid-id", "프로젝트 id가 올바르지 않습니다");
+    await this.lock(`project:${id}`, async () => {
+      const project = await this.readProject(id);
+      if (!project) throw new HttpError(404, "not-found", `프로젝트가 없습니다: ${id}`);
+      await rm(this.projectDir(id), { recursive: true, force: false });
+    });
   }
 
   async saveProject(value: Project): Promise<Project> {

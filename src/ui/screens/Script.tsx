@@ -7,6 +7,8 @@ import { TextField, TextFieldTextarea } from "../../../seed-design/ui/text-field
 import { api, watchJob, type EngineJob } from "../api";
 import type { CodexScript, FrameGroup, Project, SystemStatus } from "../types";
 import { timelineFromScript } from "../../core/timeline/from-script";
+import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 
 export function Script(props: {
   project: Project;
@@ -112,16 +114,19 @@ export function Script(props: {
   return (
     <section className="screen" aria-labelledby="script-title">
       <div className="flow-top">
-        <ActionButton variant="ghost" onClick={props.onBack}>← 미디어 넣기</ActionButton>
+        <ActionButton variant="ghost" onClick={props.onBack}><HugeiconsIcon icon={ArrowLeft01Icon} size={18} /> 미디어 넣기</ActionButton>
         <strong>{props.project.name}</strong>
         <ol className="steps" aria-label="단계"><li className="step">1 미디어</li><li className="step" aria-current="step">2 대본</li><li className="step">3 스튜디오</li></ol>
       </div>
       <header className="screen-header"><div><h1 id="script-title" className="screen-title">대본 방식 고르기</h1></div></header>
       {codexMessage ? <div className="page-banner-wrap"><PageBanner tone="warning" variant="weak" description={codexMessage} /></div> : null}
-      <SegmentedControl aria-label="대본 방식" value={mode} onValueChange={value => setMode(value as typeof mode)}>
-        <SegmentedControlItem value="ai">AI 추천</SegmentedControlItem>
-        <SegmentedControlItem value="direct">직접 쓰기</SegmentedControlItem>
-      </SegmentedControl>
+      <section className="section-card script-mode-card" aria-labelledby="script-mode-title">
+        <h2 id="script-mode-title">대본 방식</h2>
+        <SegmentedControl aria-label="대본 방식" value={mode} onValueChange={value => setMode(value as typeof mode)}>
+          <SegmentedControlItem value="ai">AI 추천</SegmentedControlItem>
+          <SegmentedControlItem value="direct">직접 쓰기</SegmentedControlItem>
+        </SegmentedControl>
+      </section>
       {mode === "ai" ? (
         <section className="section-card" aria-labelledby="frame-title" style={{ marginTop: 20 }}>
           <div className="screen-header">
@@ -144,9 +149,9 @@ export function Script(props: {
           </TextField>
         </section>
       )}
-      {transcriptWarning ? <p className="error-banner" role="status">받아 적기를 건너뛰었어요: {transcriptWarning}</p> : null}
+      {transcriptWarning ? <div className="page-banner-wrap" role="status"><PageBanner tone="warning" variant="weak" description={`받아 적기를 건너뛰었어요: ${transcriptWarning}`} /></div> : null}
       {job && busy ? <div className="progress-row" aria-live="polite"><ProgressCircle size="24" tone="brand" value={job.progress === null ? undefined : job.progress * 100} />{job.message ?? "대본을 만들고 있어요."}<ActionButton variant="neutralWeak" size="small" onClick={() => void cancel()}>취소</ActionButton></div> : null}
-      {job?.status === "failed" ? <p className="error-banner" role="alert">{job.error ?? "대본을 만들지 못했어요."}</p> : null}
+      {job?.status === "failed" ? <div className="page-banner-wrap" role="alert"><PageBanner tone="warning" variant="weak" description={job.error ?? "대본을 만들지 못했어요."} /></div> : null}
       <div className="action-row">
         <ActionButton variant="brandSolid" disabled={!canGenerate || busy || (mode === "ai" && loadingFrames)} loading={busy} onClick={() => void generate()}>대본 만들기</ActionButton>
       </div>

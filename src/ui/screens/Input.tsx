@@ -7,6 +7,8 @@ import { AttachmentField } from "../../../seed-design/ui/attachment-field";
 import { TextField, TextFieldInput } from "../../../seed-design/ui/text-field";
 import { api, mediaUrl } from "../api";
 import type { Input as ProjectInput, Project } from "../types";
+import { ArrowLeft01Icon, ArrowUp01Icon, ArrowDown01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 
 const VIDEO = new Set(["mp4", "mov", "m4v"]);
 const PHOTO = new Set(["jpg", "jpeg", "png", "heic", "webp"]);
@@ -147,7 +149,7 @@ export function Input(props: {
   return (
     <section className="screen" aria-labelledby="input-title">
       <div className="flow-top">
-        <ActionButton variant="ghost" onClick={props.onBack}>← 프로젝트 목록</ActionButton>
+        <ActionButton variant="ghost" onClick={props.onBack}><HugeiconsIcon icon={ArrowLeft01Icon} size={18} /> 프로젝트 목록</ActionButton>
         <div className="project-name-input">
           <TextField label="프로젝트 이름" value={name} onValueChange={({ value }) => setName(value)}>
             <TextFieldInput maxLength={120} />
@@ -180,8 +182,8 @@ export function Input(props: {
                 <span className="media-kind">{index + 1}</span>
                 <span className="media-row-name">{input.file.split("/").at(-1)}</span>
                 <span className="media-kind">{input.kind === "video" ? "영상" : "사진"}</span>
-                <ActionButton variant="neutralWeak" size="small" aria-label={`위로 이동 ${input.file.split("/").at(-1)}`} disabled={index === 0} onClick={() => void reorder(index, index - 1)}>↑</ActionButton>
-                <ActionButton variant="neutralWeak" size="small" aria-label={`아래로 이동 ${input.file.split("/").at(-1)}`} disabled={index === inputs.length - 1} onClick={() => void reorder(index, index + 1)}>↓</ActionButton>
+                <ActionButton variant="neutralWeak" size="small" aria-label={`위로 이동 ${input.file.split("/").at(-1)}`} disabled={index === 0} onClick={() => void reorder(index, index - 1)}><HugeiconsIcon icon={ArrowUp01Icon} size={16} /></ActionButton>
+                <ActionButton variant="neutralWeak" size="small" aria-label={`아래로 이동 ${input.file.split("/").at(-1)}`} disabled={index === inputs.length - 1} onClick={() => void reorder(index, index + 1)}><HugeiconsIcon icon={ArrowDown01Icon} size={16} /></ActionButton>
                 <ActionButton variant="ghost" size="small" aria-label={`빼기 ${input.file.split("/").at(-1)}`} onClick={() => void removeInput(input.id)}>빼기</ActionButton>
               </li>
             ))}

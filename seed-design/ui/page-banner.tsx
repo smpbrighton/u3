@@ -6,7 +6,8 @@
 import { PrefixIcon, PageBanner as SeedPageBanner, SuffixIcon } from "@seed-design/react";
 import * as React from "react";
 
-import { IconChevronRightLine, IconXmarkLine } from "@karrotmarket/react-monochrome-icon"; // "@daangn/react-monochrome-icon"과 동일합니다.
+import { ArrowRight01Icon, Cancel01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 
 export interface PageBannerProps
   extends Omit<
@@ -77,7 +78,7 @@ export const ActionablePageBanner = React.forwardRef<
             <SeedPageBanner.Description>{description}</SeedPageBanner.Description>
           </SeedPageBanner.Body>
         </SeedPageBanner.Content>
-        <SuffixIcon svg={<IconChevronRightLine />} />
+        <SuffixIcon svg={<HugeiconsIcon icon={ArrowRight01Icon} size={16} />} />
       </button>
     </SeedPageBanner.Root>
   );
@@ -111,7 +112,7 @@ export const DismissiblePageBanner = React.forwardRef<
       </SeedPageBanner.Content>
       {/* You may implement your own i18n for dismiss label */}
       <SeedPageBanner.CloseButton aria-label="닫기">
-        <SuffixIcon svg={<IconXmarkLine />} />
+        <SuffixIcon svg={<HugeiconsIcon icon={Cancel01Icon} size={16} />} />
       </SeedPageBanner.CloseButton>
     </SeedPageBanner.Root>
   );

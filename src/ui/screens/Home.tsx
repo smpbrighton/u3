@@ -3,6 +3,9 @@ import { ActionButton } from "../../../seed-design/ui/action-button";
 import { PageBanner, PageBannerButton } from "../../../seed-design/ui/page-banner";
 import { api, mediaUrl } from "../api";
 import type { Project, SystemStatus } from "../types";
+import { Delete02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { AlertDialog } from "@seed-design/react";
 
 function relativeTime(value: string): string {
   const minutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60_000));
@@ -40,6 +43,7 @@ export function Home(props: {
   const [projects, setProjects] = useState<Project[]>([]);
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
+  const [deleting, setDeleting] = useState<Project | null>(null);
 
   useEffect(() => {
     void api<Project[]>("GET", "/api/projects").then(async data => {
@@ -63,6 +67,17 @@ export function Home(props: {
     }
   };
 
+  const deleteProject = async () => {
+    if (!deleting) return;
+    try {
+      await api("DELETE", `/api/projects/${encodeURIComponent(deleting.id)}`);
+      setProjects(current => current.filter(project => project.id !== deleting.id));
+      setDeleting(null);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  };
+
   const codexReady = props.status?.codex.installed && props.status.codex.loggedIn;
   const codexMessage = props.status && !props.status.codex.installed
     ? "Codex CLI를 찾지 못해 대본을 만들 수 없어요."
@@ -74,11 +89,11 @@ export function Home(props: {
     <section className="screen" aria-labelledby="home-title">
       <header className="screen-header">
         <div>
-          <h1 id="home-title" className="screen-title">프로젝트</h1>
+          <h1 id="home-title" className="screen-title">영상</h1>
         </div>
         <ActionButton variant="brandSolid" onClick={() => void createProject()}>새 프로젝트</ActionButton>
       </header>
-      {error ? <p className="error-banner" role="alert">{error}</p> : null}
+      {error ? <div className="page-banner-wrap" role="alert"><PageBanner tone="warning" variant="weak" description={error} /></div> : null}
       {codexMessage ? (
         <div className="page-banner-wrap">
           <PageBanner tone="warning" variant="weak" description={codexMessage} suffix={<PageBannerButton onClick={props.onSettings}>설정에서 확인</PageBannerButton>} />
@@ -91,7 +106,8 @@ export function Home(props: {
             const scenes = project.timeline.captions.length;
             const duration = timelineDuration(project);
             return (
-              <button className="project-card" key={project.id} onClick={() => props.onOpen(project)}>
+              <div className="project-card-wrap" key={project.id}>
+              <button className="project-card" onClick={() => props.onOpen(project)}>
                 <span className={thumbnails[project.id] ? "project-thumb" : "project-thumb project-thumb--empty"}>
                   {thumbnails[project.id] ? <img src={thumbnails[project.id]} alt="" /> : <span>대본 전</span>}
                   {duration > 0 ? <span className="project-duration">{durationLabel(duration)}</span> : null}
@@ -99,6 +115,8 @@ export function Home(props: {
                 <span className="project-name">{project.name}</span>
                 <span className="project-meta">{scenes ? `장면 ${scenes}` : inputCount ? `미디어 ${inputCount}` : "미디어 넣기 전"} · {relativeTime(project.savedAt)}</span>
               </button>
+              <button className="project-delete" aria-label={`${project.name} 삭제`} onClick={() => setDeleting(project)}><HugeiconsIcon icon={Delete02Icon} size={18} /></button>
+              </div>
             );
           })}
         </div>
@@ -111,6 +129,12 @@ export function Home(props: {
         </div>
       )}
       {props.status && !codexReady ? <span className="visually-hidden">대본 생성은 Codex 상태를 확인한 뒤 시작할 수 있어요.</span> : null}
+      <AlertDialog.Root open={Boolean(deleting)} onOpenChange={open => { if (!open) setDeleting(null); }}>
+        <AlertDialog.Backdrop /><AlertDialog.Positioner><AlertDialog.Content>
+          <AlertDialog.Header><AlertDialog.Title>영상을 삭제할까요?</AlertDialog.Title><AlertDialog.Description>삭제하면 되돌릴 수 없어요</AlertDialog.Description></AlertDialog.Header>
+          <AlertDialog.Footer><ActionButton variant="ghost" onClick={() => setDeleting(null)}>취소</ActionButton><AlertDialog.Action asChild><ActionButton variant="criticalSolid" onClick={() => void deleteProject()}>삭제</ActionButton></AlertDialog.Action></AlertDialog.Footer>
+        </AlertDialog.Content></AlertDialog.Positioner>
+      </AlertDialog.Root>
     </section>
   );
 }

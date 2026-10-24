@@ -14,14 +14,8 @@ import {
   useAttachmentInputContext,
   type AttachmentInputContextValue,
 } from "@seed-design/react";
-import {
-  IconCameraFill,
-  IconPaperclipFill,
-  IconExclamationmarkCircleFill,
-  IconArrowUpBracketDownFill,
-  IconArrowClockwiseCircularFill,
-  IconXmarkFill,
-} from "@karrotmarket/react-monochrome-icon";
+import { AlertCircleIcon, Attachment01Icon, Camera01Icon, RefreshIcon, Cancel01Icon, Upload01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 
 import { ActionButton } from "./action-button";
 import { ProgressCircle } from "./progress-circle";
@@ -124,7 +118,7 @@ export const AttachmentField = React.forwardRef<HTMLInputElement, AttachmentFiel
               ))}
             {renderErrorMessage && (
               <SeedField.ErrorMessage>
-                <PrefixIcon svg={<IconExclamationmarkCircleFill />} />
+                <PrefixIcon svg={<HugeiconsIcon icon={AlertCircleIcon} size={16} />} />
                 {errorMessage}
               </SeedField.ErrorMessage>
             )}
@@ -152,8 +146,8 @@ export const AttachmentInput = React.forwardRef<HTMLDivElement, AttachmentInputP
       <SeedAttachmentInput.Container ref={ref}>
         <SeedAttachmentInput.Trigger aria-label={LABEL_SELECT_FILE}>
           <SeedAttachmentInput.TriggerIcon
-            image={<IconCameraFill />}
-            general={<IconPaperclipFill />}
+            image={<HugeiconsIcon icon={Camera01Icon} size={20} />}
+            general={<HugeiconsIcon icon={Attachment01Icon} size={20} />}
           />
           <SeedAttachmentInput.TriggerItemCount />
         </SeedAttachmentInput.Trigger>
@@ -196,7 +190,7 @@ export const AttachmentDropzone: React.FC<AttachmentDropzoneProps> = ({ children
     <>
       <SeedAttachmentInput.Dropzone>
         <ActionButton variant="neutralWeak" size="small" layout="withText" {...triggerProps}>
-          <PrefixIcon svg={<IconArrowUpBracketDownFill />} />
+          <PrefixIcon svg={<HugeiconsIcon icon={Upload01Icon} size={16} />} />
           {LABEL_SELECT_FILE}
         </ActionButton>
         <SeedAttachmentInput.DropzoneLabel>{LABEL_DROP_FILE}</SeedAttachmentInput.DropzoneLabel>
@@ -240,7 +234,7 @@ export const AttachmentInputItem = React.forwardRef<HTMLLIElement, AttachmentInp
       <SeedAttachmentInput.Item ref={ref} {...props}>
         <SeedAttachmentInput.ItemImage />
         <SeedAttachmentInput.ItemThumbnail>
-          <Icon svg={<IconPaperclipFill />} />
+          <Icon svg={<HugeiconsIcon icon={Attachment01Icon} size={16} />} />
         </SeedAttachmentInput.ItemThumbnail>
         <SeedAttachmentInput.ItemMetadata>
           <SeedAttachmentInput.ItemName />
@@ -258,13 +252,13 @@ export const AttachmentInputItem = React.forwardRef<HTMLLIElement, AttachmentInp
         {onRetry && (
           <SeedAttachmentInput.ItemBackdrop status="error">
             <SeedAttachmentInput.ItemActionButton onClick={onRetry}>
-              <Icon svg={<IconArrowClockwiseCircularFill />} />
+              <Icon svg={<HugeiconsIcon icon={RefreshIcon} size={16} />} />
               {LABEL_RETRY}
             </SeedAttachmentInput.ItemActionButton>
           </SeedAttachmentInput.ItemBackdrop>
         )}
         <SeedAttachmentInput.ItemRemoveButton aria-label={LABEL_REMOVE_FILE}>
-          <Icon svg={<IconXmarkFill />} />
+          <Icon svg={<HugeiconsIcon icon={Cancel01Icon} size={16} />} />
         </SeedAttachmentInput.ItemRemoveButton>
       </SeedAttachmentInput.Item>
     );

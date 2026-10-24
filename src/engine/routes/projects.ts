@@ -23,4 +23,9 @@ export function registerProjectRoutes(app: Hono, context: AppContext): void {
     if (project.id !== c.req.param("id")) throw new HttpError(400, "id-mismatch", "프로젝트 id가 다릅니다");
     return c.json(await context.store.saveProject(project));
   });
+
+  app.delete("/api/projects/:id", async c => {
+    await context.store.deleteProject(c.req.param("id"));
+    return c.body(null, 204);
+  });
 }

@@ -9,6 +9,8 @@ import { Inspector } from "../studio/Inspector";
 import { LibraryPanel } from "../studio/LibraryPanel";
 import { api } from "../api";
 import { ExportDialog } from "../ExportDialog";
+import { ArrowLeft01Icon, PlayIcon, PauseIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 
 interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
 interface SfxItem { id: string; category: string; title: string; file: string; url: string; durationSec: number }
@@ -147,7 +149,7 @@ export function Studio(props: {
 
   return <section className="studio-screen" aria-label="스튜디오">
     <header className="studio-header">
-      <ActionButton variant="ghost" aria-label="대본으로 돌아가기" onClick={props.onBack}>←</ActionButton>
+      <ActionButton variant="ghost" aria-label="대본으로 돌아가기" onClick={props.onBack}><HugeiconsIcon icon={ArrowLeft01Icon} size={18} /></ActionButton>
       <strong className="studio-project-name">{props.project.name}</strong>
       <ActionButton variant="neutralWeak" loading={saving} onClick={() => void save()}>저장</ActionButton>
       <ActionButton variant="brandSolid" onClick={() => void save().then(saved => { if (saved) setExportOpen(true); })}>mp4 내보내기</ActionButton>
@@ -157,7 +159,7 @@ export function Studio(props: {
       <section className="studio-preview-area" aria-label="미리보기">
         <Preview project={{ ...props.project, timeline }} time={playhead} playing={playing} muteOriginal={recording} onTime={setPlayhead} onPlaying={setPlaying} />
         <div className="studio-playback-controls">
-          <button type="button" aria-label={playing ? "일시 정지" : "재생"} onClick={() => setPlaying((value) => !value)}>{playing ? "Ⅱ" : "▶"}</button>
+          <button type="button" aria-label={playing ? "일시 정지" : "재생"} onClick={() => setPlaying((value) => !value)}><HugeiconsIcon icon={playing ? PauseIcon : PlayIcon} size={18} /></button>
           <span>{timeLabel(playhead)} / {timeLabel(duration)}</span>
           <input aria-label="재생 헤드" type="range" min="0" max={duration} step="0.01" value={Math.min(playhead, duration)} onChange={(event) => setPlayhead(Number(event.currentTarget.value))} />
         </div>
@@ -165,7 +167,7 @@ export function Studio(props: {
       <Inspector project={{ ...props.project, timeline }} selectedId={selected.id} selectedTrack={selected.track} timeline={timeline} onChange={edit} onProject={props.onProject} onSnackbar={props.onSnackbar} />
     </div>
     <div className="studio-edit-toolbar">
-      <button type="button" aria-label="재생" onClick={() => setPlaying(true)}>▶</button>
+      <button type="button" aria-label="재생" onClick={() => setPlaying(true)}><HugeiconsIcon icon={PlayIcon} size={16} /></button>
       <span>{timeLabel(playhead)}</span>
       <button type="button" title="실행 취소 ⌘Z" disabled={!history.past.length} onClick={() => moveHistory("undo")}>실행 취소</button>
       <button type="button" title="다시 실행 ⇧⌘Z" disabled={!history.future.length} onClick={() => moveHistory("redo")}>다시 실행</button>

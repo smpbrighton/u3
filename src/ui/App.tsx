@@ -1,19 +1,23 @@
 import { useCallback, useEffect, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { api } from "./api";
+import { Video01Icon, CarouselHorizontalIcon, Settings02Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { Home } from "./screens/Home";
 import { Input } from "./screens/Input";
 import { Script } from "./screens/Script";
 import { Settings } from "./screens/Settings";
+import { PageBanner } from "../../seed-design/ui/page-banner";
 import { Studio } from "./screens/Studio";
 import type { Project, SystemStatus } from "./types";
 
-type Screen = "home" | "input" | "script" | "studio" | "settings";
+type Screen = "home" | "input" | "script" | "studio" | "settings" | "carousel";
 type Connection = { port: number; token: string };
 
-const NAVIGATION: { screen: Screen; label: string; icon: string }[] = [
-  { screen: "home", label: "프로젝트", icon: "▦" },
-  { screen: "settings", label: "설정", icon: "⚙" },
+const NAVIGATION = [
+  { screen: "home" as Screen, label: "영상", icon: Video01Icon },
+  { screen: "carousel" as Screen, label: "캐러셀", icon: CarouselHorizontalIcon, badge: "준비 중" },
+  { screen: "settings" as Screen, label: "설정", icon: Settings02Icon },
 ];
 
 export function App() {
@@ -72,6 +76,8 @@ export function App() {
     <Script project={project} status={status} onProject={setProject} onStudio={() => go("studio")} onBack={() => go("input")} onSnackbar={setSnackbar} onError={setSnackbar} />
   ) : screen === "studio" && project ? (
     <Studio project={project} onProject={setProject} onBack={() => go("script")} onSnackbar={setSnackbar} onError={setSnackbar} />
+  ) : screen === "carousel" ? (
+    <section className="screen" aria-labelledby="carousel-title"><h1 id="carousel-title" className="screen-title">캐러셀</h1><div className="empty-state">캐러셀은 준비 중이에요</div></section>
   ) : <Settings onSnackbar={setSnackbar} onError={setSnackbar} />;
 
   return (
@@ -79,13 +85,13 @@ export function App() {
       <nav className="sidebar" aria-label="주 메뉴">
         <p className="brand">U3</p>
         {NAVIGATION.map(item => (
-          <button key={item.screen} className="nav-button" aria-current={(item.screen === "home" ? screen !== "settings" : screen === item.screen) ? "page" : undefined} onClick={() => go(item.screen)}>
-            <span className="nav-icon" aria-hidden="true">{item.icon}</span>{item.label}
+          <button key={item.screen} className="nav-button" aria-current={(item.screen === "home" ? screen === "home" : screen === item.screen) ? "page" : undefined} onClick={() => go(item.screen)}>
+            <span className="nav-icon" aria-hidden="true"><HugeiconsIcon icon={item.icon} size={20} /></span>{item.label}{"badge" in item ? <span className="nav-badge">{item.badge}</span> : null}
           </button>
         ))}
       </nav>
       <main className="main-column">
-        {error ? <div className="page-banner-wrap" role="alert"><p className="error-banner">엔진에 연결하지 못했어요. {error}</p></div> : null}
+        {error ? <div className="page-banner-wrap" role="alert"><PageBanner tone="warning" variant="weak" description={`엔진에 연결하지 못했어요. ${error}`} /></div> : null}
         {page}
       </main>
       {snackbar ? <div className="snackbar" role="status">{snackbar}</div> : null}

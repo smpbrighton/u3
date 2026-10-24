@@ -3,6 +3,9 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { ActionButton } from "../../../seed-design/ui/action-button";
 import { PageBanner } from "../../../seed-design/ui/page-banner";
 import { ProgressCircle } from "../../../seed-design/ui/progress-circle";
+import { Select } from "@seed-design/react";
+import { Tick01Icon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { api, watchJob, watchJobs, type EngineJob } from "../api";
 import type { SystemStatus } from "../types";
 
@@ -17,6 +20,7 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
   const [jobs, setJobs] = useState<EngineJob[]>([]);
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [codexSettings, setCodexSettings] = useState({ model: "gpt-6-luna", effort: "medium" });
 
   const refresh = useCallback(async () => {
     setChecking(true);
@@ -25,6 +29,7 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
       const [systemResult, modelResult] = await Promise.allSettled([
         api<SystemStatus>("GET", "/api/system").then(setStatus),
         api<ModelStatus>("GET", "/api/models").then(setModels),
+        api<typeof codexSettings>("GET", "/api/system/codex-settings").then(setCodexSettings),
       ]);
       const failed = [systemResult, modelResult].find(result => result.status === "rejected");
       if (failed?.status === "rejected") throw failed.reason;
@@ -89,7 +94,13 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
   const codexMessage = !status || status.codex.loggedIn ? null : status.codex.installed
     ? "터미널에서 codex login 을 실행한 뒤 다시 확인해 주세요."
     : "codex CLI를 설치한 뒤 터미널에서 codex login 을 실행해 주세요.";
-  const codexState = !status ? "확인 중" : status.codex.loggedIn ? "로그인됨" : status.codex.installed ? "로그인 안 됨" : "설치 안 됨";
+  const codexState = !status ? "확인 중" : status.codex.loggedIn ? "사용할 수 있어요" : status.codex.installed ? "로그인이 필요해요" : "설치가 필요해요";
+
+  async function updateCodexSettings(value: typeof codexSettings) {
+    setCodexSettings(value);
+    try { await api("PUT", "/api/system/codex-settings", value); }
+    catch (reason) { props.onError(reason instanceof Error ? reason.message : String(reason)); }
+  }
 
   return (
     <section className="screen" aria-labelledby="settings-title">
@@ -98,11 +109,9 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
       <section className="section-card settings-card" aria-labelledby="codex-title">
         <div className="settings-card-heading"><h2 id="codex-title">codex</h2><span className={`status-label ${status?.codex.loggedIn ? "is-ready" : "is-warning"}`}>{codexState}</span></div>
         {codexMessage ? <div className="page-banner-wrap settings-warning"><PageBanner tone="warning" variant="weak" description={codexMessage} /></div> : null}
-        <dl className="settings-details">
-          <dt>실행 파일</dt><dd>{status?.codexPath ? <code>{status.codexPath}</code> : <span>{status ? "찾을 수 없어요" : "확인 중"}</span>}<ActionButton variant="neutralWeak" size="small" onClick={() => void chooseCodexPath()}>바꾸기</ActionButton></dd>
-          <dt>모델</dt><dd><code>gpt-6-luna</code></dd>
-        </dl>
-        <div className="action-row settings-actions"><ActionButton className="settings-refresh-button" variant="brandSolid" disabled={checking} loading={checking} aria-label={checking ? "다시 확인 중" : "다시 확인"} onClick={() => void refresh()}>{checking ? "다시 확인 중" : "다시 확인"}</ActionButton></div>
+        {status && !status.codex.installed ? <div className="action-row"><ActionButton variant="neutralWeak" onClick={() => void chooseCodexPath()}>직접 지정</ActionButton></div> : null}
+        <div className="settings-model-fields"><label>모델<ModelSelect label="모델" value={codexSettings.model} items={["gpt-6-astra", "gpt-6-luna", "gpt-6-sol", "gpt-6.1-sol", "gpt-5.6-luna", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.5"]} onChange={model => void updateCodexSettings({ ...codexSettings, model })} /></label><label>추론 강도<ModelSelect label="추론 강도" value={codexSettings.effort} items={["low", "medium", "high", "xhigh", "max"]} onChange={effort => void updateCodexSettings({ ...codexSettings, effort })} /></label></div>
+        <div className="action-row settings-actions"><ActionButton className="settings-refresh-button" variant="neutralWeak" disabled={checking} loading={checking} aria-label={checking ? "다시 확인 중" : "다시 확인"} onClick={() => void refresh()}>{checking ? "다시 확인 중" : "다시 확인"}</ActionButton></div>
       </section>
       <section className="section-card settings-row" aria-labelledby="jev-title"><h2 id="jev-title">Jev 짤 판정</h2><span className={`status-label ${status?.jev.available ? "is-ready" : "is-warning"}`}>{status?.jev.available ? "연결됨" : "연결 안 됨"}</span></section>
       <section className="section-card" aria-labelledby="models-title">
@@ -116,4 +125,12 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
       </section>
     </section>
   );
+}
+
+function ModelSelect(props: { label: string; value: string; items: string[]; onChange: (value: string) => void }) {
+  return <Select.Root value={[props.value]} onValueChange={value => { if (value[0]) props.onChange(value[0]); }}>
+    <Select.HiddenSelect aria-label={props.label} />
+    <Select.Trigger className="settings-select" aria-label={props.label}><Select.Value /></Select.Trigger>
+    <Select.Positioner><Select.Content><Select.ScrollArea>{props.items.map(item => <Select.Item key={item} value={item}><Select.ItemLabel>{item}</Select.ItemLabel><Select.ItemIndicator selected={<HugeiconsIcon icon={Tick01Icon} size={16} />} /></Select.Item>)}</Select.ScrollArea></Select.Content></Select.Positioner>
+  </Select.Root>;
 }

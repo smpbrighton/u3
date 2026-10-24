@@ -2,6 +2,8 @@ import { Timeline as TimelineEditor, type TimelineState } from "@xzdarcy/react-t
 import "@xzdarcy/react-timeline-editor/dist/react-timeline-editor.css";
 import { useEffect, useMemo, useRef } from "react";
 import type { Timeline as TimelineData } from "../../core/schema";
+import { VolumeIcon } from "@hugeicons/core-free-icons";
+import { HugeiconsIcon } from "@hugeicons/react";
 import { deleteAudioClip, deleteCaptionClip, moveAudioClip, moveCaptionClip, splitVideoClip, trimAudioClip, trimCaptionClip, trimVideoClip, videoStartTimes } from "../../core/timeline/ops";
 import { timelineToStudioRows, reorderVideoByStart, type StudioAction } from "./timeline-adapter";
 
@@ -83,7 +85,7 @@ export function Timeline(props: {
         <div className="studio-track-ruler" />
         {tracks.map((track) => <div key={track.id} className="studio-track-label" style={{ borderLeftColor: track.color }}>
           <span>{track.name}</span>
-          {(track.id === "source" || track.id === "stem-voice" || track.id === "stem-bg" || track.id === "voice" || track.id === "sfx") && <button type="button" aria-label={`${track.name} 음소거`} onClick={() => props.onMute?.(track.id)}>◖</button>}
+          {(track.id === "source" || track.id === "stem-voice" || track.id === "stem-bg" || track.id === "voice" || track.id === "sfx") && <button type="button" aria-label={`${track.name} 음소거`} onClick={() => props.onMute?.(track.id)}><HugeiconsIcon icon={VolumeIcon} size={16} /></button>}
         </div>)}
       </div>
       <div className="studio-timeline-editor">
