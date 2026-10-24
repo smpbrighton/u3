@@ -3,7 +3,7 @@ import { ActionButton } from "../../../seed-design/ui/action-button";
 import { PageBanner, PageBannerButton } from "../../../seed-design/ui/page-banner";
 import { api, mediaUrl } from "../api";
 import type { Project, SystemStatus } from "../types";
-import { Delete02Icon } from "@hugeicons/core-free-icons";
+import { MoreHorizontalIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AlertDialog } from "@seed-design/react";
 
@@ -44,6 +44,9 @@ export function Home(props: {
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [deleting, setDeleting] = useState<Project | null>(null);
+  const [editing, setEditing] = useState<Project | null>(null);
+  const [name, setName] = useState("");
+  const [openMenu, setOpenMenu] = useState<string | null>(null);
 
   useEffect(() => {
     void api<Project[]>("GET", "/api/projects").then(async data => {
@@ -73,6 +76,17 @@ export function Home(props: {
       await api("DELETE", `/api/projects/${encodeURIComponent(deleting.id)}`);
       setProjects(current => current.filter(project => project.id !== deleting.id));
       setDeleting(null);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  };
+
+  const renameProject = async () => {
+    if (!editing || !name.trim()) return;
+    try {
+      const updated = await api<Project>("PUT", `/api/projects/${encodeURIComponent(editing.id)}`, { ...editing, name: name.trim(), savedAt: new Date().toISOString() });
+      setProjects(current => current.map(project => project.id === updated.id ? updated : project));
+      setEditing(null);
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     }
@@ -115,7 +129,13 @@ export function Home(props: {
                 <span className="project-name">{project.name}</span>
                 <span className="project-meta">{scenes ? `장면 ${scenes}` : inputCount ? `미디어 ${inputCount}` : "미디어 넣기 전"} · {relativeTime(project.savedAt)}</span>
               </button>
-              <button className="project-delete" aria-label={`${project.name} 삭제`} onClick={() => setDeleting(project)}><HugeiconsIcon icon={Delete02Icon} size={18} /></button>
+              <div className="project-menu-wrap">
+                <button className="project-menu-trigger" aria-label={`${project.name} 메뉴`} aria-haspopup="menu" aria-expanded={openMenu === project.id} onClick={() => setOpenMenu(openMenu === project.id ? null : project.id)}><HugeiconsIcon icon={MoreHorizontalIcon} size={20} /></button>
+                {openMenu === project.id ? <div className="project-menu" role="menu">
+                  <button role="menuitem" onClick={() => { setEditing(project); setName(project.name); setOpenMenu(null); }}>이름 바꾸기</button>
+                  <button role="menuitem" onClick={() => { setDeleting(project); setOpenMenu(null); }}>삭제</button>
+                </div> : null}
+              </div>
               </div>
             );
           })}
@@ -131,8 +151,15 @@ export function Home(props: {
       {props.status && !codexReady ? <span className="visually-hidden">대본 생성은 Codex 상태를 확인한 뒤 시작할 수 있어요.</span> : null}
       <AlertDialog.Root open={Boolean(deleting)} onOpenChange={open => { if (!open) setDeleting(null); }}>
         <AlertDialog.Backdrop /><AlertDialog.Positioner><AlertDialog.Content>
-          <AlertDialog.Header><AlertDialog.Title>영상을 삭제할까요?</AlertDialog.Title><AlertDialog.Description>삭제하면 되돌릴 수 없어요</AlertDialog.Description></AlertDialog.Header>
+          <AlertDialog.Header><AlertDialog.Title>‘{deleting?.name}’을 삭제할까요?</AlertDialog.Title><AlertDialog.Description>원본 복사본, 녹음, 분리한 소리, 자막이 함께 지워져요. 삭제하면 되돌릴 수 없어요.</AlertDialog.Description></AlertDialog.Header>
           <AlertDialog.Footer><ActionButton variant="ghost" onClick={() => setDeleting(null)}>취소</ActionButton><AlertDialog.Action asChild><ActionButton variant="criticalSolid" onClick={() => void deleteProject()}>삭제</ActionButton></AlertDialog.Action></AlertDialog.Footer>
+        </AlertDialog.Content></AlertDialog.Positioner>
+      </AlertDialog.Root>
+      <AlertDialog.Root open={Boolean(editing)} onOpenChange={open => { if (!open) setEditing(null); }}>
+        <AlertDialog.Backdrop /><AlertDialog.Positioner><AlertDialog.Content>
+          <AlertDialog.Header><AlertDialog.Title>영상 이름 바꾸기</AlertDialog.Title><AlertDialog.Description>새 이름을 입력해 주세요.</AlertDialog.Description></AlertDialog.Header>
+          <input className="rename-input" aria-label="영상 이름" value={name} onChange={event => setName(event.target.value)} onKeyDown={event => { if (event.key === "Enter") void renameProject(); }} />
+          <AlertDialog.Footer><ActionButton variant="neutralWeak" onClick={() => setEditing(null)}>취소</ActionButton><ActionButton variant="brandSolid" disabled={!name.trim()} onClick={() => void renameProject()}>저장</ActionButton></AlertDialog.Footer>
         </AlertDialog.Content></AlertDialog.Positioner>
       </AlertDialog.Root>
     </section>
