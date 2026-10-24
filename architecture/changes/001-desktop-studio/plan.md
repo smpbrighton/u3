@@ -14,6 +14,7 @@
 9. **타임라인 라이브러리는 MIT `@xzdarcy/react-timeline-editor` 다.** 유료 Remotion Editor Starter($600)는 쓰지 않는다. 추천: 받는다. 이유: Editor Starter 는 데스크톱 배포 허용이 문서에 없다. 근거: 결정 0005.
 10. **`/smp:init` 이 만든 CLAUDE.md 정본을 AGENTS.md 정본으로 바꾼다.** 추천: 1단계에서 한다. 이유: 전역 규칙이 AGENTS.md 를 정본으로 정한다. 근거: 레포 `CLAUDE.md`, `AGENTS.md`.
 11. **스파이크 4개 중 하나가 실패하면 구현을 멈추고 spec 을 고친다.** 추천: 받는다. 이유: 렌더 묶기, 분리, 받아 적기, 녹음이 모두 검증되지 않았다. 근거: `spec.md` 우려 사항 1·7·8·10.
+12. **음성 분리 실행 공급자를 CoreML 먼저에서 CPU 만으로 바꿨다(0006 → 0008 대체).** 사용자가 스파이크 판정 뒤 받았다. 이유: S2 에서 CPU 가 60초 클립 3개 모두 더 빨랐고(19초 대 34~90초), CoreML 은 최대 메모리가 13~15 GB 였다. 근거: `docs/spikes/mrx.md`, `decisions/0008-voice-record-separate-cpu.md`.
 
 ## Context
 uUu 는 사용자 PC 의 codex 세션과 로컬 도구를 써서 웹으로 배포할 수 없다. U3 는 uUu 의 핵심(영상·사진 입력, 대본, 짤, 효과음)만 옮긴 Tauri 설치형 앱이다. 영상 편집기형 다중 트랙 타임라인, 녹음, 음성 분리, 받아 적기를 더한다. 화면은 화면설계 아티팩트 https://claude.ai/artifact/KhEuMmtnQYHehoLgCfhAst 를 따른다. 구현은 다른 세션이 `/smp:resume desktop-studio` 로 이어받는다. 이 plan 만 읽고 구현할 수 있게 쓴다.

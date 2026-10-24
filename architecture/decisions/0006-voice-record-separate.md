@@ -1,6 +1,6 @@
 # 0006 소리: 녹음과 음성 분리
 
-Status: accepted
+Status: superseded-by 0008
 Source: changes/001-desktop-studio/spec.md
 
 ## 맥락
