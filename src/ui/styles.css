@@ -80,6 +80,8 @@ button:disabled { cursor: not-allowed; }
 .settings-details dd { display: flex; min-width: 0; align-items: center; gap: 10px; margin: 0; }
 .settings-details code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings-actions { margin-top: 16px; }
+.settings-refresh-button[data-loading] .seed-loading-indicator { position: static; margin-right: 8px; }
+.settings-refresh-button[data-loading] > span:last-child { opacity: 1 !important; }
 .settings-section-title { margin-bottom: 16px; }
 .model-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: 16px 0; border-top: 1px solid var(--seed-color-palette-gray-200); }
 .model-row h3 { margin: 0; font-size: 14px; }

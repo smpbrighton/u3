@@ -15,19 +15,19 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [models, setModels] = useState<ModelStatus | null>(null);
   const [jobs, setJobs] = useState<EngineJob[]>([]);
-  const [checking, setChecking] = useState(false);
+  const [checking, setChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   const refresh = useCallback(async () => {
     setChecking(true);
     setError(null);
     try {
-      const [system, modelStatus] = await Promise.all([
-        api<SystemStatus>("GET", "/api/system"),
-        api<ModelStatus>("GET", "/api/models"),
+      const [systemResult, modelResult] = await Promise.allSettled([
+        api<SystemStatus>("GET", "/api/system").then(setStatus),
+        api<ModelStatus>("GET", "/api/models").then(setModels),
       ]);
-      setStatus(system);
-      setModels(modelStatus);
+      const failed = [systemResult, modelResult].find(result => result.status === "rejected");
+      if (failed?.status === "rejected") throw failed.reason;
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
@@ -86,22 +86,23 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
   const modelJob = (name: string) => jobs.find(job => job.label?.toLowerCase().includes(name) && ["queued", "running"].includes(job.status));
   const bgeJob = modelJob("bge-m3");
   const whisperJob = modelJob("whisper");
-  const codexMessage = status?.codex.loggedIn ? null : status?.codex.installed
+  const codexMessage = !status || status.codex.loggedIn ? null : status.codex.installed
     ? "터미널에서 codex login 을 실행한 뒤 다시 확인해 주세요."
     : "codex CLI를 설치한 뒤 터미널에서 codex login 을 실행해 주세요.";
+  const codexState = !status ? "확인 중" : status.codex.loggedIn ? "로그인됨" : status.codex.installed ? "로그인 안 됨" : "설치 안 됨";
 
   return (
     <section className="screen" aria-labelledby="settings-title">
       <header className="screen-header"><div><h1 id="settings-title" className="screen-title">설정</h1></div></header>
       {error ? <div className="page-banner-wrap"><PageBanner tone="warning" variant="weak" description={error} /></div> : null}
       <section className="section-card settings-card" aria-labelledby="codex-title">
-        <div className="settings-card-heading"><h2 id="codex-title">codex</h2><span className={`status-label ${status?.codex.loggedIn ? "is-ready" : "is-warning"}`}>{status?.codex.loggedIn ? "로그인됨" : status?.codex.installed ? "로그인 안 됨" : "설치 안 됨"}</span></div>
+        <div className="settings-card-heading"><h2 id="codex-title">codex</h2><span className={`status-label ${status?.codex.loggedIn ? "is-ready" : "is-warning"}`}>{codexState}</span></div>
         {codexMessage ? <div className="page-banner-wrap settings-warning"><PageBanner tone="warning" variant="weak" description={codexMessage} /></div> : null}
         <dl className="settings-details">
-          <dt>실행 파일</dt><dd><code>{status?.codexPath ?? "찾을 수 없어요"}</code><ActionButton variant="neutralWeak" size="small" onClick={() => void chooseCodexPath()}>바꾸기</ActionButton></dd>
+          <dt>실행 파일</dt><dd>{status?.codexPath ? <code>{status.codexPath}</code> : <span>{status ? "찾을 수 없어요" : "확인 중"}</span>}<ActionButton variant="neutralWeak" size="small" onClick={() => void chooseCodexPath()}>바꾸기</ActionButton></dd>
           <dt>모델</dt><dd><code>gpt-6-luna</code></dd>
         </dl>
-        <div className="action-row settings-actions"><ActionButton variant="brandSolid" disabled={checking} loading={checking} onClick={() => void refresh()}>다시 확인</ActionButton></div>
+        <div className="action-row settings-actions"><ActionButton className="settings-refresh-button" variant="brandSolid" disabled={checking} loading={checking} aria-label={checking ? "다시 확인 중" : "다시 확인"} onClick={() => void refresh()}>{checking ? "다시 확인 중" : "다시 확인"}</ActionButton></div>
       </section>
       <section className="section-card settings-row" aria-labelledby="jev-title"><h2 id="jev-title">Jev 짤 판정</h2><span className={`status-label ${status?.jev.available ? "is-ready" : "is-warning"}`}>{status?.jev.available ? "연결됨" : "연결 안 됨"}</span></section>
       <section className="section-card" aria-labelledby="models-title">
