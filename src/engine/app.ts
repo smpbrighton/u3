@@ -9,6 +9,7 @@ import { errorBody, localOnly, onError, tokenGuard } from "./http";
 import { registerEventRoutes } from "./routes/events";
 import { registerProjectRoutes } from "./routes/projects";
 import { registerInputRoutes } from "./routes/inputs";
+import { registerVoiceRoutes } from "./routes/voice";
 import { registerScriptRoutes } from "./routes/script";
 import { registerMemeRoutes } from "./routes/memes";
 import { registerLibraryRoutes } from "./routes/library";
@@ -46,6 +47,7 @@ export function createApp(context: AppContext) {
 
   registerProjectRoutes(app, context);
   registerInputRoutes(app, context);
+  registerVoiceRoutes(app, context);
   registerScriptRoutes(app, context);
   registerMemeRoutes(app, context);
   registerLibraryRoutes(app, context);

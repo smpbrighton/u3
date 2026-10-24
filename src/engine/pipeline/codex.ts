@@ -208,7 +208,8 @@ export function codexCliRunner(options: CodexRunnerOptions) {
         const prompt = transcripts.length
           ? `${request.prompt}\n\n영상별 받아 적은 말소리:\n${transcripts.map(item => `- ${item.inputId}: ${item.text}`).join("\n")}`
           : request.prompt;
-        const result = await execute(codexCliArgs({ schemaFile, outputFile, cwd: work, images }), prompt, options.timeoutMs ?? 10 * 60_000);
+        const absoluteImages = images.map(image => path.resolve(image));
+        const result = await execute(codexCliArgs({ schemaFile, outputFile, cwd: work, images: absoluteImages }), prompt, options.timeoutMs ?? 10 * 60_000);
         const events = parseCodexEvents(result.stdout);
         usage = events.usage;
         if (result.aborted) throw new CodexError("Codex 요청이 취소되었습니다", usage);

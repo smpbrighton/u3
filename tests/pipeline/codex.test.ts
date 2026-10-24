@@ -1,4 +1,4 @@
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { access, mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it, vi } from "vitest";
@@ -46,7 +46,7 @@ describe("Codex CLI", () => {
     expect(result.usage).toEqual({ input_tokens: 25, output_tokens: 12 });
     expect(calls[2]!.args).toContain("gpt-6-luna");
     expect(calls[2]!.args).toContain("--image");
-    expect(calls[2]!.args).toContain("frame.jpg");
+    expect(calls[2]!.args).toContain(path.resolve("frame.jpg"));
     expect(calls[2]!.prompt).toBe("요약 대본");
   });
 
@@ -139,8 +139,7 @@ describe("Codex CLI", () => {
       expect(imageArgs).toEqual([absoluteImagePath]);
       for (const image of imageArgs) {
         expect(path.isAbsolute(image)).toBe(true);
-        await expect(writeFile(path.join(path.dirname(image), ".read-check"), "ok")).resolves.toBeUndefined();
-        await rm(path.join(path.dirname(image), ".read-check"));
+        await expect(access(image)).resolves.toBeUndefined();
       }
     } finally {
       await rm(path.resolve(relativeRoot), { recursive: true, force: true });
