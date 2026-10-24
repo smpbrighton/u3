@@ -1,0 +1,12 @@
+[package]
+name = "u3-mic-spike"
+version = "0.1.0"
+description = "U3 microphone recording spike"
+authors = ["Brighton AI Holdings"]
+edition = "2021"
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+tauri = { version = "2", features = [] }

@@ -1,0 +1,24 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "U3 Mic Spike",
+  "version": "0.1.0",
+  "identifier": "ai.brightongroup.u3.mic-spike",
+  "build": {
+    "beforeBuildCommand": "pnpm build",
+    "frontendDist": "../dist"
+  },
+  "app": {
+    "windows": [
+      { "title": "U3 Mic Spike", "width": 520, "height": 260 }
+    ],
+    "security": { "csp": null }
+  },
+  "bundle": {
+    "active": true,
+    "targets": ["app"],
+    "macOS": {
+      "signingIdentity": "-",
+      "entitlements": "entitlements.plist"
+    }
+  }
+}
