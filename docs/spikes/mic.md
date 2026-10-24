@@ -14,9 +14,15 @@ sleep 30
 cat /Volumes/X31/workspace/smp_workspace/u3-spike-cache/mic/result.json
 codesign -d --entitlements - "/Volumes/X31/workspace/smp_workspace/u3-spike-cache/mic/U3 Mic Spike.app"
 find /Volumes/X31/workspace/smp_workspace/u3-spike-cache/mic -maxdepth 1 -name 'recording.*' -exec ffprobe -v error -show_format -show_streams {} \;
+ffmpeg -hide_banner -i /Volumes/X31/workspace/smp_workspace/u3-spike-cache/mic/recording.m4a -af volumedetect -f null -
 ```
 
-이 실험 앱은 시작할 때 형식 다섯 개를 검사하고, 첫 지원 형식을 골라 `getUserMedia` 로 5초를 녹음한다. `write_capture` 와 `write_result` Tauri 명령이 캐시 폴더에 데이터를 쓴다. 현재 실행에서는 `result.json` 이 생기지 않았으므로 마지막 두 명령은 결과를 만들지 못한다.
+이 실험 앱은 시작할 때 형식 다섯 개를 검사하고, 첫 지원 형식을 골라 `getUserMedia` 로 5초를 녹음한다. `write_capture` 와 `write_result` Tauri 명령이 캐시 폴더에 데이터를 쓴다. 아래 두 명령은 결과 파일을 직접 다시 측정할 때 쓴다.
+
+```sh
+ffprobe -v error -show_entries format=duration,format_name -show_entries stream=codec_name,codec_type,sample_rate,channels -of json /Volumes/X31/workspace/smp_workspace/u3-spike-cache/mic/recording.m4a
+ffmpeg -hide_banner -i /Volumes/X31/workspace/smp_workspace/u3-spike-cache/mic/recording.m4a -af volumedetect -f null -
+```
 
 ## 환경
 
@@ -32,12 +38,15 @@ find /Volumes/X31/workspace/smp_workspace/u3-spike-cache/mic -maxdepth 1 -name '
 - 앱 `Info.plist`: `NSMicrophoneUsageDescription` 값은 `마이크 스파이크에서 5초 녹음 검증을 수행합니다.`다.
 - 앱 번들 식별자: `ai.brightongroup.u3.mic-spike`. 서명은 `adhoc` 이고 TeamIdentifier 는 설정되지 않았다.
 - 앱은 `/Volumes/X31/workspace/smp_workspace/u3-spike-cache/mic/` 로 복사해 `open -n` 으로 실행했다.
-- 실행 후 30초 기다렸다. 화면 캡처 `tcc-screen.png` 는 전체가 검게 나와 TCC 권한 창의 출현 여부를 읽을 수 없다.
-- 캐시 폴더에 `result.json` 과 녹음 파일이 없다. 지원 형식, 선택 MIME 형식, 녹음 길이, 오류, 컨테이너·코덱은 확인하지 못했다. ffprobe 측정도 하지 못했다.
+- `result.json`: `audio/mp4` true, `audio/mp4;codecs=mp4a.40.2` true, `audio/webm` true, `audio/webm;codecs=opus` true, `audio/wav` false. 선택 형식은 `audio/mp4`, 녹음기 측정 길이는 5013 ms, 오류는 `null`이다.
+- `ffprobe`: MP4/M4A 컨테이너, AAC 코덱, 48000 Hz, mono, 파일 길이 3.628 s (3.63 s).
+- `ffmpeg -af volumedetect`: mean volume -51.1 dB, max volume -21.3 dB.
+- 녹음기 측정 길이 5.013 s (5.01 s)와 디코드 파일 길이 3.628 s (3.63 s)의 차이는 1.385 s (1.39 s)다. 녹음 시작 전 마이크 활성화 지연과 `MediaRecorder.start()`에 timeslice 를 주지 않은 점을 원인 후보로 둔다. 원인은 확정하지 않았다.
+- `tcc-screen.png` 는 전체가 검게 나왔다. 조정자는 결과가 기록되어 마이크 권한이 허용된 사실을 확인했지만, 권한 창이 실제로 표시됐는지와 앱 이름으로 표시됐는지는 확인하지 못했다. 검은 캡처가 셸의 화면 기록 권한 때문인지는 추정이며 확인하지 못했다.
 - `tccutil` 로 권한 상태를 바꾸지 않았다.
 
 ## 판정
 
-**no-go (측정 증거 부족)**. 서명 빌드와 마이크 entitlement 는 확인했다. 앱 이름으로 표시된 TCC 창, 형식 지원 여부, 5초 녹음 파일은 확인하지 못했다. 캡처 화면이 검고 결과 JSON 도 없어서 권한 요청과 녹음이 완료됐다고 판정할 근거가 없다.
+**go (조건: 1.39 s 길이 차이를 W7c Recorder 에서 처리)**. 서명 빌드에서 `audio/mp4` 지원과 녹음 파일 생성을 확인했다. W7c 에서는 클립 길이를 타이머 요청값이 아니라 디코드한 실제 파일 길이로 쓴다. 녹음 시작 시각은 `MediaRecorder`의 `start` 이벤트 뒤에 잡는다. timeslice 를 설정해 파일 길이를 다시 잰다. 이 측정만으로 1.39 s 차이의 원인은 확정하지 않는다.
 
-원인은 이 실행 환경에서 TCC 창을 관찰할 수 없고 앱 결과 파일도 생성되지 않은 점이다. spec 의 마이크 정책 변경은 제안하지 않는다. 상호작용 가능한 macOS 세션에서 동일한 서명 빌드를 실행하고, 사람이 권한 창에서 허용한 뒤 JSON 과 파일을 확인해야 한다. 이 확인 전에는 `0006`의 녹음 결정을 구현 전제 조건으로 승인하지 않는다.
+권한 요청은 결과가 기록된 것으로 보아 허용 상태였지만, TCC 창이 앱 이름으로 표시됐는지는 확인하지 못했다. 권한 표시 정책은 이번 측정으로 변경하지 않는다.
