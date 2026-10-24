@@ -96,6 +96,8 @@ async function installProductionDependencies(stage: string): Promise<void> {
     private: true,
     type: "module",
     dependencies,
+    // The app and Transformers must load one native ONNX runtime Env per process.
+    overrides: { "onnxruntime-node": dependencies["onnxruntime-node"] },
   };
   await writeFile(join(stage, "package.json"), `${JSON.stringify(stagePackage, null, 2)}\n`);
   execFileSync("npm", ["install", "--omit=dev", "--no-audit", "--no-fund"], {

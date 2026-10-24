@@ -19,6 +19,9 @@
     "tauri": "tauri"
   },
   "pnpm": {
+    "overrides": {
+      "onnxruntime-node": "1.22.0"
+    },
     "onlyBuiltDependencies": [
       "onnxruntime-node"
     ]
