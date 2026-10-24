@@ -2,7 +2,7 @@
 
 ## 목적과 판정
 
-**판정: GO — 방식 B(Node 바이너리 + JS 번들 리소스).** Ad-hoc 서명한 Tauri `.app`을 레포 밖 캐시로 복사했다. macOS에 Node를 설치하지 않은 조건에서 `open`으로 앱을 시작했다. 앱이 번들 Node, Chrome Headless Shell, Remotion compositor를 사용해 H.264/AAC mp4를 만들었다. 앱 안의 sidecar를 `env -i`로 직접 실행해 같은 결과를 확인했다.
+**판정: GO — 방식 B(Node 바이너리 + JS 번들 리소스).** Ad-hoc 서명한 Tauri `.app`을 레포 밖 캐시로 복사했다. 이 Mac에는 Node가 설치되어 있었다. 확인 조건은 `PATH`에 `node`가 없는 `env -i` 실행이었다. 앱이 번들 Node, Chrome Headless Shell, Remotion compositor를 사용해 H.264/AAC mp4를 만들었다. Node가 없는 계정이나 Mac에서의 확인은 W9 수동 항목으로 남긴다.
 
 composition은 3초(90프레임), 1080×1920, 30fps다. 화면에는 `U3` 글자를 표시하고 660 Hz 톤을 재생한다. 이 합성 클립은 코드 경로 검증용이며 실제 숏폼 원본이 아니다. 공용 미디어 README에 기록된 실제 숏폼 대체 클립은 이 렌더 측정에는 쓰지 않았다.
 
@@ -74,6 +74,8 @@ du -sh "$SPIKE_CACHE/RemotionSidecarSpike-installed.app/Contents/Resources/resou
 | Remotion compositor | 약 18 MiB, `Contents/Resources/resources/node_modules/@remotion/compositor-darwin-arm64/` |
 | JS 번들 및 public asset | 27 MiB, `Contents/Resources/resources/remotion-bundle/` |
 | renderer와 종속 패키지 | 630 MiB, `Contents/Resources/resources/node_modules/` 전체 복사 기준 |
+
+2,118 ms와 1,721 ms는 코드에서 `performance.now()`로 감싼 `renderMedia()` 호출 구간이다. 앱 시작과 `selectComposition()` 시간은 포함하지 않는다.
 
 Chrome은 **첫 빌드에서 다운로드했다**. Remotion은 `https://storage.googleapis.com/chrome-for-testing-public/149.0.7790.0/mac-arm64/chrome-headless-shell-mac-arm64.zip`에서 93.5 MB 압축 파일을 받았다. 이후 Chrome Headless Shell 디렉터리를 앱 리소스에 넣었다. 앱은 `selectComposition()`과 `renderMedia()` 모두에 번들된 `browserExecutable` 경로를 전달했다. 설치 앱 렌더 로그에는 다운로드가 없었다.
 
