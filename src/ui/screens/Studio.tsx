@@ -9,8 +9,9 @@ import { Inspector } from "../studio/Inspector";
 import { LibraryPanel } from "../studio/LibraryPanel";
 import { api } from "../api";
 import { ExportDialog } from "../ExportDialog";
-import { ArrowLeft01Icon, PlayIcon, PauseIcon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon, PlayIcon, PauseIcon, Undo02Icon, Redo02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { replaceMemeClip } from "../studio/replace-meme-clip";
 
 interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
 interface SfxItem { id: string; category: string; title: string; file: string; url: string; durationSec: number }
@@ -92,7 +93,7 @@ export function Studio(props: {
 
   function addMeme(meme: MemeItem, replaceId?: string) {
     if (replaceId) {
-      edit({ ...timeline, video: timeline.video.map((clip) => clip.id === replaceId && clip.kind === "meme" ? { ...clip, memeId: meme.id } : clip) });
+      edit(replaceMemeClip(timeline, replaceId, meme.id));
       return;
     }
     const durationSec = Math.max(0.5, Math.min(4, Math.min(meme.durationSec ?? 2, 2)));
@@ -149,7 +150,7 @@ export function Studio(props: {
 
   return <section className="studio-screen" aria-label="스튜디오">
     <header className="studio-header">
-      <ActionButton variant="ghost" aria-label="대본으로 돌아가기" onClick={props.onBack}><HugeiconsIcon icon={ArrowLeft01Icon} size={18} /></ActionButton>
+      <ActionButton className="studio-back-button" variant="ghost" aria-label="대본으로 돌아가기" onClick={props.onBack}><HugeiconsIcon icon={ArrowLeft01Icon} size={18} /></ActionButton>
       <strong className="studio-project-name">{props.project.name}</strong>
       <ActionButton variant="neutralWeak" loading={saving} onClick={() => void save()}>저장</ActionButton>
       <ActionButton variant="brandSolid" onClick={() => void save().then(saved => { if (saved) setExportOpen(true); })}>mp4 내보내기</ActionButton>
@@ -169,8 +170,26 @@ export function Studio(props: {
     <div className="studio-edit-toolbar">
       <button type="button" aria-label="재생" onClick={() => setPlaying(true)}><HugeiconsIcon icon={PlayIcon} size={16} /></button>
       <span>{timeLabel(playhead)}</span>
-      <button type="button" title="실행 취소 ⌘Z" disabled={!history.past.length} onClick={() => moveHistory("undo")}>실행 취소</button>
-      <button type="button" title="다시 실행 ⇧⌘Z" disabled={!history.future.length} onClick={() => moveHistory("redo")}>다시 실행</button>
+      <ActionButton
+        className="studio-history-button"
+        variant="neutralOutline"
+        size="small"
+        title="실행 취소 ⌘Z"
+        disabled={!history.past.length}
+        onClick={() => moveHistory("undo")}
+      >
+        <HugeiconsIcon icon={Undo02Icon} size={16} />실행 취소
+      </ActionButton>
+      <ActionButton
+        className="studio-history-button"
+        variant="neutralOutline"
+        size="small"
+        title="다시 실행 ⇧⌘Z"
+        disabled={!history.future.length}
+        onClick={() => moveHistory("redo")}
+      >
+        <HugeiconsIcon icon={Redo02Icon} size={16} />다시 실행
+      </ActionButton>
       <span className="studio-toolbar-spacer" />
       <span>스냅</span><input type="checkbox" checked={snap} onChange={(event) => setSnap(event.currentTarget.checked)} />
       <label>확대 <input type="range" min="1" max="10" value={zoom} onChange={(event) => setZoom(Number(event.currentTarget.value))} /></label>

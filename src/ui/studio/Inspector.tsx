@@ -7,7 +7,6 @@ import { ProgressCircle } from "../../../seed-design/ui/progress-circle";
 import { AlertDialog } from "@seed-design/react";
 import { api, watchJob, type EngineJob } from "../api";
 
-interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
 interface SfxItem { id: string; category: string; title: string; file: string; url: string; durationSec: number }
 type TranscriptResult = { captions: TimelineData["captions"]; replaced: TimelineData["captions"] };
 
@@ -20,7 +19,6 @@ export function Inspector(props: {
   onProject: (project: Project) => void;
   onSnackbar: (message: string) => void;
 }) {
-  const [memes, setMemes] = useState<MemeItem[]>([]);
   const [sfxItems, setSfxItems] = useState<SfxItem[]>([]);
   const [job, setJob] = useState<EngineJob | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -30,7 +28,6 @@ export function Inspector(props: {
   const [pendingTranscript, setPendingTranscript] = useState<TranscriptResult | null>(null);
 
   useEffect(() => {
-    void api<MemeItem[]>("GET", "/api/library/memes").then(setMemes).catch(() => undefined);
     void api<SfxItem[]>("GET", "/api/library/sfx").then(setSfxItems).catch(() => undefined);
     void api<{ whisper: { available: boolean } }>("GET", "/api/models").then((models) => setModelAvailable(models.whisper.available)).catch(() => setModelAvailable(false));
   }, []);
@@ -181,8 +178,7 @@ export function Inspector(props: {
       {video.kind === "meme" ? <>
         <label className="studio-range-label">길이 <b>{duration.toFixed(1)}초</b><input type="range" min="0.5" max="4" step="0.1" value={duration} onChange={(event) => props.onChange({ ...props.timeline, video: props.timeline.video.map((item) => item.id === video.id ? { ...video, durationSec: Number(event.currentTarget.value) } : item) })} /></label>
         <div className="studio-inspector-actions"><ActionButton variant="neutralWeak" onClick={() => props.onChange(moveVideoClip(props.timeline, video.id, Math.max(0, props.timeline.video.findIndex((item) => item.id === video.id) - 1)))}>본 화면 앞</ActionButton><ActionButton variant="ghost" onClick={() => props.onChange(moveVideoClip(props.timeline, video.id, Math.min(props.timeline.video.length - 1, props.timeline.video.findIndex((item) => item.id === video.id) + 1)))}>본 화면 뒤</ActionButton></div>
-        <label>다른 짤로 바꾸기<select value={video.memeId} onChange={(event) => props.onChange({ ...props.timeline, video: props.timeline.video.map((item) => item.id === video.id ? { ...video, memeId: event.currentTarget.value } : item) })}>{memes.map((item) => <option value={item.id} key={item.id}>{item.description ?? item.id}</option>)}</select></label>
-        <p className="studio-help">왼쪽 짤 탭에서 후보를 검색할 수 있어요.</p>
+        <p className="studio-help">왼쪽에서 다른 짤을 누르면 바꿔요.</p>
       </> : <CaptionEditor caption={props.timeline.captions.find((item) => item.startSec <= start + duration && item.endSec >= start)} timeline={props.timeline} onChange={props.onChange} />}
       <p className="studio-help">클립 위치 {start.toFixed(1)}초 · 길이 {duration.toFixed(1)}초</p>
     </InspectorShell>;
