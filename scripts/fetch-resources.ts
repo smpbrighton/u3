@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, readdir, writeFile } from "node:fs/promises";
+import { cp, mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
@@ -13,6 +13,22 @@ const cache = process.env.U3_BUILD_CACHE ?? join(homedir(), "Library/Caches/u3-b
 const mrxSha256 = "8e65265d4d2ed452255af7e18d56ae3b3dd623322dc89c4151cd83e70bf6dca8";
 const sileroSha256 = "2aa269b785eeb53a82983a20501ddf7c1d9c48e33ab63a41391ac6c9f7fb6987";
 const silero = join(cache, "ggml-silero-v6.2.0.bin");
+const emotionSlugs: Record<string, string> = {
+  "뿌듯함": "proud",
+  "감동": "touched",
+  "인정": "agree",
+  "의심": "doubt",
+  "기대": "anticipation",
+  "억울": "injustice",
+  "소름": "chills",
+  "부끄러움": "embarrassed",
+  "분노": "anger",
+  "체념": "resignation",
+  "당황": "confused",
+  "웃음": "laugh",
+  "귀찮음": "annoyed",
+  "놀람": "surprised",
+};
 
 async function sha256(file: string): Promise<string> {
   const hash = createHash("sha256");
@@ -37,6 +53,10 @@ await requireDirectory(embed, "UUU_EMBED_DIR");
 await mkdir(join(target, "library"), { recursive: true });
 await mkdir(join(target, "models"), { recursive: true });
 await cp(library, join(target, "library"), { recursive: true, force: true });
+const memes = join(target, "library/memes");
+for (const [emotion, slug] of Object.entries(emotionSlugs)) {
+  await rename(join(memes, emotion), join(memes, slug));
+}
 await cp(embed, join(target, "library/meme-embed"), { recursive: true, force: true });
 
 try {

@@ -74,7 +74,7 @@ export async function listMemes(root = process.env.U3_LIBRARY_DIR ?? path.join(p
           ...meta,
           file: mediaFile,
           title: meta.description ?? meta.id,
-          category: folder.name,
+          category: meta.emotion,
         });
       } catch {
         // 잘못된 사이드카는 건너뛴다.
