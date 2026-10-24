@@ -1,2 +1,37 @@
-import type { Hono } from "hono";import path from "node:path";import type { AppContext } from "../app";import { HttpError } from "../http";import { serveMedia } from "../pipeline/media-server";
-export function registerMediaRoutes(app:Hono,ctx:AppContext){app.get("/api/media/projects/:id/*",async c=>{const id=c.req.param("id"),project=await ctx.store.getProject(id);if(!project)throw new HttpError(404,"not-found","프로젝트가 없습니다");const rest=c.req.path.split(`/api/media/projects/${id}/`)[1]??"";const decoded=rest.split("/").map(decodeURIComponent);const file=path.resolve(ctx.store.projectDir(id),...decoded);if(!file.startsWith(ctx.store.projectDir(id)+path.sep))throw new HttpError(403,"forbidden","잘못된 미디어 경로입니다");return serveMedia(c,file);});app.get("/api/media/library/*",async c=>{const rel=c.req.path.split("/api/media/library/")[1]??"",root=path.resolve(process.env.U3_LIBRARY_DIR||"resources/library"),file=path.resolve(root,decodeURIComponent(rel));if(!file.startsWith(root+path.sep))throw new HttpError(403,"forbidden","잘못된 미디어 경로입니다");return serveMedia(c,file);});}
+import type { Hono } from "hono";
+import path from "node:path";
+import type { AppContext } from "../app";
+import { HttpError } from "../http";
+
+function relativePath(encoded: string): string {
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(encoded);
+  } catch {
+    throw new HttpError(404, "not-found", "미디어 경로가 올바르지 않습니다");
+  }
+  if (decoded.includes("\0") || path.isAbsolute(decoded) || decoded.split(/[\\/]/).includes("..")) {
+    throw new HttpError(403, "forbidden", "프로젝트 밖의 미디어를 읽을 수 없습니다");
+  }
+  return decoded;
+}
+
+export function registerMediaRoutes(app: Hono, context: AppContext): void {
+  app.get("/api/media/projects/:id/*", async c => {
+    const id = c.req.param("id");
+    await context.store.requireProject(id);
+    const prefix = `/api/media/projects/${id}/`;
+    const relative = relativePath(c.req.path.slice(prefix.length));
+    const root = path.resolve(context.store.projectDir(id));
+    const file = path.resolve(root, relative);
+    if (!file.startsWith(`${root}${path.sep}`)) throw new HttpError(403, "forbidden", "프로젝트 밖의 미디어를 읽을 수 없습니다");
+    if (!context.mediaServer) throw new HttpError(503, "media-unavailable", "미디어 서버를 사용할 수 없습니다");
+    return c.redirect(context.mediaServer.url("projects", `${id}/${relative}`), 302);
+  });
+
+  app.get("/api/media/library/*", c => {
+    if (!context.mediaServer) throw new HttpError(503, "media-unavailable", "미디어 서버를 사용할 수 없습니다");
+    const relative = relativePath(c.req.path.slice("/api/media/library/".length));
+    return c.redirect(context.mediaServer.url("library", relative), 302);
+  });
+}

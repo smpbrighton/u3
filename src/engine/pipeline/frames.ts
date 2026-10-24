@@ -1,5 +1,56 @@
-import { mkdir } from "node:fs/promises";import path from "node:path";import { execFile } from "node:child_process";import { promisify } from "node:util";import { runFfmpeg } from "./ffmpeg";
-const execFileAsync=promisify(execFile);
-export const frameCountForInputs=(count:number)=>Math.min(40,Math.max(0,count)*10);
-export function frameAllocation(durations:readonly number[],limit=40):number[]{if(durations.length*3>limit)throw new Error("영상마다 최소 3장 규칙을 충족할 수 없습니다");const raw=durations.map(()=>10);let n=raw.reduce((a,b)=>a+b,0);while(n>limit){const i=raw.findIndex((x,j)=>x>3&&x===Math.max(...raw));if(i<0)break;raw[i]!--;n--;}return raw;}
-export async function extractFrames(input:string,outDir:string,count=10,signal?:AbortSignal,photo=false){await mkdir(outDir,{recursive:true});const {stdout}=await execFileAsync(process.env.FFPROBE_PATH||"ffprobe",["-v","error","-show_entries","format=duration","-of","default=noprint_wrappers=1:nokey=1",input],{timeout:15000});const duration=Number(stdout.trim())||0,still=photo||duration===0,frames=still?1:count,names:string[]=[];for(let i=0;i<frames;i++){const output=path.join(outDir,`frame-${String(i+1).padStart(2,"0")}.jpg`);const seconds=still?0:((i+0.5)/frames)*duration;await runFfmpeg(["-hide_banner","-loglevel","error","-ss",String(seconds),"-i",input,"-frames:v","1","-vf","scale='if(gte(iw,ih),768,-2)':'if(gte(iw,ih),-2,768)'","-q:v","3","-y",output],signal);names.push(output);}return names;}
+import { mkdir } from "node:fs/promises";
+import path from "node:path";
+import { execFile } from "node:child_process";
+import { promisify } from "node:util";
+import { runFfmpeg } from "./ffmpeg";
+
+const execFileAsync = promisify(execFile);
+export const frameCountForInputs = (count: number) => Math.min(40, Math.max(0, count) * 10);
+
+/** 사진은 한 장씩 예약한다. 영상은 같은 장수에서 비율로 줄이고 각 영상에 세 장을 보장한다. */
+export function frameAllocation(videoCount: number, photoCount = 0, limit = 40): number[] {
+  const videoBudget = limit - photoCount;
+  if (videoCount < 0 || photoCount < 0 || videoBudget < 0 || videoCount * 3 > videoBudget) {
+    throw new RangeError("사진과 영상의 최소 프레임 수가 40장을 넘습니다");
+  }
+  if (videoCount === 0) return [];
+  const framesPerVideo = Math.min(10, Math.floor(videoBudget / videoCount));
+  const extraFrames = framesPerVideo < 10
+    ? Math.min(videoCount, videoBudget - framesPerVideo * videoCount)
+    : 0;
+  return Array.from({ length: videoCount }, (_, index) =>
+    framesPerVideo + (index < extraFrames ? 1 : 0),
+  );
+}
+
+async function durationOf(file: string): Promise<number> {
+  const { stdout } = await execFileAsync(process.env.FFPROBE_BIN ?? "ffprobe", [
+    "-v", "error", "-show_entries", "format=duration", "-of", "default=noprint_wrappers=1:nokey=1", file,
+  ], { timeout: 15_000 });
+  return Number(stdout.trim()) || 0;
+}
+
+export async function extractFrames(
+  input: string,
+  outputDirectory: string,
+  count = 10,
+  signal?: AbortSignal,
+  photo = false,
+): Promise<string[]> {
+  await mkdir(outputDirectory, { recursive: true });
+  const duration = photo ? 0 : await durationOf(input);
+  const still = photo || duration === 0;
+  const frameCount = still ? 1 : count;
+  const output: string[] = [];
+  for (let index = 0; index < frameCount; index++) {
+    const file = path.join(outputDirectory, `frame-${String(index + 1).padStart(2, "0")}.jpg`);
+    const second = still ? 0 : ((index + 0.5) / frameCount) * duration;
+    await runFfmpeg([
+      "-ss", String(second), "-i", input, "-frames:v", "1",
+      "-vf", "scale='if(gte(iw,ih),768,-2)':'if(gte(iw,ih),-2,768)'",
+      "-q:v", "3", file,
+    ], signal);
+    output.push(file);
+  }
+  return output;
+}

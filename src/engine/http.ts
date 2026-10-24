@@ -1,34 +1,71 @@
-import type { Context, MiddlewareHandler } from "hono";
+// HTTP 공용 도우미. uUu src/server/http.ts의 오류·JSON·로컬 요청 경계를 옮겼다.
+import type { Context, ErrorHandler, MiddlewareHandler } from "hono";
+import type { ContentfulStatusCode } from "hono/utils/http-status";
 import { z } from "zod";
 
 export class HttpError extends Error {
-  constructor(readonly status: 400 | 401 | 403 | 404 | 409 | 500 | 503, readonly code: string, message: string) { super(message); }
+  constructor(
+    readonly status: ContentfulStatusCode,
+    readonly code: string,
+    message: string,
+    readonly details: Record<string, unknown> = {},
+  ) {
+    super(message);
+    this.name = "HttpError";
+  }
 }
-export const errorBody = (code: string, message: string) => ({ error: { code, message } });
-export function validate<S extends z.ZodType>(schema: S, value: unknown): z.infer<S> {
-  const parsed = schema.safeParse(value);
-  if (!parsed.success) throw new HttpError(400, "invalid", z.prettifyError(parsed.error));
-  return parsed.data;
+
+export function errorBody(code: string, message: string, details: Record<string, unknown> = {}) {
+  return { error: { code, message, ...details } };
 }
+
+export const onError: ErrorHandler = (error, c) => {
+  if (error instanceof HttpError) return c.json(errorBody(error.code, error.message, error.details), error.status);
+  console.error("[engine]", error);
+  return c.json(errorBody("internal", error.message || "서버 오류"), 500);
+};
+
 export async function parseJson<S extends z.ZodType>(c: Context, schema: S): Promise<z.infer<S>> {
-  let value: unknown;
-  try { value = await c.req.json(); } catch { throw new HttpError(400, "bad-json", "JSON 본문이 아닙니다"); }
-  return validate(schema, value);
+  let raw: unknown;
+  try {
+    const text = await c.req.text();
+    raw = text.trim() ? JSON.parse(text) : {};
+  } catch {
+    throw new HttpError(400, "bad-json", "JSON 본문이 아닙니다");
+  }
+  return validate(schema, raw);
 }
-const LOCAL = new Set(["127.0.0.1", "localhost", "[::1]", "::1"]);
-export function isLocalHostname(host: string): boolean { return LOCAL.has(host) || host.endsWith(".localhost"); }
+
+export function validate<S extends z.ZodType>(schema: S, raw: unknown): z.infer<S> {
+  const result = schema.safeParse(raw);
+  if (!result.success) throw new HttpError(400, "invalid", z.prettifyError(result.error));
+  return result.data;
+}
+
+const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "[::1]", "::1"]);
+export function isLocalHostname(hostname: string): boolean {
+  return LOCAL_HOSTNAMES.has(hostname) || hostname.endsWith(".localhost");
+}
+
+/** uUu Host 검사에 Tauri Origin 허용 목록을 더했다. */
 export function localOnly(tauriOrigin?: string): MiddlewareHandler {
   return async (c, next) => {
-    if (!isLocalHostname(new URL(c.req.url).hostname)) throw new HttpError(403, "forbidden-host", "로컬 주소로만 접속할 수 있습니다");
+    const host = new URL(c.req.url).hostname;
+    if (!isLocalHostname(host)) throw new HttpError(403, "forbidden-host", "로컬 주소로만 접속할 수 있습니다");
     const origin = c.req.header("origin");
-    if (origin && origin !== tauriOrigin && !(!tauriOrigin && (origin === "tauri://localhost" || origin === "http://tauri.localhost"))) throw new HttpError(403, "forbidden-origin", "허용되지 않은 Origin입니다");
+    if (origin) {
+      const allowed = tauriOrigin ? origin === tauriOrigin : ["tauri://localhost", "http://tauri.localhost"].includes(origin);
+      if (!allowed) throw new HttpError(403, "forbidden-origin", "다른 출처의 요청은 받지 않습니다");
+    }
     await next();
   };
 }
+
 export function tokenGuard(token: string): MiddlewareHandler {
   return async (c, next) => {
-    const got = c.req.header("authorization")?.replace(/^Bearer\s+/i, "") ?? c.req.header("x-u3-token") ?? (c.req.path.startsWith("/api/media/") ? c.req.query("token") : undefined);
-    if (got !== token) throw new HttpError(401, "unauthorized", "유효한 일회용 토큰이 필요합니다");
+    const header = c.req.header("authorization")?.replace(/^Bearer\s+/i, "") ?? c.req.header("x-u3-token");
+    const mediaToken = c.req.path.startsWith("/api/media/") ? c.req.query("token") : undefined;
+    if ((header ?? mediaToken) !== token) throw new HttpError(401, "unauthorized", "유효한 일회용 토큰이 필요합니다");
     await next();
   };
 }

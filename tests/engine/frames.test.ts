@@ -1,2 +1,20 @@
-import { describe,expect,it } from "vitest";import { frameAllocation,frameCountForInputs } from "../../src/engine/pipeline/frames";
-describe("frame allocation",()=>{it("keeps ten frames per input under the forty-frame cap",()=>{expect(frameCountForInputs(3)).toBe(30);expect(frameCountForInputs(5)).toBe(40);expect(frameAllocation([1,1,1,1,1])).toEqual([8,8,8,8,8]);});it("reserves at least three frames per input",()=>{expect(()=>frameAllocation(Array(14).fill(1))).toThrow();});});
+import { describe, expect, it } from "vitest";
+import { frameAllocation, frameCountForInputs } from "../../src/engine/pipeline/frames";
+
+describe("frame allocation", () => {
+  it("allocates one frame to each photo and ten to each video until the limit", () => {
+    expect(frameCountForInputs(3)).toBe(30);
+    expect(frameAllocation(3, 3)).toEqual([10, 10, 10]);
+    expect(frameAllocation(5, 0)).toEqual([8, 8, 8, 8, 8]);
+  });
+
+  it("reduces video frames evenly and keeps at least three frames per video", () => {
+    expect(frameAllocation(2, 34)).toEqual([3, 3]);
+    expect(frameAllocation(4, 8)).toEqual([8, 8, 8, 8]);
+  });
+
+  it("rejects photo and video counts that exceed forty after minimum video frames", () => {
+    expect(() => frameAllocation(7, 20)).toThrow(/40장/);
+    expect(() => frameAllocation(0, 41)).toThrow(/40장/);
+  });
+});
