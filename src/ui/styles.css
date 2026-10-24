@@ -62,7 +62,7 @@ button:disabled { cursor: not-allowed; }
 .studio-preview-area { background: var(--seed-color-bg-layer-default); }
 .studio-playback-controls button, .studio-edit-toolbar > button { display: inline-grid; place-items: center; }
 .project-card-wrap { position: relative; }
-.project-delete { position: absolute; top: 16px; right: 16px; z-index: 1; display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid var(--seed-color-palette-gray-300); border-radius: 9px; color: var(--seed-color-fg-neutral); background: var(--seed-color-bg-layer-default); }
+.project-delete { position: absolute; top: 16px; right: 16px; z-index: 1; display: grid; width: 36px; height: 36px; place-items: center; border: 1px solid var(--seed-color-palette-gray-900); border-radius: 9px; color: var(--seed-color-fg-neutral); background: var(--seed-color-bg-layer-default); }
 .project-card { width: 100%; color: inherit; }
 .critical-dialog { width: min(100%, 440px); border: 0; border-radius: 16px; padding: 24px; color: var(--seed-color-fg-neutral); background: var(--seed-color-bg-layer-default); box-shadow: 0 20px 60px #0004; }
 .critical-dialog::backdrop { background: rgb(20 24 31 / 55%); }
@@ -70,7 +70,7 @@ button:disabled { cursor: not-allowed; }
 .critical-dialog p { margin: 0; color: var(--seed-color-palette-gray-700); }
 .settings-select { display: flex; min-height: 40px; min-width: 220px; align-items: center; justify-content: space-between; gap: 12px; padding: 0 12px; border: 1px solid var(--seed-color-palette-gray-900); border-radius: 9px; color: var(--seed-color-fg-neutral); background: var(--seed-color-bg-layer-default); }
 .seed-action-button--variant_neutralWeak { border: 1px solid var(--seed-color-palette-gray-900) !important; }
-.seed-action-button--variant_ghost { border: 1px solid transparent; }
+.seed-action-button--variant_ghost { border: 1px solid var(--seed-color-palette-gray-900) !important; }
 .settings-custom-model { display: flex; align-items: center; gap: 10px; margin-top: 12px; }
 .settings-custom-model label { color: var(--seed-color-palette-gray-800); font-size: 13px; }
 .settings-custom-model input { width: 220px; min-height: 38px; padding: 0 10px; border: 1px solid var(--seed-color-palette-gray-900); border-radius: 8px; color: var(--seed-color-fg-neutral); background: var(--seed-color-bg-layer-default); }
