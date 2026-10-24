@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -50,4 +50,73 @@ describe("engine process lifecycle", () => {
     children.delete(child);
     await rm(dataRoot, { recursive: true, force: true });
   });
+
+  it("releases an onnxruntime session before exiting after stdin closes", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "u3-engine-onnx-exit-test-"));
+    const modelPath = path.join(root, "identity.onnx");
+    const model = Buffer.from("0808120775332d746573743a500a190a05696e70757412066f757470757422084964656e7469747912086964656e746974795a130a05696e707574120a0a08080112040a02080162140a066f7574707574120a0a08080112040a0208014202100d", "hex");
+    await writeFile(modelPath, model);
+    const script = `
+      import * as ort from "onnxruntime-node";
+      import { Jobs } from "./src/engine/jobs.ts";
+      import { done } from "./src/engine/jobs.ts";
+      import { installEngineShutdown } from "./src/engine/shutdown.ts";
+      const session = await ort.InferenceSession.create(${JSON.stringify(modelPath)});
+      const jobs = new Jobs();
+      jobs.start({ kind: "separate", label: "onnx lifecycle", cancellable: true }, async ({ signal }) => {
+        process.stdout.write("SESSION_READY\\n");
+        try {
+          await new Promise(resolve => signal.addEventListener("abort", resolve, { once: true }));
+          return done();
+        } finally {
+          await session.release();
+          process.stdout.write("SESSION_RELEASED\\n");
+        }
+      });
+      installEngineShutdown({ jobs });
+      process.stdin.resume();
+    `;
+    const child = spawn(process.execPath, ["--import", "tsx", "--input-type=module", "-e", script], {
+      cwd: process.cwd(),
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+    children.add(child);
+    let output = "";
+    let errors = "";
+    child.stdout.setEncoding("utf8");
+    child.stderr.setEncoding("utf8");
+    child.stdout.on("data", chunk => { output += chunk; });
+    child.stderr.on("data", chunk => { errors += chunk; });
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error(`ONNX 세션 준비 응답이 없습니다: ${errors}`)), 15_000);
+      child.stdout.on("data", () => {
+        if (output.includes("SESSION_READY")) {
+          clearTimeout(timeout);
+          resolve();
+        }
+      });
+      child.once("error", error => {
+        clearTimeout(timeout);
+        reject(error);
+      });
+      child.once("exit", code => {
+        clearTimeout(timeout);
+        reject(new Error(`ONNX 자식 프로세스가 준비 전에 끝났습니다(${code}): ${errors}`));
+      });
+    });
+
+    child.stdin.end();
+    const exitCode = await new Promise<number | null>((resolve, reject) => {
+      const timeout = setTimeout(() => reject(new Error(`엔진이 세션을 정리하지 못했습니다: ${output} ${errors}`)), 5_000);
+      child.once("exit", code => {
+        clearTimeout(timeout);
+        resolve(code);
+      });
+    });
+
+    expect(exitCode).toBe(0);
+    expect(output).toContain("SESSION_RELEASED");
+    children.delete(child);
+    await rm(root, { recursive: true, force: true });
+  }, 30_000);
 });
