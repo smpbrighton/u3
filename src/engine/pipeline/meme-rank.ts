@@ -44,6 +44,7 @@ export async function searchMemeCandidates(
       bge = await deps.index.search(text, options.k ?? MEME_SEARCH_TOP);
     } catch (error) {
       embedError = error instanceof Error ? error.message : String(error);
+      deps.index.embedder.onRuleFallback?.();
     }
   }
   const embeddedAt = performance.now();

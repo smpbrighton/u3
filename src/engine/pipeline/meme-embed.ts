@@ -16,6 +16,8 @@ export interface MemeEmbedder {
   /** 색인 파일 이름과 모델 구분에 쓴다 */
   readonly model: string;
   status(): MemeEmbedderStatus;
+  /** 규칙 순위로 대체했을 때 로드 실패 상태를 정리한다. */
+  onRuleFallback?(): void;
   /** 글마다 정규화한 벡터 하나. 모델을 아직 안 올렸으면 올린다(동시에 부르면 같은 로드를 기다린다) */
   embed(texts: readonly string[]): Promise<Float32Array[]>;
 }
@@ -23,7 +25,7 @@ export interface MemeEmbedder {
 const BGE_M3 = "Xenova/bge-m3";
 const BATCH = 16;
 
-export function bgeM3Embedder(opts: { cacheDir: string; requireReady?: boolean }): MemeEmbedder {
+export function bgeM3Embedder(opts: { cacheDir: string }): MemeEmbedder {
   let state: MemeEmbedderStatus = "idle";
   let loading: Promise<(texts: string[]) => Promise<{ data: Float32Array }>> | null = null;
 
@@ -31,12 +33,13 @@ export function bgeM3Embedder(opts: { cacheDir: string; requireReady?: boolean }
     loading ??= (async () => {
       state = "loading";
       try {
-        if (opts.requireReady && !await bgeM3Ready(opts.cacheDir)) {
-          state = "idle";
-          throw new Error("bge-m3 모델 파일이 모두 준비되지 않았습니다");
-        }
         const cachedModel = path.join(opts.cacheDir, "models--Xenova--bge-m3");
         await access(cachedModel);
+        const onnxFile = path.join(opts.cacheDir, "Xenova/bge-m3/onnx/model.onnx");
+        const hasOnnx = await access(onnxFile).then(() => true, () => false);
+        if (hasOnnx && !await bgeM3Ready(opts.cacheDir)) {
+          throw new Error("bge-m3 모델 파일이 모두 준비되지 않았습니다");
+        }
         const { pipeline, env } = await import("@huggingface/transformers");
         env.cacheDir = opts.cacheDir;
         env.localModelPath = opts.cacheDir;
@@ -49,7 +52,7 @@ export function bgeM3Embedder(opts: { cacheDir: string; requireReady?: boolean }
         state = "ready";
         return (texts: string[]) => extractor(texts, { pooling: "cls", normalize: true });
       } catch (e) {
-        if (state !== "idle") state = "error";
+        state = "error";
         throw e;
       }
     })();
@@ -59,6 +62,9 @@ export function bgeM3Embedder(opts: { cacheDir: string; requireReady?: boolean }
   return {
     model: "bge-m3",
     status: () => state,
+    onRuleFallback: () => {
+      if (state === "error") state = "idle";
+    },
     async embed(texts) {
       const run = await load();
       const out: Float32Array[] = [];

@@ -17,7 +17,7 @@ describe("meme rank without a local model", () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "u3-meme-rank-fallback-"));
     const store = new Store(root);
     const library = path.join(root, "library");
-    const embedder = bgeM3Embedder({ cacheDir: path.join(root, "cache/models"), requireReady: true });
+    const embedder = bgeM3Embedder({ cacheDir: path.join(root, "cache/models") });
     vi.stubEnv("U3_LIBRARY_DIR", library);
     const memeDir = path.join(library, "memes", "laugh");
     const project = Project.parse(JSON.parse(await readFile(path.join(fixtureRoot, "project.json"), "utf8")));
