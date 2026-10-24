@@ -1,0 +1,38 @@
+import { describe, expect, it } from "vitest";
+import type { Timeline } from "../../src/core/schema";
+import { timelineToRender } from "../../src/core/timeline/to-render";
+
+const timeline: Timeline = {
+  video: [
+    { id: "v1", kind: "main", inputId: "in1", inStartSec: 1, inEndSec: 3 },
+    { id: "v2", kind: "main", inputId: "in2", inStartSec: 2, inEndSec: 4 },
+    { id: "m1", kind: "meme", memeId: "m", durationSec: 1 },
+  ],
+  captions: [{ id: "c", startSec: 1, endSec: 2, text: "자막" }],
+  voice: [{ id: "voice", startSec: 0.5, file: "voice.wav", inStartSec: 1, inEndSec: 2, gain: 0.5 }],
+  sfx: [{ id: "sfx", startSec: 2, file: "sfx.wav", inStartSec: 0, inEndSec: 0.5, gain: 1 }],
+  audio: {
+    source: { gain: 0.8, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1.2, muted: true },
+    stems: { in2: { voice: { gain: 1.2, muted: false }, bg: { gain: 0.7, muted: true } } },
+  },
+};
+
+describe("timelineToRender", () => {
+  it("30fps 시퀀스와 자막·오디오 프레임을 만들고 순서를 반영한다", () => {
+    const render = timelineToRender(timeline);
+    expect(render.fps).toBe(30);
+    expect(render.video.map((item) => [item.startFrame, item.durationInFrames])).toEqual([[0, 60], [60, 60], [120, 30]]);
+    expect(render.video[0]).toMatchObject({ sourceStartFrame: 30 });
+    expect(render.captions[0]).toMatchObject({ startFrame: 30, durationInFrames: 30 });
+    expect(render.durationInFrames).toBe(150);
+  });
+  it("트랙 볼륨·음소거와 분리 트랙을 적용하고 원본 소리를 대체한다", () => {
+    const render = timelineToRender(timeline);
+    expect(render.audio).toContainEqual(expect.objectContaining({ id: "v1-source", track: "source", volume: 0.8, sourceStartFrame: 30 }));
+    expect(render.audio).not.toContainEqual(expect.objectContaining({ id: "v2-source" }));
+    expect(render.audio).toContainEqual(expect.objectContaining({ id: "v2-voice", track: "stem-voice", volume: 1.2 }));
+    expect(render.audio).toContainEqual(expect.objectContaining({ id: "v2-bg", track: "stem-bg", volume: 0 }));
+    expect(render.audio).toContainEqual(expect.objectContaining({ id: "voice", volume: 0.5 }));
+    expect(render.audio).toContainEqual(expect.objectContaining({ id: "sfx", volume: 0 }));
+  });
+});
