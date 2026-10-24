@@ -14,6 +14,9 @@ import { bgeM3Ready, downloadBgeM3 } from "./pipeline/models";
 import { done } from "./jobs";
 import { configuredModelPath } from "./pipeline/model-paths";
 
+process.stdin.once("end", () => process.exit(0));
+process.stdin.resume();
+
 // Tauri는 U3_TOKEN 환경 변수로 일회용 토큰을 준다. 개발 실행은 stdin 첫 줄에서 읽는다.
 async function readToken(): Promise<string> {
   if (process.env.U3_TOKEN) return process.env.U3_TOKEN;

@@ -5,7 +5,7 @@ import type { Jobs } from "./jobs";
 import type { MemeIndex } from "./pipeline/meme-embed";
 import type { MediaServer } from "./pipeline/media-server";
 import type { TranscribeInput } from "./pipeline/codex";
-import { errorBody, localOnly, onError, tokenGuard } from "./http";
+import { cors, errorBody, localOnly, onError, tokenGuard } from "./http";
 import { registerEventRoutes } from "./routes/events";
 import { registerProjectRoutes } from "./routes/projects";
 import { registerInputRoutes } from "./routes/inputs";
@@ -42,6 +42,7 @@ export function createApp(context: AppContext) {
   app.onError(onError);
   app.notFound(c => c.json(errorBody("not-found", "요청 경로가 없습니다"), 404));
   app.use("/api/*", localOnly(context.tauriOrigin));
+  app.use("/api/*", cors(context.tauriOrigin));
   app.use("/api/*", tokenGuard(context.token));
   app.get("/api/health", c => c.json({ ok: true }));
 

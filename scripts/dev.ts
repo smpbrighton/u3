@@ -9,7 +9,7 @@ const token = randomBytes(32).toString("hex");
 const engine = spawn(process.execPath, ["--import", "tsx", "src/engine/main.ts"], {
   cwd: root,
   env: { ...process.env, U3_TOKEN: token, TAURI_ORIGIN: "http://127.0.0.1:1420" },
-  stdio: ["ignore", "pipe", "inherit"],
+  stdio: ["pipe", "pipe", "inherit"],
 });
 const lines = createInterface({ input: engine.stdout! });
 let finished = false;

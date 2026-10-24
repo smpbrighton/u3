@@ -61,6 +61,22 @@ export function localOnly(tauriOrigin?: string): MiddlewareHandler {
   };
 }
 
+export function cors(tauriOrigin?: string): MiddlewareHandler {
+  return async (c, next) => {
+    const origin = c.req.header("origin");
+    if (origin) {
+      const allowedOrigins = tauriOrigin ? [tauriOrigin] : ["tauri://localhost", "http://tauri.localhost"];
+      if (!allowedOrigins.includes(origin)) throw new HttpError(403, "forbidden-origin", "다른 출처의 요청은 받지 않습니다");
+      c.header("access-control-allow-origin", origin);
+      c.header("access-control-allow-headers", "authorization, content-type");
+      c.header("access-control-allow-methods", "GET, POST, PUT, DELETE");
+      c.header("vary", "Origin");
+    }
+    if (origin && c.req.method === "OPTIONS" && c.req.header("access-control-request-method")) return c.body(null, 204);
+    await next();
+  };
+}
+
 export function tokenGuard(token: string): MiddlewareHandler {
   return async (c, next) => {
     const header = c.req.header("authorization")?.replace(/^Bearer\s+/i, "") ?? c.req.header("x-u3-token");

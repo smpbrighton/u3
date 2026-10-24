@@ -37,6 +37,7 @@ fn start_engine() -> Result<(Child, EngineConnection), Box<dyn std::error::Error
         .current_dir(root)
         .env("U3_TOKEN", &token)
         .env("TAURI_ORIGIN", "http://127.0.0.1:1420")
+        .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
         .spawn()?;
@@ -78,7 +79,7 @@ fn start_engine(app: &tauri::AppHandle) -> Result<(Child, EngineConnection), Box
         .env("U3_CHROME_EXECUTABLE", chrome)
         .env("FFMPEG_BIN", resources.join("node_modules/@remotion/compositor-darwin-arm64/ffmpeg"))
         .env("FFPROBE_BIN", resources.join("node_modules/@remotion/compositor-darwin-arm64/ffprobe"))
-        .stdin(Stdio::null())
+        .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit())
         .spawn()?;
