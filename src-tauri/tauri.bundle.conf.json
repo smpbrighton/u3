@@ -1,0 +1,17 @@
+{
+  "build": {
+    "beforeBuildCommand": "pnpm build"
+  },
+  "bundle": {
+    "icon": [
+      "resources/package-icon.png"
+    ],
+    "externalBin": [
+      "binaries/u3-engine",
+      "binaries/whisper-cli"
+    ],
+    "resources": [
+      "resources/**/*"
+    ]
+  }
+}

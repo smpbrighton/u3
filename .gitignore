@@ -5,7 +5,7 @@ src-tauri/target/
 src-tauri/gen/schemas/
 src-tauri/binaries/*
 !src-tauri/binaries/.gitkeep
-src-tauri/resources/library/
-src-tauri/resources/models/
+src-tauri/resources/*
+!src-tauri/resources/.gitkeep
 .env
 .agents/
