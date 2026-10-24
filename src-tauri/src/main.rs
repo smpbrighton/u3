@@ -160,7 +160,7 @@ fn main() {
                 if let Some(engine) = app.try_state::<EngineProcess>() {
                     if let Ok(mut child) = engine.child.lock() {
                         if let Some(mut child) = child.take() {
-                            let _ = child.kill();
+                            drop(child.stdin.take());
                             let _ = child.wait();
                         }
                     }

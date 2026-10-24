@@ -18,6 +18,8 @@ export interface MemeEmbedder {
   status(): MemeEmbedderStatus;
   /** 규칙 순위로 대체했을 때 로드 실패 상태를 정리한다. */
   onRuleFallback?(): void;
+  /** 로드된 ONNX 세션을 해제한다. */
+  dispose?(): Promise<void>;
   /** 글마다 정규화한 벡터 하나. 모델을 아직 안 올렸으면 올린다(동시에 부르면 같은 로드를 기다린다) */
   embed(texts: readonly string[]): Promise<Float32Array[]>;
 }
@@ -27,7 +29,10 @@ const BATCH = 16;
 
 export function bgeM3Embedder(opts: { cacheDir: string }): MemeEmbedder {
   let state: MemeEmbedderStatus = "idle";
-  let loading: Promise<(texts: string[]) => Promise<{ data: Float32Array }>> | null = null;
+  let loading: Promise<{
+    run: (texts: string[]) => Promise<{ data: Float32Array }>;
+    dispose: () => Promise<void>;
+  }> | null = null;
 
   const load = () => {
     loading ??= (async () => {
@@ -48,9 +53,12 @@ export function bgeM3Embedder(opts: { cacheDir: string }): MemeEmbedder {
         const extractor = (await (pipeline as unknown as (task: string, model: string, o: object) => Promise<unknown>)("feature-extraction", BGE_M3, {
           dtype: "fp32",
           device: "cpu",
-        })) as (texts: string[], o: object) => Promise<{ data: Float32Array }>;
+        })) as ((texts: string[], o: object) => Promise<{ data: Float32Array }>) & { dispose: () => Promise<void> };
         state = "ready";
-        return (texts: string[]) => extractor(texts, { pooling: "cls", normalize: true });
+        return {
+          run: (texts: string[]) => extractor(texts, { pooling: "cls", normalize: true }),
+          dispose: () => extractor.dispose(),
+        };
       } catch (e) {
         state = "error";
         throw e;
@@ -62,15 +70,27 @@ export function bgeM3Embedder(opts: { cacheDir: string }): MemeEmbedder {
   return {
     model: "bge-m3",
     status: () => state,
+    async dispose() {
+      if (loading) {
+        try {
+          const loaded = await loading;
+          await loaded.dispose();
+        } catch {
+          // 모델 초기화가 실패하면 해제할 ONNX 세션이 없다.
+        }
+      }
+      loading = null;
+      state = "idle";
+    },
     onRuleFallback: () => {
       if (state === "error") state = "idle";
     },
     async embed(texts) {
-      const run = await load();
+      const runtime = await load();
       const out: Float32Array[] = [];
       for (let i = 0; i < texts.length; i += BATCH) {
         const batch = texts.slice(i, i + BATCH);
-        const t = await run(batch);
+        const t = await runtime.run(batch);
         const dim = t.data.length / batch.length;
         for (let j = 0; j < batch.length; j++) out.push(t.data.slice(j * dim, (j + 1) * dim));
       }

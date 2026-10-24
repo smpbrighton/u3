@@ -80,6 +80,7 @@ export class JobRegistry {
   private listeners = new Set<JobListener>();
   private waiters = new Map<string, Promise<Job>>();
   private cancellers = new Map<string, () => Job>();
+  private controllers = new Set<AbortController>();
 
   constructor(
     private readonly now: () => Date = () => new Date(),
@@ -185,6 +186,7 @@ export class JobRegistry {
     this.emit(job);
 
     const controller = new AbortController();
+    this.controllers.add(controller);
     let lastSent = { p: job.progress, m: job.message };
     const ctx: JobContext = {
       job,
@@ -247,6 +249,7 @@ export class JobRegistry {
         return finish({ status: "failed", error: e instanceof Error ? e.message : String(e) });
       } finally {
         this.cancellers.delete(id);
+        this.controllers.delete(controller);
         if (job.stopping) {
           // 작업 함수가 실제로 멈췄다. 이제 같은 key로 다시 시작할 수 있다
           job.stopping = false;
@@ -257,6 +260,11 @@ export class JobRegistry {
     this.waiters.set(id, run);
     void run.then(() => this.waiters.delete(id));
     return { ...job };
+  }
+
+  async shutdown(): Promise<void> {
+    for (const controller of this.controllers) controller.abort();
+    await this.queue.onIdle();
   }
 
   private prune(): void {

@@ -13,8 +13,8 @@ import { transcribeAudio } from "./pipeline/whisper";
 import { bgeM3Ready, downloadBgeM3 } from "./pipeline/models";
 import { done } from "./jobs";
 import { configuredModelPath } from "./pipeline/model-paths";
+import { installEngineShutdown } from "./shutdown";
 
-process.stdin.once("end", () => process.exit(0));
 process.stdin.resume();
 process.on("unhandledRejection", reason => {
   console.error("[engine] unhandled rejection", reason);
@@ -82,6 +82,7 @@ const transcribeInput = async ({ file, signal }: { file: string; inputId: string
   }
 };
 const jobs = new Jobs();
+const index = memeIndex(store.root, bgeM3Embedder({ cacheDir: path.join(store.root, "cache/models") }), () => import("./pipeline/library").then(({ listMemes }) => listMemes(libraryRoot)));
 const app = createApp({
   store,
   jobs,
@@ -90,7 +91,7 @@ const app = createApp({
   codexPath: () => findCodexPath(store),
   jevAvailable: !!process.env.TYPESAFE_API_KEY,
   transcribeInput,
-  memeIndex: memeIndex(store.root, bgeM3Embedder({ cacheDir: path.join(store.root, "cache/models") }), () => import("./pipeline/library").then(({ listMemes }) => listMemes(libraryRoot))),
+  memeIndex: index,
   mediaServer,
   resourceDir,
   whisperPath,
@@ -105,4 +106,18 @@ if (!(await bgeM3Ready(bgeCache))) {
     return done({ model: "bge-m3", path: bgeModel });
   });
 }
-serve({ fetch: app.fetch, hostname: "127.0.0.1", port: 0 }, info => process.stdout.write(`PORT ${info.port}\n`));
+const server = serve({ fetch: app.fetch, hostname: "127.0.0.1", port: 0 }, info => process.stdout.write(`PORT ${info.port}\n`));
+let serverClose: Promise<void> | null = null;
+installEngineShutdown({
+  jobs,
+  stopAccepting: () => {
+    serverClose ??= new Promise<void>(resolve => server.close(() => resolve()));
+  },
+  close: async () => {
+    await Promise.all([
+      serverClose,
+      mediaServer.close(),
+      index.embedder.dispose?.(),
+    ]);
+  },
+});
