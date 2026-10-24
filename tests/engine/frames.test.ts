@@ -1,5 +1,8 @@
 import { describe, expect, it } from "vitest";
-import { frameAllocation, frameCountForInputs } from "../../src/engine/pipeline/frames";
+import { mkdtemp, rm, stat } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { extractFrames, frameAllocation, frameCountForInputs } from "../../src/engine/pipeline/frames";
 
 describe("frame allocation", () => {
   it("allocates one frame to each photo and ten to each video until the limit", () => {
@@ -16,5 +19,21 @@ describe("frame allocation", () => {
   it("rejects photo and video counts that exceed forty after minimum video frames", () => {
     expect(() => frameAllocation(7, 20)).toThrow(/40장/);
     expect(() => frameAllocation(0, 41)).toThrow(/40장/);
+  });
+});
+
+describe("photo frame extraction", () => {
+  it("returns one non-empty frame for a photo input", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "u3-photo-frames-"));
+    const photo = path.resolve("tests/fixtures/project/input/photo.jpg");
+
+    try {
+      const frames = await extractFrames(photo, directory, 10, undefined, true);
+
+      expect(frames).toHaveLength(1);
+      expect((await stat(frames[0]!)).size).toBeGreaterThan(0);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
   });
 });
