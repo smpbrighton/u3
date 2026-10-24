@@ -1,7 +1,17 @@
 import { describe, expect, it } from "vitest";
-import { CHUNK_SAMPLES, OVERLAP_SAMPLES, segmentRanges, separateChunks } from "../../src/engine/pipeline/separate";
+import { CHUNK_SAMPLES, OVERLAP_SAMPLES, pcm16ToFloat32, segmentRanges, separateChunks } from "../../src/engine/pipeline/separate";
 
 describe("MRX 구간 처리", () => {
+  it("번들 ffmpeg의 PCM 16-bit WAV를 float32 입력으로 읽는다", async () => {
+    const pcm = Buffer.alloc(8);
+    pcm.writeInt16LE(-32768, 0);
+    pcm.writeInt16LE(16384, 2);
+    pcm.writeInt16LE(0, 4);
+    pcm.writeInt16LE(32767, 6);
+
+    expect(Array.from(pcm16ToFloat32(pcm))).toEqual([-1, 0.5, 0, 32767 / 32768]);
+  });
+
   it("10초 구간을 겹쳐 나누고 이어 붙인 출력 길이를 보존한다", async () => {
     const samples = CHUNK_SAMPLES + OVERLAP_SAMPLES / 2;
     const data = new Float32Array(samples * 2);
