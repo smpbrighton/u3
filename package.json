@@ -8,7 +8,7 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "vite --host 127.0.0.1",
+    "dev": "tsx scripts/dev.ts",
     "build": "vite build",
     "typecheck": "tsc --noEmit -p tsconfig.app.json && tsc --noEmit -p tsconfig.engine.json && tsc --noEmit -p tsconfig.ui.json",
     "test": "vitest run",
@@ -18,16 +18,23 @@
     "tauri": "tauri"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["onnxruntime-node"]
+    "onlyBuiltDependencies": [
+      "onnxruntime-node"
+    ]
   },
   "dependencies": {
     "@hono/node-server": "^2.1.5",
     "@huggingface/transformers": "^4.3.1",
+    "@karrotmarket/react-monochrome-icon": "^1.30.0",
     "@remotion/bundler": "4.0.529",
     "@remotion/fonts": "4.0.529",
     "@remotion/media": "4.0.529",
     "@remotion/player": "4.0.529",
     "@remotion/renderer": "4.0.529",
+    "@seed-design/css": "^3.0.3",
+    "@seed-design/react": "^3.0.1",
+    "@tauri-apps/api": "^2.12.4",
+    "@tauri-apps/plugin-dialog": "^2.8.3",
     "fft.js": "^4.0.4",
     "hono": "^4.13.13",
     "onnxruntime-node": "1.22.0",

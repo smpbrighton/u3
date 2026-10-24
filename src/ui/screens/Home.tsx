@@ -1,0 +1,97 @@
+import { useEffect, useState } from "react";
+import { ActionButton } from "../../../seed-design/ui/action-button";
+import { PageBanner, PageBannerButton } from "../../../seed-design/ui/page-banner";
+import { api, mediaUrl } from "../api";
+import type { Project, SystemStatus } from "../types";
+
+function relativeTime(value: string): string {
+  const minutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60_000));
+  if (minutes < 1) return "방금 전";
+  if (minutes < 60) return `${minutes}분 전`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}시간 전`;
+  const days = Math.floor(hours / 24);
+  return days === 1 ? "어제" : `${days}일 전`;
+}
+
+export function Home(props: {
+  status: SystemStatus | null;
+  onNew: (project: Project) => void;
+  onOpen: (project: Project) => void;
+  onSettings: () => void;
+}) {
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    void api<Project[]>("GET", "/api/projects").then(async data => {
+      setProjects(data);
+      const firstInputs = data.flatMap(project => {
+        const input = project.inputs.find(item => item.id !== "placeholder" && item.kind === "photo");
+        return input ? [{ projectId: project.id, inputId: input.id, file: input.file }] : [];
+      });
+      const urls = await Promise.all(firstInputs.map(async item => [item.projectId, await mediaUrl(item.projectId, item.file)] as const));
+      setThumbnails(Object.fromEntries(urls));
+    }).catch(reason => setError(reason instanceof Error ? reason.message : String(reason)));
+  }, []);
+
+  const createProject = async () => {
+    setError(null);
+    try {
+      const project = await api<Project>("POST", "/api/projects", { name: "새 프로젝트" });
+      props.onNew(project);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  };
+
+  const codexReady = props.status?.codex.installed && props.status.codex.loggedIn;
+  const codexMessage = props.status && !props.status.codex.installed
+    ? "Codex CLI를 찾지 못해 대본을 만들 수 없어요."
+    : props.status && !props.status.codex.loggedIn
+      ? "Codex에 로그인되어 있지 않아 대본을 만들 수 없어요."
+      : null;
+
+  return (
+    <section className="screen" aria-labelledby="home-title">
+      <header className="screen-header">
+        <div>
+          <h1 id="home-title" className="screen-title">프로젝트</h1>
+        </div>
+        <ActionButton variant="brandSolid" onClick={() => void createProject()}>새 프로젝트</ActionButton>
+      </header>
+      {error ? <p className="error-banner" role="alert">{error}</p> : null}
+      {codexMessage ? (
+        <div className="page-banner-wrap">
+          <PageBanner tone="warning" variant="weak" description={codexMessage} suffix={<PageBannerButton onClick={props.onSettings}>설정에서 확인</PageBannerButton>} />
+        </div>
+      ) : null}
+      {projects.length ? (
+        <div className="project-grid" aria-label="프로젝트 목록">
+          {projects.map(project => {
+            const inputCount = project.inputs.filter(input => input.id !== "placeholder").length;
+            const scenes = project.timeline.captions.length;
+            return (
+              <button className="project-card" key={project.id} onClick={() => props.onOpen(project)}>
+                <span className="project-thumb">
+                  {thumbnails[project.id] ? <img src={thumbnails[project.id]} alt="" /> : <span>미리보기</span>}
+                </span>
+                <span className="project-name">{project.name}</span>
+                <span className="project-meta">{scenes ? `장면 ${scenes}` : inputCount ? `미디어 ${inputCount}` : "미디어 넣기 전"} · {relativeTime(project.savedAt)}</span>
+              </button>
+            );
+          })}
+        </div>
+      ) : (
+        <div className="empty-state">
+          <div>
+            <p>아직 프로젝트가 없어요.</p>
+            <ActionButton variant="neutralWeak" onClick={() => void createProject()}>새 프로젝트 만들기</ActionButton>
+          </div>
+        </div>
+      )}
+      {props.status && !codexReady ? <span className="visually-hidden">대본 생성은 Codex 상태를 확인한 뒤 시작할 수 있어요.</span> : null}
+    </section>
+  );
+}
