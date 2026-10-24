@@ -77,7 +77,15 @@ export function App() {
   ) : screen === "studio" && project ? (
     <Studio project={project} onProject={setProject} onBack={() => go("script")} onSnackbar={setSnackbar} onError={setSnackbar} />
   ) : screen === "carousel" ? (
-    <section className="screen" aria-labelledby="carousel-title"><h1 id="carousel-title" className="screen-title">캐러셀</h1><div className="empty-state">캐러셀은 준비 중이에요</div></section>
+    <section className="screen carousel-screen" aria-labelledby="carousel-title">
+      <h1 id="carousel-title" className="screen-title">캐러셀</h1>
+      <div className="carousel-empty-card">
+        <span className="carousel-placeholder-icon" aria-hidden="true"><HugeiconsIcon icon={CarouselHorizontalIcon} size={28} /></span>
+        <h2>캐러셀은 준비 중이에요</h2>
+        <p>사진 여러 장으로 넘겨 보는 게시물을 만드는 기능이에요. 다음 버전에서 열려요. 지금은 영상 메뉴에서 숏폼을 만들 수 있어요.</p>
+        <button className="carousel-go-button" onClick={() => go("home")}>영상으로 가기</button>
+      </div>
+    </section>
   ) : <Settings onSnackbar={setSnackbar} onError={setSnackbar} />;
 
   return (

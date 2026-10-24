@@ -21,8 +21,6 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [models, setModels] = useState<ModelStatus | null>(null);
   const [codexCatalog, setCodexCatalog] = useState<CodexModelCatalog>({ source: "fallback", models: [] });
-  const [customModel, setCustomModel] = useState("");
-  const [showCustomModel, setShowCustomModel] = useState(false);
   const [jobs, setJobs] = useState<EngineJob[]>([]);
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -146,42 +144,13 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
             />
           </label>
         </div>
-        {codexCatalog.source === "fallback" ? (
-          <div className="settings-custom-model">
-            {showCustomModel ? (
-              <>
-                <label htmlFor="custom-codex-model">모델 이름 직접 입력</label>
-                <input
-                  id="custom-codex-model"
-                  value={customModel}
-                  onChange={event => setCustomModel(event.target.value)}
-                />
-                <ActionButton
-                  variant="neutralWeak"
-                  disabled={!customModel.trim()}
-                  onClick={() => {
-                    const model = customModel.trim();
-                    void updateCodexSettings({ ...codexSettings, model });
-                    setShowCustomModel(false);
-                  }}
-                >
-                  적용
-                </ActionButton>
-              </>
-            ) : (
-              <ActionButton variant="ghost" onClick={() => setShowCustomModel(true)}>
-                직접 입력
-              </ActionButton>
-            )}
-          </div>
-        ) : null}
         <div className="action-row settings-actions"><ActionButton className="settings-refresh-button" variant="neutralWeak" disabled={checking} loading={checking} aria-label={checking ? "다시 확인 중" : "다시 확인"} onClick={() => void refresh()}>{checking ? "다시 확인 중" : "다시 확인"}</ActionButton></div>
       </section>
       <section className="section-card settings-row" aria-labelledby="jev-title"><h2 id="jev-title">Jev 짤 판정</h2><span className={`status-label ${status?.jev.available ? "is-ready" : "is-warning"}`}>{status?.jev.available ? "연결됨" : "연결 안 됨"}</span></section>
       <section className="section-card" aria-labelledby="models-title">
         <h2 id="models-title" className="settings-section-title">모델</h2>
-        <div className="model-row"><div><h3>짤 검색 모델</h3><p>{bgeJob ? "받는 동안 짤은 기본 순위로 골라요." : models?.bgeM3.available ? "받았어요." : "받기 전에는 짤을 기본 순위로 골라요."}</p></div>
-          {bgeJob ? <div className="model-progress"><ProgressCircle size="24" tone="brand" value={bgeJob.progress === null ? undefined : bgeJob.progress * 100} /><span>{bgeJob.message ?? "받는 중"}{bgeJob.progress === null ? "" : ` · ${Math.round(bgeJob.progress * 100)}%`}</span><ActionButton variant="neutralWeak" size="small" onClick={() => void cancel(bgeJob.id)}>취소</ActionButton></div> : <ActionButton variant="neutralWeak" disabled={models?.bgeM3.available} onClick={() => void download("bge-m3")}>{models?.bgeM3.available ? "받음" : "받기"}</ActionButton>}
+        <div className="model-row"><div><h3>짤 검색 모델</h3><p>{bgeJob ? "받는 동안 짤은 기본 순위로 골라요." : models?.bgeM3.available ? "짤을 검색할 때 사용해요." : "받기 전에는 짤을 기본 순위로 골라요."}</p></div>
+          {bgeJob ? <div className="model-progress"><ProgressCircle size="24" tone="brand" value={bgeJob.progress === null ? undefined : bgeJob.progress * 100} /><span>{bgeJob.message ?? "받는 중"}{bgeJob.progress === null ? "" : ` · ${Math.round(bgeJob.progress * 100)}%`}</span><ActionButton variant="neutralWeak" size="small" onClick={() => void cancel(bgeJob.id)}>취소</ActionButton></div> : models?.bgeM3.available ? <span className="model-ready">준비됨</span> : <ActionButton variant="neutralWeak" onClick={() => void download("bge-m3")}>받기</ActionButton>}
         </div>
         <div className="model-row"><div><h3>받아 적기 모델</h3><p>자막 만들기와 AI 추천 대본에 써요. · 574 MB</p></div>
           {whisperJob ? <div className="model-progress"><ProgressCircle size="24" tone="brand" value={whisperJob.progress === null ? undefined : whisperJob.progress * 100} /><span>{whisperJob.message ?? "받는 중"}{whisperJob.progress === null ? "" : ` · ${Math.round(whisperJob.progress * 100)}%`}</span><ActionButton variant="neutralWeak" size="small" onClick={() => void cancel(whisperJob.id)}>취소</ActionButton></div> : <ActionButton variant="neutralWeak" disabled={models?.whisper.available} onClick={() => void download("whisper")}>{models?.whisper.available ? "받음" : "받기"}</ActionButton>}

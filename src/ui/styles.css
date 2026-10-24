@@ -220,3 +220,39 @@ button:disabled { cursor: not-allowed; }
 .export-progress > div { display: flex; flex: 1; justify-content: space-between; font-size: 14px; }
 .export-complete { display: flex; align-items: center; justify-content: space-between; margin-top: 20px; }
 .export-actions { margin-top: 24px; }
+
+/* W11 화면설계 보정 */
+.sidebar { width: 240px; flex-basis: 240px; }
+.screen { max-width: 1280px; padding: 32px 40px 56px; }
+.screen-title { font-size: 24px; font-weight: 700; }
+.screen-header { margin-bottom: 24px; }
+.project-grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 20px; }
+.project-card-wrap { min-width: 0; }
+.project-card { position: relative; gap: 10px; padding: 0; border: 0; border-radius: 0; text-align: left; }
+.project-thumb { width: 100%; border: 1px solid var(--seed-color-palette-gray-200); border-radius: 12px; background: var(--seed-color-palette-gray-100); color: var(--seed-color-fg-neutral); }
+.project-name { font-size: 15px; font-weight: 700; }
+.project-menu-wrap { position: absolute; right: 0; bottom: 0; z-index: 1; }
+.project-menu-trigger { display: grid; width: 44px; height: 44px; place-items: center; border: 1px solid var(--seed-color-palette-gray-400); border-radius: 10px; color: var(--seed-color-fg-neutral); background: var(--seed-color-bg-layer-default); }
+.project-menu { position: absolute; top: calc(100% + 6px); right: 0; z-index: 40; display: grid; min-width: 160px; padding: 4px; border: 1px solid var(--seed-color-palette-gray-200); border-radius: 10px; background: var(--seed-color-bg-layer-default); box-shadow: 0 8px 24px #0002; }
+.project-menu button { padding: 10px 12px; border: 0; border-radius: 6px; color: var(--seed-color-fg-neutral); background: transparent; text-align: left; }
+.project-menu button:hover { background: var(--seed-color-palette-gray-100); }
+.rename-input { width: 100%; min-height: 44px; margin: 8px 0; padding: 0 12px; border: 1px solid var(--seed-color-palette-gray-400); border-radius: 8px; background: var(--seed-color-bg-layer-default); }
+.seed-alert-dialog__backdrop, .seed-alert-dialog__positioner { z-index: 50 !important; }
+.seed-alert-dialog__content { width: min(100%, 400px); max-width: 400px; padding: 24px; }
+.seed-alert-dialog__footer { gap: 8px; }
+.settings-select { min-height: 44px; min-width: 220px; border-color: var(--seed-color-palette-gray-500); border-radius: 10px; }
+.settings-model-fields label { font-weight: 700; }
+.model-ready { color: var(--seed-color-fg-positive); font-size: 13px; font-weight: 700; }
+.carousel-screen { display: flex; min-height: 100vh; flex-direction: column; gap: 24px; }
+.carousel-empty-card { display: flex; flex: 1; min-height: 480px; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 40px 24px; border: 1px solid var(--seed-color-palette-gray-200); border-radius: 14px; text-align: center; }
+.carousel-placeholder-icon { color: var(--seed-color-palette-gray-600); }
+.carousel-empty-card h2 { margin: 0; font-size: 18px; }
+.carousel-empty-card p { max-width: 420px; margin: 0; color: var(--seed-color-palette-gray-700); font-size: 14px; line-height: 1.6; }
+.carousel-go-button { min-height: 44px; margin-top: 4px; padding: 0 18px; border: 1px solid var(--seed-color-palette-gray-500); border-radius: 10px; color: var(--seed-color-fg-neutral); background: var(--seed-color-bg-layer-default); font-size: 14px; font-weight: 700; }
+.flow-top { min-height: 64px; gap: 16px; margin: -32px -40px 0; padding: 0 24px; border-bottom: 1px solid var(--seed-color-palette-gray-200); }
+.flow-back-button { width: 44px; height: 44px; justify-content: center; padding: 0; }
+.project-name-input { min-width: 240px; max-width: 360px; flex: 1 1 240px; }
+.project-name-input input { width: 100%; padding: 6px 0; border: 0; outline-offset: 3px; color: var(--seed-color-fg-neutral); background: transparent; font-size: 17px; font-weight: 700; }
+.flow-top .steps { flex: 0 0 auto; margin: 0 0 0 auto; }
+.flow-top .step { padding: 8px 14px; border: 0; background: var(--seed-color-palette-gray-100); }
+.flow-top .step[aria-current="step"] { background: var(--seed-color-fg-neutral); }

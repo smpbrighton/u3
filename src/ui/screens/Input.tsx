@@ -4,7 +4,6 @@ import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
 import { ActionButton } from "../../../seed-design/ui/action-button";
 import { AttachmentField } from "../../../seed-design/ui/attachment-field";
-import { TextField, TextFieldInput } from "../../../seed-design/ui/text-field";
 import { api, mediaUrl } from "../api";
 import type { Input as ProjectInput, Project } from "../types";
 import { ArrowLeft01Icon, ArrowUp01Icon, ArrowDown01Icon } from "@hugeicons/core-free-icons";
@@ -149,11 +148,9 @@ export function Input(props: {
   return (
     <section className="screen" aria-labelledby="input-title">
       <div className="flow-top">
-        <ActionButton variant="ghost" onClick={props.onBack}><HugeiconsIcon icon={ArrowLeft01Icon} size={18} /> 영상 목록</ActionButton>
+        <ActionButton className="flow-back-button" variant="ghost" aria-label="영상 목록으로 돌아가기" onClick={props.onBack}><HugeiconsIcon icon={ArrowLeft01Icon} size={20} /></ActionButton>
         <div className="project-name-input">
-          <TextField label="영상 이름" value={name} onValueChange={({ value }) => setName(value)}>
-            <TextFieldInput maxLength={120} />
-          </TextField>
+          <input aria-label="영상 이름" value={name} maxLength={120} onChange={event => setName(event.target.value)} />
         </div>
         <ol className="steps" aria-label="단계">
           <li className="step" aria-current="step">1 미디어</li><li className="step">2 대본</li><li className="step">3 스튜디오</li>
