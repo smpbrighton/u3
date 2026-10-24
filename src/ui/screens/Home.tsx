@@ -150,16 +150,16 @@ export function Home(props: {
       )}
       {props.status && !codexReady ? <span className="visually-hidden">대본 생성은 Codex 상태를 확인한 뒤 시작할 수 있어요.</span> : null}
       <AlertDialog.Root open={Boolean(deleting)} onOpenChange={open => { if (!open) setDeleting(null); }}>
-        <AlertDialog.Backdrop /><AlertDialog.Positioner><AlertDialog.Content>
+        <AlertDialog.Backdrop /><AlertDialog.Positioner><AlertDialog.Content className="w11-alert-dialog">
           <AlertDialog.Header><AlertDialog.Title>‘{deleting?.name}’을 삭제할까요?</AlertDialog.Title><AlertDialog.Description>원본 복사본, 녹음, 분리한 소리, 자막이 함께 지워져요. 삭제하면 되돌릴 수 없어요.</AlertDialog.Description></AlertDialog.Header>
-          <AlertDialog.Footer><ActionButton variant="ghost" onClick={() => setDeleting(null)}>취소</ActionButton><AlertDialog.Action asChild><ActionButton variant="criticalSolid" onClick={() => void deleteProject()}>삭제</ActionButton></AlertDialog.Action></AlertDialog.Footer>
+          <AlertDialog.Footer className="w11-alert-dialog-footer"><ActionButton variant="neutralWeak" onClick={() => setDeleting(null)}>취소</ActionButton><AlertDialog.Action asChild><ActionButton variant="criticalSolid" onClick={() => void deleteProject()}>삭제</ActionButton></AlertDialog.Action></AlertDialog.Footer>
         </AlertDialog.Content></AlertDialog.Positioner>
       </AlertDialog.Root>
       <AlertDialog.Root open={Boolean(editing)} onOpenChange={open => { if (!open) setEditing(null); }}>
-        <AlertDialog.Backdrop /><AlertDialog.Positioner><AlertDialog.Content>
+        <AlertDialog.Backdrop /><AlertDialog.Positioner><AlertDialog.Content className="w11-alert-dialog">
           <AlertDialog.Header><AlertDialog.Title>영상 이름 바꾸기</AlertDialog.Title><AlertDialog.Description>새 이름을 입력해 주세요.</AlertDialog.Description></AlertDialog.Header>
           <input className="rename-input" aria-label="영상 이름" value={name} onChange={event => setName(event.target.value)} onKeyDown={event => { if (event.key === "Enter") void renameProject(); }} />
-          <AlertDialog.Footer><ActionButton variant="neutralWeak" onClick={() => setEditing(null)}>취소</ActionButton><ActionButton variant="brandSolid" disabled={!name.trim()} onClick={() => void renameProject()}>저장</ActionButton></AlertDialog.Footer>
+          <AlertDialog.Footer className="w11-alert-dialog-footer"><ActionButton variant="neutralWeak" onClick={() => setEditing(null)}>취소</ActionButton><ActionButton variant="brandSolid" disabled={!name.trim()} onClick={() => void renameProject()}>저장</ActionButton></AlertDialog.Footer>
         </AlertDialog.Content></AlertDialog.Positioner>
       </AlertDialog.Root>
     </section>

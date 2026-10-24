@@ -3,10 +3,9 @@ import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
 import { ActionButton } from "../../../seed-design/ui/action-button";
-import { AttachmentField } from "../../../seed-design/ui/attachment-field";
 import { api, mediaUrl } from "../api";
 import type { Input as ProjectInput, Project } from "../types";
-import { ArrowLeft01Icon, ArrowUp01Icon, ArrowDown01Icon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon, ArrowUp01Icon, ArrowDown01Icon, FileUploadIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
 const VIDEO = new Set(["mp4", "mov", "m4v"]);
@@ -146,8 +145,8 @@ export function Input(props: {
   }
 
   return (
-    <section className="screen" aria-labelledby="input-title">
-      <div className="flow-top">
+    <section className="screen input-screen" aria-label="미디어 넣기">
+      <header className="input-header">
         <ActionButton className="flow-back-button" variant="ghost" aria-label="영상 목록으로 돌아가기" onClick={props.onBack}><HugeiconsIcon icon={ArrowLeft01Icon} size={20} /></ActionButton>
         <div className="project-name-input">
           <input aria-label="영상 이름" value={name} maxLength={120} onChange={event => setName(event.target.value)} />
@@ -155,41 +154,46 @@ export function Input(props: {
         <ol className="steps" aria-label="단계">
           <li className="step" aria-current="step">1 미디어</li><li className="step">2 대본</li><li className="step">3 스튜디오</li>
         </ol>
-      </div>
-      <header className="screen-header">
-        <div><h1 id="input-title" className="screen-title">영상·사진 넣기</h1><p className="screen-subtitle">영상과 사진을 1~20개 넣고 순서를 정해요.</p></div>
       </header>
-      <AttachmentField label="미디어 파일" description="mp4 · mov · jpg · png · heic, 최대 20개" maxFiles={20 - inputs.length} accept={["video/mp4", "video/quicktime", "image/*"]}>
-        <div className="drop-area" data-dragging={dragging} onClick={event => { if (!(event.target instanceof HTMLButtonElement)) void chooseFiles(); }} onDragOver={event => { event.preventDefault(); setDragging(true); }} onDragLeave={() => setDragging(false)} onDrop={event => { event.preventDefault(); setDragging(false); void addPaths(Array.from(event.dataTransfer.files).map(file => (file as File & { path?: string }).path).filter((file): file is string => Boolean(file))); }}>
-          <div>
-            <p><strong>영상·사진을 끌어 놓거나 눌러서 고르기</strong></p>
-            <ActionButton variant="neutralWeak" loading={busy} disabled={busy} onClick={() => void chooseFiles()}>파일 선택</ActionButton>
+      <main className="input-content">
+        <button
+          className="drop-area"
+          type="button"
+          disabled={busy || inputs.length >= 20}
+          data-dragging={dragging}
+          onClick={() => void chooseFiles()}
+          onDragOver={event => { event.preventDefault(); setDragging(true); }}
+          onDragLeave={() => setDragging(false)}
+          onDrop={event => { event.preventDefault(); setDragging(false); void addPaths(Array.from(event.dataTransfer.files).map(file => (file as File & { path?: string }).path).filter((file): file is string => Boolean(file))); }}
+        >
+          <HugeiconsIcon icon={FileUploadIcon} size={32} aria-hidden="true" />
+          <span className="drop-area-title">영상·사진을 끌어 놓거나 눌러서 고르기</span>
+          <span className="drop-area-description">mp4 · mov · jpg · png · heic, 최대 20개</span>
+        </button>
+        <section className="input-media-section" aria-labelledby="media-list-title">
+          <div className="input-media-heading">
+            <h2 id="media-list-title">넣은 미디어</h2><span>{inputs.length} / 20</span>
           </div>
-        </div>
-      </AttachmentField>
-      <section aria-labelledby="media-list-title">
-        <div className="screen-header">
-          <h2 id="media-list-title">넣은 미디어</h2><span>{inputs.length} / 20</span>
-        </div>
-        {inputs.length ? (
-          <ol className="media-list">
-            {inputs.map((input, index) => (
-              <li className="media-row" key={input.id} draggable onDragStart={event => event.dataTransfer.setData("text/plain", String(index))} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); void reorder(Number(event.dataTransfer.getData("text/plain")), index); }}>
-                <span className="media-preview">{input.kind === "photo" ? <img src={mediaUrls[input.id]} alt="" /> : <video src={mediaUrls[input.id]} muted preload="metadata" />}</span>
-                <span className="media-kind">{index + 1}</span>
-                <span className="media-row-name">{input.file.split("/").at(-1)}</span>
-                <span className="media-kind">{input.kind === "video" ? "영상" : "사진"}</span>
-                <ActionButton variant="neutralWeak" size="small" aria-label={`위로 이동 ${input.file.split("/").at(-1)}`} disabled={index === 0} onClick={() => void reorder(index, index - 1)}><HugeiconsIcon icon={ArrowUp01Icon} size={16} /></ActionButton>
-                <ActionButton variant="neutralWeak" size="small" aria-label={`아래로 이동 ${input.file.split("/").at(-1)}`} disabled={index === inputs.length - 1} onClick={() => void reorder(index, index + 1)}><HugeiconsIcon icon={ArrowDown01Icon} size={16} /></ActionButton>
-                <ActionButton variant="ghost" size="small" aria-label={`빼기 ${input.file.split("/").at(-1)}`} onClick={() => void removeInput(input.id)}>빼기</ActionButton>
-              </li>
-            ))}
-          </ol>
-        ) : <p className="empty-state">아직 넣은 미디어가 없어요.</p>}
-      </section>
-      <div className="action-row">
+          {inputs.length ? (
+            <ol className="media-list">
+              {inputs.map((input, index) => (
+                <li className="media-row" key={input.id} draggable onDragStart={event => event.dataTransfer.setData("text/plain", String(index))} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); void reorder(Number(event.dataTransfer.getData("text/plain")), index); }}>
+                  <span className="media-preview">{input.kind === "photo" ? <img src={mediaUrls[input.id]} alt="" /> : <video src={mediaUrls[input.id]} muted preload="metadata" />}</span>
+                  <span className="media-kind">{index + 1}</span>
+                  <span className="media-row-name">{input.file.split("/").at(-1)}</span>
+                  <span className="media-kind">{input.kind === "video" ? "영상" : "사진"}</span>
+                  <ActionButton variant="neutralWeak" size="small" aria-label={`위로 이동 ${input.file.split("/").at(-1)}`} disabled={index === 0} onClick={() => void reorder(index, index - 1)}><HugeiconsIcon icon={ArrowUp01Icon} size={16} /></ActionButton>
+                  <ActionButton variant="neutralWeak" size="small" aria-label={`아래로 이동 ${input.file.split("/").at(-1)}`} disabled={index === inputs.length - 1} onClick={() => void reorder(index, index + 1)}><HugeiconsIcon icon={ArrowDown01Icon} size={16} /></ActionButton>
+                  <ActionButton variant="ghost" size="small" aria-label={`빼기 ${input.file.split("/").at(-1)}`} onClick={() => void removeInput(input.id)}>빼기</ActionButton>
+                </li>
+              ))}
+            </ol>
+          ) : null}
+        </section>
+      </main>
+      <footer className="input-footer">
         <ActionButton variant="brandSolid" disabled={!inputs.length || busy} onClick={() => void next()}>다음: 대본</ActionButton>
-      </div>
+      </footer>
     </section>
   );
 }

@@ -4,10 +4,12 @@ import { moveVideoClip, videoStartTimes } from "../../core/timeline/ops";
 import { ActionButton } from "../../../seed-design/ui/action-button";
 import { PageBanner } from "../../../seed-design/ui/page-banner";
 import { ProgressCircle } from "../../../seed-design/ui/progress-circle";
+import { AlertDialog } from "@seed-design/react";
 import { api, watchJob, type EngineJob } from "../api";
 
 interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
 interface SfxItem { id: string; category: string; title: string; file: string; url: string; durationSec: number }
+type TranscriptResult = { captions: TimelineData["captions"]; replaced: TimelineData["captions"] };
 
 export function Inspector(props: {
   project: Project;
@@ -24,6 +26,8 @@ export function Inspector(props: {
   const [error, setError] = useState<string | null>(null);
   const [sttTarget, setSttTarget] = useState<"source" | "voice">("source");
   const [modelAvailable, setModelAvailable] = useState<boolean | null>(null);
+  const [confirmation, setConfirmation] = useState<"download-model" | "replace-captions" | null>(null);
+  const [pendingTranscript, setPendingTranscript] = useState<TranscriptResult | null>(null);
 
   useEffect(() => {
     void api<MemeItem[]>("GET", "/api/library/memes").then(setMemes).catch(() => undefined);
@@ -92,15 +96,16 @@ export function Inspector(props: {
   }
 
   async function createCaptions() {
+    if (modelAvailable === false) {
+      setConfirmation("download-model");
+      return;
+    }
+    await runTranscription();
+  }
+
+  async function runTranscription() {
     setError(null);
     try {
-      if (modelAvailable === false) {
-        if (!window.confirm("whisper 모델을 받으려면 574 MB가 필요해요. 받을까요?")) return;
-        const download = await api<EngineJob>("POST", "/api/models/download", { model: "whisper" });
-        const result = await watchJob(download.id, setJob, new AbortController().signal);
-        if (result.status !== "done") throw new Error(result.error ?? "모델을 받지 못했어요.");
-        setModelAvailable(true);
-      }
       const saved = await persistTimeline();
       const voiceClipId = props.selectedTrack === "voice" ? props.selectedId : saved.timeline.voice[0]?.id;
       const target = sttTarget === "voice"
@@ -112,7 +117,17 @@ export function Inspector(props: {
       const finished = await watchJob(started.id, setJob, new AbortController().signal);
       if (finished.status !== "done") throw new Error(finished.error ?? finished.message ?? "자막을 만들지 못했어요.");
       const result = finished.result as { captions: TimelineData["captions"]; replaced: TimelineData["captions"] };
-      if (result.replaced.length && !window.confirm(`기존 자막 ${result.replaced.length}개를 새 자막으로 바꿀까요?`)) return;
+      if (result.replaced.length) {
+        setPendingTranscript(result);
+        setConfirmation("replace-captions");
+        return;
+      }
+      await applyTranscript(result);
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+  }
+
+  async function applyTranscript(result: TranscriptResult) {
+    try {
       const applied = await api<{ project: Project }>("POST", `/api/projects/${props.project.id}/transcribe/apply`, {
         captions: result.captions,
         replaceIds: result.replaced.map((item) => item.id),
@@ -123,6 +138,32 @@ export function Inspector(props: {
     } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
   }
 
+  async function confirmAction() {
+    const action = confirmation;
+    setConfirmation(null);
+    if (action === "download-model") {
+      try {
+        const download = await api<EngineJob>("POST", "/api/models/download", { model: "whisper" });
+        const result = await watchJob(download.id, setJob, new AbortController().signal);
+        if (result.status !== "done") throw new Error(result.error ?? "모델을 받지 못했어요.");
+        setModelAvailable(true);
+        await runTranscription();
+      } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+      return;
+    }
+    if (action === "replace-captions" && pendingTranscript) {
+      const result = pendingTranscript;
+      setPendingTranscript(null);
+      await applyTranscript(result);
+    }
+  }
+
+  const dialogProps = {
+    confirmation,
+    onConfirm: () => void confirmAction(),
+    onCancel: () => { setConfirmation(null); setPendingTranscript(null); },
+  };
+
   if (video) {
     const start = videoStarts[video.id]!;
     const selectedInput = video.kind === "main" ? props.project.inputs.find((item) => item.id === video.inputId) : undefined;
@@ -132,7 +173,7 @@ export function Inspector(props: {
       const updated = props.timeline.video.map((item) => item.id === video.id ? { ...video, [edge === "start" ? "inStartSec" : "inEndSec"]: value } : item);
       props.onChange({ ...props.timeline, video: updated });
     };
-    return <InspectorShell title={video.kind === "meme" ? "짤 속성" : "영상 클립"} error={error}>
+    return <InspectorShell title={video.kind === "meme" ? "짤 속성" : "영상 클립"} error={error} {...dialogProps}>
       {video.kind === "main" && "inStartSec" in video ? <div className="studio-inspector-grid">
         <label>원본 시작<input type="number" min="0" step="0.1" value={video.inStartSec} onChange={(event) => editTrim("start", Number(event.currentTarget.value))} /></label>
         <label>원본 끝<input type="number" min="0.1" max={selectedInput?.durationSec} step="0.1" value={video.inEndSec} onChange={(event) => editTrim("end", Number(event.currentTarget.value))} /></label>
@@ -147,11 +188,11 @@ export function Inspector(props: {
     </InspectorShell>;
   }
 
-  if (caption) return <InspectorShell title="자막 속성" error={error}><label>자막<textarea rows={4} value={caption.text} onChange={(event) => props.onChange({ ...props.timeline, captions: props.timeline.captions.map((item) => item.id === caption.id ? { ...caption, text: event.currentTarget.value } : item) })} /></label></InspectorShell>;
+  if (caption) return <InspectorShell title="자막 속성" error={error} {...dialogProps}><label>자막<textarea rows={4} value={caption.text} onChange={(event) => props.onChange({ ...props.timeline, captions: props.timeline.captions.map((item) => item.id === caption.id ? { ...caption, text: event.currentTarget.value } : item) })} /></label></InspectorShell>;
   if (voiceClip || sfxClip) {
     const clip = voiceClip ?? sfxClip!;
     const track = voiceClip ? "voice" : "sfx";
-    return <InspectorShell title={track === "voice" ? "음성 속성" : "효과음 속성"} error={error}>
+    return <InspectorShell title={track === "voice" ? "음성 속성" : "효과음 속성"} error={error} {...dialogProps}>
       <GainControl label="트랙 볼륨" gain={audioGain[track].gain} muted={audioGain[track].muted} onChange={(value) => updateGain(track, value)} onMute={() => toggleMute(track)} />
       <GainControl label="클립 볼륨" gain={clip.gain} onChange={(value) => updateClip(clip.id, { gain: value }, track)} />
       {track === "sfx" ? <label>효과음 바꾸기<select value={clip.file} onChange={(event) => { const item = sfxItems.find((sfx) => sfx.url === event.currentTarget.value); if (item) updateClip(clip.id, { file: item.url, inStartSec: 0, inEndSec: item.durationSec }, "sfx"); }}>{sfxItems.map((item) => <option key={item.id} value={item.url}>{item.title}</option>)}</select></label> : null}
@@ -160,7 +201,7 @@ export function Inspector(props: {
     </InspectorShell>;
   }
 
-  if (sourceClip && input) return <InspectorShell title={separated ? "분리한 소리" : "원본 소리"} error={error}>
+  if (sourceClip && input) return <InspectorShell title={separated ? "분리한 소리" : "원본 소리"} error={error} {...dialogProps}>
     {separated ? <>
       <GainControl label="목소리" gain={separated.voice.gain} muted={separated.voice.muted} onChange={(value) => props.onChange({ ...props.timeline, audio: { ...audioGain, stems: { ...audioGain.stems, [input.id]: { ...separated, voice: { ...separated.voice, gain: value } } } } })} onMute={() => props.onChange({ ...props.timeline, audio: { ...audioGain, stems: { ...audioGain.stems, [input.id]: { ...separated, voice: { ...separated.voice, muted: !separated.voice.muted } } } } })} />
       <GainControl label="배경" gain={separated.bg.gain} muted={separated.bg.muted} onChange={(value) => props.onChange({ ...props.timeline, audio: { ...audioGain, stems: { ...audioGain.stems, [input.id]: { ...separated, bg: { ...separated.bg, gain: value } } } } })} onMute={() => props.onChange({ ...props.timeline, audio: { ...audioGain, stems: { ...audioGain.stems, [input.id]: { ...separated, bg: { ...separated.bg, muted: !separated.bg.muted } } } } })} />
@@ -176,11 +217,33 @@ export function Inspector(props: {
     {job && ["queued", "running"].includes(job.status) ? <div className="studio-job"><ProgressCircle size="24" tone="brand" value={job.progress === null ? undefined : job.progress * 100} /><span>{job.message ?? "작업 중이에요."}</span><ActionButton variant="ghost" size="small" onClick={() => void cancelJob()}>취소</ActionButton></div> : null}
   </InspectorShell>;
 
-  return <InspectorShell title="속성"><p className="studio-help">클립을 선택하면 속성을 편집할 수 있어요.</p></InspectorShell>;
+  return <InspectorShell title="속성" {...dialogProps}><p className="studio-help">클립을 선택하면 속성을 편집할 수 있어요.</p></InspectorShell>;
 }
 
-function InspectorShell(props: { title: string; error?: string | null; children: React.ReactNode }) {
-  return <aside className="studio-inspector" aria-label="속성"><h2>{props.title}</h2>{props.error ? <PageBanner tone="warning" variant="weak" description={props.error} /> : null}<div className="studio-inspector-content">{props.children}</div></aside>;
+function InspectorShell(props: {
+  title: string;
+  error?: string | null;
+  confirmation?: "download-model" | "replace-captions" | null;
+  onConfirm?: () => void;
+  onCancel?: () => void;
+  children: React.ReactNode;
+}) {
+  const critical = props.confirmation === "replace-captions";
+  return <>
+    <aside className="studio-inspector" aria-label="속성"><h2>{props.title}</h2>{props.error ? <PageBanner tone="warning" variant="weak" description={props.error} /> : null}<div className="studio-inspector-content">{props.children}</div></aside>
+    <AlertDialog.Root open={Boolean(props.confirmation)} onOpenChange={open => { if (!open) props.onCancel?.(); }}>
+      <AlertDialog.Backdrop /><AlertDialog.Positioner><AlertDialog.Content className="w11-alert-dialog">
+        <AlertDialog.Header>
+          <AlertDialog.Title>{critical ? "기존 자막을 바꿀까요?" : "whisper 모델을 받을까요?"}</AlertDialog.Title>
+          <AlertDialog.Description>{critical ? "기존 자막을 새 자막으로 바꿔요." : "받아 적기 모델을 받으려면 574 MB가 필요해요."}</AlertDialog.Description>
+        </AlertDialog.Header>
+        <AlertDialog.Footer className="w11-alert-dialog-footer">
+          <ActionButton variant="neutralWeak" onClick={props.onCancel}>취소</ActionButton>
+          <AlertDialog.Action asChild><ActionButton variant={critical ? "criticalSolid" : "neutralWeak"} onClick={props.onConfirm}>{critical ? "바꾸기" : "받기"}</ActionButton></AlertDialog.Action>
+        </AlertDialog.Footer>
+      </AlertDialog.Content></AlertDialog.Positioner>
+    </AlertDialog.Root>
+  </>;
 }
 
 function GainControl(props: { label: string; gain: number; muted?: boolean; onChange: (value: number) => void; onMute?: () => void }) {
