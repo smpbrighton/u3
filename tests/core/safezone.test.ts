@@ -11,7 +11,7 @@ import {
   type LayoutInput,
 } from "../../src/core/layout";
 import { checkElement, checkSafeZone, insideSafeZone } from "../../src/core/safezone";
-import { loadMeasurer } from "../../src/core/measure";
+import { loadMeasurer } from "../../src/core/measure-node";
 import type { WordStamp } from "../../src/core/schema";
 
 const m = loadMeasurer();

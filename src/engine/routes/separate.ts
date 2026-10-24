@@ -11,8 +11,9 @@ import { separateWav } from "../pipeline/separate";
 import { configuredModelPath } from "../pipeline/model-paths";
 
 function inputPath(projectDir: string, file: string): string {
-  const resolved = path.resolve(projectDir, file);
-  if (!resolved.startsWith(`${projectDir}${path.sep}`)) throw new HttpError(400, "invalid-input", "프로젝트 밖의 파일은 처리할 수 없습니다");
+  const resolvedRoot = path.resolve(projectDir);
+  const resolved = path.resolve(resolvedRoot, file);
+  if (!resolved.startsWith(`${resolvedRoot}${path.sep}`)) throw new HttpError(400, "invalid-input", "프로젝트 밖의 파일은 처리할 수 없습니다");
   return resolved;
 }
 

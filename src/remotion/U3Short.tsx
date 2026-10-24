@@ -1,7 +1,7 @@
 import { Audio, Video } from "@remotion/media";
 import { AbsoluteFill, Img, Loop, Sequence } from "remotion";
 import { useMemo } from "react";
-import { CAPTION_LINE_HEIGHT, CAPTION_MAX_LINE_WIDTH, CAPTION_MAX_LINES, CAPTION_PAD_X, CAPTION_PAD_Y, CAPTION_STYLE, layoutCaption, wrapWords } from "../core/layout";
+import { CAPTION_CENTER_Y, CAPTION_LINE_HEIGHT, CAPTION_MAX_LINE_WIDTH, CAPTION_PAD_X, CAPTION_PAD_Y, CAPTION_STYLE, fitCaptionText, layoutCaption } from "../core/layout";
 import type { CaptionChunk } from "../core/captions";
 import { ensureFonts, FONT_FAMILY } from "./fonts";
 import type { U3ShortProps } from "./types";
@@ -33,19 +33,26 @@ export const SceneCaption: React.FC<{ text: string }> = ({ text }) => {
   const caption = useMemo(() => {
     const context = document.createElement("canvas").getContext("2d");
     if (!context) throw new Error("자막 측정 canvas를 만들 수 없습니다");
-    context.font = `${CAPTION_STYLE.weight} ${CAPTION_STYLE.fontSize}px ${FONT_FAMILY.body}`;
-    const width = (value: string) => context.measureText(value).width * 1.04;
-    const wrapped = wrapWords(text, CAPTION_MAX_LINE_WIDTH, CAPTION_MAX_LINES, width);
-    const lineTexts = wrapped ?? [text.normalize("NFC").trim()];
+    const fit = fitCaptionText(text, CAPTION_MAX_LINE_WIDTH, (value, fontSize) => {
+      context.font = `${CAPTION_STYLE.weight} ${fontSize}px ${FONT_FAMILY.body}`;
+      return context.measureText(value).width * 1.04;
+    });
+    const lineTexts = fit.lines;
+    const width = (value: string) => {
+      context.font = `${CAPTION_STYLE.weight} ${fit.fontSize}px ${FONT_FAMILY.body}`;
+      return context.measureText(value).width * 1.04;
+    };
     const chunk: CaptionChunk = {
       lines: lineTexts.map((line) => ({ text: line, width: width(line), wordIndices: [] })),
       startSec: 0,
       endSec: 1,
       firstWord: 0,
       lastWord: 0,
-      overflow: wrapped === null,
+      overflow: fit.overflow,
     };
-    return layoutCaption(chunk, 0);
+    const layout = layoutCaption(chunk, 0);
+    const height = lineTexts.length * fit.fontSize * CAPTION_LINE_HEIGHT + 2 * CAPTION_PAD_Y;
+    return { ...layout, fontSize: fit.fontSize, box: { ...layout.box, y: CAPTION_CENTER_Y - height / 2, height } };
   }, [text]);
   return (
     <div style={{
@@ -61,7 +68,7 @@ export const SceneCaption: React.FC<{ text: string }> = ({ text }) => {
       color: "#FFFFFF",
       fontFamily: FONT_FAMILY.body,
       fontWeight: CAPTION_STYLE.weight,
-      fontSize: CAPTION_STYLE.fontSize,
+      fontSize: caption.fontSize,
       lineHeight: CAPTION_LINE_HEIGHT,
       textAlign: "center",
       display: "flex",

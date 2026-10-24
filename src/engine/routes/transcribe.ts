@@ -5,7 +5,7 @@ import { z } from "zod";
 import { captionsFromTranscript, parseWhisperOutput, transcriptForTimeline, wordsForAudioClip } from "../../core/transcript";
 import type { AudioClip } from "../../core/schema";
 import { CAPTION_STYLE } from "../../core/layout";
-import { loadMeasurer } from "../../core/measure";
+import { loadMeasurer } from "../../core/measure-node";
 import type { AppContext } from "../app";
 import { done } from "../jobs";
 import { HttpError, parseJson } from "../http";
@@ -19,8 +19,9 @@ const targetSchema = z.discriminatedUnion("kind", [
 ]);
 
 function within(root: string, file: string): string {
-  const resolved = path.resolve(root, file);
-  if (!resolved.startsWith(`${root}${path.sep}`)) throw new HttpError(400, "invalid-input", "프로젝트 밖의 파일은 처리할 수 없습니다");
+  const resolvedRoot = path.resolve(root);
+  const resolved = path.resolve(resolvedRoot, file);
+  if (!resolved.startsWith(`${resolvedRoot}${path.sep}`)) throw new HttpError(400, "invalid-input", "프로젝트 밖의 파일은 처리할 수 없습니다");
   return resolved;
 }
 
@@ -45,7 +46,7 @@ export function registerTranscribeRoutes(app: Hono, context: AppContext, run?: W
         const json = await transcribeAudio({
           file: sourceFile,
           whisperPath,
-          modelPath: path.join(context.store.root, "cache/models/ggml-large-v3-turbo-q5_0.bin"),
+          modelPath: process.env.U3_WHISPER_MODEL ?? path.join(context.store.root, "cache/models/ggml-large-v3-turbo-q5_0.bin"),
           vadModelPath,
           signal: jobContext.signal,
           ...(run ? { run } : {}),
@@ -67,7 +68,7 @@ export function registerTranscribeRoutes(app: Hono, context: AppContext, run?: W
       const json = await transcribeAudio({
         file: sourceFile,
         whisperPath,
-        modelPath: path.join(context.store.root, "cache/models/ggml-large-v3-turbo-q5_0.bin"),
+        modelPath: process.env.U3_WHISPER_MODEL ?? path.join(context.store.root, "cache/models/ggml-large-v3-turbo-q5_0.bin"),
         vadModelPath,
         signal: jobContext.signal,
         ...(run ? { run } : {}),

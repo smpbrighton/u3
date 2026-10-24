@@ -17,7 +17,7 @@ export function registerModelRoutes(app: Hono, context: AppContext): void {
     const modelRoot = path.join(context.store.root, "cache/models");
     const resourceRoot = context.resourceDir ?? path.join(process.cwd(), "resources");
     const bgeModel = path.join(modelRoot, "Xenova/bge-m3/onnx/model.onnx");
-    const whisperModel = path.join(modelRoot, "ggml-large-v3-turbo-q5_0.bin");
+    const whisperModel = process.env.U3_WHISPER_MODEL ?? path.join(modelRoot, "ggml-large-v3-turbo-q5_0.bin");
     const [whisperCli, silero, mrx] = await Promise.all([
       configuredModelPath(context.store, "whisperCli", context.whisperPath ?? path.join(resourceRoot, "bin/whisper-cli")),
       configuredModelPath(context.store, "silero", context.sileroPath ?? path.join(resourceRoot, "models/ggml-silero-v6.2.0.bin")),

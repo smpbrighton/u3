@@ -26,7 +26,19 @@ export function wrapWords(text: string, maxWidth: number, maxLines: 1 | 2, width
   if (!words.length) return [];
   const one = words.join(" ");
   if (width(one) <= maxWidth) return [one];
-  if (maxLines === 1 || words.length === 1) return null;
+  if (maxLines === 1) return null;
+  if (words.length === 1) {
+    const graphemes = Array.from(words[0]!);
+    if (graphemes.length < 2) return null;
+    let best: string[] | null = null;
+    let bestWidth = Infinity;
+    for (let k = 1; k < graphemes.length; k++) {
+      const lines = [graphemes.slice(0, k).join(""), graphemes.slice(k).join("")];
+      const widest = Math.max(...lines.map(width));
+      if (widest <= maxWidth && widest < bestWidth) { best = lines; bestWidth = widest; }
+    }
+    return best;
+  }
   let best: string[] | null = null;
   let bestWidth = Infinity;
   for (let k = 1; k < words.length; k++) {
@@ -39,7 +51,18 @@ export function wrapWords(text: string, maxWidth: number, maxLines: 1 | 2, width
 
 function forceTwoLines(text: string, width: (s: string) => number): string[] {
   const words = text.normalize("NFC").trim().split(/\s+/).filter(Boolean);
-  if (words.length < 2) return [words.join(" ")];
+  if (words.length < 2) {
+    const graphemes = Array.from(words[0] ?? "");
+    if (graphemes.length < 2) return [words.join(" ")];
+    let best = [graphemes.join("")];
+    let bestWidth = Infinity;
+    for (let k = 1; k < graphemes.length; k++) {
+      const lines = [graphemes.slice(0, k).join(""), graphemes.slice(k).join("")];
+      const widest = Math.max(...lines.map(width));
+      if (widest < bestWidth) { best = lines; bestWidth = widest; }
+    }
+    return best;
+  }
   let best = [words.join(" ")];
   let bestWidth = Infinity;
   for (let k = 1; k < words.length; k++) {
@@ -48,6 +71,29 @@ function forceTwoLines(text: string, width: (s: string) => number): string[] {
     if (widest < bestWidth) { best = pair; bestWidth = widest; }
   }
   return best;
+}
+
+export interface CaptionTextFit { lines: string[]; fontSize: number; overflow: boolean }
+
+export function fitCaptionText(
+  text: string,
+  maxWidth: number,
+  widthAtSize: (line: string, fontSize: number) => number,
+  minFontSize = 30,
+): CaptionTextFit {
+  const step = 2;
+  let lastSize = CAPTION_STYLE.fontSize;
+  for (let fontSize = CAPTION_STYLE.fontSize; fontSize >= minFontSize; fontSize -= step) {
+    lastSize = fontSize;
+    const lines = wrapWords(text, maxWidth, 2, (line) => widthAtSize(line, fontSize));
+    if (lines) return { lines, fontSize, overflow: false };
+  }
+  const lines = forceTwoLines(text, (line) => widthAtSize(line, lastSize));
+  return {
+    lines,
+    fontSize: lastSize,
+    overflow: lines.some((line) => widthAtSize(line, lastSize) > maxWidth),
+  };
 }
 
 export function layoutTitle(title: string, m: Measurer): TextBlock {

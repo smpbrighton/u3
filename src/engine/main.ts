@@ -56,7 +56,7 @@ const mediaServer = await startMediaServer({
 });
 const whisperPath = process.env.U3_WHISPER_CLI ?? path.join(resourceDir, "bin/whisper-cli");
 const sileroPath = process.env.U3_SILERO_MODEL ?? path.join(resourceDir, "models/ggml-silero-v6.2.0.bin");
-const whisperModelPath = path.join(store.root, "cache/models/ggml-large-v3-turbo-q5_0.bin");
+const whisperModelPath = process.env.U3_WHISPER_MODEL ?? path.join(store.root, "cache/models/ggml-large-v3-turbo-q5_0.bin");
 const transcribeInput = async ({ file, signal }: { file: string; inputId: string; signal?: AbortSignal }) => {
   const configuredWhisper = await configuredModelPath(store, "whisperCli", whisperPath);
   const configuredSilero = await configuredModelPath(store, "silero", sileroPath);

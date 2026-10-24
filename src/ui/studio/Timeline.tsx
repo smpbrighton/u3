@@ -33,6 +33,7 @@ export function Timeline(props: {
 }) {
   const ref = useRef<TimelineState>(null);
   const rows = useMemo(() => timelineToStudioRows(props.timeline), [props.timeline]);
+  const tracks = TRACKS.filter((track) => rows.some((row) => row.id === track.id));
   const starts = useMemo(() => videoStartTimes(props.timeline), [props.timeline]);
   const data = rows.map((item) => ({ ...item, actions: item.actions.map((action) => ({ ...action, selected: action.id === props.selectedId })) }));
 
@@ -80,7 +81,7 @@ export function Timeline(props: {
     <div className="studio-timeline-body">
       <div className="studio-track-labels">
         <div className="studio-track-ruler" />
-        {TRACKS.map((track) => <div key={track.id} className="studio-track-label" style={{ borderLeftColor: track.color }}>
+        {tracks.map((track) => <div key={track.id} className="studio-track-label" style={{ borderLeftColor: track.color }}>
           <span>{track.name}</span>
           {(track.id === "source" || track.id === "stem-voice" || track.id === "stem-bg" || track.id === "voice" || track.id === "sfx") && <button type="button" aria-label={`${track.name} 음소거`} onClick={() => props.onMute?.(track.id)}>◖</button>}
         </div>)}
@@ -99,7 +100,7 @@ export function Timeline(props: {
           dragLine={props.snap}
           autoScroll
           enableRowDrag={false}
-          style={{ height: 24 + TRACKS.length * 54, width: "100%" }}
+          style={{ height: 24 + tracks.length * 54, width: "100%" }}
           getScaleRender={(scale) => <span className="studio-ruler-tick">{Math.round(scale)}s</span>}
           getActionRender={(action) => <div style={actionStyle(action as StudioAction)} title={action.id}>{labelForAction(action.id, props.timeline)}</div>}
           onCursorDrag={(time) => props.onPlayhead(time)}

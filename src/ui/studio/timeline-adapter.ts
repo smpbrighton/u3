@@ -40,9 +40,9 @@ export function timelineToStudioRows(timeline: Timeline): StudioRow[] {
   return [
     row("captions", timeline.captions.map((clip) => action(clip.id, clip.startSec, clip.endSec, "caption"))),
     row("video", videoActions, 64),
-    row("source", sourceActions),
-    row("stem-voice", stemVoice),
-    row("stem-bg", stemBg),
+    ...(sourceActions.length ? [row("source", sourceActions)] : []),
+    ...(stemVoice.length ? [row("stem-voice", stemVoice)] : []),
+    ...(stemBg.length ? [row("stem-bg", stemBg)] : []),
     row("voice", timeline.voice.map((clip) => action(clip.id, clip.startSec, clip.startSec + clip.inEndSec - clip.inStartSec, "voice"))),
     row("sfx", timeline.sfx.map((clip) => action(clip.id, clip.startSec, clip.startSec + clip.inEndSec - clip.inStartSec, "sfx"))),
   ];

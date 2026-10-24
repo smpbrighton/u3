@@ -1,7 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { buildCaptionChunks, findEmphasis } from "../../src/core/captions";
-import { CAPTION_MAX_LINE_WIDTH, CAPTION_MAX_LINES, CAPTION_STYLE } from "../../src/core/layout";
-import { loadMeasurer, MEASURE_MARGIN } from "../../src/core/measure";
+import { CAPTION_MAX_LINE_WIDTH, CAPTION_MAX_LINES, CAPTION_STYLE, fitCaptionText, wrapWords } from "../../src/core/layout";
+import { MEASURE_MARGIN } from "../../src/core/measure";
+import { loadMeasurer } from "../../src/core/measure-node";
 import type { WordStamp } from "../../src/core/schema";
 
 const m = loadMeasurer();
@@ -12,6 +13,20 @@ const LONG = "자취 3년 차인데 이거 없었으면 진짜 큰일 날 뻔했
 describe("measure", () => {
   it("안전 여유를 곱해 잰다", () => { const raw = m.rawWidth("가격은?", CAPTION_STYLE); expect(raw).toBeGreaterThan(0); expect(m.width("가격은?", CAPTION_STYLE)).toBeCloseTo(raw * (1 + MEASURE_MARGIN), 6); });
   it("letterSpacing은 글자마다 더한다", () => { const base = m.rawWidth("abc", CAPTION_STYLE); expect(m.rawWidth("abc", { ...CAPTION_STYLE, letterSpacing: 2 })).toBeCloseTo(base + 6, 6); });
+});
+
+describe("caption line wrapping", () => {
+  it("wraps a long unbroken word into at most two lines", () => {
+    expect(wrapWords("가나다라마바사", 50, 2, (text) => [...text].length * 10)).toEqual(["가나다", "라마바사"]);
+  });
+
+  it("reduces a long caption to two measured lines", () => {
+    const text = "원본 영상과 사진을 찾지 못해 장면별 대본을 추천할 수 없습니다. 영상과 사진을 다시 첨부해 주세요.";
+    const fit = fitCaptionText(text, CAPTION_MAX_LINE_WIDTH, (line, fontSize) => m.width(line, { ...CAPTION_STYLE, fontSize }));
+    expect(fit.lines).toHaveLength(2);
+    expect(fit.fontSize).toBeLessThan(CAPTION_STYLE.fontSize);
+    expect(fit.lines.every((line) => m.width(line, { ...CAPTION_STYLE, fontSize: fit.fontSize }) <= CAPTION_MAX_LINE_WIDTH)).toBe(true);
+  });
 });
 describe("자막 조각", () => {
   const words = wordsFrom(LONG);
