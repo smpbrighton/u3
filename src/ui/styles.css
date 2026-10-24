@@ -88,8 +88,20 @@ button:disabled { cursor: not-allowed; }
 .studio-library-grid video { width: 100%; height: 100%; object-fit: cover; }
 .studio-library-grid span { position: absolute; right: 3px; bottom: 3px; left: 3px; overflow: hidden; padding: 2px 4px; border-radius: 4px; color: white; background: rgb(0 0 0 / 62%); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .studio-search { width: 100%; height: 38px; padding: 0 10px; border: 1px solid var(--seed-color-palette-gray-300); border-radius: 8px; background: var(--seed-color-bg-layer-default); }
-.studio-recorder-slot { padding: 16px; border-radius: 10px; background: var(--seed-color-palette-gray-100); }
-.studio-recorder-slot p { margin-bottom: 0; color: var(--seed-color-palette-gray-600); font-size: 13px; }
+.studio-recorder { display: flex; flex-direction: column; gap: 14px; }
+.studio-recorder-control { display: flex; flex-direction: column; align-items: center; gap: 10px; padding: 18px 12px; border-radius: 12px; background: var(--seed-color-palette-gray-100); }
+.studio-recorder-control.is-recording { background: var(--seed-color-bg-warning-weak); }
+.studio-recorder-time { font-size: 20px; font-variant-numeric: tabular-nums; font-weight: 700; }
+.studio-recorder-status { color: var(--seed-color-fg-warning); font-size: 13px; font-weight: 700; }
+.studio-audio-import { display: block; }
+.studio-audio-import input { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; clip-path: inset(50%); }
+.studio-recorder-heading { margin-top: 4px; font-size: 13px; }
+.studio-voice-list { display: flex; flex-direction: column; gap: 4px; margin: 0; padding: 0; list-style: none; }
+.studio-voice-list button { display: flex; width: 100%; align-items: center; justify-content: space-between; gap: 8px; padding: 8px; border: 0; border-radius: 8px; text-align: left; background: var(--seed-color-palette-gray-100); }
+.studio-voice-list button.is-selected { outline: 2px solid var(--seed-color-fg-positive); }
+.studio-voice-list button span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.studio-voice-list small { flex: 0 0 auto; color: var(--seed-color-palette-gray-600); }
+.studio-waveform { min-height: 44px; }
 .studio-preview-area { display: flex; min-width: 280px; min-height: 0; flex: 1 1 auto; flex-direction: column; align-items: center; justify-content: center; gap: 12px; overflow: hidden; padding: 16px; background: var(--seed-color-palette-gray-100); }
 .studio-preview-player { display: flex; width: min(100%, calc((100vh - 390px) * .5625)); min-height: 0; aspect-ratio: 9 / 16; align-items: center; justify-content: center; overflow: hidden; border-radius: 9px; background: #101114; box-shadow: 0 8px 28px rgb(0 0 0 / 20%); }
 .studio-preview-player > div { max-height: 100%; }
@@ -168,12 +180,12 @@ button:disabled { cursor: not-allowed; }
 .model-row p { margin: 6px 0 0; color: var(--seed-color-palette-gray-600); font-size: 13px; }
 .model-progress { display: flex; align-items: center; gap: 10px; font-size: 13px; }
 .export-backdrop { position: fixed; inset: 0; z-index: 20; display: grid; place-items: center; padding: 24px; background: rgb(20 24 31 / 55%); }
-.export-dialog { width: min(100%, 480px); padding: 28px; box-shadow: 0 20px 60px #0003; }
+.export-dialog { box-sizing: border-box; width: min(100%, 480px); min-width: 0; padding: 28px; box-shadow: 0 20px 60px #0003; }
 .export-dialog h1 { margin: 0; font-size: 20px; }
 .export-location { display: grid; gap: 8px; margin-top: 20px; }
 .export-field-label { font-size: 14px; font-weight: 700; }
-.export-path-row { display: flex; align-items: center; gap: 8px; }
-.export-path { min-width: 0; flex: 1; overflow: hidden; padding: 10px 12px; border-radius: 10px; background: var(--seed-color-palette-gray-100); text-overflow: ellipsis; white-space: nowrap; }
+.export-path-row { display: flex; width: 100%; min-width: 0; align-items: center; gap: 8px; }
+.export-path { box-sizing: border-box; min-width: 0; flex: 1 1 0; overflow: hidden; padding: 10px 12px; border-radius: 10px; background: var(--seed-color-palette-gray-100); text-overflow: ellipsis; white-space: nowrap; }
 .export-meta { color: var(--seed-color-palette-gray-600); font-size: 13px; }
 .export-progress { display: flex; align-items: center; gap: 12px; margin-top: 24px; }
 .export-progress > div { display: flex; flex: 1; justify-content: space-between; font-size: 14px; }

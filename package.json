@@ -36,6 +36,7 @@
     "@seed-design/react": "^3.0.1",
     "@tauri-apps/api": "^2.12.4",
     "@tauri-apps/plugin-dialog": "^2.8.3",
+    "@tauri-apps/plugin-opener": "~2.7.2",
     "@xzdarcy/react-timeline-editor": "1.0.0",
     "fft.js": "^4.0.4",
     "hono": "^4.13.13",
@@ -46,6 +47,7 @@
     "react-dom": "19.3.0",
     "remotion": "4.0.529",
     "wav": "1.0.2",
+    "wavesurfer.js": "^8.0.3",
     "zod": "4.6.5"
   },
   "devDependencies": {

@@ -37,8 +37,11 @@ export async function api<T>(method: Method, path: string, body?: unknown, signa
   const headers = requestHeaders(engine);
   const init: RequestInit = { method, headers, signal };
   if (body !== undefined) {
-    headers.set("content-type", "application/json");
-    init.body = JSON.stringify(body);
+    if (body instanceof FormData) init.body = body;
+    else {
+      headers.set("content-type", "application/json");
+      init.body = JSON.stringify(body);
+    }
   }
   let response: Response;
   try {

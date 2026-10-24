@@ -4,6 +4,7 @@ import { AttachmentField } from "../../../seed-design/ui/attachment-field";
 import { ActionButton } from "../../../seed-design/ui/action-button";
 import type { Project } from "../../core/schema";
 import { api, mediaUrl } from "../api";
+import { Recorder } from "./Recorder";
 
 type Tab = "media" | "meme" | "sfx" | "voice";
 interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
@@ -15,6 +16,9 @@ export function LibraryPanel(props: {
   onAddVideo: (inputId: string) => void;
   onSelectMeme: (meme: MemeItem) => void;
   onAddSfx: (sfx: SfxItem) => void;
+  playhead: number;
+  onAddVoice: (file: string, durationSec: number) => void;
+  onRecordingChange: (recording: boolean) => void;
   onProject: (project: Project) => void;
   onError: (message: string) => void;
   onSnackbar: (message: string) => void;
@@ -87,10 +91,7 @@ export function LibraryPanel(props: {
         <ul className="studio-library-list">{sfxItems.map((item) => <li key={item.id} draggable onDragStart={(event) => drag(event, "sfx", item.id)}><button type="button" className="studio-library-choice" onClick={() => props.onAddSfx(item)}><span>♫</span><span><b>{item.title}</b><small>{item.category} · {item.durationSec.toFixed(1)}초</small></span></button></li>)}</ul>
       </> : null}
       {tab === "voice" ? <>
-        <div className="studio-recorder-slot"><strong>녹음한 음성</strong><p>녹음 기능을 준비하고 있어요.</p></div>
-        <ActionButton variant="neutralWeak" disabled title="오디오 파일을 프로젝트에 복사하는 엔진 라우트가 아직 없습니다.">오디오 파일 불러오기</ActionButton>
-        <p className="studio-help">m4a · mp3 · wav 파일을 지원해요.</p>
-        <p className="studio-help">녹음 컨트롤은 W7c에서 연결해요.</p>
+        <Recorder projectId={props.project.id} clips={props.project.timeline.voice} onAdd={props.onAddVoice} onRecordingChange={props.onRecordingChange} onError={props.onError} onSnackbar={props.onSnackbar} />
       </> : null}
     </div>
   </aside>;

@@ -10,6 +10,7 @@ export function Preview(props: {
   project: Project;
   time: number;
   playing: boolean;
+  muteOriginal?: boolean;
   onTime: (time: number) => void;
   onPlaying: (playing: boolean) => void;
 }) {
@@ -39,13 +40,17 @@ export function Preview(props: {
   const propsForPlayer = useMemo<U3ShortProps>(() => ({
     render: {
       ...render,
-      audio: render.audio.map((layer) => layer.file && sources.files[layer.file] ? { ...layer, file: sources.files[layer.file] } : layer),
+      audio: render.audio.map((layer) => ({
+        ...layer,
+        ...(props.muteOriginal && (layer.track === "source" || layer.track === "stem-voice" || layer.track === "stem-bg") ? { volume: 0 } : {}),
+        ...(layer.file && sources.files[layer.file] ? { file: sources.files[layer.file] } : {}),
+      })),
     },
     inputs: sources.inputs,
     inputKinds: Object.fromEntries(props.project.inputs.map((input) => [input.id, input.kind])),
     memes: sources.memes,
     memeFrames: {},
-  }), [props.project.id, props.project.inputs, render, sources]);
+  }), [props.project.id, props.project.inputs, render, sources, props.muteOriginal]);
 
   useEffect(() => {
     const player = playerRef.current;

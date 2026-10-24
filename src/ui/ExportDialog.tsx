@@ -1,6 +1,8 @@
 import { useEffect, useMemo, useState } from "react";
 import { homeDir } from "@tauri-apps/api/path";
 import { save } from "@tauri-apps/plugin-dialog";
+import { isTauri } from "@tauri-apps/api/core";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
 import { ActionButton } from "../../seed-design/ui/action-button";
 import { PageBanner } from "../../seed-design/ui/page-banner";
 import { ProgressCircle } from "../../seed-design/ui/progress-circle";
@@ -26,6 +28,11 @@ export function ExportDialog(props: {
 
   useEffect(() => {
     let active = true;
+    const manualOutputDirectory = (import.meta.env as ImportMetaEnv & { VITE_MANUAL_OUTPUT_DIR?: string }).VITE_MANUAL_OUTPUT_DIR;
+    if (import.meta.env.DEV && manualOutputDirectory) {
+      setOutputPath(`${manualOutputDirectory.replace(/\/$/, "")}/${defaultName}`);
+      return () => { active = false; };
+    }
     void homeDir().then(directory => {
       if (active) setOutputPath(`${directory.replace(/\/$/, "")}/Movies/U3/${defaultName}`);
     }).catch(() => {
@@ -76,6 +83,15 @@ export function ExportDialog(props: {
     }
   }
 
+  async function showInFinder() {
+    if (!isTauri() || !outputPath) return;
+    try {
+      await revealItemInDir(outputPath);
+    } catch (reason) {
+      setError(reason instanceof Error ? reason.message : String(reason));
+    }
+  }
+
   const running = Boolean(job && ["queued", "running"].includes(job.status));
   const progress = job?.progress === null || job?.progress === undefined ? null : Math.round(job.progress * 100);
 
@@ -91,7 +107,7 @@ export function ExportDialog(props: {
         {running ? <div className="export-progress" aria-live="polite"><div><span>{job?.message ?? "렌더 중"}</span><span>{progress === null ? "" : `${progress}%`}</span></div><ProgressCircle size="24" tone="brand" value={progress ?? undefined} /><ActionButton variant="neutralWeak" onClick={() => void cancel()}>취소</ActionButton></div> : null}
         {job?.status === "discarded" ? <p role="status">내보내기를 취소했어요.</p> : null}
         {error ? <div className="page-banner-wrap" role="alert"><PageBanner tone="warning" variant="weak" description={error} /></div> : null}
-        {complete ? <div className="export-complete" role="status"><span>내보내기를 마쳤어요.</span><ActionButton variant="neutralWeak" onClick={() => props.onSnackbar("Finder 에서 보기 기능은 연결할 수 없어요.")}>Finder 에서 보기</ActionButton></div> : null}
+        {complete ? <div className="export-complete" role="status"><span>내보내기를 마쳤어요.</span>{isTauri() ? <ActionButton variant="neutralWeak" onClick={() => void showInFinder()}>Finder 에서 보기</ActionButton> : null}</div> : null}
         <div className="action-row export-actions">
           <ActionButton variant="ghost" onClick={props.onClose}>닫기</ActionButton>
           {!complete && !running ? <ActionButton variant="brandSolid" disabled={!outputPath} onClick={() => void startExport()}>내보내기</ActionButton> : null}

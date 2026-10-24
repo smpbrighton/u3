@@ -8,6 +8,7 @@ import { Timeline } from "../studio/Timeline";
 import { Inspector } from "../studio/Inspector";
 import { LibraryPanel } from "../studio/LibraryPanel";
 import { api } from "../api";
+import { ExportDialog } from "../ExportDialog";
 
 interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
 interface SfxItem { id: string; category: string; title: string; file: string; url: string; durationSec: number }
@@ -26,6 +27,8 @@ export function Studio(props: {
   const [snap, setSnap] = useState(true);
   const [saving, setSaving] = useState(false);
   const [playing, setPlaying] = useState(false);
+  const [recording, setRecording] = useState(false);
+  const [exportOpen, setExportOpen] = useState(false);
   const timeline = history.present;
   const duration = useMemo(() => Math.max(0.1, videoDuration(timeline)), [timeline]);
   const starts = useMemo(() => videoStartTimes(timeline), [timeline]);
@@ -39,6 +42,11 @@ export function Studio(props: {
     if (JSON.stringify(next) === JSON.stringify(history.present)) return;
     setHistory((current) => pushHistory(current, next));
   }, [history.present]);
+
+  const addVoice = useCallback((file: string, durationSec: number) => {
+    const clip = { id: crypto.randomUUID(), startSec: playhead, file, inStartSec: 0, inEndSec: durationSec, gain: 1 };
+    edit({ ...history.present, voice: [...history.present.voice, clip] });
+  }, [edit, history.present, playhead]);
 
   const moveHistory = useCallback((direction: "undo" | "redo") => {
     setHistory((current) => direction === "undo" ? undo(current) : redo(current));
@@ -55,13 +63,14 @@ export function Studio(props: {
     return () => window.removeEventListener("keydown", onKeyDown);
   }, [moveHistory]);
 
-  async function save() {
+  async function save(): Promise<boolean> {
     setSaving(true);
     try {
       const saved = await api<Project>("PUT", `/api/projects/${props.project.id}`, { ...props.project, timeline, savedAt: new Date().toISOString() });
       props.onProject(saved);
       props.onSnackbar("저장했어요.");
-    } catch (error) { props.onError(error instanceof Error ? error.message : String(error)); }
+      return true;
+    } catch (error) { props.onError(error instanceof Error ? error.message : String(error)); return false; }
     finally { setSaving(false); }
   }
 
@@ -141,12 +150,12 @@ export function Studio(props: {
       <ActionButton variant="ghost" aria-label="대본으로 돌아가기" onClick={props.onBack}>←</ActionButton>
       <strong className="studio-project-name">{props.project.name}</strong>
       <ActionButton variant="neutralWeak" loading={saving} onClick={() => void save()}>저장</ActionButton>
-      <ActionButton variant="brandSolid" onClick={() => props.onSnackbar("mp4 내보내기는 다음 단계에서 연결해요.")}>mp4 내보내기</ActionButton>
+      <ActionButton variant="brandSolid" onClick={() => void save().then(saved => { if (saved) setExportOpen(true); })}>mp4 내보내기</ActionButton>
     </header>
     <div className="studio-workspace">
-      <LibraryPanel project={props.project} selectedId={selected.id} onAddVideo={(id) => addVideo(id)} onSelectMeme={(meme) => addMeme(meme, timeline.video.find((clip) => clip.id === selected.id && clip.kind === "meme")?.id)} onAddSfx={addSfx} onProject={props.onProject} onError={props.onError} onSnackbar={props.onSnackbar} />
+      <LibraryPanel project={{ ...props.project, timeline }} selectedId={selected.id} playhead={playhead} onAddVoice={addVoice} onRecordingChange={(active) => { setRecording(active); if (active) setPlaying(false); }} onAddVideo={(id) => addVideo(id)} onSelectMeme={(meme) => addMeme(meme, timeline.video.find((clip) => clip.id === selected.id && clip.kind === "meme")?.id)} onAddSfx={addSfx} onProject={props.onProject} onError={props.onError} onSnackbar={props.onSnackbar} />
       <section className="studio-preview-area" aria-label="미리보기">
-        <Preview project={{ ...props.project, timeline }} time={playhead} playing={playing} onTime={setPlayhead} onPlaying={setPlaying} />
+        <Preview project={{ ...props.project, timeline }} time={playhead} playing={playing} muteOriginal={recording} onTime={setPlayhead} onPlaying={setPlaying} />
         <div className="studio-playback-controls">
           <button type="button" aria-label={playing ? "일시 정지" : "재생"} onClick={() => setPlaying((value) => !value)}>{playing ? "Ⅱ" : "▶"}</button>
           <span>{timeLabel(playhead)} / {timeLabel(duration)}</span>
@@ -167,6 +176,7 @@ export function Studio(props: {
     <div className="studio-timeline-drop" onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
       <Timeline timeline={timeline} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} onSelect={(id, track) => setSelected({ id, track })} onPlayhead={setPlayhead} onEdit={edit} onError={props.onError} onSnapChange={setSnap} onZoomChange={setZoom} onMute={toggleMute} inputDurations={Object.fromEntries(props.project.inputs.map((input) => [input.id, input.durationSec ?? 1]))} />
     </div>
+    {exportOpen ? <ExportDialog projectId={props.project.id} projectName={props.project.name} timelineLength={Math.max(duration, ...timeline.voice.map(clip => clip.startSec + clip.inEndSec - clip.inStartSec), ...timeline.sfx.map(clip => clip.startSec + clip.inEndSec - clip.inStartSec))} onClose={() => setExportOpen(false)} onSnackbar={props.onSnackbar} /> : null}
   </section>;
 }
 

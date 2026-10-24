@@ -114,6 +114,7 @@ fn start_engine(app: &tauri::AppHandle) -> Result<(Child, EngineConnection), Box
 
 fn main() {
     let builder = tauri::Builder::default()
+        .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
             #[cfg(debug_assertions)]
