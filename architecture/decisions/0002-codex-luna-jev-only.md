@@ -1,6 +1,6 @@
 # 0002 AI: codex(gpt-6-luna)와 Jev 만
 
-Status: accepted
+Status: superseded-by 0009
 Source: changes/001-desktop-studio/spec.md
 
 ## 맥락
