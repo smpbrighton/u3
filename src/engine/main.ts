@@ -90,7 +90,7 @@ const app = createApp({
   codexPath: () => findCodexPath(store),
   jevAvailable: !!process.env.TYPESAFE_API_KEY,
   transcribeInput,
-  memeIndex: memeIndex(store.root, bgeM3Embedder({ cacheDir: path.join(store.root, "cache/models") }), () => import("./pipeline/library").then(({ listMemes }) => listMemes(libraryRoot))),
+  memeIndex: memeIndex(store.root, bgeM3Embedder({ cacheDir: path.join(store.root, "cache/models"), requireReady: true }), () => import("./pipeline/library").then(({ listMemes }) => listMemes(libraryRoot))),
   mediaServer,
   resourceDir,
   whisperPath,
