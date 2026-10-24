@@ -1,0 +1,41 @@
+import { cp, mkdir, copyFile, chmod, rm, writeFile } from "node:fs/promises";
+import { basename, dirname, resolve } from "node:path";
+import { execFileSync } from "node:child_process";
+import { bundle } from "@remotion/bundler";
+import { ensureBrowser } from "@remotion/renderer";
+
+const root = resolve(import.meta.dirname, "..");
+const resources = resolve(root, "src-tauri/resources");
+await mkdir(resolve(root, "public"), { recursive: true });
+execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-f", "lavfi", "-i", "sine=frequency=660:duration=3", "-c:a", "pcm_s16le", "-ar", "48000", resolve(root, "public/tone.wav"), "-y"]);
+await rm(resources, { recursive: true, force: true });
+await mkdir(resolve(resources, "remotion-bundle"), { recursive: true });
+await mkdir(resolve(root, "src-tauri/binaries"), { recursive: true });
+await bundle({ entryPoint: resolve(root, "src/remotion/index.tsx"), outDir: resolve(resources, "remotion-bundle") });
+await cp(resolve(root, "public"), resolve(resources, "remotion-bundle"), { recursive: true });
+const nodeBinary = process.env.U3_NODE_BINARY;
+if (!nodeBinary) throw new Error("Set U3_NODE_BINARY to the official Node distribution binary path");
+await copyFile(nodeBinary, resolve(resources, "node"));
+await chmod(resolve(resources, "node"), 0o755);
+await cp(resolve(root, "node_modules"), resolve(resources, "node_modules"), { recursive: true });
+const browser = await ensureBrowser({ logLevel: "info" });
+if (browser.type !== "local-puppeteer-browser") throw new Error(`Expected Remotion-managed Chrome, got ${browser.type}`);
+await cp(dirname(browser.path), resolve(resources, "chrome-headless-shell"), { recursive: true });
+await writeFile(resolve(resources, "chrome-path.txt"), basename(browser.path));
+await writeFile(resolve(resources, "sidecar.mjs"), `
+import { renderMedia, selectComposition } from "@remotion/renderer";
+import { resolve } from "node:path";
+import { readFile } from "node:fs/promises";
+
+const bundleLocation = resolve(import.meta.dirname, "remotion-bundle");
+const serveUrl = bundleLocation;
+const browserExecutable = resolve(import.meta.dirname, "chrome-headless-shell", (await readFile(resolve(import.meta.dirname, "chrome-path.txt"), "utf8")).trim());
+const composition = await selectComposition({ serveUrl, id: "Spike", browserExecutable });
+const output = process.env.U3_SPIKE_OUTPUT || "/tmp/u3-remotion-sidecar-result.mp4";
+const started = performance.now();
+await renderMedia({ composition, serveUrl, browserExecutable, codec: "h264", outputLocation: output, audioCodec: "aac" });
+await import("node:fs/promises").then(({ writeFile }) => writeFile(output + ".time-ms", String(Math.round(performance.now() - started))));
+await import("node:fs/promises").then(({ writeFile }) => writeFile(output + ".done", output));
+`);
+await writeFile(resolve(root, "src-tauri/binaries/remotion-sidecar-aarch64-apple-darwin"), `#!/bin/sh\nset -eu\nAPP_RESOURCES="$(CDPATH= cd -- "$(dirname -- "$0")/../Resources/resources" && pwd)"\nexec "$APP_RESOURCES/node" "$APP_RESOURCES/sidecar.mjs"\n`);
+await chmod(resolve(root, "src-tauri/binaries/remotion-sidecar-aarch64-apple-darwin"), 0o755);

@@ -1,0 +1,22 @@
+{
+  "name": "u3-remotion-sidecar-spike",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build:frontend": "vite build",
+    "build:sidecar": "node scripts/build-sidecar.mjs",
+    "tauri": "tauri"
+  },
+  "dependencies": {
+    "@remotion/bundler": "4.0.529",
+    "@remotion/renderer": "4.0.529",
+    "@tauri-apps/api": "^2.8.0",
+    "@tauri-apps/cli": "^2.8.4",
+    "react": "^19.1.0",
+    "react-dom": "^19.1.0",
+    "remotion": "4.0.529"
+  },
+  "devDependencies": {
+    "vite": "^6.3.5"
+  }
+}
