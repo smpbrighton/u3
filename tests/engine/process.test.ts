@@ -39,15 +39,15 @@ describe("engine process lifecycle", () => {
     });
 
     child.stdin.end();
-    const exitCode = await new Promise<number | null>((resolve, reject) => {
+    const exitSignal = await new Promise<NodeJS.Signals | null>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error("엔진이 stdin 종료 뒤 2초 안에 끝나지 않았습니다")), 2_000);
-      child.once("exit", code => {
+      child.once("close", (_code, signal) => {
         clearTimeout(timeout);
-        resolve(code);
+        resolve(signal);
       });
     });
 
-    expect(exitCode).toBe(0);
+    expect(exitSignal).toBe("SIGTERM");
     children.delete(child);
     await rm(dataRoot, { recursive: true, force: true });
   });
@@ -107,21 +107,21 @@ describe("engine process lifecycle", () => {
     });
 
     child.stdin.end();
-    const exitCode = await new Promise<number | null>((resolve, reject) => {
+    const exitSignal = await new Promise<NodeJS.Signals | null>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error(`엔진이 세션을 정리하지 못했습니다: ${output} ${errors}`)), 5_000);
-      child.once("exit", code => {
+      child.once("close", (_code, signal) => {
         clearTimeout(timeout);
-        resolve(code);
+        resolve(signal);
       });
     });
 
-    expect(exitCode).toBe(0);
+    expect(exitSignal).toBe("SIGTERM");
     expect(output).toContain("SESSION_RELEASED");
     children.delete(child);
     await rm(root, { recursive: true, force: true });
   }, 30_000);
 
-  it.skipIf(!process.env.U3_TEST_MRX_MODEL || !process.env.U3_TEST_BGE_CACHE)("exits cleanly after MRX and Transformers ONNX sessions are both used", async () => {
+  it.skipIf(!process.env.U3_TEST_MRX_MODEL || !process.env.U3_TEST_BGE_CACHE)("exits after MRX and Transformers ONNX sessions are both used", async () => {
     const mrxModel = process.env.U3_TEST_MRX_MODEL;
     const bgeCache = process.env.U3_TEST_BGE_CACHE;
     if (!mrxModel || !bgeCache) throw new Error("모델 경로 검사가 통과한 뒤 모델 환경 변수가 없습니다");
@@ -181,16 +181,16 @@ describe("engine process lifecycle", () => {
     });
 
     child.stdin.end();
-    const exitCode = await new Promise<number | null>((resolve, reject) => {
+    const exitSignal = await new Promise<NodeJS.Signals | null>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error(`두 ONNX 세션을 정리하지 못했습니다: ${output} ${errors}`)), 5_000);
-      child.once("exit", code => {
+      child.once("close", (_code, signal) => {
         clearTimeout(timeout);
-        resolve(code);
+        resolve(signal);
       });
     });
 
     expect(output).toContain("BOTH_SESSIONS_RELEASED");
-    expect(exitCode).toBe(0);
+    expect(exitSignal).toBe("SIGTERM");
     children.delete(child);
     await rm(root, { recursive: true, force: true });
   }, 180_000);
@@ -226,15 +226,15 @@ describe("engine process lifecycle", () => {
 
     const closingStarted = Date.now();
     child.stdin.end();
-    const exitCode = await new Promise<number | null>((resolve, reject) => {
+    const exitSignal = await new Promise<NodeJS.Signals | null>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error("가짜 작업을 강제 정리하지 못했습니다")), 5_000);
-      child.once("exit", code => {
+      child.once("close", (_code, signal) => {
         clearTimeout(timeout);
-        resolve(code);
+        resolve(signal);
       });
     });
 
-    expect(exitCode).toBe(0);
+    expect(exitSignal).toBe("SIGTERM");
     expect(Date.now() - closingStarted).toBeLessThan(5_000);
     children.delete(child);
   }, 20_000);
