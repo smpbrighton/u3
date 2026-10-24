@@ -1,2 +1,11 @@
+node_modules/
+dist/
+out/
+src-tauri/target/
+src-tauri/gen/schemas/
+src-tauri/binaries/*
+!src-tauri/binaries/.gitkeep
+src-tauri/resources/library/
+src-tauri/resources/models/
 .env
 .agents/
