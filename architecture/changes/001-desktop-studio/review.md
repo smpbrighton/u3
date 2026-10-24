@@ -1,5 +1,5 @@
 # Review: desktop-studio
-Author: claude-opus-5-5[1m]. Status: draft. Round: 1.
+Author: claude-opus-5-5[1m]. Status: accepted. Round: 1.
 <!-- Author는 작성한 에이전트 이름이다. Status: draft | accepted. accepted 는 사람이 /smp:accept 로 바꾼다. 발견은 게이트를 막지 않는다. Round 는 critic 회차이고 stage.sh 가 올린다. 3회차가 상한이다. -->
 
 ## 대조한 것
