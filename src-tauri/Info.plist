@@ -3,6 +3,6 @@
 <plist version="1.0">
 <dict>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>U3 uses the microphone to record voice clips.</string>
+	<string>U3가 음성 클립을 녹음하려면 마이크가 필요해요.</string>
 </dict>
 </plist>
