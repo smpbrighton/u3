@@ -18,6 +18,7 @@
   },
   "dependencies": {
     "@remotion/bundler": "4.0.529",
+    "@remotion/fonts": "4.0.529",
     "@remotion/media": "4.0.529",
     "@remotion/player": "4.0.529",
     "@remotion/renderer": "4.0.529",

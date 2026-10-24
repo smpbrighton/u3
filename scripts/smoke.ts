@@ -51,9 +51,17 @@ async function startFixtureServer() {
   };
 }
 
-async function framePixel(file: string, frame: number, out: string) {
-  await execFile("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", file, "-vf", `select=eq(n\\,${frame}),crop=2:2:24:24,scale=1:1:flags=neighbor,format=rgb24`, "-vsync", "0", "-frames:v", "1", "-f", "rawvideo", out]);
+async function framePixels(file: string, frame: number, out: string, rendered: boolean) {
+  const crop = rendered ? "crop=128:128:100:100,scale=64:64:flags=area" : "crop=64:64:50:50";
+  await execFile("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", file, "-vf", `select=eq(n\\,${frame}),${crop},format=rgb24`, "-vsync", "0", "-frames:v", "1", "-f", "rawvideo", out]);
   return readFile(out);
+}
+
+function pixelMae(a: Buffer, b: Buffer): number {
+  assert(a.length === b.length, "비교할 프레임의 크기가 다릅니다");
+  let difference = 0;
+  for (let i = 0; i < a.length; i++) difference += Math.abs(a[i]! - b[i]!);
+  return difference / a.length;
 }
 
 async function main() {
@@ -88,14 +96,24 @@ async function main() {
 
     const trimmed = expected.video.find((item) => item.id === "video-trimmed");
     assert(trimmed?.sourceStartFrame !== undefined, "자른 영상 구간을 fixture에서 찾지 못했습니다");
-    const [renderedPixel, sourcePixel] = await Promise.all([
-      framePixel(outputPath, trimmed.startFrame, path.join(outputDir, "rendered-edge.rgb")),
-      framePixel(path.join(fixtureRoot, "input/video.mp4"), trimmed.sourceStartFrame, path.join(outputDir, "source-edge.rgb")),
-    ]);
-    const delta = Math.max(...[0, 1, 2].map((i) => Math.abs(renderedPixel[i]! - sourcePixel[i]!)));
-    assert(delta <= 28, `자른 클립 경계 픽셀이 원본 시각과 다릅니다: RGB 최대 차이 ${delta}`);
+    const sourceFile = path.join(fixtureRoot, "input/video.mp4");
+    const renderedFrame = await framePixels(outputPath, trimmed.startFrame, path.join(outputDir, "rendered-edge.rgb"), true);
+    const candidates = await Promise.all(Array.from({ length: 11 }, async (_, index) => {
+      const sourceFrame = trimmed.sourceStartFrame! - 5 + index;
+      const pixels = await framePixels(sourceFile, sourceFrame, path.join(outputDir, `source-edge-${sourceFrame}.rgb`), false);
+      return { sourceFrame, pixels, mae: pixelMae(renderedFrame, pixels) };
+    }));
+    const nearest = [...candidates].sort((a, b) => a.mae - b.mae)[0]!;
+    const nearestWrong = candidates.filter((candidate) => Math.abs(candidate.sourceFrame - trimmed.sourceStartFrame!) > 1).sort((a, b) => a.mae - b.mae)[0];
+    let minFrameSeparation = Infinity;
+    for (let i = 0; i < candidates.length; i++) {
+      for (let j = i + 1; j < candidates.length; j++) minFrameSeparation = Math.min(minFrameSeparation, pixelMae(candidates[i]!.pixels, candidates[j]!.pixels));
+    }
+    assert(Math.abs(nearest.sourceFrame - trimmed.sourceStartFrame) <= 1, `자른 클립 경계가 원본 시각에서 벗어났습니다: 기대 ${trimmed.sourceStartFrame}±1, 최근접 ${nearest.sourceFrame} (MAE ${nearest.mae.toFixed(2)})`);
+    assert(nearestWrong && nearestWrong.mae - nearest.mae > 4, `경계 후보 프레임의 색 차이가 충분하지 않습니다: 최근접 오차 ${nearest.mae.toFixed(2)}, 잘못된 프레임 오차 ${nearestWrong?.mae.toFixed(2)}`);
+    assert(minFrameSeparation > 20, `경계 주변 fixture 프레임의 색 차이가 작습니다: 최소 MAE ${minFrameSeparation.toFixed(2)}`);
 
-    console.log(`✓ smoke passed: 1080×1920, 30fps, ${actualFrames} frames, audio max ${maxVolume} dB, cut edge RGB delta ${delta}`);
+    console.log(`✓ smoke passed: 1080×1920, 30fps, ${actualFrames} frames, audio max ${maxVolume} dB, cut edge source frame ${nearest.sourceFrame} (MAE ${nearest.mae.toFixed(2)}, separation ${minFrameSeparation.toFixed(2)})`);
   } finally {
     await media.close();
   }

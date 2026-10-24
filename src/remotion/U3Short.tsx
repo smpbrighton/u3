@@ -1,6 +1,12 @@
 import { Audio, Video } from "@remotion/media";
-import { AbsoluteFill, Img, Loop, Sequence, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Img, Loop, Sequence } from "remotion";
+import { useMemo } from "react";
+import { CAPTION_LINE_HEIGHT, CAPTION_MAX_LINE_WIDTH, CAPTION_MAX_LINES, CAPTION_PAD_X, CAPTION_PAD_Y, CAPTION_STYLE, layoutCaption, wrapWords } from "../core/layout";
+import type { CaptionChunk } from "../core/captions";
+import { ensureFonts, FONT_FAMILY } from "./fonts";
 import type { U3ShortProps } from "./types";
+
+ensureFonts();
 
 const fill: React.CSSProperties = { width: "100%", height: "100%" };
 
@@ -23,12 +29,49 @@ const VideoLayer: React.FC<{ props: U3ShortProps; index: number }> = ({ props, i
   return <MainVideo src={src} sourceStartFrame={sequence.sourceStartFrame ?? 0} durationInFrames={sequence.durationInFrames} />;
 };
 
-const Caption: React.FC<{ text: string }> = ({ text }) => {
-  const frame = useCurrentFrame();
-  return <div style={{ position: "absolute", left: 72, right: 72, bottom: 210, display: "flex", justifyContent: "center", textAlign: "center", color: "white", fontFamily: "Arial, sans-serif", fontSize: 76, fontWeight: 900, lineHeight: 1.2, whiteSpace: "pre-wrap", overflowWrap: "anywhere", WebkitTextStroke: "3px #111", paintOrder: "stroke fill", textShadow: "0 5px 12px #000", opacity: frame >= 0 ? 1 : 0 }}>{text}</div>;
+export const SceneCaption: React.FC<{ text: string }> = ({ text }) => {
+  const caption = useMemo(() => {
+    const context = document.createElement("canvas").getContext("2d");
+    if (!context) throw new Error("자막 측정 canvas를 만들 수 없습니다");
+    context.font = `${CAPTION_STYLE.weight} ${CAPTION_STYLE.fontSize}px ${FONT_FAMILY.body}`;
+    const width = (value: string) => context.measureText(value).width * 1.04;
+    const wrapped = wrapWords(text, CAPTION_MAX_LINE_WIDTH, CAPTION_MAX_LINES, width);
+    const lineTexts = wrapped ?? [text.normalize("NFC").trim()];
+    const chunk: CaptionChunk = {
+      lines: lineTexts.map((line) => ({ text: line, width: width(line), wordIndices: [] })),
+      startSec: 0,
+      endSec: 1,
+      firstWord: 0,
+      lastWord: 0,
+      overflow: wrapped === null,
+    };
+    return layoutCaption(chunk, 0);
+  }, [text]);
+  return (
+    <div style={{
+      position: "absolute",
+      left: caption.box.x,
+      top: caption.box.y,
+      width: caption.box.width,
+      height: caption.box.height,
+      boxSizing: "border-box",
+      padding: `${CAPTION_PAD_Y}px ${CAPTION_PAD_X}px`,
+      backgroundColor: "rgba(0, 0, 0, 0.62)",
+      borderRadius: 20,
+      color: "#FFFFFF",
+      fontFamily: FONT_FAMILY.body,
+      fontWeight: CAPTION_STYLE.weight,
+      fontSize: CAPTION_STYLE.fontSize,
+      lineHeight: CAPTION_LINE_HEIGHT,
+      textAlign: "center",
+      display: "flex",
+      flexDirection: "column",
+      justifyContent: "center",
+    }}>
+      {caption.lines.map((line, index) => <div key={index} style={{ whiteSpace: "pre" }}>{line}</div>)}
+    </div>
+  );
 };
-
-export const SceneCaption: React.FC<{ text: string }> = Caption;
 
 export const U3Short: React.FC<U3ShortProps> = (props) => (
   <AbsoluteFill style={{ backgroundColor: "#000" }}>

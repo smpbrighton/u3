@@ -10,15 +10,17 @@ import { timelineToRender } from "../../core/timeline/to-render";
 import type { U3ShortProps } from "../../remotion/types";
 
 export const REMOTION_ENTRY = fileURLToPath(new URL("../../remotion/index.ts", import.meta.url));
+export const DEFAULT_ASSETS_DIR = fileURLToPath(new URL("../../../assets/", import.meta.url));
 const bundleCache = new Map<string, Promise<string>>();
 const execFile = promisify(execFileCallback);
 
 /** Remotion 번들을 한 번 생성하고 같은 asset 폴더에 대해 재사용한다. */
 export function getBundle(assetsDir?: string): Promise<string> {
-  const key = assetsDir ?? "";
+  const publicDir = assetsDir ?? DEFAULT_ASSETS_DIR;
+  const key = publicDir;
   let pending = bundleCache.get(key);
   if (!pending) {
-    pending = bundle({ entryPoint: REMOTION_ENTRY, ...(assetsDir ? { publicDir: assetsDir } : {}) });
+    pending = bundle({ entryPoint: REMOTION_ENTRY, publicDir });
     bundleCache.set(key, pending);
     pending.catch(() => bundleCache.delete(key));
   }
