@@ -1,0 +1,6 @@
+node_modules/
+*.onnx
+*.wav
+*.mp4
+*.jsonl
+*.log
