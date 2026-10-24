@@ -4,8 +4,8 @@ const ENGINE_SHUTDOWN_TIMEOUT_MS = 4_000;
 
 function flushOutput(): Promise<void> {
   return Promise.all([
-    new Promise<void>(resolve => process.stdout.write("", resolve)),
-    new Promise<void>(resolve => process.stderr.write("", resolve)),
+    new Promise<void>(resolve => process.stdout.write("", () => resolve())),
+    new Promise<void>(resolve => process.stderr.write("", () => resolve())),
   ]).then(() => undefined);
 }
 
