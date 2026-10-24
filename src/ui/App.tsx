@@ -12,9 +12,6 @@ type Connection = { port: number; token: string };
 
 const NAVIGATION: { screen: Screen; label: string; icon: string }[] = [
   { screen: "home", label: "프로젝트", icon: "▦" },
-  { screen: "input", label: "미디어 넣기", icon: "＋" },
-  { screen: "script", label: "대본", icon: "▤" },
-  { screen: "studio", label: "스튜디오", icon: "▣" },
   { screen: "settings", label: "설정", icon: "⚙" },
 ];
 
@@ -89,7 +86,7 @@ export function App() {
       <nav className="sidebar" aria-label="주 메뉴">
         <p className="brand">U3</p>
         {NAVIGATION.map(item => (
-          <button key={item.screen} className="nav-button" aria-current={screen === item.screen ? "page" : undefined} onClick={() => go(item.screen)}>
+          <button key={item.screen} className="nav-button" aria-current={(item.screen === "home" ? screen !== "settings" : screen === item.screen) ? "page" : undefined} onClick={() => go(item.screen)}>
             <span className="nav-icon" aria-hidden="true">{item.icon}</span>{item.label}
           </button>
         ))}

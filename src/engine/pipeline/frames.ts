@@ -46,7 +46,7 @@ export async function extractFrames(
     const file = path.join(outputDirectory, `frame-${String(index + 1).padStart(2, "0")}.jpg`);
     const second = still ? 0 : ((index + 0.5) / frameCount) * duration;
     await runFfmpeg([
-      "-ss", String(second), "-i", input, "-frames:v", "1",
+      ...(still ? [] : ["-ss", String(second)]), "-i", input, "-frames:v", "1",
       "-vf", "scale='if(gte(iw,ih),768,-2)':'if(gte(iw,ih),-2,768)'",
       "-q:v", "3", file,
     ], signal);

@@ -14,6 +14,23 @@ function relativeTime(value: string): string {
   return days === 1 ? "어제" : `${days}일 전`;
 }
 
+function timelineDuration(project: Project): number {
+  return project.timeline.video.reduce<number>((total, item) => {
+    if (!item || typeof item !== "object") return total;
+    const clip = item as { durationSec?: unknown; inStartSec?: unknown; inEndSec?: unknown };
+    if (typeof clip.durationSec === "number") return total + clip.durationSec;
+    if (typeof clip.inStartSec === "number" && typeof clip.inEndSec === "number") {
+      return total + Math.max(0, clip.inEndSec - clip.inStartSec);
+    }
+    return total;
+  }, 0);
+}
+
+function durationLabel(seconds: number): string {
+  const wholeSeconds = Math.floor(seconds);
+  return `${Math.floor(wholeSeconds / 60)}:${String(wholeSeconds % 60).padStart(2, "0")}`;
+}
+
 export function Home(props: {
   status: SystemStatus | null;
   onNew: (project: Project) => void;
@@ -72,10 +89,12 @@ export function Home(props: {
           {projects.map(project => {
             const inputCount = project.inputs.filter(input => input.id !== "placeholder").length;
             const scenes = project.timeline.captions.length;
+            const duration = timelineDuration(project);
             return (
               <button className="project-card" key={project.id} onClick={() => props.onOpen(project)}>
-                <span className="project-thumb">
-                  {thumbnails[project.id] ? <img src={thumbnails[project.id]} alt="" /> : <span>미리보기</span>}
+                <span className={thumbnails[project.id] ? "project-thumb" : "project-thumb project-thumb--empty"}>
+                  {thumbnails[project.id] ? <img src={thumbnails[project.id]} alt="" /> : <span>대본 전</span>}
+                  {duration > 0 ? <span className="project-duration">{durationLabel(duration)}</span> : null}
                 </span>
                 <span className="project-name">{project.name}</span>
                 <span className="project-meta">{scenes ? `장면 ${scenes}` : inputCount ? `미디어 ${inputCount}` : "미디어 넣기 전"} · {relativeTime(project.savedAt)}</span>

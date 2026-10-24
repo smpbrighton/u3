@@ -6,6 +6,7 @@ import { z } from "zod";
 import { Project } from "../../core/schema";
 import type { AppContext } from "../app";
 import { HttpError, parseJson } from "../http";
+import { ffprobe } from "../pipeline/ffmpeg";
 
 export function registerInputRoutes(app: Hono, ctx: AppContext) {
   app.post("/api/projects/:id/inputs", async c => {
@@ -26,14 +27,25 @@ export function registerInputRoutes(app: Hono, ctx: AppContext) {
       await mkdir(path.dirname(item.dest), { recursive: true });
       await copyFile(item.file.path, item.dest);
     }
-    const inputs = [
-      ...existing,
-      ...added.map(item => ({
+    const addedInputs = await Promise.all(added.map(async item => {
+      let durationSec = item.file.durationSec;
+      if (item.file.kind === "video" && durationSec === undefined) {
+        try {
+          durationSec = Number((await ffprobe(item.dest)).format.duration) || undefined;
+        } catch {
+          durationSec = undefined;
+        }
+      }
+      return {
         id: item.id,
         kind: item.file.kind,
         file: path.relative(ctx.store.projectDir(id), item.dest),
-        ...(item.file.durationSec ? { durationSec: item.file.durationSec } : {}),
-      })),
+        ...(durationSec ? { durationSec } : {}),
+      };
+    }));
+    const inputs = [
+      ...existing,
+      ...addedInputs,
     ];
     return c.json(await ctx.store.saveProject(Project.parse({ ...project, inputs, savedAt: new Date().toISOString() })), 201);
   });

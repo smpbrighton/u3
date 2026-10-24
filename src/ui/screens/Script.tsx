@@ -26,6 +26,20 @@ export function Script(props: {
   const [busy, setBusy] = useState(false);
   const canGenerate = Boolean(props.status?.codex.installed && props.status.codex.loggedIn);
   const totalFrames = useMemo(() => frames.reduce((total, group) => total + group.frames.length, 0), [frames]);
+  const inputs = useMemo(() => props.project.inputs.filter(input => input.id !== "placeholder"), [props.project.inputs]);
+
+  function formatDuration(seconds: number): string {
+    const wholeSeconds = Math.floor(seconds);
+    return `${Math.floor(wholeSeconds / 60)}:${String(wholeSeconds % 60).padStart(2, "0")}`;
+  }
+
+  function frameLabel(inputId: string, frameIndex: number, frameCount: number): string {
+    const input = inputs.find(item => item.id === inputId);
+    if (input?.kind === "photo") return "사진";
+    const duration = input?.durationSec ?? 0;
+    const second = frameCount > 1 ? duration * frameIndex / (frameCount - 1) : 0;
+    return `${second.toFixed(1)}s`;
+  }
 
   useEffect(() => {
     if (!props.project.inputs.some(input => input.id !== "placeholder")) return;
@@ -114,7 +128,14 @@ export function Script(props: {
             <div><h2 id="frame-title">AI가 볼 이미지</h2><p className="screen-subtitle">입력별 프레임을 최대 40장까지 보여줘요.</p></div>
             <span>{loadingFrames ? "불러오는 중" : `${totalFrames} / 40장`}</span>
           </div>
-          {frames.length ? <div className="frame-groups">{frames.map((group, index) => <div key={group.inputId}><h3>입력 {index + 1}</h3><div className="frame-grid">{group.frames.map((frame, frameIndex) => <div className="frame-card" key={frame.file}><img src={frame.url} alt={`입력 ${index + 1} 프레임 ${frameIndex + 1}`} /><span>{frameIndex + 1} / {group.frames.length}</span></div>)}</div></div>)}</div> : loadingFrames ? <div className="progress-row"><ProgressCircle size="24" tone="neutral" /> 이미지를 준비하고 있어요.</div> : <p>표시할 이미지가 없어요.</p>}
+          {frames.length ? <div className="frame-groups">{frames.map((group, index) => {
+            const input = inputs.find(item => item.id === group.inputId);
+            const fileName = input?.file.split("/").at(-1) ?? "파일";
+            const label = input?.kind === "video"
+              ? `${index + 1} · ${fileName} (영상 ${formatDuration(input.durationSec ?? 0)})`
+              : `${index + 1} · ${fileName} (사진)`;
+            return <div key={group.inputId}><h3 className="frame-group-label">{label}</h3><div className="frame-grid">{group.frames.map((frame, frameIndex) => <div className="frame-card" key={frame.file}><img src={frame.url} alt={`${fileName} ${frameLabel(group.inputId, frameIndex, group.frames.length)}`} /><span>{frameLabel(group.inputId, frameIndex, group.frames.length)}</span></div>)}</div></div>;
+          })}</div> : loadingFrames ? <div className="progress-row"><ProgressCircle size="24" tone="neutral" /> 이미지를 준비하고 있어요.</div> : <p>표시할 이미지가 없어요.</p>}
         </section>
       ) : (
         <section className="section-card" style={{ marginTop: 20 }}>
