@@ -16,15 +16,12 @@ Track: lite.
 
 ## 바꿀 파일
 - `architecture/changes/024-library-situation-search/plan.md`
-- `src/core/meme-rank.ts`
 - `src/core/sfx.ts`
-- `src/engine/pipeline/meme-rank.ts`
-- `src/engine/pipeline/library.ts`
 - `src/engine/routes/library.ts`
+- `src/ui/studio/library-request.ts`
 - `src/ui/studio/LibraryPanel.tsx`
 - `src/ui/screens/Studio.tsx`
 - `src/ui/styles.css`
-- `tests/core/meme-rank.test.ts`
 - `tests/core/sfx.test.ts`
 - `tests/server/library.test.ts`
 - `tests/ui/library-situation-search.test.ts`
