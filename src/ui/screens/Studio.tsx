@@ -261,8 +261,6 @@ export function Studio(props: {
       <Inspector project={{ ...props.project, timeline }} selectedId={selected.id} selectedIds={selectedIds} selectedTrack={selected.track} timeline={timeline} onChange={edit} onProject={props.onProject} onSnackbar={props.onSnackbar} onUngroup={() => edit(ungroupVideoClips(timeline, selectedIds))} />
     </div>
     <div className="studio-edit-toolbar">
-      <button type="button" aria-label="재생" disabled={recording} onClick={() => setPlaying(true)}><HugeiconsIcon icon={PlayIcon} size={16} /></button>
-      <span>{timeLabel(playhead)}</span>
       <ActionButton
         className="studio-history-button"
         variant="neutralOutline"

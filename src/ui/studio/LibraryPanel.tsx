@@ -7,7 +7,7 @@ import { api, mediaUrl } from "../api";
 import { Recorder } from "./Recorder";
 import { inputDisplayName } from "../../core/input";
 import { MEME_PAGE_SIZE, canMemePreviewPlay, memePageHasMore, mergeMemePages, memePreviewPreload, memePreviewSource, releaseMemePreview, shouldLoadMemePage, shouldRequestMemePage } from "./library-window";
-import { createLatestRequestGuard, debounceSearch } from "./library-request";
+import { createAbortableRequestGuard, debounceSearch } from "./library-request";
 
 type Tab = "media" | "meme" | "sfx" | "voice";
 interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
@@ -32,12 +32,15 @@ export function LibraryPanel(props: {
   const [memePage, setMemePage] = useState(1);
   const [memes, setMemes] = useState<MemeItem[]>([]);
   const [memeLoading, setMemeLoading] = useState(false);
+  const [memeSearchStatus, setMemeSearchStatus] = useState<"idle" | "searching" | "judging" | "jev" | "fallback">("idle");
   const [memeHasMore, setMemeHasMore] = useState(true);
   const [hoveredMemeId, setHoveredMemeId] = useState<string | null>(null);
   const [sfxItems, setSfxItems] = useState<SfxItem[]>([]);
+  const [sfxSearchStatus, setSfxSearchStatus] = useState<"idle" | "searching" | "judging" | "jev" | "fallback">("idle");
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-  const sfxRequests = useRef(createLatestRequestGuard());
+  const memeSituationRequests = useRef(createAbortableRequestGuard());
+  const sfxRequests = useRef(createAbortableRequestGuard());
   const memePageGeneration = useRef(0);
   const loadedMemePages = useRef(new Set<number>());
   const inFlightMemePages = useRef(new Set<string>());
@@ -59,6 +62,46 @@ export function LibraryPanel(props: {
   }, [props.onError, props.project.id, props.project.inputs, tab]);
 
   useEffect(() => {
+    const request = memeSituationRequests.current.begin();
+    if (tab === "meme" && memeQuery.trim()) {
+      const query = memeQuery.trim();
+      let started = false;
+      setMemeLoading(true);
+      setMemeSearchStatus("searching");
+      const search = debounceSearch((text) => {
+        started = true;
+        void api<{ items: MemeItem[]; by: "search" | "rule" }>("POST", "/api/library/memes/search", { q: text }, request.signal).then(async (result) => {
+          if (!request.isCurrent()) return;
+          setMemes(result.items);
+          setMemeLoading(false);
+          if (!result.items.length) { setMemeSearchStatus("idle"); return; }
+          setMemeSearchStatus("judging");
+          try {
+            const judged = await api<{ items: { id: string; fit: number }[] }>("POST", "/api/library/memes/judge", { q: text, ids: result.items.map(item => item.id), projectId: props.project.id }, request.signal);
+            if (!request.isCurrent()) return;
+            const byId = new Map(result.items.map(item => [item.id, item]));
+            setMemes(judged.items.flatMap(item => byId.has(item.id) ? [byId.get(item.id)!] : []));
+            setMemeSearchStatus("jev");
+          } catch (error) {
+            if (!request.isCurrent()) return;
+            setMemeSearchStatus("fallback");
+          }
+        }).catch((error) => {
+          if (!request.isCurrent()) return;
+          setMemeSearchStatus("fallback");
+          props.onError(error instanceof Error ? error.message : String(error));
+        }).finally(() => {
+          if (request.isCurrent()) setMemeLoading(false);
+        });
+      }, 400);
+      search(query);
+      return () => {
+        search.cancel();
+        if (!started && request.isCurrent()) setMemeLoading(false);
+      };
+    }
+    setMemeSearchStatus("idle");
+    if (tab !== "meme") setMemeLoading(false);
     if (tab !== "meme" || !memeHasMoreRef.current || !shouldLoadMemePage([...loadedMemePages.current], memePage)) return;
     const generation = memePageGeneration.current;
     const requestKey = `${generation}:${memePage}`;
@@ -97,10 +140,10 @@ export function LibraryPanel(props: {
         setMemeLoading(false);
       }
     };
-  }, [memePage, memeQuery, props.onError, tab]);
+  }, [memePage, memeQuery, props.onError, props.project.id, tab]);
 
   useEffect(() => {
-    if (tab !== "meme" || !memeEndRef.current) return;
+    if (tab !== "meme" || memeQuery.trim() || !memeEndRef.current) return;
     const observer = new IntersectionObserver((entries) => {
       if (!entries.some((entry) => entry.isIntersecting)) return;
       if (!shouldRequestMemePage({ reachedEnd: true, loading: memeLoadingRef.current, hasMore: memeHasMoreRef.current })) return;
@@ -110,21 +153,47 @@ export function LibraryPanel(props: {
     }, { root: libraryContentRef.current });
     observer.observe(memeEndRef.current);
     return () => observer.disconnect();
-  }, [memeHasMore, memeLoading, memePage, memes.length, tab]);
+  }, [memeHasMore, memeLoading, memePage, memeQuery, memes.length, tab]);
 
   useEffect(() => {
-    const request = sfxRequests.current.next();
+    const request = sfxRequests.current.begin();
     if (tab !== "sfx") return;
-    let active = true;
-    const search = debounceSearch((query) => {
-      const params = new URLSearchParams(query.trim() ? { q: query.trim() } : {}).toString();
-      void api<SfxItem[]>("GET", `/api/library/sfx${params ? `?${params}` : ""}`).then((items) => {
-        if (active && sfxRequests.current.isCurrent(request)) setSfxItems(items);
-      }).catch((error) => { if (active) props.onError(error instanceof Error ? error.message : String(error)); });
-    }, 250);
-    search(sfxQuery);
-    return () => { active = false; search.cancel(); };
-  }, [props.onError, sfxQuery, tab]);
+    const query = sfxQuery.trim();
+    setSfxSearchStatus(query ? "searching" : "idle");
+    const search = debounceSearch((term) => {
+      setSfxSearchStatus("searching");
+      const requestPath = term ? "/api/library/sfx/search" : "/api/library/sfx";
+      const body = term ? { q: term } : undefined;
+      type SearchResult = { items: SfxItem[]; by: "rule" };
+      type ApiResult = SearchResult | SfxItem[];
+      const payload = term
+        ? api<SearchResult>("POST", requestPath, body, request.signal)
+        : api<SfxItem[]>("GET", requestPath, undefined, request.signal);
+      void payload.then(async (result: ApiResult) => {
+        if (!request.isCurrent()) return;
+        const items = Array.isArray(result) ? result : result.items;
+        setSfxItems(items);
+        if (!term || !items.length) { setSfxSearchStatus("idle"); return; }
+        setSfxSearchStatus("judging");
+        try {
+          const judged = await api<{ items: { id: string; fit: number }[] }>("POST", "/api/library/sfx/judge", { q: term, ids: items.map(item => item.id), projectId: props.project.id }, request.signal);
+          if (!request.isCurrent()) return;
+          const byId = new Map(items.map(item => [item.id, item]));
+          setSfxItems(judged.items.flatMap(item => byId.has(item.id) ? [byId.get(item.id)!] : []));
+          setSfxSearchStatus("jev");
+        } catch {
+          if (request.isCurrent()) setSfxSearchStatus("fallback");
+        }
+      }).catch((error) => {
+        if (request.isCurrent()) {
+          setSfxSearchStatus("fallback");
+          props.onError(error instanceof Error ? error.message : String(error));
+        }
+      });
+    }, 400);
+    search(query);
+    return () => search.cancel();
+  }, [props.onError, props.project.id, sfxQuery, tab]);
 
   async function chooseMedia() {
     try {
@@ -145,6 +214,7 @@ export function LibraryPanel(props: {
   }
 
   function searchMemes(query: string) {
+    memeSituationRequests.current.begin();
     memePageGeneration.current += 1;
     loadedMemePages.current.clear();
     inFlightMemePages.current.clear();
@@ -159,7 +229,7 @@ export function LibraryPanel(props: {
   }
 
   function searchSfx(query: string) {
-    sfxRequests.current.next();
+    sfxRequests.current.begin();
     setSfxItems([]);
     setSfxQuery(query);
   }
@@ -182,15 +252,23 @@ export function LibraryPanel(props: {
       </> : null}
       {tab === "meme" ? <>
         <input className="studio-search" aria-label="짤 검색" placeholder="짤 검색" value={memeQuery} onChange={(event) => searchMemes(event.currentTarget.value)} />
+        {memeSearchStatus === "judging" ? <span role="status">Jev가 고르는 중…</span> : null}
+        {memeSearchStatus === "fallback" ? <span role="status">Jev 추천을 쓸 수 없어 검색 순서로 보여요</span> : null}
         <div className="studio-library-grid">{memes.map((meme) => <button key={meme.id} type="button" draggable onDragStart={(event) => drag(event, "meme", meme.id)} className={props.selectedId === meme.id ? "is-selected" : ""} onMouseEnter={() => setHoveredMemeId(meme.id)} onMouseLeave={() => setHoveredMemeId((id) => id === meme.id ? null : id)} onClick={() => props.onSelectMeme(meme)} title={meme.description ?? meme.id}>
           <MemePreview url={meme.url} id={meme.id} hoveredId={hoveredMemeId} /><span>{meme.description ?? meme.emotion}</span>
         </button>)}</div>
         <div ref={memeEndRef} className="studio-library-end" aria-hidden="true" />
-        {memeLoading ? <span role="status">짤을 불러오는 중…</span> : null}
+        {memeLoading && memeSearchStatus === "idle" ? <span role="status">짤을 불러오는 중…</span> : null}
+        {memeSearchStatus === "jev" ? <span role="status">Jev 추천</span> : null}
+        {memeQuery.trim() && !memeLoading && memeSearchStatus === "idle" && !memes.length ? <span role="status">맞는 짤이 없어요. 다른 상황이나 감정으로 찾아 보세요</span> : null}
       </> : null}
       {tab === "sfx" ? <>
         <input className="studio-search" aria-label="효과음 검색" placeholder="효과음 검색" value={sfxQuery} onChange={(event) => searchSfx(event.currentTarget.value)} />
+        {sfxSearchStatus === "judging" ? <span role="status">Jev가 고르는 중…</span> : null}
+        {sfxSearchStatus === "fallback" ? <span role="status">Jev 추천을 쓸 수 없어 검색 순서로 보여요</span> : null}
         <ul className="studio-library-list">{sfxItems.map((item) => <li key={item.id} draggable onDragStart={(event) => drag(event, "sfx", item.id)}><button type="button" className="studio-library-choice" onClick={() => props.onAddSfx(item)}><span>♫</span><span><b>{item.title}</b><small>{item.category} · {item.durationSec.toFixed(1)}초</small></span></button></li>)}</ul>
+        {sfxSearchStatus === "jev" ? <span role="status">Jev 추천</span> : null}
+        {sfxQuery.trim() && !["searching", "judging"].includes(sfxSearchStatus) && !sfxItems.length ? <span role="status">맞는 효과음이 없어요</span> : null}
       </> : null}
       {tab === "voice" ? <Recorder projectId={props.project.id} clips={props.project.timeline.voice} onAdd={props.onAddVoice} onRecordingChange={props.onRecordingChange} onError={props.onError} onSnackbar={props.onSnackbar} /> : null}
     </div>

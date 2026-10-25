@@ -22,3 +22,19 @@ export function createLatestRequestGuard() {
     isCurrent: (request: number) => request === latest,
   };
 }
+
+export function createAbortableRequestGuard() {
+  let latest = 0;
+  let controller: AbortController | undefined;
+  return {
+    begin() {
+      controller?.abort();
+      controller = new AbortController();
+      const request = ++latest;
+      return {
+        signal: controller.signal,
+        isCurrent: () => request === latest && !controller?.signal.aborted,
+      };
+    },
+  };
+}
