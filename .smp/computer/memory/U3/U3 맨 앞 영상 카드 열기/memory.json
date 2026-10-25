@@ -1,0 +1,27 @@
+{
+  "app": "U3",
+  "intent": "U3 맨 앞 영상 카드 열기",
+  "memories": [
+    {
+      "anchor": "전",
+      "anchor_at": [
+        406,
+        328
+      ],
+      "context": [
+        "대본"
+      ],
+      "expect": "스튜디오",
+      "kind": "text",
+      "offset": [
+        -9,
+        0
+      ],
+      "tool": "click",
+      "window": [
+        1280,
+        800
+      ]
+    }
+  ]
+}
