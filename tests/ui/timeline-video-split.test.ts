@@ -15,7 +15,7 @@ const timeline: Timeline = {
 
 describe("C 키 영상 분할 판정", () => {
   it("화면 포인터 x를 확대와 스크롤을 반영한 타임라인 시각으로 바꾼다", () => {
-    expect(timelinePointerSeconds(270, 100, 120, 4)).toBeCloseTo(2.5);
+    expect(timelinePointerSeconds(270, 100, 120, 4)).toBeCloseTo(270 / 102);
   });
 
   it("영상 1 클립 안쪽 포인터를 찾는다", () => {
