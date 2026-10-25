@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { decideActionMove, isSameTrackDropPosition, isUnchangedTimeline, VIDEO_TRACK_EDIT_GRID_SELECTOR, resolveVideoTrackAtPointer } from "../../src/ui/studio/video-track-drop";
+import { decideActionMove, isSameTrackDropPosition, isUnchangedTimeline, shouldResetNewTrackDrop, VIDEO_TRACK_EDIT_GRID_SELECTOR, resolveVideoTrackAtPointer } from "../../src/ui/studio/video-track-drop";
 
 describe("영상 트랙 끌기 대상 판정", () => {
   const rows = ["captions", "video-new", "video-3", "video-2", "video", "source", "voice"];
