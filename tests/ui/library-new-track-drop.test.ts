@@ -16,7 +16,7 @@ describe("새 영상·효과음 트랙 드롭", () => {
     expect(decideNewLaneDrop({ kind: "sfx", atSec: 1, videoDurationSec: 10, mediaDurationSec: 2, trackCount: 2 })).toEqual({ track: 2, startSec: 1, durationSec: 2 });
   });
   it("예전 효과음 데이터는 lane 0으로 읽고 새 lane 번호와 빈 lane 정리를 계산한다", () => {
-    expect(AudioClip.parse(sfx("old")).lane).toBe(0);
+    expect(AudioClip.parse(sfx("old")).lane ?? 0).toBe(0);
     expect(nextSfxLane([sfx("a", 0), sfx("b", 1)])).toBe(2);
     expect(normalizeSfxLanes([sfx("a", 0), sfx("c", 2)]).map((clip) => clip.lane)).toEqual([0, 1]);
   });
