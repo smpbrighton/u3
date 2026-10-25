@@ -15,6 +15,8 @@ export interface SfxLibraryItem {
 export interface FromScriptOptions {
   /** scene index (0-based) -> selected meme */
   memes?: Readonly<Record<number, MemeMeta>>;
+  /** scene index (0-based) -> second ranked meme for scenes with both placements */
+  alternateMemes?: Readonly<Record<number, MemeMeta>>;
   projectId?: string;
   sfxLibrary?: Readonly<Record<string, readonly SfxLibraryItem[]>>;
   /** scene index (0-based) -> preselected sound effect */
@@ -49,8 +51,11 @@ export function timelineFromScript(script: CodexScript, inputs: readonly Input[]
     const mainEnd = mainStart + mainDuration;
     const meme = options.memes?.[index];
     const addMeme = (suffix: "before" | "after") => {
-      if (!meme) throw new Error(`장면 ${index + 1}의 짤을 찾을 수 없습니다`);
-      video.push({ id: `scene-${index}-meme-${suffix}`, kind: "meme", memeId: meme.id, durationSec: Math.min(meme.durationSec ?? DEFAULT_MEME_MAX_SEC, DEFAULT_MEME_MAX_SEC) });
+      const selected = suffix === "after" && scene.memeBefore && scene.memeAfter
+        ? options.alternateMemes?.[index] ?? meme
+        : meme;
+      if (!selected) throw new Error(`장면 ${index + 1}의 짤을 찾을 수 없습니다`);
+      video.push({ id: `scene-${index}-meme-${suffix}`, kind: "meme", memeId: selected.id, durationSec: Math.min(selected.durationSec ?? DEFAULT_MEME_MAX_SEC, DEFAULT_MEME_MAX_SEC) });
     };
     if (scene.memeBefore) addMeme("before");
     video.push(videoClip(index, input, mainStart, mainEnd));

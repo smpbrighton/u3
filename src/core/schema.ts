@@ -80,7 +80,9 @@ export type SfxMeta = z.infer<typeof SfxMeta>;
 
 const ScriptSceneCommon = {
   caption: z.string().min(1), inputIndex: z.number().int().min(1).max(20), reaction: z.string().nullable(),
-  memeBefore: z.boolean(), memeAfter: z.boolean(), sfxCategory: SceneSfx.nullable(),
+  memeBefore: z.boolean().describe("reaction이 있으면 짤을 본 화면 앞에 둘 때 true. 앞·뒤 중 한 곳만 true로 선택."),
+  memeAfter: z.boolean().describe("reaction이 있으면 짤을 본 화면 뒤에 둘 때 true. 앞·뒤 중 한 곳만 true로 선택. reaction이 null이면 false."),
+  sfxCategory: SceneSfx.nullable(),
 };
 export const ScriptScene = z.union([
   z.object({ ...ScriptSceneCommon, startSec: z.number().min(0), endSec: z.number().positive() }),

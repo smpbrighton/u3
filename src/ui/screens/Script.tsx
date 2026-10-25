@@ -6,13 +6,14 @@ import { TextField, TextFieldTextarea } from "../../../seed-design/ui/text-field
 import { api, watchJob, type EngineJob } from "../api";
 import type { CodexScript, FrameGroup, Project, SystemStatus } from "../types";
 import type { MemeMeta } from "../../core/schema";
+import { resolveScriptMemes } from "../../core/script-memes";
 import { timelineFromScript, type SfxLibraryItem } from "../../core/timeline/from-script";
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { inputDisplayName } from "../../core/input";
 import { scriptGenerationView, type ScriptGenerationState } from "./script-workflow";
 
-type SfxLibraryResponseItem = SfxLibraryItem & { url: string };
+type SfxLibraryResponseItem = SfxLibraryItem & { ref: string; url: string };
 
 export function Script(props: {
   project: Project;
@@ -91,24 +92,26 @@ export function Script(props: {
       const warning = result.transcriptWarnings?.map(item => item.warning).join(" · ") ?? null;
       setTranscriptWarning(warning);
       const inputs = props.project.inputs.filter(input => input.id !== "placeholder");
-      const memes: Record<number, MemeMeta> = {};
-      const scenes = await Promise.all(result.script.scenes.map(async (scene, index) => {
-        if (!scene.memeBefore && !scene.memeAfter) return scene;
-        const ranked = await api<{ list: { meme: MemeMeta }[] }>("POST", `/api/projects/${props.project.id}/memes/rank`, {
-          caption: scene.caption,
-          reaction: scene.reaction,
-          query: scene.caption,
-        }, controller.signal);
-        const selected = ranked.list[0]?.meme;
-        if (!selected) return { ...scene, memeBefore: false, memeAfter: false };
-        memes[index] = selected;
-        return scene;
+      const rankedMemes = await Promise.all(result.script.scenes.map(async (scene) => {
+        if (scene.reaction === null) return undefined;
+        try {
+          const ranked = await api<{ list: { meme: MemeMeta }[] }>("POST", `/api/projects/${props.project.id}/memes/rank`, {
+            caption: scene.caption,
+            reaction: scene.reaction,
+            query: scene.caption,
+          }, controller.signal);
+          return ranked.list.map(item => item.meme);
+        } catch (error) {
+          if (controller.signal.aborted) throw error;
+          return null;
+        }
       }));
-      const script = { scenes } as CodexScript;
+      const resolvedMemes = resolveScriptMemes(result.script, rankedMemes);
+      const script = resolvedMemes.script;
       const sfxItems = await api<SfxLibraryResponseItem[]>("GET", "/api/library/sfx", undefined, controller.signal).catch(() => []);
       const sfxLibrary: Record<string, SfxLibraryItem[]> = {};
-      for (const item of sfxItems) (sfxLibrary[item.category] ??= []).push({ ...item, file: item.url });
-      const timeline = timelineFromScript(script, inputs, { projectId: props.project.id, memes, sfxLibrary });
+      for (const item of sfxItems) (sfxLibrary[item.category] ??= []).push({ ...item, file: item.ref });
+      const timeline = timelineFromScript(script, inputs, { projectId: props.project.id, memes: resolvedMemes.memes, alternateMemes: resolvedMemes.alternateMemes, sfxLibrary });
       const saved = await api<Project>("PUT", `/api/projects/${props.project.id}`, {
         ...props.project,
         inputs,
@@ -117,7 +120,8 @@ export function Script(props: {
       });
       props.onProject(saved);
       setGeneration({ phase: "idle", message: null, cancellable: false });
-      props.onSnackbar(warning ? `대본을 만들었어요. 받아 적기 안내: ${warning}` : "대본을 만들었어요.");
+      const notices = [warning ? `받아 적기 안내: ${warning}` : null, resolvedMemes.missingCount ? `짤을 넣지 못한 장면 ${resolvedMemes.missingCount}개` : null].filter(Boolean);
+      props.onSnackbar(notices.length ? `대본을 만들었어요. ${notices.join(" · ")}` : "대본을 만들었어요.");
       props.onStudio();
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
