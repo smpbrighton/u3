@@ -6,7 +6,7 @@ import type { Project } from "../../core/schema";
 import { api, mediaUrl } from "../api";
 import { Recorder } from "./Recorder";
 import { inputDisplayName } from "../../core/input";
-import { MEME_PAGE_SIZE, memePreviewSource, pageMemes } from "./library-window";
+import { MEME_PAGE_SIZE, mergeMemePages, memePreviewPreload, memePreviewSource, releaseMemePreview, shouldLoadMemePage } from "./library-window";
 import { createLatestRequestGuard, debounceSearch } from "./library-request";
 
 type Tab = "media" | "meme" | "sfx" | "voice";
@@ -34,8 +34,9 @@ export function LibraryPanel(props: {
   const [sfxItems, setSfxItems] = useState<SfxItem[]>([]);
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
-  const memeRequests = useRef(createLatestRequestGuard());
   const sfxRequests = useRef(createLatestRequestGuard());
+  const memePageGeneration = useRef(0);
+  const loadedMemePages = useRef(new Set<number>());
 
   useEffect(() => {
     let active = true;
@@ -50,19 +51,19 @@ export function LibraryPanel(props: {
   }, [props.onError, props.project.id, props.project.inputs, tab]);
 
   useEffect(() => {
-    const request = memeRequests.current.next();
-    if (tab !== "meme") return;
-    let active = true;
+    if (tab !== "meme" || !shouldLoadMemePage([...loadedMemePages.current], memePage)) return;
+    const generation = memePageGeneration.current;
     const search = debounceSearch((query) => {
       const params = new URLSearchParams({ limit: String(MEME_PAGE_SIZE), offset: String((memePage - 1) * MEME_PAGE_SIZE) });
       if (query.trim()) params.set("q", query.trim());
       void api<MemeItem[]>("GET", `/api/library/memes?${params}`).then((items) => {
-        if (!active || !memeRequests.current.isCurrent(request)) return;
-        setMemes((current) => memePage === 1 ? items : [...current, ...items]);
-      }).catch((error) => { if (active) props.onError(error instanceof Error ? error.message : String(error)); });
+        if (generation !== memePageGeneration.current) return;
+        loadedMemePages.current.add(memePage);
+        setMemes((current) => mergeMemePages(current, items, memePage));
+      }).catch((error) => { if (generation === memePageGeneration.current) props.onError(error instanceof Error ? error.message : String(error)); });
     }, 250);
     search(memeQuery);
-    return () => { active = false; search.cancel(); };
+    return () => { search.cancel(); };
   }, [memePage, memeQuery, props.onError, tab]);
 
   useEffect(() => {
@@ -98,7 +99,8 @@ export function LibraryPanel(props: {
   }
 
   function searchMemes(query: string) {
-    memeRequests.current.next();
+    memePageGeneration.current += 1;
+    loadedMemePages.current.clear();
     setMemes([]);
     setMemePage(1);
     setMemeQuery(query);
@@ -128,7 +130,7 @@ export function LibraryPanel(props: {
       </> : null}
       {tab === "meme" ? <>
         <input className="studio-search" aria-label="짤 검색" placeholder="짤 검색" value={memeQuery} onChange={(event) => searchMemes(event.currentTarget.value)} />
-        <div className="studio-library-grid">{Array.from({ length: memePage }, (_, index) => pageMemes(memes, index + 1)).flat().map((meme) => <button key={meme.id} type="button" draggable onDragStart={(event) => drag(event, "meme", meme.id)} className={props.selectedId === meme.id ? "is-selected" : ""} onClick={() => props.onSelectMeme(meme)} title={meme.description ?? meme.id}>
+        <div className="studio-library-grid">{memes.map((meme) => <button key={meme.id} type="button" draggable onDragStart={(event) => drag(event, "meme", meme.id)} className={props.selectedId === meme.id ? "is-selected" : ""} onClick={() => props.onSelectMeme(meme)} title={meme.description ?? meme.id}>
           <MemePreview url={meme.url} /><span>{meme.description ?? meme.emotion}</span>
         </button>)}</div>
         {memes.length === memePage * MEME_PAGE_SIZE ? <button type="button" className="studio-library-more" onClick={() => setMemePage((page) => page + 1)}>더 보기</button> : null}
@@ -145,6 +147,7 @@ export function LibraryPanel(props: {
 function MemePreview({ url }: { url: string }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [visible, setVisible] = useState(false);
+  const wasVisible = useRef(false);
 
   useEffect(() => {
     const video = ref.current;
@@ -160,5 +163,10 @@ function MemePreview({ url }: { url: string }) {
     return () => observer.disconnect();
   }, []);
 
-  return <video ref={ref} src={memePreviewSource(url, visible)} muted preload="none" />;
+  useEffect(() => {
+    if (!visible && wasVisible.current && ref.current) releaseMemePreview(ref.current);
+    wasVisible.current = visible;
+  }, [visible]);
+
+  return <video ref={ref} src={memePreviewSource(url, visible)} muted preload={memePreviewPreload(visible)} />;
 }
