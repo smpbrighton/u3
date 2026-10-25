@@ -8,6 +8,10 @@ export function memePreviewPreload(visible: boolean): "metadata" | "none" {
   return visible ? "metadata" : "none";
 }
 
+export function memePreviewAutoplay(visible: boolean): boolean {
+  return visible;
+}
+
 export function releaseMemePreview(video: Pick<HTMLMediaElement, "removeAttribute" | "load">): void {
   video.removeAttribute("src");
   video.load();

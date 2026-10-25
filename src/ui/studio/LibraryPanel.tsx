@@ -6,7 +6,7 @@ import type { Project } from "../../core/schema";
 import { api, mediaUrl } from "../api";
 import { Recorder } from "./Recorder";
 import { inputDisplayName } from "../../core/input";
-import { MEME_PAGE_SIZE, mergeMemePages, memePreviewPreload, memePreviewSource, releaseMemePreview, shouldLoadMemePage } from "./library-window";
+import { MEME_PAGE_SIZE, mergeMemePages, memePreviewAutoplay, memePreviewPreload, memePreviewSource, releaseMemePreview, shouldLoadMemePage } from "./library-window";
 import { createLatestRequestGuard, debounceSearch } from "./library-request";
 
 type Tab = "media" | "meme" | "sfx" | "voice";
@@ -168,5 +168,13 @@ function MemePreview({ url }: { url: string }) {
     wasVisible.current = visible;
   }, [visible]);
 
-  return <video ref={ref} src={memePreviewSource(url, visible)} muted preload={memePreviewPreload(visible)} />;
+  return <video
+    ref={ref}
+    src={memePreviewSource(url, visible)}
+    muted
+    playsInline
+    autoPlay={memePreviewAutoplay(visible)}
+    preload={memePreviewPreload(visible)}
+    onLoadedData={(event) => event.currentTarget.pause()}
+  />;
 }
