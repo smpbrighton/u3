@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Timeline } from "../../src/core/schema";
 import { deleteCaptionClip, deleteVideoClip, moveAudioClip, moveCaptionClip, moveVideoClip, splitVideoClip, trimAudioClip, trimCaptionClip, trimVideoClip, videoStartTimes } from "../../src/core/timeline/ops";
 
-const empty = (): Timeline => ({ video: [], captions: [], voice: [], sfx: [], audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } } });
+const empty = (): Timeline => ({ video: [], overlay: [], captions: [], voice: [], sfx: [], audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } } });
 const base = (): Timeline => ({ ...empty(), video: [
   { id: "v1", kind: "main", inputId: "in", inStartSec: 0, inEndSec: 4 },
   { id: "photo", kind: "main", inputId: "p", durationSec: 3 },

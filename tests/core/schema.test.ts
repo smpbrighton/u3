@@ -3,7 +3,7 @@ import { z } from "zod";
 import { AudioClip, CodexScript, Gain, Input, Project, TextClip, Timeline, VideoClip } from "../../src/core/schema";
 
 const timeline = {
-  video: [], captions: [], voice: [], sfx: [],
+  video: [], overlay: [], captions: [], voice: [], sfx: [],
   audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } },
 };
 const input = (id: number) => ({ id: String(id), kind: "video" as const, file: `input/${id}.mp4`, durationSec: 10 });

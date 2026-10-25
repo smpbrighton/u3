@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Timeline } from "../../src/core/schema";
 import { createHistory, pushHistory, redo, undo } from "../../src/core/timeline/history";
 
-const timeline = (gain: number): Timeline => ({ video: [], captions: [], voice: [], sfx: [], audio: { source: { gain, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } } });
+const timeline = (gain: number): Timeline => ({ video: [], overlay: [], captions: [], voice: [], sfx: [], audio: { source: { gain, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } } });
 
 describe("timeline history", () => {
   it("스냅숏을 실행 취소·다시 실행하고 새 편집은 다시 실행 스택을 비운다", () => {

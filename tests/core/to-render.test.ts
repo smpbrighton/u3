@@ -3,6 +3,7 @@ import type { Timeline } from "../../src/core/schema";
 import { timelineToRender } from "../../src/core/timeline/to-render";
 
 const timeline: Timeline = {
+  overlay: [],
   video: [
     { id: "v1", kind: "main", inputId: "in1", inStartSec: 1, inEndSec: 3 },
     { id: "v2", kind: "main", inputId: "in2", inStartSec: 2, inEndSec: 4 },

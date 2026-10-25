@@ -3,6 +3,7 @@ import type { Timeline } from "../../src/core/schema";
 import { labelForAction, reorderVideoByStart, timelineToStudioRows } from "../../src/ui/studio/timeline-adapter";
 
 const timeline: Timeline = {
+  overlay: [],
   video: [
     { id: "one", kind: "main", inputId: "source", inStartSec: 0, inEndSec: 3 },
     { id: "two", kind: "main", inputId: "photo", durationSec: 2 },
