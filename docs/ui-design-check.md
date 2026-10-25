@@ -148,8 +148,8 @@
 | 확대 | 1~10 범위의 timeline 확대 | 두 range에 0.1 step과 소수 표시를 적용하고 Cmd+휠·핀치 이벤트를 연결 | 맞음 |
 | 캡처 | `out/manual/w18-meme.png`, `out/manual/w18-sfx.png`, `out/manual/w18-zoom.png` | Tauri dev 앱의 짤·효과음 탭과 확대 상태를 창 단위로 캡처 | 일부: 트랙패드 핀치는 실기기에서 확인하지 못함 |
 | 영상 트랙 캡처 | `out/manual/w19-studio.png`, `out/manual/w19-timeline.png` | 영상 2 행과 Inspector를 Tauri 창 단위로 캡처. 미리보기는 WebKit 미디어 재생 오류로 검은 화면 | 일부: 행과 Inspector 확인, 미리보기 미확인 |
-| 클립 자르기·묶기·전환 | C는 포인터 시각에서 자르고, S는 재생 헤드에서 자른다. Shift 클릭은 같은 트랙 범위를 선택한다. M은 이웃 클립을 묶고 Shift+M은 묶음을 푼다. Inspector에서 시작·끝 효과와 방향·길이를 고른다 | 타임라인에 C·S·M 단축키 안내, 그룹 클립 외곽선, 디졸브 끝 표시와 Inspector 전환 선택기를 둠. 전환은 Remotion `interpolate` 기반 계산과 CSS `opacity`, `transform`, `clip-path`로 그림 | 확인 예정: W20 캡처와 앱 검증 |
-| 영상 트랙 끌기 | 끌기 시작 때 원래 행 위치를 유지하고, 놓은 y 좌표의 영상 행으로 이동 | 기존 행을 밀지 않는 `새 영상 트랙` 행을 영상 1 위에 고정. 포인터 놓기·취소 이벤트에서 끌기 상태를 정리 | 확인 예정: W20 Tauri dev 캡처와 영상 1↔2 이동 |
+| 클립 자르기·묶기·전환 | C는 포인터 시각에서 자르고, S는 재생 헤드에서 자른다. Shift 클릭은 같은 트랙 범위를 선택한다. M은 이웃 클립을 묶고 Shift+M은 묶음을 푼다. Inspector에서 시작·끝 효과와 방향·길이를 고른다 | 타임라인에 C·S·M 단축키 안내, 그룹 클립 외곽선, 디졸브 끝 표시와 Inspector 전환 선택기를 둠. 전환은 Remotion `interpolate` 기반 계산과 CSS `opacity`, `transform`, `clip-path`로 그림 | 일부: smoke의 경계 디졸브 렌더와 프레임은 확인. Tauri dev에서 미리보기는 `@remotion/media`가 입력 컨테이너를 재생하지 못해 검은 화면으로 남음. C·묶기·Inspector 캡처는 미확인 |
+| 영상 트랙 끌기 | 끌기 시작 때 원래 행 위치를 유지하고, 놓은 y 좌표의 영상 행으로 이동 | 기존 행을 밀지 않는 `새 영상 트랙` 행을 영상 1 위에 고정. 포인터 놓기·취소 이벤트에서 끌기 상태를 정리 | 순수 행 판정 테스트 통과. Tauri dev에서 실제 영상 1↔2 끌기와 캡처는 미확인 |
 
 ### 5 mp4 내보내기
 
