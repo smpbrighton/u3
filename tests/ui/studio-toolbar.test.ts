@@ -14,7 +14,7 @@ describe("studio global input and edit toolbar", () => {
     expect(toolbar).not.toContain("setPlaying(true)");
     expect(toolbar).not.toContain("timeLabel(playhead)");
     expect(studio).toContain('<div className="studio-playback-controls">');
-    expect(studio).toContain('aria-label="재생 헤드"');
+    expect(studio).toContain('<StudioSlider label="재생 헤드"');
     expect(toolbar).toContain("실행 취소");
     expect(toolbar).toContain("다시 실행");
     expect(toolbar).toContain("스냅");
