@@ -14,6 +14,9 @@
       { "id": "video-trimmed", "kind": "main", "inputId": "main-video", "inStartSec": 2, "inEndSec": 3 },
       { "id": "meme-back-clip", "kind": "meme", "memeId": "meme-back", "durationSec": 0.8 }
     ],
+    "overlay": [
+      { "id": "overlay-smoke", "memeId": "meme-front", "startSec": 2.5, "durationSec": 0.8, "x": 0.5, "y": 0.5, "width": 0.6 }
+    ],
     "captions": [
       { "id": "caption-opening", "startSec": 0.1, "endSec": 0.9, "text": "렌더 smoke 확인" },
       { "id": "caption-trimmed", "startSec": 3.1, "endSec": 3.8, "text": "자른 클립 재생" }

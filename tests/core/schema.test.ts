@@ -32,6 +32,15 @@ describe("U3 schema 범위", () => {
     expect(Input.safeParse(input(1)).success).toBe(true);
     expect(Timeline.safeParse(timeline).success).toBe(true);
   });
+  it("overlay 없는 옛 Timeline을 빈 겹친 영상 배열로 읽는다", () => {
+    expect(Timeline.parse(timeline).overlay).toEqual([]);
+  });
+  it("겹친 영상은 기본 좌표·폭과 양수 길이를 검증한다", () => {
+    const base = { id: "o", memeId: "m", startSec: 1, durationSec: 2, x: 0.5, y: 0.5, width: 0.6 };
+    expect(Timeline.parse({ ...timeline, overlay: [base] }).overlay).toEqual([base]);
+    expect(Timeline.safeParse({ ...timeline, overlay: [{ ...base, width: 1.1 }] }).success).toBe(false);
+    expect(Timeline.safeParse({ ...timeline, overlay: [{ ...base, durationSec: 0 }] }).success).toBe(false);
+  });
   it("영상 클립에서 inEndSec가 inStartSec보다 커야 한다", () => {
     const base = { id: "v", kind: "main" as const, inputId: "1", inStartSec: 1, inEndSec: 2 };
     expect(VideoClip.safeParse(base).success).toBe(true);

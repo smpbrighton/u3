@@ -56,4 +56,10 @@ describe("studio timeline adapter", () => {
     const withSfx: Timeline = { ...timeline, sfx: [{ id: "sfx-clip", startSec: 0, file: "u3-library:sfx/alarm/beep.wav", inStartSec: 0, inEndSec: 1, gain: 1 }] };
     expect(labelForAction("sfx-clip", withSfx, [], [])).toBe("효과음");
   });
+  it("겹친 영상 행을 영상 바로 위에 만들고 입력 이름을 라벨로 쓴다", () => {
+    const overlay = { id: "overlay-1", inputId: "photo", startSec: 1, durationSec: 2, x: 0.5, y: 0.5, width: 0.6 };
+    const next = { ...timeline, overlay: [overlay] };
+    expect(timelineToStudioRows(next).map((item) => item.id)).toEqual(["captions", "overlay", "video", "source", "voice", "sfx"]);
+    expect(labelForAction("overlay-1", next, [{ id: "photo", kind: "photo", file: "photo.jpg", displayName: "사진" }])).toBe("사진");
+  });
 });

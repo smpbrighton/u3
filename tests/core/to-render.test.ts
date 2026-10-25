@@ -35,4 +35,9 @@ describe("timelineToRender", () => {
     expect(render.audio).toContainEqual(expect.objectContaining({ id: "voice", volume: 0.5 }));
     expect(render.audio).toContainEqual(expect.objectContaining({ id: "sfx", volume: 0 }));
   });
+  it("겹친 짤은 본 영상 구간 위에 배치하고 음성 레이어를 추가하지 않는다", () => {
+    const render = timelineToRender({ ...timeline, overlay: [{ id: "o", memeId: "m", startSec: 1, durationSec: 2, x: 0.5, y: 0.5, width: 0.6 }] });
+    expect(render.overlay).toEqual([{ id: "o", kind: "meme", startFrame: 30, durationInFrames: 60, memeId: "m", x: 0.5, y: 0.5, width: 0.6 }]);
+    expect(render.audio.map((item) => item.id)).not.toContain("o-audio");
+  });
 });
