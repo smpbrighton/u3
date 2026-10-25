@@ -1,5 +1,5 @@
 // Sidecar 라이브러리 인덱스. uUu의 listMemes처럼 JSON 메타와 실제 파일을 함께 확인한다.
-import { access, readdir, readFile } from "node:fs/promises";
+import { access, readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
 import { MemeMeta } from "../../core/schema";
 
@@ -18,7 +18,7 @@ export type LibraryEntry = {
   durationSec?: number;
 };
 
-const memeCache = new Map<string, Promise<LibraryEntry[]>>();
+const memeCache = new Map<string, { signature: string; result: Promise<LibraryEntry[]> }>();
 
 function libraryBase(root: string): string {
   return path.basename(root) === "library" ? root : path.join(root, "library");
@@ -86,17 +86,41 @@ async function readMemes(root: string): Promise<LibraryEntry[]> {
   return memes.sort((a, b) => a.importedAt.localeCompare(b.importedAt) || a.id.localeCompare(b.id));
 }
 
+async function memeLibrarySignature(root: string): Promise<string> {
+  const directory = path.join(libraryBase(root), "memes");
+  const parts: string[] = [];
+  const visit = async (current: string): Promise<void> => {
+    const entries = await readdir(current, { withFileTypes: true }).catch(() => []);
+    const folderStat = await stat(current, { bigint: true }).catch(() => null);
+    parts.push(`d:${path.relative(directory, current)}:${folderStat?.mtimeNs ?? "missing"}`);
+    for (const entry of entries.sort((a, b) => a.name.localeCompare(b.name))) {
+      if (entry.name.startsWith(".")) continue;
+      const fullPath = path.join(current, entry.name);
+      if (entry.isDirectory()) {
+        await visit(fullPath);
+      } else if (entry.name.endsWith(".json")) {
+        const fileStat = await stat(fullPath, { bigint: true }).catch(() => null);
+        parts.push(`f:${path.relative(directory, fullPath)}:${fileStat?.size ?? "missing"}:${fileStat?.mtimeNs ?? "missing"}`);
+      }
+    }
+  };
+  await visit(directory);
+  return parts.join("\n");
+}
+
 export async function listMemes(root = process.env.U3_LIBRARY_DIR ?? path.join(process.cwd(), "resources")): Promise<LibraryEntry[]> {
   const key = path.resolve(root);
-  let result = memeCache.get(key);
-  if (!result) {
-    result = readMemes(root);
-    memeCache.set(key, result);
-    void result.catch(() => {
-      if (memeCache.get(key) === result) memeCache.delete(key);
+  const signature = await memeLibrarySignature(root);
+  let cached = memeCache.get(key);
+  if (!cached || cached.signature !== signature) {
+    const entry = { signature, result: readMemes(root) };
+    memeCache.set(key, entry);
+    cached = entry;
+    void entry.result.catch(() => {
+      if (memeCache.get(key) === entry) memeCache.delete(key);
     });
   }
-  return result;
+  return cached.result;
 }
 
 export function invalidateMemeCache(root = process.env.U3_LIBRARY_DIR ?? path.join(process.cwd(), "resources")): void {
