@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSameTrackDropPosition, VIDEO_TRACK_EDIT_GRID_SELECTOR, resolveVideoTrackAtPointer } from "../../src/ui/studio/video-track-drop";
+import { isSameTrackDropPosition, isUnchangedTimeline, VIDEO_TRACK_EDIT_GRID_SELECTOR, resolveVideoTrackAtPointer } from "../../src/ui/studio/video-track-drop";
 
 describe("영상 트랙 끌기 대상 판정", () => {
   const rows = ["captions", "video-new", "video-3", "video-2", "video", "source", "voice"];
@@ -37,6 +37,12 @@ describe("영상 트랙 끌기 대상 판정", () => {
     expect(isSameTrackDropPosition("video-2", "video-2", 16.9, 16.9)).toBe(true);
     expect(isSameTrackDropPosition("video-2", "video-3", 16.9, 16.9)).toBe(false);
     expect(isSameTrackDropPosition("video-2", "video-2", 16.9, 17)).toBe(false);
+  });
+
+  it("계산 결과가 원래 타임라인과 같으면 라이브러리 막대를 되돌릴 수 있게 판정한다", () => {
+    const original = { video: [{ id: "a" }, { id: "b" }], overlays: [] };
+    expect(isUnchangedTimeline(original, { video: [{ id: "a" }, { id: "b" }], overlays: [] })).toBe(true);
+    expect(isUnchangedTimeline(original, { video: [{ id: "b" }, { id: "a" }], overlays: [] })).toBe(false);
   });
 
   it("자막·오디오 행 바깥과 타임라인 밖은 영상 이동 대상으로 고르지 않는다", () => {
