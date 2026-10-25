@@ -3,7 +3,7 @@ import type { Timeline } from "../../src/core/schema";
 import { labelForAction, reorderVideoByStart, timelineToStudioRows } from "../../src/ui/studio/timeline-adapter";
 
 const timeline: Timeline = {
-  overlay: [],
+  overlays: [],
   video: [
     { id: "one", kind: "main", inputId: "source", inStartSec: 0, inEndSec: 3 },
     { id: "two", kind: "main", inputId: "photo", durationSec: 2 },
@@ -17,7 +17,7 @@ const timeline: Timeline = {
 describe("studio timeline adapter", () => {
   it("Timeline을 자막·영상·소리 트랙으로 바꾼다", () => {
     const rows = timelineToStudioRows(timeline);
-    expect(rows.map((row) => row.id)).toEqual(["captions", "overlay", "video", "source", "voice", "sfx"]);
+    expect(rows.map((row) => row.id)).toEqual(["captions", "video", "source", "voice", "sfx"]);
     expect(rows[2]?.actions.map(({ id, start, end }) => ({ id, start, end }))).toEqual([
       { id: "one", start: 0, end: 3 },
       { id: "two", start: 3, end: 5 },
@@ -33,7 +33,7 @@ describe("studio timeline adapter", () => {
         stems: { source: { voice: { gain: 1, muted: false }, bg: { gain: 1, muted: false } } },
       },
     });
-    expect(separated.map((row) => row.id)).toEqual(["captions", "overlay", "video", "stem-voice", "stem-bg", "voice", "sfx"]);
+    expect(separated.map((row) => row.id)).toEqual(["captions", "video", "stem-voice", "stem-bg", "voice", "sfx"]);
     expect(separated[3]?.actions[0]).toMatchObject({ id: "stem-voice:one", start: 0, end: 3, movable: false });
   });
 
@@ -59,8 +59,8 @@ describe("studio timeline adapter", () => {
   });
   it("겹친 영상 행을 영상 바로 위에 만들고 입력 이름을 라벨로 쓴다", () => {
     const overlay = { id: "overlay-1", kind: "photo" as const, inputId: "photo", startSec: 1, durationSec: 2, x: 0.5, y: 0.5, width: 0.6 };
-    const next = { ...timeline, overlay: [overlay] };
-    expect(timelineToStudioRows(next).map((item) => item.id)).toEqual(["captions", "overlay", "video", "source", "voice", "sfx"]);
+    const next = { ...timeline, overlays: [[overlay]] };
+    expect(timelineToStudioRows(next).map((item) => item.id)).toEqual(["captions", "overlay-0", "video", "source", "voice", "sfx"]);
     expect(labelForAction("overlay-1", next, [{ id: "photo", kind: "photo", file: "photo.jpg", displayName: "사진" }])).toBe("사진");
   });
 });

@@ -3,7 +3,7 @@ import type { Timeline } from "../../src/core/schema";
 import { timelineToRender } from "../../src/core/timeline/to-render";
 
 const timeline: Timeline = {
-  overlay: [],
+  overlays: [],
   video: [
     { id: "v1", kind: "main", inputId: "in1", inStartSec: 1, inEndSec: 3 },
     { id: "v2", kind: "main", inputId: "in2", inStartSec: 2, inEndSec: 4 },
@@ -37,8 +37,8 @@ describe("timelineToRender", () => {
     expect(render.audio).toContainEqual(expect.objectContaining({ id: "sfx", volume: 0 }));
   });
   it("겹친 짤은 본 영상 구간 위에 배치하고 음성 레이어를 추가하지 않는다", () => {
-    const render = timelineToRender({ ...timeline, overlay: [{ id: "o", memeId: "m", startSec: 1, durationSec: 2, x: 0.5, y: 0.5, width: 0.6 }] });
-    expect(render.overlay).toEqual([{ id: "o", kind: "meme", startFrame: 30, durationInFrames: 60, memeId: "m", x: 0.5, y: 0.5, width: 0.6 }]);
+    const render = timelineToRender({ ...timeline, overlays: [[{ id: "o", memeId: "m", startSec: 1, durationSec: 2, x: 0.5, y: 0.5, width: 0.6 }]] });
+    expect(render.overlay).toEqual([{ id: "o", kind: "meme", startFrame: 30, durationInFrames: 60, memeId: "m", layer: 0, x: 0.5, y: 0.5, width: 0.6 }]);
     expect(render.audio.map((item) => item.id)).not.toContain("o-audio");
   });
 });

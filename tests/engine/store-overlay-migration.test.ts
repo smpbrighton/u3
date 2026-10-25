@@ -14,10 +14,10 @@ describe("Store overlay migration", () => {
       const oldProject = JSON.parse(await readFile("tests/fixtures/project/project.json", "utf8")) as Record<string, unknown>;
       oldProject.id = id;
       const timeline = oldProject.timeline as Record<string, unknown>;
-      delete timeline.overlay;
+      delete timeline.overlays;
       await writeFile(path.join(projectDir, "project.json"), JSON.stringify(oldProject));
       const project = await new Store(root).getProject(id);
-      expect(project?.timeline.overlay).toEqual([]);
+      expect(project?.timeline.overlays).toEqual([]);
     } finally {
       await rm(root, { recursive: true, force: true });
     }

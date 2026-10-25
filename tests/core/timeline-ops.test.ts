@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import type { Timeline } from "../../src/core/schema";
 import { deleteCaptionClip, deleteOverlayClip, deleteVideoClip, moveAudioClip, moveCaptionClip, moveOverlayClip, moveVideoClip, splitOverlayClip, splitVideoClip, trimAudioClip, trimCaptionClip, trimOverlayClip, trimVideoClip, videoStartTimes } from "../../src/core/timeline/ops";
 
-const empty = (): Timeline => ({ video: [], overlay: [], captions: [], voice: [], sfx: [], audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } } });
+const empty = (): Timeline => ({ video: [], overlays: [], captions: [], voice: [], sfx: [], audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } } });
 const base = (): Timeline => ({ ...empty(), video: [
   { id: "v1", kind: "main", inputId: "in", inStartSec: 0, inEndSec: 4 },
   { id: "photo", kind: "main", inputId: "p", durationSec: 3 },
@@ -62,12 +62,12 @@ describe("timeline ops", () => {
     expect(deleteCaptionClip(timeline.captions, "c")).toEqual([]);
   });
   it("겹친 영상을 옮기고 양쪽을 트림하고 자르며 지운다", () => {
-    const timeline: Timeline = { ...empty(), video: [{ id: "main", kind: "main", inputId: "in", inStartSec: 0, inEndSec: 10 }], overlay: [{ id: "o", kind: "video", inputId: "in", startSec: 1, inStartSec: 2, inEndSec: 6, x: 0.5, y: 0.5, width: 0.6 }] };
-    expect(moveOverlayClip(timeline, "o", 2).overlay[0]?.startSec).toBe(2);
-    expect(trimOverlayClip(timeline, "o", "start", 2).overlay[0]).toMatchObject({ startSec: 2, inStartSec: 3, inEndSec: 6 });
-    expect(trimOverlayClip(timeline, "o", "end", 4).overlay[0]).toMatchObject({ startSec: 1, inStartSec: 2, inEndSec: 5 });
-    expect(splitOverlayClip(timeline, "o", 3).overlay).toMatchObject([{ id: "o-a", inEndSec: 4 }, { id: "o-b", startSec: 3, inStartSec: 4 }]);
-    expect(deleteOverlayClip(timeline, "o").overlay).toEqual([]);
+    const timeline: Timeline = { ...empty(), video: [{ id: "main", kind: "main", inputId: "in", inStartSec: 0, inEndSec: 10 }], overlays: [[{ id: "o", kind: "video", inputId: "in", startSec: 1, inStartSec: 2, inEndSec: 6, x: 0.5, y: 0.5, width: 0.6 }]] };
+    expect(moveOverlayClip(timeline, "o", 2).overlays[0]?.[0]?.startSec).toBe(2);
+    expect(trimOverlayClip(timeline, "o", "start", 2).overlays[0]?.[0]).toMatchObject({ startSec: 2, inStartSec: 3, inEndSec: 6 });
+    expect(trimOverlayClip(timeline, "o", "end", 4).overlays[0]?.[0]).toMatchObject({ startSec: 1, inStartSec: 2, inEndSec: 5 });
+    expect(splitOverlayClip(timeline, "o", 3).overlays[0]).toMatchObject([{ id: "o-a", inEndSec: 4 }, { id: "o-b", startSec: 3, inStartSec: 4 }]);
+    expect(deleteOverlayClip(timeline, "o").overlays).toEqual([]);
     expect(() => moveOverlayClip(timeline, "o", 7)).toThrow();
   });
 });
