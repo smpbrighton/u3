@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { MEME_PAGE_SIZE, pageMemes } from "../../src/ui/studio/library-window";
+import { MEME_PAGE_SIZE, memePreviewSource, pageMemes } from "../../src/ui/studio/library-window";
 import { debounceSearch, createLatestRequestGuard } from "../../src/ui/studio/library-request";
 
 describe("studio library loading", () => {
@@ -13,6 +13,11 @@ describe("studio library loading", () => {
     expect(second).toHaveLength(MEME_PAGE_SIZE);
     expect(first.length).toBeLessThan(2195);
     expect(first.at(-1)! + 1).toBe(second[0]);
+  });
+
+  it("assigns a meme video source only while its cell is visible", () => {
+    expect(memePreviewSource("/meme.mp4", false)).toBeUndefined();
+    expect(memePreviewSource("/meme.mp4", true)).toBe("/meme.mp4");
   });
 
   it("검색 입력은 debounce 뒤 한 번만 실행한다", () => {
