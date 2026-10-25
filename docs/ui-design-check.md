@@ -35,13 +35,15 @@
 | 항목 | 화면설계 값 | 구현 | 맞춤 여부 |
 |---|---|---|---|
 | 바탕 | 흰색 | 흰색 | 맞음 |
-| 카드 | 대본 방식 선택·프레임을 카드로 묶음 | section-card와 frame-groups | 맞음 |
+| 카드 | 대본 방식 선택 카드와 프레임 카드 | 선택 카드와 프레임 그룹 | 맞음 |
 | 주 버튼 | 화면당 하나, 주황색 `대본 만들기` | SEED brandSolid `대본 만들기` | 맞음 |
 | 보조 버튼 | 테두리·중립 버튼 | SEED neutralWeak 계열 | 맞음 |
-| 헤더 | 단계 표시와 화면 제목 | 단계 표시와 `대본 방식 고르기` | 맞음 |
-| 아이콘 | Hugeicons stroke rounded | 화면 상태에 따라 Hugeicons | 맞음 |
+| 헤더 | 64px 한 줄, 44px 테두리 없는 뒤로 아이콘, 프로젝트 이름과 단계 | 입력 화면과 같은 한 줄 헤더, 화면 제목 제거 | 맞음 |
+| 본문 | 최대 너비 1040px, 가운데 정렬 | `script-main` 최대 너비 1040px | 맞음 |
+| 상태 | 대본 생성 중 진행·취소, 실패 이유 표시 | 진행률·취소 버튼, Snackbar와 화면 경고 | 맞음 |
+| 아이콘 | 화면설계의 선 아이콘 | 뒤로 아이콘과 선택 카드 아이콘 | 맞음 |
 | 층 순서 | 겹치는 UI 없음 | 겹치는 UI 없음 | 맞음 |
-| 캡처 | `out/manual/w11-3.png` | AI 프레임이 있는 대본 화면 | 맞음 |
+| 캡처 | `out/manual/w12-script.png`, `out/manual/w12-script-progress.png` | 프레임과 한 줄 헤더, Codex 진행·취소 | 맞음 |
 
 ### 4-1 스튜디오 · 짤 고르기
 
@@ -201,4 +203,4 @@
 
 ## 캡처 현황
 
-`out/manual/`에 브라우저 뷰포트 1440×900 캡처를 저장했다. 화면별 파일과 설정 상태 파일을 표에 적었다. 설정은 모델·추론 강도 선택기를 각각 펼쳐 캡처했다. 4-3은 드래그 중이 아닌 미디어를 넣은 직후를 저장했다. 4-5는 `/Volumes/X31/workspace/smp_workspace/u3-spike-media/clip1_speech_music.mp4`에서 MRX 분리 진행률이 표시될 때 캡처했다. 4-7의 Whisper 실행 화면은 재현하지 못했다. 개발 서버는 `U3_DATA_DIR=out/manual/store`로 실행한 뒤 종료했다.
+`out/manual/`에 브라우저 뷰포트 1440×900 캡처를 저장했다. W12는 `w12-input.png`, `w12-script.png`, `w12-script-progress.png`, `w12-studio.png`에 남겼다. `/Users/smp/Desktop/화면 기록 2026-10-24 오후 11.14.18.mov`에서 Codex 대본을 실제 생성하고 스튜디오 진입을 확인했다. 수동 데이터는 `U3_DATA_DIR=out/manual/store`에 저장했다.
