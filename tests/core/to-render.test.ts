@@ -47,6 +47,6 @@ describe("timelineToRender", () => {
   });
   it("영상 2 원본은 원본 소리 설정과 원본 구간을 따라 소리 낸다", () => {
     const main: Timeline = { ...timeline, video: [{ id: "main", kind: "main", inputId: "in1", inStartSec: 0, inEndSec: 5 }], overlays: [[{ id: "upper", kind: "video", inputId: "in3", startSec: 1, inStartSec: 4, inEndSec: 6, x: 0.5, y: 0.5, width: 0.6 }]], audio: { ...timeline.audio, source: { gain: 0.7, muted: false } } };
-    expect(timelineToRender(main).audio).toContainEqual(expect.objectContaining({ id: "upper-source", track: "source", startFrame: 30, durationInFrames: 60, sourceStartFrame: 120, inputId: "in2", volume: 0.7 }));
+    expect(timelineToRender(main).audio).toContainEqual(expect.objectContaining({ id: "upper-source", track: "source", startFrame: 30, durationInFrames: 60, sourceStartFrame: 120, inputId: "in3", volume: 0.7 }));
   });
 });
