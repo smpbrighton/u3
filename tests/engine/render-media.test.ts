@@ -26,6 +26,7 @@ describe("render route media", () => {
     project.inputs = [{ id: "main-video", kind: "video", file: "input/video.mp4", durationSec: 4 }];
     project.timeline = {
       video: [{ id: "main-video-clip", kind: "main", inputId: "main-video", inStartSec: 0, inEndSec: 4 }],
+      overlay: [],
       captions: [],
       voice: [],
       sfx: [],

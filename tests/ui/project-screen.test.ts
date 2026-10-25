@@ -4,7 +4,7 @@ import { projectOpenScreen } from "../../src/ui/project-screen";
 
 const project = (inputs: Project["inputs"], video: Project["timeline"]["video"]): Project => ({
   id: "project", name: "프로젝트", inputs, savedAt: "2026-10-24T00:00:00.000Z",
-  timeline: { video, captions: [], voice: [], sfx: [], audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } } },
+  timeline: { video, overlay: [], captions: [], voice: [], sfx: [], audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } } },
 });
 
 describe("projectOpenScreen", () => {
