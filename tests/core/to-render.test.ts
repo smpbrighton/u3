@@ -61,7 +61,9 @@ describe("가변 오버레이 트랙 렌더 순서", () => {
 
 describe("짧아진 클립 전환 렌더 길이", () => {
   it("저장된 효과 길이가 클립 절반을 넘으면 렌더 효과를 clamp한다", () => {
-    const shortTimeline: Timeline = { ...timeline, video: [{ id: "short", kind: "main", inputId: "in", durationSec: 0.4, startTransition: { kind: { kind: "dissolve" }, durationSec: 2 } }], overlays: [] };
-    expect(timelineToRender(shortTimeline).video[0]?.startTransition?.durationSec).toBe(0.2);
+    const shortTimeline: Timeline = { ...timeline, video: [{ id: "short", kind: "main", inputId: "in", durationSec: 0.4, startTransition: { kind: { kind: "dissolve" }, durationSec: 2 } }], overlays: [[{ id: "over", memeId: "m", startSec: 0, durationSec: 0.4, x: 0.5, y: 0.5, width: 0.6, startTransition: { kind: { kind: "dissolve" }, durationSec: 2 } }]] };
+    const render = timelineToRender(shortTimeline);
+    expect(render.transitions[0]?.durationInFrames).toBe(6);
+    expect(render.overlay[0]?.startTransition?.durationSec).toBe(0.2);
   });
 });
