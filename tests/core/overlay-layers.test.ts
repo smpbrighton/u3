@@ -16,4 +16,7 @@ describe("겹친 영상 층 배정", () => {
     expect(removeOverlayFromLayers(layers, "b")).toEqual([[clip("a", 0, 2)], [clip("c", 0, 2)]]);
     expect(removeOverlayFromLayers([[clip("a", 0, 2)]], "a")).toEqual([]);
   });
+  it("새 클립을 놓을 때 남아 있는 빈 층도 정리한다", () => {
+    expect(placeOverlayInLowestLayer([[clip("a", 0, 2)], [], [clip("b", 2, 2)]], clip("c", 4, 1))).toEqual([[clip("a", 0, 2), clip("c", 4, 1)], [clip("b", 2, 2)]]);
+  });
 });
