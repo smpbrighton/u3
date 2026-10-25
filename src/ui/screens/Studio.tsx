@@ -297,7 +297,7 @@ export function Studio(props: {
         <HugeiconsIcon icon={Redo02Icon} size={16} />다시 실행
       </ActionButton>
       <span className="studio-toolbar-spacer" />
-      <StudioSwitch label="스냅" checked={snap} onChange={setSnap} />
+      <StudioSwitch label="스냅" checked={snap} onChange={setSnap} size="16" />
       <label className="studio-zoom"><span>확대</span><span className="studio-zoom-slider"><StudioSlider label="확대" min={1} max={10} step={0.1} value={zoom} onChange={setZoom} /></span><output>{zoom.toFixed(1)}×</output></label>
     </div>
     <div className="studio-timeline-drop">

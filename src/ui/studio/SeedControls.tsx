@@ -16,8 +16,8 @@ export function StudioSlider(props: {
   return <Slider getAriaLabel={() => props.label} min={props.min} max={props.max} step={props.step} values={[props.value]} onValuesChange={values => { if (values[0] !== undefined) props.onChange(values[0]); }} disabled={props.disabled} />;
 }
 
-export function StudioSwitch(props: { label: string; checked: boolean; onChange: (checked: boolean) => void }) {
-  return <Switch label={props.label} checked={props.checked} onCheckedChange={props.onChange} />;
+export function StudioSwitch(props: { label: string; checked: boolean; onChange: (checked: boolean) => void; size?: "16" | "24" | "32" }) {
+  return <Switch label={props.label} checked={props.checked} onCheckedChange={props.onChange} size={props.size} />;
 }
 
 export function StudioTextInput(props: {

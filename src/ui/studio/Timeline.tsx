@@ -258,7 +258,7 @@ export function Timeline(props: {
     <div className="studio-timeline-toolbar">
       <div className="studio-track-labels studio-track-labels--toolbar" />
       <span>포인터에서 자르기 <kbd>C</kbd> · 재생 헤드에서 자르기 <kbd>S</kbd> · 묶기 <kbd>⌘M</kbd> / 풀기 <kbd>⇧⌘M</kbd></span>
-      <StudioSwitch label="스냅" checked={props.snap} onChange={checked => props.onSnapChange?.(checked)} />
+      <StudioSwitch label="스냅" checked={props.snap} onChange={checked => props.onSnapChange?.(checked)} size="16" />
       <label className="studio-zoom"><span>확대</span><span className="studio-zoom-slider"><StudioSlider label="확대" min={1} max={10} step={0.1} value={props.zoom} onChange={value => props.onZoomChange?.(value)} /></span><output>{props.zoom.toFixed(1)}×</output></label>
     </div>
     <div className="studio-timeline-body">

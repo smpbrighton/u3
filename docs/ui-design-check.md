@@ -13,6 +13,15 @@ W26의 1280×800 레이아웃 결함을 수정했다. SEED 컴포넌트 내부 �
 
 입력, 대본, 설정, Inspector의 영상·소리·자막·효과음 속성, 내보내기·이름 바꾸기 Dialog, Menu, Snackbar는 구현 코드와 배치 스타일을 검토했다. 폭 0, 세로 줄바꿈, 행 겹침, 버튼의 행 높이 초과, 해당 결함 유형의 텍스트 잘림은 코드에서 발견하지 못했다. 이 화면은 개발 앱에서 직접 열어 확인하지 못했다.
 
+### 재검토 수정 1회차
+
+| 화면 | 확인 결과 | 캡처 |
+|---|---|---|
+| 홈 카드 열기 | 카드 본문을 키보드로 실행할 수 있는 button으로 만들었다. 썸네일을 눌러 프로젝트 입력 흐름이 열리는 것을 확인했다. 더보기 메뉴는 이름 행 오른쪽에 둔다. | `out/manual/w27-fix-home.png` |
+| Studio · 미디어 | 행 높이를 썸네일에 맞추고, 행 간격과 세로 가운데 정렬을 적용했다. | `out/manual/w27-fix-studio.png` |
+| Studio · 짤 | 설명을 두 줄로 제한하고 넘치는 문자를 숨긴다. | `out/manual/w27-fix-memes.png` |
+| Studio · 타임라인 도구 줄 | 스냅 Toggle Button과 확대 라벨을 SEED `t3` typography로 맞췄다. | `out/manual/w27-fix-studio.png` |
+
 화면설계 원본은 `/Volumes/X31/workspace/smp_workspace/u3-design/canvas.json`과 각 보드의 `.dc.html`이다. 공통 구현은 SEED 토큰과 컴포넌트를 사용한다. 캡처는 브라우저 탭의 1440×900 콘텐츠 영역만 저장했다. `out/manual/`은 gitignore 대상이다.
 
 ## 화면별 대조
