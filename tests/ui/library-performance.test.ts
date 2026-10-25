@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { MEME_PAGE_SIZE, canMemePreviewPlay, memePreviewPreload, memePreviewSource, mergeMemePages, pageMemes, shouldLoadMemePage } from "../../src/ui/studio/library-window";
+import { MEME_PAGE_SIZE, canMemePreviewPlay, memePageHasMore, memePreviewPreload, memePreviewSource, mergeMemePages, pageMemes, shouldLoadMemePage, shouldRequestMemePage } from "../../src/ui/studio/library-window";
 import { debounceSearch, createLatestRequestGuard } from "../../src/ui/studio/library-request";
 
 describe("studio library loading", () => {
@@ -8,11 +8,20 @@ describe("studio library loading", () => {
     const first = pageMemes(items, 1);
     const second = pageMemes(items, 2);
 
-    expect(MEME_PAGE_SIZE).toBeGreaterThan(0);
+    expect(MEME_PAGE_SIZE).toBe(24);
     expect(first).toHaveLength(MEME_PAGE_SIZE);
     expect(second).toHaveLength(MEME_PAGE_SIZE);
     expect(first.length).toBeLessThan(2195);
     expect(first.at(-1)! + 1).toBe(second[0]);
+  });
+
+  it("끝 감시 중 대기 상태가 아니고 다음 페이지가 있으면 24개씩 요청한다", () => {
+    expect(memePageHasMore(24)).toBe(true);
+    expect(memePageHasMore(23)).toBe(false);
+    expect(shouldRequestMemePage({ reachedEnd: true, loading: false, hasMore: true })).toBe(true);
+    expect(shouldRequestMemePage({ reachedEnd: true, loading: true, hasMore: true })).toBe(false);
+    expect(shouldRequestMemePage({ reachedEnd: true, loading: false, hasMore: false })).toBe(false);
+    expect(shouldRequestMemePage({ reachedEnd: false, loading: false, hasMore: true })).toBe(false);
   });
 
   it("assigns a meme video source only while its cell is visible", () => {
