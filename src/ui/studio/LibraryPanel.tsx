@@ -78,7 +78,7 @@ export function LibraryPanel(props: {
         </AttachmentField>
         <ul className="studio-library-list">{props.project.inputs.filter((input) => input.id !== "placeholder").map((input) => <li key={input.id} draggable onDragStart={(event) => drag(event, "video", input.id)}>
           <button type="button" className="studio-media-item" onClick={() => props.onAddVideo(input.id)}>
-            <span className="studio-media-thumb">{input.kind === "photo" ? <img src={mediaUrls[input.id]} alt="" /> : <video src={mediaUrls[input.id]} muted preload="metadata" />}</span>
+            <span className="studio-media-thumb"><img src={mediaUrls[input.id]} alt="" /></span>
             <span><b>{inputDisplayName(input)}</b><small>{input.kind === "video" ? "영상" : "사진"}{input.durationSec ? ` · ${input.durationSec.toFixed(1)}초` : ""}</small></span>
           </button>
         </li>)}</ul>
