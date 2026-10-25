@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { mkdtemp, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { extractFrames, frameAllocation, frameCountForInputs } from "../../src/engine/pipeline/frames";
+import { extractFrames, extractThumbnail, frameAllocation, frameCountForInputs } from "../../src/engine/pipeline/frames";
 
 describe("frame allocation", () => {
   it("allocates one frame to each photo and ten to each video until the limit", () => {
@@ -32,6 +32,20 @@ describe("photo frame extraction", () => {
 
       expect(frames).toHaveLength(1);
       expect((await stat(frames[0]!)).size).toBeGreaterThan(0);
+    } finally {
+      await rm(directory, { recursive: true, force: true });
+    }
+  });
+});
+
+describe("video thumbnails", () => {
+  it("extracts the first video frame as a non-empty thumbnail", async () => {
+    const directory = await mkdtemp(path.join(os.tmpdir(), "u3-video-thumbnail-"));
+    const video = path.resolve("tests/fixtures/project/input/video.mp4");
+
+    try {
+      const thumbnail = await extractThumbnail(video, path.join(directory, "thumbnail.jpg"));
+      expect((await stat(thumbnail)).size).toBeGreaterThan(0);
     } finally {
       await rm(directory, { recursive: true, force: true });
     }
