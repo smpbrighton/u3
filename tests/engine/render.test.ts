@@ -6,8 +6,27 @@ import { Store } from "../../src/engine/store";
 import type { RenderShortOptions } from "../../src/engine/pipeline/render";
 import { Hono } from "hono";
 import { tokenGuard } from "../../src/engine/http";
+import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
+import os from "node:os";
+import { resolveMemeFiles } from "../../src/engine/pipeline/render";
 
 describe("render route", () => {
+  it("짤 ID를 감정 폴더의 실제 라이브러리 파일로 푼다", async () => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "u3-render-meme-id-"));
+    const folder = path.join(root, "library", "memes", "놀람");
+    await mkdir(folder, { recursive: true });
+    await writeFile(path.join(folder, "tenor-Q3oksRY9moQ.mp4"), "video");
+    await writeFile(path.join(folder, "tenor-Q3oksRY9moQ.json"), JSON.stringify({ id: "tenor-Q3oksRY9moQ", emotion: "놀람", situations: [], importedAt: "", tagsConfirmed: true }));
+    try {
+      await expect(resolveMemeFiles(["tenor-Q3oksRY9moQ"], path.join(root, "library"))).resolves.toEqual({
+        "tenor-Q3oksRY9moQ": path.join(folder, "tenor-Q3oksRY9moQ.mp4"),
+      });
+      await expect(resolveMemeFiles(["missing-meme"], path.join(root, "library"))).rejects.toThrow("짤을 라이브러리에서 찾을 수 없습니다: missing-meme");
+    } finally {
+      await import("node:fs/promises").then(fs => fs.rm(root, { recursive: true, force: true }));
+    }
+  });
+
   it("cancels an active render job", async () => {
     const root = await import("node:fs/promises").then(fs => fs.mkdtemp(path.join(process.env.TMPDIR ?? "/tmp", "u3-render-route-")));
     const store = new Store(root);

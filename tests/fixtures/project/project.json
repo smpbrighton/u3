@@ -10,9 +10,9 @@
     "video": [
       { "id": "video-opening", "kind": "main", "inputId": "main-video", "inStartSec": 0, "inEndSec": 1 },
       { "id": "photo-insert", "kind": "main", "inputId": "photo", "durationSec": 1 },
-      { "id": "meme-front-clip", "kind": "meme", "memeId": "meme-front.mp4", "durationSec": 0.8 },
+      { "id": "meme-front-clip", "kind": "meme", "memeId": "meme-front", "durationSec": 0.8 },
       { "id": "video-trimmed", "kind": "main", "inputId": "main-video", "inStartSec": 2, "inEndSec": 3 },
-      { "id": "meme-back-clip", "kind": "meme", "memeId": "meme-back.mp4", "durationSec": 0.8 }
+      { "id": "meme-back-clip", "kind": "meme", "memeId": "meme-back", "durationSec": 0.8 }
     ],
     "captions": [
       { "id": "caption-opening", "startSec": 0.1, "endSec": 0.9, "text": "렌더 smoke 확인" },
