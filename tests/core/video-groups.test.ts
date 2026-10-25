@@ -43,11 +43,11 @@ describe("영상 클립 묶기", () => {
 
   it("그룹을 영상 1에서 영상 2로 함께 옮기고 각 클립의 원본 종류와 그룹 id를 유지한다", () => {
     const grouped = groupVideoClips(timeline, refs("a", "b"), "g1");
-    const moved = moveVideoGroup(grouped, "g1", { track: "video-2", startSec: 3 }, inputs);
+    const moved = moveVideoGroup(grouped, "g1", { track: "video-3", startSec: 3 }, inputs);
     expect(moved.video.map((clip) => clip.id)).toEqual(["c"]);
-    expect(moved.overlays[0]?.map((clip) => [clip.id, clip.groupId, clip.startSec])).toEqual([["a", "g1", 0], ["b", "g1", 2]]);
-    expect(moved.overlays[0]?.[0]).toMatchObject({ kind: "video", inputId: "in", inStartSec: 0, inEndSec: 2 });
-    expect(moved.overlays[0]?.[1]).toMatchObject({ inputId: "photo", durationSec: 1 });
+    expect(moved.overlays[1]?.map((clip) => [clip.id, clip.groupId, clip.startSec])).toEqual([["a", "g1", 0], ["b", "g1", 2]]);
+    expect(moved.overlays[1]?.[0]).toMatchObject({ kind: "video", inputId: "in", inStartSec: 0, inEndSec: 2 });
+    expect(moved.overlays[1]?.[1]).toMatchObject({ inputId: "photo", durationSec: 1 });
   });
 
   it("오버레이 그룹을 옮길 때 모든 그룹 멤버의 시작 시각을 같은 만큼 바꾼다", () => {
