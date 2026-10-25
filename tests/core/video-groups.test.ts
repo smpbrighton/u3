@@ -8,7 +8,7 @@ const timeline: Timeline = {
   video: [
     { id: "a", kind: "main", inputId: "in", inStartSec: 0, inEndSec: 2 },
     { id: "b", kind: "main", inputId: "photo", durationSec: 1 },
-    { id: "c", kind: "meme", memeId: "m", durationSec: 1 },
+    { id: "c", kind: "meme", memeId: "m", durationSec: 8 },
   ],
   overlays: [[
     { id: "x", kind: "video", inputId: "in", startSec: 1, inStartSec: 3, inEndSec: 5, x: 0.5, y: 0.5, width: 0.6 },
