@@ -11,14 +11,16 @@ export interface StudioShortcutInput {
   keyCode?: number;
   targetTagName?: string;
   targetType?: string;
+  targetRole?: string;
   targetIsContentEditable?: boolean;
 }
 
 const textTags = new Set(["INPUT", "TEXTAREA", "SELECT"]);
+const interactiveRoles = new Set(["slider", "switch", "checkbox", "radio", "combobox", "listbox", "option", "button", "tab"]);
 
 export function studioShortcut(event: StudioShortcutInput): StudioShortcut | null {
   if (event.isComposing || (event.keyCode === 229 && !event.code)) return null;
-  if (event.targetIsContentEditable || textTags.has(event.targetTagName?.toUpperCase() ?? "") || event.targetType === "range") return null;
+  if (event.targetIsContentEditable || textTags.has(event.targetTagName?.toUpperCase() ?? "") || event.targetType === "range" || interactiveRoles.has(event.targetRole?.toLowerCase() ?? "")) return null;
 
   const key = event.code ? codeKey(event.code) : event.key.toLowerCase();
   const command = Boolean(event.metaKey || event.ctrlKey);

@@ -17,6 +17,8 @@ import { decideActionMove, isUnchangedTimeline, resolveVideoTrackAtPointer, shou
 import { timelinePointerSeconds } from "./timeline-zoom";
 import { studioShortcut } from "./shortcuts";
 import { audioGroupForRow, normalizeSfxLanes } from "../../core/timeline/sfx-lanes";
+import { StudioSlider, StudioSwitch } from "./SeedControls";
+import { ToggleButton } from "../../../seed-design/ui/toggle-button";
 
 const TRACKS = [
   { id: "captions", name: "자막", color: "#F7A54A" },
@@ -175,7 +177,8 @@ export function Timeline(props: {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      const shortcut = studioShortcut({ key: event.key, code: event.code, metaKey: event.metaKey, ctrlKey: event.ctrlKey, altKey: event.altKey, shiftKey: event.shiftKey, isComposing: event.isComposing, keyCode: event.keyCode, targetTagName: (event.target as HTMLElement | null)?.tagName, targetType: (event.target as HTMLInputElement | null)?.type, targetIsContentEditable: (event.target as HTMLElement | null)?.isContentEditable });
+      const target = event.target instanceof Element ? event.target : null;
+      const shortcut = studioShortcut({ key: event.key, code: event.code, metaKey: event.metaKey, ctrlKey: event.ctrlKey, altKey: event.altKey, shiftKey: event.shiftKey, isComposing: event.isComposing, keyCode: event.keyCode, targetTagName: target?.tagName, targetType: (target as HTMLInputElement | null)?.type, targetRole: target?.closest("[role]")?.getAttribute("role") ?? undefined, targetIsContentEditable: (target as HTMLElement | null)?.isContentEditable });
       if (shortcut !== "split-pointer" && shortcut !== "split-playhead") return;
       let targetId: string | undefined;
       let atSec: number | undefined;
@@ -254,8 +257,8 @@ export function Timeline(props: {
     <div className="studio-timeline-toolbar">
       <div className="studio-track-labels studio-track-labels--toolbar" />
       <span>포인터에서 자르기 <kbd>C</kbd> · 재생 헤드에서 자르기 <kbd>S</kbd> · 묶기 <kbd>⌘M</kbd> / 풀기 <kbd>⇧⌘M</kbd></span>
-      <label>스냅 <input type="checkbox" checked={props.snap} onChange={(event) => props.onSnapChange?.(event.currentTarget.checked)} /></label>
-      <label className="studio-zoom">확대 <input type="range" min="1" max="10" step="0.1" value={props.zoom} onChange={(event) => props.onZoomChange?.(Number(event.currentTarget.value))} /><output>{props.zoom.toFixed(1)}×</output></label>
+      <StudioSwitch label="스냅" checked={props.snap} onChange={checked => props.onSnapChange?.(checked)} />
+      <label className="studio-zoom">확대 <StudioSlider label="확대" min={1} max={10} step={0.1} value={props.zoom} onChange={value => props.onZoomChange?.(value)} /><output>{props.zoom.toFixed(1)}×</output></label>
     </div>
     <div className="studio-timeline-body">
       <div className="studio-track-labels">
@@ -271,7 +274,7 @@ export function Timeline(props: {
                     : false;
           return <div key={track.id} className="studio-track-label" style={{ borderLeftColor: track.color }}>
             <span>{track.name}</span>
-            {group ? <button type="button" aria-label={muted ? `${track.name} 음소거 해제` : `${track.name} 음소거`} aria-pressed={muted} className={muted ? "is-muted" : undefined} onClick={() => props.onMute?.(group)}><HugeiconsIcon icon={VolumeIcon} size={16} /></button> : null}
+            {group ? <ToggleButton variant="neutralWeak" pressed={muted} onPressedChange={() => props.onMute?.(group)} aria-label={muted ? `${track.name} 음소거 해제` : `${track.name} 음소거`} className={muted ? "is-muted" : undefined}><HugeiconsIcon icon={VolumeIcon} size={16} /></ToggleButton> : null}
           </div>;
         })}
       </div>

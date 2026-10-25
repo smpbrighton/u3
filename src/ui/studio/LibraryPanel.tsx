@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { AttachmentField } from "../../../seed-design/ui/attachment-field";
+import { TabsRoot, TabsList, TabsTrigger } from "../../../seed-design/ui/tabs";
+import { TextField, TextFieldInput } from "../../../seed-design/ui/text-field";
 import { ActionButton } from "../../../seed-design/ui/action-button";
 import type { Project } from "../../core/schema";
 import { api, mediaUrl } from "../api";
@@ -310,38 +312,38 @@ export function LibraryPanel(props: {
   }
 
   return <aside className="studio-library" aria-label="라이브러리">
-    <div className="studio-library-tabs" role="tablist" aria-label="라이브러리 종류">
-      {([["media", "미디어"], ["meme", "짤"], ["sfx", "효과음"], ["voice", "음성"]] as [Tab, string][]).map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{label}</button>)}
-    </div>
+    <TabsRoot className="studio-library-tabs" value={tab} onValueChange={value => setTab(value as Tab)}>
+      <TabsList aria-label="라이브러리 종류">{([['media', '미디어'], ['meme', '짤'], ['sfx', '효과음'], ['voice', '음성']] as [Tab, string][]).map(([id, label]) => <TabsTrigger key={id} value={id}>{label}</TabsTrigger>)}</TabsList>
+    </TabsRoot>
     <div className="studio-library-content" ref={libraryContentRef}>
       {tab === "media" ? <>
         <AttachmentField label="미디어 넣기" description="영상·사진을 영상 트랙에 끌어 놓으세요." accept={["video/mp4", "video/quicktime", "image/*"]}>
           <div className="studio-attachment" onClick={() => void chooseMedia()}><ActionButton variant="neutralWeak" loading={busy}>미디어 넣기</ActionButton><span>영상·사진 파일을 선택해요.</span></div>
         </AttachmentField>
         <ul className="studio-library-list">{props.project.inputs.filter((input) => input.id !== "placeholder").map((input) => <li key={input.id} onDragStart={(event) => event.preventDefault()}>
-          <button type="button" className="studio-media-item" onPointerDown={(event) => beginPointerDrag(event, { type: "video", id: input.id, label: inputDisplayName(input), image: mediaUrls[input.id] })} onClick={(event) => clickUnlessDragging(event, () => props.onAddVideo(input.id))}>
+          <ActionButton variant="ghost" type="button" className="studio-media-item" onPointerDown={(event) => beginPointerDrag(event, { type: "video", id: input.id, label: inputDisplayName(input), image: mediaUrls[input.id] })} onClick={(event) => clickUnlessDragging(event, () => props.onAddVideo(input.id))}>
             <span className="studio-media-thumb"><img src={mediaUrls[input.id]} alt="" draggable={false} /></span>
             <span><b>{inputDisplayName(input)}</b><small>{input.kind === "video" ? "영상" : "사진"}{input.durationSec ? ` · ${input.durationSec.toFixed(1)}초` : ""}</small></span>
-          </button>
+          </ActionButton>
         </li>)}</ul>
       </> : null}
       {tab === "meme" ? <>
-        <input className="studio-search" aria-label="짤 검색" placeholder="짤 검색" value={memeQuery} onChange={(event) => searchMemes(event.currentTarget.value)} />
+        <TextField aria-label="짤 검색" value={memeQuery} onValueChange={value => searchMemes(value.value)}><TextFieldInput className="studio-search" placeholder="짤 검색" /></TextField>
         {memeSearchStatus === "judging" ? <span role="status">Jev가 고르는 중…</span> : null}
         {memeSearchStatus === "fallback" ? <span role="status">Jev 추천을 쓸 수 없어 검색 순서로 보여요</span> : null}
-        <div className="studio-library-grid">{memes.map((meme) => <button key={meme.id} type="button" onDragStart={(event) => event.preventDefault()} onPointerDown={(event) => beginPointerDrag(event, { type: "meme", id: meme.id, label: meme.description ?? meme.emotion, image: meme.url, meme })} className={props.selectedId === meme.id ? "is-selected" : ""} onMouseEnter={() => setHoveredMemeId(meme.id)} onMouseLeave={() => setHoveredMemeId((id) => id === meme.id ? null : id)} onClick={(event) => clickUnlessDragging(event, () => props.onSelectMeme(meme))} title={meme.description ?? meme.id}>
+        <div className="studio-library-grid">{memes.map((meme) => <ActionButton key={meme.id} variant="neutralWeak" type="button" onDragStart={(event) => event.preventDefault()} onPointerDown={(event) => beginPointerDrag(event, { type: "meme", id: meme.id, label: meme.description ?? meme.emotion, image: meme.url, meme })} className={props.selectedId === meme.id ? "is-selected" : ""} onMouseEnter={() => setHoveredMemeId(meme.id)} onMouseLeave={() => setHoveredMemeId((id) => id === meme.id ? null : id)} onClick={(event) => clickUnlessDragging(event, () => props.onSelectMeme(meme))} title={meme.description ?? meme.id}>
           <MemePreview url={meme.url} id={meme.id} hoveredId={hoveredMemeId} /><span>{meme.description ?? meme.emotion}</span>
-        </button>)}</div>
+        </ActionButton>)}</div>
         <div ref={memeEndRef} className="studio-library-end" aria-hidden="true" />
         {memeLoading && memeSearchStatus === "idle" ? <span role="status">짤을 불러오는 중…</span> : null}
         {memeSearchStatus === "jev" ? <span role="status">Jev 추천</span> : null}
         {memeQuery.trim() && !memeLoading && memeSearchStatus === "idle" && !memes.length ? <span role="status">맞는 짤이 없어요. 다른 상황이나 감정으로 찾아 보세요</span> : null}
       </> : null}
       {tab === "sfx" ? <>
-        <input className="studio-search" aria-label="효과음 검색" placeholder="효과음 검색" value={sfxQuery} onChange={(event) => searchSfx(event.currentTarget.value)} />
+        <TextField aria-label="효과음 검색" value={sfxQuery} onValueChange={value => searchSfx(value.value)}><TextFieldInput className="studio-search" placeholder="효과음 검색" /></TextField>
         {sfxSearchStatus === "judging" ? <span role="status">Jev가 고르는 중…</span> : null}
         {sfxSearchStatus === "fallback" ? <span role="status">Jev 추천을 쓸 수 없어 검색 순서로 보여요</span> : null}
-        <ul className="studio-library-list">{sfxItems.map((item) => <li key={item.id} onDragStart={(event) => event.preventDefault()}><button type="button" className="studio-library-choice" onPointerDown={(event) => beginPointerDrag(event, { type: "sfx", id: item.id, label: item.title, sfx: item })} onClick={(event) => clickUnlessDragging(event, () => props.onAddSfx(item))}><span>♫</span><span><b>{item.title}</b><small>{item.category} · {item.durationSec.toFixed(1)}초</small></span></button></li>)}</ul>
+        <ul className="studio-library-list">{sfxItems.map((item) => <li key={item.id} onDragStart={(event) => event.preventDefault()}><ActionButton variant="ghost" type="button" className="studio-library-choice" onPointerDown={(event) => beginPointerDrag(event, { type: "sfx", id: item.id, label: item.title, sfx: item })} onClick={(event) => clickUnlessDragging(event, () => props.onAddSfx(item))}><span>♫</span><span><b>{item.title}</b><small>{item.category} · {item.durationSec.toFixed(1)}초</small></span></ActionButton></li>)}</ul>
         {sfxSearchStatus === "jev" ? <span role="status">Jev 추천</span> : null}
         {sfxQuery.trim() && !["searching", "judging", "search-error"].includes(sfxSearchStatus) && !sfxItems.length ? <span role="status">맞는 효과음이 없어요</span> : null}
       </> : null}

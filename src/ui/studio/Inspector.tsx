@@ -5,9 +5,13 @@ import { findOverlayInLayers, updateOverlayInLayers } from "../../core/timeline/
 import { ActionButton } from "../../../seed-design/ui/action-button";
 import { PageBanner } from "../../../seed-design/ui/page-banner";
 import { ProgressCircle } from "../../../seed-design/ui/progress-circle";
-import { AlertDialog } from "@seed-design/react";
+import { AlertDialogRoot, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction } from "../../../seed-design/ui/alert-dialog";
 import { api, watchJob, type EngineJob } from "../api";
 import { clampTransitionDuration, parseTransitionDuration, transitionDurationLimit } from "./transition-length";
+import { StudioSlider, StudioSwitch, StudioTextInput, StudioTextarea, StudioSelect } from "./SeedControls";
+import { RadioGroup, RadioGroupItem } from "../../../seed-design/ui/radio-group";
+
+const AlertDialog = { Root: AlertDialogRoot, Content: AlertDialogContent, Header: AlertDialogHeader, Title: AlertDialogTitle, Description: AlertDialogDescription, Footer: AlertDialogFooter, Action: AlertDialogAction };
 
 interface SfxItem { id: string; category: string; title: string; file: string; ref: string; url: string; durationSec: number }
 type TranscriptResult = { captions: TimelineData["captions"]; replaced: TimelineData["captions"] };
@@ -54,15 +58,15 @@ export function Inspector(props: {
     const groupCount = overlay.groupId ? props.timeline.overlays.flat().filter((item) => item.groupId === overlay.groupId).length : 0;
     return <InspectorShell title={`${props.selectedTrack === "video" ? "영상 2" : props.selectedTrack?.replace(/^video-/, "영상 ") ?? "영상 2"} 속성`} error={error}>
       {groupCount ? <GroupSummary count={groupCount} onUngroup={props.onUngroup} /> : null}
-      <label>시작 시각 <b>{overlay.startSec.toFixed(1)}초</b><input type="range" min="0" max={Math.max(0, videoDuration(props.timeline) - duration)} step="0.1" value={Math.min(overlay.startSec, Math.max(0, videoDuration(props.timeline) - duration))} onChange={(event) => updateOverlay({ startSec: Number(event.currentTarget.value) })} /></label>
-      <label>길이 <b>{duration.toFixed(1)}초</b><input type="number" min="0.1" max={videoDuration(props.timeline) - overlay.startSec} step="0.1" value={duration} onChange={(event) => {
-        const value = Number(event.currentTarget.value);
+      <label>시작 시각 <b>{overlay.startSec.toFixed(1)}초</b><StudioSlider label="시작 시각" min={0} max={Math.max(0, videoDuration(props.timeline) - duration)} step={0.1} value={Math.min(overlay.startSec, Math.max(0, videoDuration(props.timeline) - duration))} onChange={value => updateOverlay({ startSec: value })} /></label>
+      <label>길이 <b>{duration.toFixed(1)}초</b><StudioTextInput label="길이" inputMode="decimal" value={String(duration)} onChange={raw => {
+        const value = Number(raw);
         if (!Number.isFinite(value) || value <= 0 || value > videoDuration(props.timeline) - overlay.startSec) return;
         updateOverlay("durationSec" in overlay ? { durationSec: value } : { inEndSec: overlay.inStartSec + value });
       }} /></label>
-      <label>가로 위치 <b>{Math.round(overlay.x * 100)}%</b><input type="range" min="0" max="1" step="0.01" value={overlay.x} onChange={(event) => updateOverlay({ x: Number(event.currentTarget.value) })} /></label>
-      <label>세로 위치 <b>{Math.round(overlay.y * 100)}%</b><input type="range" min="0" max="1" step="0.01" value={overlay.y} onChange={(event) => updateOverlay({ y: Number(event.currentTarget.value) })} /></label>
-      <label>폭 <b>{Math.round(overlay.width * 100)}%</b><input type="range" min="0.1" max="1" step="0.01" value={overlay.width} onChange={(event) => updateOverlay({ width: Number(event.currentTarget.value) })} /></label>
+      <label>가로 위치 <b>{Math.round(overlay.x * 100)}%</b><StudioSlider label="가로 위치" min={0} max={1} step={0.01} value={overlay.x} onChange={x => updateOverlay({ x })} /></label>
+      <label>세로 위치 <b>{Math.round(overlay.y * 100)}%</b><StudioSlider label="세로 위치" min={0} max={1} step={0.01} value={overlay.y} onChange={y => updateOverlay({ y })} /></label>
+      <label>폭 <b>{Math.round(overlay.width * 100)}%</b><StudioSlider label="폭" min={0.1} max={1} step={0.01} value={overlay.width} onChange={width => updateOverlay({ width })} /></label>
       <TransitionControl label="시작 효과" value={overlay.startTransition} durationSec={duration} onChange={(value) => updateOverlay({ startTransition: value })} />
       <TransitionControl label="끝 효과" value={overlay.endTransition} durationSec={duration} onChange={(value) => updateOverlay({ endTransition: value })} />
       <p className="studio-help">앞 클립의 끝 효과와 다르면 뒤 클립의 시작 효과를 씁니다.</p>
@@ -132,7 +136,7 @@ export function Inspector(props: {
     try {
       const saved = await persistTimeline();
       const voiceClipId = props.selectedTrack === "voice" ? props.selectedId : saved.timeline.voice[0]?.id;
-      const target = sttTarget === "voice"
+      const target = props.selectedTrack === "voice" || sttTarget === "voice"
         ? { kind: "voice", clipId: voiceClipId }
         : { kind: "source", inputId: input?.id };
       if (!target.clipId && sttTarget === "voice") throw new Error("받아 적을 음성 클립을 선택해 주세요.");
@@ -201,11 +205,11 @@ export function Inspector(props: {
     return <InspectorShell title={video.kind === "meme" ? "짤 속성" : "영상 클립"} error={error} {...dialogProps}>
       {groupCount ? <GroupSummary count={groupCount} onUngroup={props.onUngroup} /> : null}
       {video.kind === "main" && "inStartSec" in video ? <div className="studio-inspector-grid">
-        <label>원본 시작<input type="number" min="0" step="0.1" value={video.inStartSec} onChange={(event) => editTrim("start", Number(event.currentTarget.value))} /></label>
-        <label>원본 끝<input type="number" min="0.1" max={selectedInput?.durationSec} step="0.1" value={video.inEndSec} onChange={(event) => editTrim("end", Number(event.currentTarget.value))} /></label>
+        <StudioTextInput label="원본 시작" inputMode="decimal" value={String(video.inStartSec)} onChange={value => { if (value !== "") editTrim("start", Number(value)); }} />
+        <StudioTextInput label="원본 끝" inputMode="decimal" value={String(video.inEndSec)} onChange={value => { if (value !== "") editTrim("end", Number(value)); }} />
       </div> : null}
       {video.kind === "meme" ? <>
-        <label className="studio-range-label">길이 <b>{duration.toFixed(1)}초</b><input type="range" min="0.5" max="4" step="0.1" value={duration} onChange={(event) => props.onChange({ ...props.timeline, video: props.timeline.video.map((item) => item.id === video.id ? { ...video, durationSec: Number(event.currentTarget.value) } : item) })} /></label>
+        <label className="studio-range-label">길이 <b>{duration.toFixed(1)}초</b><StudioSlider label="길이" min={0.5} max={4} step={0.1} value={duration} onChange={value => props.onChange({ ...props.timeline, video: props.timeline.video.map((item) => item.id === video.id ? { ...video, durationSec: value } : item) })} /></label>
         <div className="studio-inspector-actions"><ActionButton variant="neutralWeak" onClick={() => props.onChange(moveVideoClip(props.timeline, video.id, Math.max(0, props.timeline.video.findIndex((item) => item.id === video.id) - 1)))}>본 화면 앞</ActionButton><ActionButton variant="ghost" onClick={() => props.onChange(moveVideoClip(props.timeline, video.id, Math.min(props.timeline.video.length - 1, props.timeline.video.findIndex((item) => item.id === video.id) + 1)))}>본 화면 뒤</ActionButton></div>
         <p className="studio-help">왼쪽에서 다른 짤을 누르면 바꿔요.</p>
       </> : <CaptionEditor caption={props.timeline.captions.find((item) => item.startSec <= start + duration && item.endSec >= start)} timeline={props.timeline} onChange={props.onChange} />}
@@ -216,15 +220,15 @@ export function Inspector(props: {
     </InspectorShell>;
   }
 
-  if (caption) return <InspectorShell title="자막 속성" error={error} {...dialogProps}><label>자막<textarea rows={4} value={caption.text} onChange={(event) => props.onChange({ ...props.timeline, captions: props.timeline.captions.map((item) => item.id === caption.id ? { ...caption, text: event.currentTarget.value } : item) })} /></label></InspectorShell>;
+  if (caption) return <InspectorShell title="자막 속성" error={error} {...dialogProps}><StudioTextarea label="자막" rows={4} value={caption.text} onChange={value => props.onChange({ ...props.timeline, captions: props.timeline.captions.map((item) => item.id === caption.id ? { ...caption, text: value } : item) })} /></InspectorShell>;
   if (voiceClip || sfxClip) {
     const clip = voiceClip ?? sfxClip!;
     const track = voiceClip ? "voice" : "sfx";
     return <InspectorShell title={track === "voice" ? "음성 속성" : "효과음 속성"} error={error} {...dialogProps}>
       <GainControl label="트랙 볼륨" gain={audioGain[track].gain} muted={audioGain[track].muted} onChange={(value) => updateGain(track, value)} onMute={() => toggleMute(track)} />
       <GainControl label="클립 볼륨" gain={clip.gain} onChange={(value) => updateClip(clip.id, { gain: value }, track)} />
-      {track === "sfx" ? <label>효과음 바꾸기<select value={clip.file} onChange={(event) => { const item = sfxItems.find((sfx) => sfx.ref === event.currentTarget.value); if (item) updateClip(clip.id, { file: item.ref, inStartSec: 0, inEndSec: item.durationSec }, "sfx"); }}>{sfxItems.map((item) => <option key={item.id} value={item.ref}>{item.title}</option>)}</select></label> : null}
-      {track === "voice" ? <label className="studio-radio"><input type="radio" name="sttTarget" checked={sttTarget === "voice"} onChange={() => setSttTarget("voice")} /> 음성 트랙에서 받아 적기</label> : null}
+      {track === "sfx" ? <StudioSelect label="효과음 바꾸기" value={clip.file} items={sfxItems.map(item => ({ value: item.ref, label: item.title }))} onChange={value => { const item = sfxItems.find((sfx) => sfx.ref === value); if (item) updateClip(clip.id, { file: item.ref, inStartSec: 0, inEndSec: item.durationSec }, "sfx"); }} /> : null}
+      {track === "voice" ? <p className="studio-help">선택한 음성 클립에서 받아 적어요.</p> : null}
       {track === "voice" ? <ActionButton variant="neutralWeak" onClick={() => void createCaptions()}>자막 만들기</ActionButton> : null}
     </InspectorShell>;
   }
@@ -234,13 +238,13 @@ export function Inspector(props: {
       <GainControl label="목소리" gain={separated.voice.gain} muted={separated.voice.muted} onChange={(value) => props.onChange({ ...props.timeline, audio: { ...audioGain, stems: { ...audioGain.stems, [input.id]: { ...separated, voice: { ...separated.voice, gain: value } } } } })} onMute={() => props.onChange({ ...props.timeline, audio: { ...audioGain, stems: { ...audioGain.stems, [input.id]: { ...separated, voice: { ...separated.voice, muted: !separated.voice.muted } } } } })} />
       <GainControl label="배경" gain={separated.bg.gain} muted={separated.bg.muted} onChange={(value) => props.onChange({ ...props.timeline, audio: { ...audioGain, stems: { ...audioGain.stems, [input.id]: { ...separated, bg: { ...separated.bg, gain: value } } } } })} onMute={() => props.onChange({ ...props.timeline, audio: { ...audioGain, stems: { ...audioGain.stems, [input.id]: { ...separated, bg: { ...separated.bg, muted: !separated.bg.muted } } } } })} />
       <ActionButton variant="neutralWeak" onClick={() => void revertSeparate()}>분리 되돌리기</ActionButton>
-      <fieldset className="studio-stt-options"><legend>받아 적을 트랙</legend><label><input type="radio" name="sttTrack" checked={sttTarget === "source"} onChange={() => setSttTarget("source")} /> 목소리 트랙</label><label><input type="radio" name="sttTrack" checked={sttTarget === "voice"} onChange={() => setSttTarget("voice")} /> 음성 트랙</label></fieldset>
+      <RadioGroup aria-label="받아 적을 트랙" value={sttTarget} onValueChange={value => setSttTarget(value as "source" | "voice")}><RadioGroupItem value="source" label="목소리 트랙" /><RadioGroupItem value="voice" label="음성 트랙" /></RadioGroup>
       <ActionButton variant="neutralWeak" onClick={() => void createCaptions()}>자막 만들기</ActionButton>
     </> : <>
       <GainControl label="원본 소리 볼륨" gain={audioGain.source.gain} muted={audioGain.source.muted} onChange={(value) => updateGain("source", value)} onMute={() => toggleMute("source")} />
       <ActionButton variant="neutralWeak" onClick={() => void startSeparate()}>음성 분리</ActionButton>
-      <fieldset className="studio-stt-options"><legend>받아 적을 트랙</legend><label><input type="radio" name="sttTrack" checked={sttTarget === "source"} onChange={() => setSttTarget("source")} /> 원본 소리</label><label><input type="radio" name="sttTrack" checked={sttTarget === "voice"} onChange={() => setSttTarget("voice")} /> 음성</label></fieldset>
-      <ActionButton variant="ghost" onClick={() => void createCaptions()}>자막 만들기</ActionButton>
+      <RadioGroup aria-label="받아 적을 트랙" value={sttTarget} onValueChange={value => setSttTarget(value as "source" | "voice")}><RadioGroupItem value="source" label="원본 소리" /><RadioGroupItem value="voice" label="음성" /></RadioGroup>
+      <ActionButton variant="neutralWeak" onClick={() => void createCaptions()}>자막 만들기</ActionButton>
     </>}
     {job && ["queued", "running"].includes(job.status) ? <div className="studio-job"><ProgressCircle size="24" tone="brand" value={job.progress === null ? undefined : job.progress * 100} /><span>{job.message ?? "작업 중이에요."}</span><ActionButton variant="ghost" size="small" onClick={() => void cancelJob()}>취소</ActionButton></div> : null}
   </InspectorShell>;
@@ -276,21 +280,17 @@ function TransitionControl(props: { label: string; value?: ClipTransitionInput; 
   };
   return <fieldset className="studio-transition-control">
     <legend>{props.label}</legend>
-    <select aria-label={props.label} value={kind.kind} onChange={(event) => setKind(event.currentTarget.value as TransitionKind["kind"])}>
-      {types.map((item) => <option key={item.value} value={item.value} disabled={item.value !== "none" && maxDuration < 0.1}>{item.label}</option>)}
-    </select>
-    {kind.kind === "slide" || kind.kind === "wipe" ? <select aria-label={`${props.label} 방향`} value={kind.direction} onChange={(event) => props.onChange({ kind: { ...kind, direction: event.currentTarget.value as "left" | "right" | "up" | "down" }, durationSec: duration })}>
-      <option value="left">왼쪽</option><option value="right">오른쪽</option><option value="up">위</option><option value="down">아래</option>
-    </select> : null}
+    <StudioSelect label={props.label} value={kind.kind} items={types.map(item => ({ ...item, disabled: item.value !== "none" && maxDuration < 0.1 }))} onChange={value => setKind(value as TransitionKind["kind"])} />
+    {kind.kind === "slide" || kind.kind === "wipe" ? <StudioSelect label={`${props.label} 방향`} value={kind.direction} items={[{ value: "left", label: "왼쪽" }, { value: "right", label: "오른쪽" }, { value: "up", label: "위" }, { value: "down", label: "아래" }]} onChange={value => props.onChange({ kind: { ...kind, direction: value as "left" | "right" | "up" | "down" }, durationSec: duration })} /> : null}
     {kind.kind !== "none" ? <>
-      <label className="studio-range-label">길이 <b>{duration.toFixed(1)}초</b><input aria-label={`${props.label} 길이 조절`} type="range" min="0.1" max={maxDuration} step="0.1" value={duration} disabled={maxDuration < 0.1} onChange={(event) => {
-        const next = clampTransitionDuration(Number(event.currentTarget.value), props.durationSec);
+      <label className="studio-range-label">길이 <b>{duration.toFixed(1)}초</b><StudioSlider label={`${props.label} 길이 조절`} min={0.1} max={maxDuration} step={0.1} value={duration} disabled={maxDuration < 0.1} onChange={(value) => {
+        const next = clampTransitionDuration(value, props.durationSec);
         setDurationInput(String(next)); props.onChange({ kind, durationSec: next });
       }} /></label>
-      <label>길이 입력 <input aria-label={`${props.label} 길이`} type="number" min="0.1" max={maxDuration} step="0.1" value={durationInput} disabled={maxDuration < 0.1} onChange={(event) => setDurationInput(event.currentTarget.value)} onBlur={() => {
+      <StudioTextInput label={`${props.label} 길이`} inputMode="decimal" value={durationInput} disabled={maxDuration < 0.1} onChange={setDurationInput} onBlur={() => {
         const next = parseTransitionDuration(durationInput, props.durationSec, maxDuration, duration);
         setDurationInput(String(next)); props.onChange({ kind, durationSec: next });
-      }} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></label>
+      }} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} />
     </> : null}
   </fieldset>;
 }
@@ -307,25 +307,25 @@ function InspectorShell(props: {
   return <>
     <aside className="studio-inspector" aria-label="속성"><h2>{props.title}</h2>{props.error ? <PageBanner tone="warning" variant="weak" description={props.error} /> : null}<div className="studio-inspector-content">{props.children}</div></aside>
     <AlertDialog.Root open={Boolean(props.confirmation)} onOpenChange={open => { if (!open) props.onCancel?.(); }}>
-      <AlertDialog.Backdrop /><AlertDialog.Positioner><AlertDialog.Content className="w11-alert-dialog">
+      <AlertDialog.Content>
         <AlertDialog.Header>
           <AlertDialog.Title>{critical ? "기존 자막을 바꿀까요?" : "whisper 모델을 받을까요?"}</AlertDialog.Title>
           <AlertDialog.Description>{critical ? "기존 자막을 새 자막으로 바꿔요." : "받아 적기 모델을 받으려면 574 MB가 필요해요."}</AlertDialog.Description>
         </AlertDialog.Header>
-        <AlertDialog.Footer className="w11-alert-dialog-footer">
+        <AlertDialog.Footer>
           <ActionButton variant="neutralWeak" onClick={props.onCancel}>취소</ActionButton>
           <AlertDialog.Action asChild><ActionButton variant={critical ? "criticalSolid" : "neutralWeak"} onClick={props.onConfirm}>{critical ? "바꾸기" : "받기"}</ActionButton></AlertDialog.Action>
         </AlertDialog.Footer>
-      </AlertDialog.Content></AlertDialog.Positioner>
+      </AlertDialog.Content>
     </AlertDialog.Root>
   </>;
 }
 
 function GainControl(props: { label: string; gain: number; muted?: boolean; onChange: (value: number) => void; onMute?: () => void }) {
-  return <label className="studio-range-label">{props.label} <b>{Math.round(props.gain * 100)}%</b><input type="range" min="0" max="1.5" step="0.01" value={props.gain} onChange={(event) => props.onChange(Number(event.currentTarget.value))} />{props.onMute ? <button type="button" onClick={props.onMute}>{props.muted ? "음소거 해제" : "음소거"}</button> : null}</label>;
+  return <div className="studio-range-label">{props.label} <b>{Math.round(props.gain * 100)}%</b><StudioSlider label={props.label} min={0} max={1.5} step={0.01} value={props.gain} onChange={props.onChange} />{props.onMute ? <StudioSwitch label={`${props.label} 음소거`} checked={Boolean(props.muted)} onChange={props.onMute} /> : null}</div>;
 }
 
 function CaptionEditor(props: { caption?: TimelineData["captions"][number]; timeline: TimelineData; onChange: (timeline: TimelineData) => void }) {
   if (!props.caption) return null;
-  return <label>자막<textarea rows={3} value={props.caption.text} onChange={(event) => props.onChange({ ...props.timeline, captions: props.timeline.captions.map((item) => item.id === props.caption!.id ? { ...props.caption!, text: event.currentTarget.value } : item) })} /></label>;
+  return <StudioTextarea label="자막" rows={3} value={props.caption.text} onChange={value => props.onChange({ ...props.timeline, captions: props.timeline.captions.map((item) => item.id === props.caption!.id ? { ...props.caption!, text: value } : item) })} />;
 }

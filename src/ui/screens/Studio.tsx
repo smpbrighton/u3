@@ -9,6 +9,7 @@ import { Inspector } from "../studio/Inspector";
 import { LibraryPanel, type LibraryDragItem } from "../studio/LibraryPanel";
 import { api } from "../api";
 import { ExportDialog } from "../ExportDialog";
+import { StudioSlider, StudioSwitch } from "../studio/SeedControls";
 import { ArrowLeft01Icon, PlayIcon, PauseIcon, Undo02Icon, Redo02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { replaceMemeClip } from "../studio/replace-meme-clip";
@@ -266,9 +267,9 @@ export function Studio(props: {
       <section className="studio-preview-area" aria-label="미리보기">
         <Preview project={{ ...props.project, timeline }} time={playhead} playing={playing} muteOriginal={recording} onTime={setPlayhead} onPlaying={setPlaying} />
         <div className="studio-playback-controls">
-          <button type="button" aria-label={playing ? "일시 정지" : "재생"} disabled={recording} onClick={() => setPlaying((value) => !value)}><HugeiconsIcon icon={playing ? PauseIcon : PlayIcon} size={18} /></button>
+          <ActionButton layout="iconOnly" variant="neutralWeak" aria-label={playing ? "일시 정지" : "재생"} disabled={recording} onClick={() => setPlaying((value) => !value)}><HugeiconsIcon icon={playing ? PauseIcon : PlayIcon} size={18} /></ActionButton>
           <span>{timeLabel(playhead)} / {timeLabel(duration)}</span>
-          <input aria-label="재생 헤드" type="range" min="0" max={duration} step="0.01" value={Math.min(playhead, duration)} onChange={(event) => setPlayhead(Number(event.currentTarget.value))} />
+          <StudioSlider label="재생 헤드" min={0} max={duration} step={0.01} value={Math.min(playhead, duration)} onChange={setPlayhead} />
         </div>
       </section>
       <Inspector project={{ ...props.project, timeline }} selectedId={selected.id} selectedIds={selectedIds} selectedTrack={selected.track} timeline={timeline} onChange={edit} onProject={props.onProject} onSnackbar={props.onSnackbar} onUngroup={() => edit(ungroupVideoClips(timeline, selectedIds))} />
@@ -295,8 +296,8 @@ export function Studio(props: {
         <HugeiconsIcon icon={Redo02Icon} size={16} />다시 실행
       </ActionButton>
       <span className="studio-toolbar-spacer" />
-      <span>스냅</span><input type="checkbox" checked={snap} onChange={(event) => setSnap(event.currentTarget.checked)} />
-      <label>확대 <input type="range" min="1" max="10" step="0.1" value={zoom} onChange={(event) => setZoom(Number(event.currentTarget.value))} /><output>{zoom.toFixed(1)}×</output></label>
+      <StudioSwitch label="스냅" checked={snap} onChange={setSnap} />
+      <label>확대 <StudioSlider label="확대" min={1} max={10} step={0.1} value={zoom} onChange={setZoom} /><output>{zoom.toFixed(1)}×</output></label>
     </div>
     <div className="studio-timeline-drop">
       {libraryDropGuide ? <div className="studio-library-drop-guide" style={{ left: libraryDropGuide.x, top: libraryDropGuide.top, height: libraryDropGuide.height }} /> : null}

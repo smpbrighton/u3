@@ -130,7 +130,7 @@ export function Recorder(props: {
 
   return <div className="studio-recorder">
     <div className={`studio-recorder-control${recording ? " is-recording" : ""}`}>
-      <ActionButton variant={recording ? "neutralWeak" : "brandSolid"} disabled={busy} onClick={() => recording ? stopRecording() : void startRecording()}>
+      <ActionButton variant="neutralWeak" disabled={busy} onClick={() => recording ? stopRecording() : void startRecording()}>
         {recording ? "녹음 멈추기" : "마이크 녹음"}
       </ActionButton>
       <span className="studio-recorder-time">{formatTime(recording ? elapsed : 0)}</span>
@@ -144,10 +144,10 @@ export function Recorder(props: {
     </AttachmentField>
     <strong className="studio-recorder-heading">녹음한 음성</strong>
     {recordings.length ? <ul className="studio-voice-list">{recordings.map((clip, index) => <li key={clip.id}>
-      <button type="button" className={clip.file === selectedFile ? "is-selected" : ""} onClick={() => setSelectedFile(clip.file)}>
+      <ActionButton variant="neutralWeak" type="button" className={clip.file === selectedFile ? "is-selected" : ""} onClick={() => setSelectedFile(clip.file)}>
         <span>{clip.file.split("/").at(-1) ?? `녹음 ${index + 1}`}</span>
         <small>{formatTime(clip.inEndSec - clip.inStartSec)}</small>
-      </button>
+      </ActionButton>
     </li>)}</ul> : <p className="studio-help">아직 추가한 음성이 없어요.</p>}
     <div ref={waveform} className="studio-waveform" aria-label="음성 파형" />
   </div>;
