@@ -3,6 +3,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
 import { ActionButton } from "../../../seed-design/ui/action-button";
+import { TextField, TextFieldInput } from "../../../seed-design/ui/text-field";
 import { api, mediaUrl } from "../api";
 import type { Input as ProjectInput, Project } from "../types";
 import { inputDisplayName } from "../../core/input";
@@ -154,14 +155,15 @@ export function Input(props: {
       <header className="input-header">
         <ActionButton className="flow-back-button" variant="ghost" aria-label="영상 목록으로 돌아가기" onClick={props.onBack}><HugeiconsIcon icon={ArrowLeft01Icon} size={20} /></ActionButton>
         <div className="project-name-input">
-          <input aria-label="영상 이름" value={name} maxLength={120} onChange={event => setName(event.target.value)} />
+          <TextField aria-label="영상 이름" value={name} onValueChange={values => setName(values.value)}><TextFieldInput maxLength={120} /></TextField>
         </div>
         <ol className="steps" aria-label="단계">
-          <li className="step" aria-current="step">1 미디어</li><li className="step"><button type="button" onClick={props.onScript} disabled={!inputs.length}>2 대본</button></li><li className="step"><button type="button" onClick={props.onStudio} disabled={!props.project.timeline.video.length}>3 스튜디오</button></li>
+          <li className="step" aria-current="step">1 미디어</li><li className="step"><ActionButton variant="ghost" size="small" onClick={props.onScript} disabled={!inputs.length}>2 대본</ActionButton></li><li className="step"><ActionButton variant="ghost" size="small" onClick={props.onStudio} disabled={!props.project.timeline.video.length}>3 스튜디오</ActionButton></li>
         </ol>
       </header>
       <main className="input-content">
-        <button
+        <ActionButton
+          variant="neutralOutline"
           className="drop-area"
           type="button"
           disabled={busy || inputs.length >= 20}
@@ -174,7 +176,7 @@ export function Input(props: {
           <HugeiconsIcon icon={FileUploadIcon} size={32} aria-hidden="true" />
           <span className="drop-area-title">영상·사진을 끌어 놓거나 눌러서 고르기</span>
           <span className="drop-area-description">mp4 · mov · jpg · png · heic, 최대 20개</span>
-        </button>
+        </ActionButton>
         <section className="input-media-section" aria-labelledby="media-list-title">
           <div className="input-media-heading">
             <h2 id="media-list-title">넣은 미디어</h2><span>{inputs.length} / 20</span>
