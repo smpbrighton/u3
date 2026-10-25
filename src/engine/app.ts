@@ -20,6 +20,7 @@ import { registerRenderRoutes } from "./routes/render";
 import { registerSeparateRoutes } from "./routes/separate";
 import { registerTranscribeRoutes } from "./routes/transcribe";
 import { registerModelRoutes } from "./routes/models";
+import { registerOutputRoutes } from "./routes/output";
 
 export interface AppContext {
   store: Store;
@@ -56,6 +57,7 @@ export function createApp(context: AppContext) {
   registerMediaRoutes(app, context);
   registerFrameRoutes(app, context);
   registerRenderRoutes(app, context);
+  registerOutputRoutes(app);
   registerSeparateRoutes(app, context);
   registerTranscribeRoutes(app, context);
   registerModelRoutes(app, context);

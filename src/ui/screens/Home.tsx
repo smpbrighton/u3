@@ -6,6 +6,7 @@ import type { Project, SystemStatus } from "../types";
 import { MoreHorizontalIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { AlertDialog } from "@seed-design/react";
+import { projectThumbnailInput } from "./home-thumbnail";
 
 function relativeTime(value: string): string {
   const minutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60_000));
@@ -51,12 +52,21 @@ export function Home(props: {
   useEffect(() => {
     void api<Project[]>("GET", "/api/projects").then(async data => {
       setProjects(data);
-      const firstInputs = data.flatMap(project => {
-        const input = project.inputs.find(item => item.id !== "placeholder" && item.kind === "photo");
-        return input ? [{ projectId: project.id, inputId: input.id, file: input.file }] : [];
+      const thumbnailInputs = data.flatMap(project => {
+        const input = projectThumbnailInput(project);
+        return input ? [{ project, input }] : [];
       });
-      const urls = await Promise.all(firstInputs.map(async item => [item.projectId, await mediaUrl(item.projectId, item.file)] as const));
-      setThumbnails(Object.fromEntries(urls));
+      const urls = await Promise.all(thumbnailInputs.map(async ({ project, input }) => {
+        try {
+          const url = input.kind === "video"
+            ? (await api<{ url: string }>("GET", `/api/projects/${encodeURIComponent(project.id)}/inputs/${encodeURIComponent(input.id)}/thumbnail`)).url
+            : await mediaUrl(project.id, input.file);
+          return [project.id, url] as const;
+        } catch {
+          return null;
+        }
+      }));
+      setThumbnails(Object.fromEntries(urls.filter((entry): entry is readonly [string, string] => entry !== null)));
     }).catch(reason => setError(reason instanceof Error ? reason.message : String(reason)));
   }, []);
 

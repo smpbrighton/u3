@@ -7,6 +7,7 @@ import { ActionButton } from "../../seed-design/ui/action-button";
 import { PageBanner } from "../../seed-design/ui/page-banner";
 import { ProgressCircle } from "../../seed-design/ui/progress-circle";
 import { api, watchJob, type EngineJob } from "./api";
+import { exportOverwriteWarning } from "./export-warning";
 
 function formatDuration(seconds: number): string {
   const wholeSeconds = Math.max(0, Math.floor(seconds));
@@ -22,6 +23,7 @@ export function ExportDialog(props: {
 }) {
   const defaultName = useMemo(() => `${props.projectName.replace(/[\\/:*?"<>|]/g, "-")}.mp4`, [props.projectName]);
   const [outputPath, setOutputPath] = useState<string | null>(null);
+  const [outputExists, setOutputExists] = useState<boolean | null>(null);
   const [job, setJob] = useState<EngineJob | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [complete, setComplete] = useState(false);
@@ -40,6 +42,17 @@ export function ExportDialog(props: {
     });
     return () => { active = false; };
   }, [defaultName]);
+
+  useEffect(() => {
+    let active = true;
+    setOutputExists(null);
+    if (outputPath) {
+      void api<{ exists: boolean }>("GET", `/api/output-exists?path=${encodeURIComponent(outputPath)}`)
+        .then(result => { if (active) setOutputExists(result.exists); })
+        .catch(() => { if (active) setOutputExists(null); });
+    }
+    return () => { active = false; };
+  }, [outputPath]);
 
   async function chooseLocation() {
     try {
@@ -94,6 +107,7 @@ export function ExportDialog(props: {
 
   const running = Boolean(job && ["queued", "running"].includes(job.status));
   const progress = job?.progress === null || job?.progress === undefined ? null : Math.round(job.progress * 100);
+  const overwriteWarning = exportOverwriteWarning(outputPath, outputExists, complete);
 
   return (
     <div className="export-backdrop" role="presentation">
@@ -102,6 +116,7 @@ export function ExportDialog(props: {
         <div className="export-location">
           <span className="export-field-label">저장 위치</span>
           <div className="export-path-row"><span className="export-path" title={outputPath ?? undefined}>{outputPath ?? `~/Movies/U3/${defaultName}`}</span><ActionButton variant="neutralWeak" disabled={running} onClick={() => void chooseLocation()}>바꾸기</ActionButton></div>
+          {overwriteWarning ? <div className="export-overwrite-warning" role="alert">{overwriteWarning}</div> : null}
           <span className="export-meta">1080×1920 · 30fps · {formatDuration(props.timelineLength)}</span>
         </div>
         {running ? <div className="export-progress" aria-live="polite"><div><span>{job?.message ?? "렌더 중"}</span><span>{progress === null ? "" : `${progress}%`}</span></div><ProgressCircle size="24" tone="brand" value={progress ?? undefined} /><ActionButton variant="neutralWeak" onClick={() => void cancel()}>취소</ActionButton></div> : null}
