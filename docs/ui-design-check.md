@@ -1,5 +1,18 @@
 # W11 화면설계 대조 기록
 
+## W27 SEED 레이아웃 점검
+
+W26의 1280×800 레이아웃 결함을 수정했다. SEED 컴포넌트 내부 클래스는 덮어쓰지 않았다. 앱 창 캡처는 `out/manual/`에 저장했다. 이 디렉터리는 gitignore 대상이다.
+
+| 화면 | 확인 결과 | 캡처 |
+|---|---|---|
+| 홈 · 프로젝트 1개 | 사이드바가 창 높이를 채운다. 카드에 썸네일, 이름, 메타, 더보기 메뉴를 표시한다. | `out/manual/w27-home.png` |
+| Studio · 미디어 | 항목마다 썸네일, 이름, 종류·길이를 한 행에 둔다. | `out/manual/w27-studio-media.png` |
+| Studio · 짤 | 3열 카드와 두 줄 설명을 표시한다. | `out/manual/w27-studio-memes.png` |
+| Studio · 타임라인 | 확대 Slider에 140px 폭을 확보한다. 라벨과 값은 한 줄이다. 트랙 음소거 Toggle Button은 xsmall 크기로 행 안에 둔다. | `out/manual/w27-studio-media.png` |
+
+입력, 대본, 설정, Inspector의 영상·소리·자막·효과음 속성, 내보내기·이름 바꾸기 Dialog, Menu, Snackbar는 구현 코드와 배치 스타일을 검토했다. 폭 0, 세로 줄바꿈, 행 겹침, 버튼의 행 높이 초과, 해당 결함 유형의 텍스트 잘림은 코드에서 발견하지 못했다. 이 화면은 개발 앱에서 직접 열어 확인하지 못했다.
+
 화면설계 원본은 `/Volumes/X31/workspace/smp_workspace/u3-design/canvas.json`과 각 보드의 `.dc.html`이다. 공통 구현은 SEED 토큰과 컴포넌트를 사용한다. 캡처는 브라우저 탭의 1440×900 콘텐츠 영역만 저장했다. `out/manual/`은 gitignore 대상이다.
 
 ## 화면별 대조

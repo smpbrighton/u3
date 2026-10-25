@@ -10,6 +10,7 @@ import { MenuRoot, MenuTrigger, MenuContent, MenuItem } from "../../../seed-desi
 import { DialogRoot, DialogContent, DialogBody, DialogFooter } from "../../../seed-design/ui/dialog";
 import { TextField, TextFieldInput } from "../../../seed-design/ui/text-field";
 import { projectThumbnailInput } from "./home-thumbnail";
+import { Icon } from "@seed-design/react";
 
 const AlertDialog = { Root: AlertDialogRoot, Content: AlertDialogContent, Header: AlertDialogHeader, Title: AlertDialogTitle, Description: AlertDialogDescription, Footer: AlertDialogFooter, Action: AlertDialogAction };
 
@@ -74,7 +75,6 @@ export function Home(props: {
       setThumbnails(Object.fromEntries(urls.filter((entry): entry is readonly [string, string] => entry !== null)));
     }).catch(reason => setError(reason instanceof Error ? reason.message : String(reason)));
   }, []);
-
   const createProject = async () => {
     setError(null);
     try {
@@ -136,8 +136,8 @@ export function Home(props: {
             const duration = timelineDuration(project);
             const complete = project.timeline.video.length > 0;
             return (
-              <div className="project-card-wrap" key={project.id}>
-              <ActionButton variant="ghost" className="project-card" onClick={() => props.onOpen(project)}>
+              <div className="project-card" key={project.id}>
+              <span className="project-card-body">
                 <span className={thumbnails[project.id] ? "project-thumb" : `project-thumb project-thumb--empty${complete ? " project-thumb--complete" : ""}`}>
                   {thumbnails[project.id] ? <img src={thumbnails[project.id]} alt="" /> : null}
                   {!complete ? <span className="project-status">대본 전</span> : null}
@@ -145,10 +145,11 @@ export function Home(props: {
                 </span>
                 <span className="project-name">{project.name}</span>
                 <span className="project-meta">{scenes ? `장면 ${scenes}` : inputCount ? `미디어 ${inputCount}` : "미디어 넣기 전"} · {relativeTime(project.savedAt)}</span>
-              </ActionButton>
+              </span>
+              <ActionButton variant="ghost" size="medium" className="project-card-open" aria-label={`${project.name} 열기`} onClick={() => props.onOpen(project)} />
               <div className="project-menu-wrap">
                 <MenuRoot open={openMenu === project.id} onOpenChange={open => setOpenMenu(open ? project.id : null)}>
-                  <MenuTrigger asChild><ActionButton layout="iconOnly" variant="neutralWeak" aria-label={`${project.name} 메뉴`}><HugeiconsIcon icon={MoreHorizontalIcon} size={20} /></ActionButton></MenuTrigger>
+                  <MenuTrigger asChild><ActionButton layout="iconOnly" variant="neutralWeak" aria-label={`${project.name} 메뉴`}><Icon svg={<HugeiconsIcon icon={MoreHorizontalIcon} size={20} />} /></ActionButton></MenuTrigger>
                   <MenuContent>
                     <MenuItem label="이름 바꾸기" onClick={() => { setEditing(project); setName(project.name); setOpenMenu(null); }} />
                     <MenuItem label="삭제" onClick={() => { setDeleting(project); setOpenMenu(null); }} />

@@ -19,6 +19,7 @@ import { studioShortcut } from "./shortcuts";
 import { audioGroupForRow, normalizeSfxLanes } from "../../core/timeline/sfx-lanes";
 import { StudioSlider, StudioSwitch } from "./SeedControls";
 import { ToggleButton } from "../../../seed-design/ui/toggle-button";
+import { Icon } from "@seed-design/react";
 
 const TRACKS = [
   { id: "captions", name: "자막", color: "#F7A54A" },
@@ -258,7 +259,7 @@ export function Timeline(props: {
       <div className="studio-track-labels studio-track-labels--toolbar" />
       <span>포인터에서 자르기 <kbd>C</kbd> · 재생 헤드에서 자르기 <kbd>S</kbd> · 묶기 <kbd>⌘M</kbd> / 풀기 <kbd>⇧⌘M</kbd></span>
       <StudioSwitch label="스냅" checked={props.snap} onChange={checked => props.onSnapChange?.(checked)} />
-      <label className="studio-zoom">확대 <StudioSlider label="확대" min={1} max={10} step={0.1} value={props.zoom} onChange={value => props.onZoomChange?.(value)} /><output>{props.zoom.toFixed(1)}×</output></label>
+      <label className="studio-zoom"><span>확대</span><span className="studio-zoom-slider"><StudioSlider label="확대" min={1} max={10} step={0.1} value={props.zoom} onChange={value => props.onZoomChange?.(value)} /></span><output>{props.zoom.toFixed(1)}×</output></label>
     </div>
     <div className="studio-timeline-body">
       <div className="studio-track-labels">
@@ -273,8 +274,8 @@ export function Timeline(props: {
                   : group === "stem-bg" ? stems.length > 0 && stems.every((item) => item.bg.muted)
                     : false;
           return <div key={track.id} className="studio-track-label" style={{ borderLeftColor: track.color }}>
-            <span>{track.name}</span>
-            {group ? <ToggleButton variant="neutralWeak" pressed={muted} onPressedChange={() => props.onMute?.(group)} aria-label={muted ? `${track.name} 음소거 해제` : `${track.name} 음소거`} className={muted ? "is-muted" : undefined}><HugeiconsIcon icon={VolumeIcon} size={16} /></ToggleButton> : null}
+            <span className="studio-track-name">{track.name}</span>
+            {group ? <ToggleButton variant="neutralWeak" size="xsmall" pressed={muted} onPressedChange={() => props.onMute?.(group)} aria-label={muted ? `${track.name} 음소거 해제` : `${track.name} 음소거`} className={`studio-track-mute${muted ? " is-muted" : ""}`}><Icon svg={<HugeiconsIcon icon={VolumeIcon} size={14} />} /></ToggleButton> : null}
           </div>;
         })}
       </div>

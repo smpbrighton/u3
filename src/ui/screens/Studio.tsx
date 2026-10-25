@@ -3,6 +3,7 @@ import type { Project, Timeline as TimelineData, VideoClip } from "../../core/sc
 import { videoDuration, videoStartTimes, VIDEO_TRACK_REQUIRED_MESSAGE } from "../../core/timeline/ops";
 import { createHistory, pushHistory, redo, undo, type TimelineHistory } from "../../core/timeline/history";
 import { ActionButton } from "../../../seed-design/ui/action-button";
+import { Icon } from "@seed-design/react";
 import { Preview } from "../studio/Preview";
 import { Timeline } from "../studio/Timeline";
 import { Inspector } from "../studio/Inspector";
@@ -267,7 +268,7 @@ export function Studio(props: {
       <section className="studio-preview-area" aria-label="미리보기">
         <Preview project={{ ...props.project, timeline }} time={playhead} playing={playing} muteOriginal={recording} onTime={setPlayhead} onPlaying={setPlaying} />
         <div className="studio-playback-controls">
-          <ActionButton layout="iconOnly" variant="neutralWeak" aria-label={playing ? "일시 정지" : "재생"} disabled={recording} onClick={() => setPlaying((value) => !value)}><HugeiconsIcon icon={playing ? PauseIcon : PlayIcon} size={18} /></ActionButton>
+          <ActionButton layout="iconOnly" variant="neutralWeak" aria-label={playing ? "일시 정지" : "재생"} disabled={recording} onClick={() => setPlaying((value) => !value)}><Icon svg={<HugeiconsIcon icon={playing ? PauseIcon : PlayIcon} size={18} />} /></ActionButton>
           <span>{timeLabel(playhead)} / {timeLabel(duration)}</span>
           <StudioSlider label="재생 헤드" min={0} max={duration} step={0.01} value={Math.min(playhead, duration)} onChange={setPlayhead} />
         </div>
@@ -297,7 +298,7 @@ export function Studio(props: {
       </ActionButton>
       <span className="studio-toolbar-spacer" />
       <StudioSwitch label="스냅" checked={snap} onChange={setSnap} />
-      <label>확대 <StudioSlider label="확대" min={1} max={10} step={0.1} value={zoom} onChange={setZoom} /><output>{zoom.toFixed(1)}×</output></label>
+      <label className="studio-zoom"><span>확대</span><span className="studio-zoom-slider"><StudioSlider label="확대" min={1} max={10} step={0.1} value={zoom} onChange={setZoom} /></span><output>{zoom.toFixed(1)}×</output></label>
     </div>
     <div className="studio-timeline-drop">
       {libraryDropGuide ? <div className="studio-library-drop-guide" style={{ left: libraryDropGuide.x, top: libraryDropGuide.top, height: libraryDropGuide.height }} /> : null}

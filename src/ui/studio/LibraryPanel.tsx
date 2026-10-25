@@ -321,9 +321,11 @@ export function LibraryPanel(props: {
           <div className="studio-attachment" onClick={() => void chooseMedia()}><ActionButton variant="neutralWeak" loading={busy}>미디어 넣기</ActionButton><span>영상·사진 파일을 선택해요.</span></div>
         </AttachmentField>
         <ul className="studio-library-list">{props.project.inputs.filter((input) => input.id !== "placeholder").map((input) => <li key={input.id} onDragStart={(event) => event.preventDefault()}>
-          <ActionButton variant="ghost" type="button" className="studio-media-item" onPointerDown={(event) => beginPointerDrag(event, { type: "video", id: input.id, label: inputDisplayName(input), image: mediaUrls[input.id] })} onClick={(event) => clickUnlessDragging(event, () => props.onAddVideo(input.id))}>
-            <span className="studio-media-thumb"><img src={mediaUrls[input.id]} alt="" draggable={false} /></span>
-            <span><b>{inputDisplayName(input)}</b><small>{input.kind === "video" ? "영상" : "사진"}{input.durationSec ? ` · ${input.durationSec.toFixed(1)}초` : ""}</small></span>
+          <ActionButton variant="ghost" size="small" type="button" className="studio-media-item" onPointerDown={(event) => beginPointerDrag(event, { type: "video", id: input.id, label: inputDisplayName(input), image: mediaUrls[input.id] })} onClick={(event) => clickUnlessDragging(event, () => props.onAddVideo(input.id))}>
+            <span className="studio-media-item-content">
+              <span className="studio-media-thumb"><img src={mediaUrls[input.id]} alt="" draggable={false} /></span>
+              <span className="studio-media-copy"><b>{inputDisplayName(input)}</b><small>{input.kind === "video" ? "영상" : "사진"}{input.durationSec ? ` · ${input.durationSec.toFixed(1)}초` : ""}</small></span>
+            </span>
           </ActionButton>
         </li>)}</ul>
       </> : null}
@@ -331,9 +333,10 @@ export function LibraryPanel(props: {
         <TextField aria-label="짤 검색" value={memeQuery} onValueChange={value => searchMemes(value.value)}><TextFieldInput className="studio-search" placeholder="짤 검색" /></TextField>
         {memeSearchStatus === "judging" ? <span role="status">Jev가 고르는 중…</span> : null}
         {memeSearchStatus === "fallback" ? <span role="status">Jev 추천을 쓸 수 없어 검색 순서로 보여요</span> : null}
-        <div className="studio-library-grid">{memes.map((meme) => <ActionButton key={meme.id} variant="neutralWeak" type="button" onDragStart={(event) => event.preventDefault()} onPointerDown={(event) => beginPointerDrag(event, { type: "meme", id: meme.id, label: meme.description ?? meme.emotion, image: meme.url, meme })} className={props.selectedId === meme.id ? "is-selected" : ""} onMouseEnter={() => setHoveredMemeId(meme.id)} onMouseLeave={() => setHoveredMemeId((id) => id === meme.id ? null : id)} onClick={(event) => clickUnlessDragging(event, () => props.onSelectMeme(meme))} title={meme.description ?? meme.id}>
-          <MemePreview url={meme.url} id={meme.id} hoveredId={hoveredMemeId} /><span>{meme.description ?? meme.emotion}</span>
-        </ActionButton>)}</div>
+        <div className="studio-library-grid">{memes.map((meme) => <div className={`studio-meme-card${props.selectedId === meme.id ? " is-selected" : ""}`} key={meme.id}>
+          <span className="studio-meme-card-content"><MemePreview url={meme.url} id={meme.id} hoveredId={hoveredMemeId} /><span className="studio-meme-description">{meme.description ?? meme.emotion}</span></span>
+          <ActionButton variant="neutralWeak" size="small" type="button" onDragStart={(event) => event.preventDefault()} onPointerDown={(event) => beginPointerDrag(event, { type: "meme", id: meme.id, label: meme.description ?? meme.emotion, image: meme.url, meme })} className="studio-meme-card-button" onMouseEnter={() => setHoveredMemeId(meme.id)} onMouseLeave={() => setHoveredMemeId((id) => id === meme.id ? null : id)} onClick={(event) => clickUnlessDragging(event, () => props.onSelectMeme(meme))} title={meme.description ?? meme.id} aria-label={meme.description ?? meme.emotion} />
+        </div>)}</div>
         <div ref={memeEndRef} className="studio-library-end" aria-hidden="true" />
         {memeLoading && memeSearchStatus === "idle" ? <span role="status">짤을 불러오는 중…</span> : null}
         {memeSearchStatus === "jev" ? <span role="status">Jev 추천</span> : null}
