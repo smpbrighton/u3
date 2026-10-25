@@ -1,14 +1,23 @@
-import type { AudioClip, CodexScript, Input, Timeline, VideoClip } from "../schema";
-import type { MemeMeta, SfxMeta } from "../schema";
+import type { AudioClip, CodexScript, Input, MemeMeta, SfxMeta, Timeline, VideoClip } from "../schema";
+import { pickSfxFile, resolveSceneSfx, SCENE_SFX_MAX_SEC } from "../sfx";
 
 export const DEFAULT_CHARS_PER_SEC = 5.7;
 export const DEFAULT_PHOTO_MIN_SEC = 1.5;
 export const DEFAULT_MEME_MAX_SEC = 2;
 
+export interface SfxLibraryItem {
+  id: string;
+  category: string;
+  file: string;
+  durationSec?: number;
+}
+
 export interface FromScriptOptions {
   /** scene index (0-based) -> selected meme */
   memes?: Readonly<Record<number, MemeMeta>>;
-  /** scene index (0-based) -> selected sound effect */
+  projectId?: string;
+  sfxLibrary?: Readonly<Record<string, readonly SfxLibraryItem[]>>;
+  /** scene index (0-based) -> preselected sound effect */
   sfx?: Readonly<Record<number, SfxMeta>>;
 }
 
@@ -49,8 +58,22 @@ export function timelineFromScript(script: CodexScript, inputs: readonly Input[]
 
     const durationSec = video.slice(-((scene.memeBefore ? 1 : 0) + 1 + (scene.memeAfter ? 1 : 0))).reduce((sum, clip) => sum + ("durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec), 0);
     captions.push({ id: `scene-${index}-caption`, startSec: cursor, endSec: cursor + durationSec, text: scene.caption });
-    const effect = options.sfx?.[index];
-    if (effect) sfx.push({ id: `scene-${index}-sfx`, startSec: cursor, file: effect.file, inStartSec: 0, inEndSec: effect.durationSec, gain: 1 });
+    const category = resolveSceneSfx(
+      { sfxCategory: scene.sfxCategory ?? undefined, reaction: scene.reaction ?? undefined },
+      options.memes?.[index]?.emotion,
+    ).sfx;
+    const candidates = category ? options.sfxLibrary?.[category] ?? [] : [];
+    const effect = category
+      ? pickSfxFile(candidates, options.projectId ?? "", index) ?? options.sfx?.[index] ?? null
+      : null;
+    if (effect) sfx.push({
+      id: `scene-${index}-sfx`,
+      startSec: cursor,
+      file: effect.file,
+      inStartSec: 0,
+      inEndSec: Math.min(SCENE_SFX_MAX_SEC, effect.durationSec ?? SCENE_SFX_MAX_SEC),
+      gain: 1,
+    });
     cursor += durationSec;
   });
 

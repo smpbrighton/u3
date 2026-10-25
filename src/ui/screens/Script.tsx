@@ -6,7 +6,7 @@ import { TextField, TextFieldTextarea } from "../../../seed-design/ui/text-field
 import { api, watchJob, type EngineJob } from "../api";
 import type { CodexScript, FrameGroup, Project, SystemStatus } from "../types";
 import type { MemeMeta } from "../../core/schema";
-import { timelineFromScript } from "../../core/timeline/from-script";
+import { timelineFromScript, type SfxLibraryItem } from "../../core/timeline/from-script";
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { inputDisplayName } from "../../core/input";
@@ -103,7 +103,10 @@ export function Script(props: {
         return scene;
       }));
       const script = { scenes } as CodexScript;
-      const timeline = timelineFromScript(script, inputs, { memes });
+      const sfxItems = await api<SfxLibraryItem[]>("GET", "/api/library/sfx", undefined, controller.signal).catch(() => []);
+      const sfxLibrary: Record<string, SfxLibraryItem[]> = {};
+      for (const item of sfxItems) (sfxLibrary[item.category] ??= []).push(item);
+      const timeline = timelineFromScript(script, inputs, { projectId: props.project.id, memes, sfxLibrary });
       const saved = await api<Project>("PUT", `/api/projects/${props.project.id}`, {
         ...props.project,
         inputs,
