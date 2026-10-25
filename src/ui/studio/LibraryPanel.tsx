@@ -32,11 +32,11 @@ export function LibraryPanel(props: {
   const [memePage, setMemePage] = useState(1);
   const [memes, setMemes] = useState<MemeItem[]>([]);
   const [memeLoading, setMemeLoading] = useState(false);
-  const [memeSearchStatus, setMemeSearchStatus] = useState<"idle" | "searching" | "judging" | "jev" | "fallback">("idle");
+  const [memeSearchStatus, setMemeSearchStatus] = useState<"idle" | "searching" | "judging" | "jev" | "fallback" | "search-error">("idle");
   const [memeHasMore, setMemeHasMore] = useState(true);
   const [hoveredMemeId, setHoveredMemeId] = useState<string | null>(null);
   const [sfxItems, setSfxItems] = useState<SfxItem[]>([]);
-  const [sfxSearchStatus, setSfxSearchStatus] = useState<"idle" | "searching" | "judging" | "jev" | "fallback">("idle");
+  const [sfxSearchStatus, setSfxSearchStatus] = useState<"idle" | "searching" | "judging" | "jev" | "fallback" | "search-error">("idle");
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const memeSituationRequests = useRef(createAbortableRequestGuard());
@@ -88,7 +88,7 @@ export function LibraryPanel(props: {
           }
         }).catch((error) => {
           if (!request.isCurrent()) return;
-          setMemeSearchStatus("fallback");
+          setMemeSearchStatus("search-error");
           props.onError(error instanceof Error ? error.message : String(error));
         }).finally(() => {
           if (request.isCurrent()) setMemeLoading(false);
@@ -186,7 +186,7 @@ export function LibraryPanel(props: {
         }
       }).catch((error) => {
         if (request.isCurrent()) {
-          setSfxSearchStatus("fallback");
+          setSfxSearchStatus("search-error");
           props.onError(error instanceof Error ? error.message : String(error));
         }
       });
@@ -268,7 +268,7 @@ export function LibraryPanel(props: {
         {sfxSearchStatus === "fallback" ? <span role="status">Jev 추천을 쓸 수 없어 검색 순서로 보여요</span> : null}
         <ul className="studio-library-list">{sfxItems.map((item) => <li key={item.id} draggable onDragStart={(event) => drag(event, "sfx", item.id)}><button type="button" className="studio-library-choice" onClick={() => props.onAddSfx(item)}><span>♫</span><span><b>{item.title}</b><small>{item.category} · {item.durationSec.toFixed(1)}초</small></span></button></li>)}</ul>
         {sfxSearchStatus === "jev" ? <span role="status">Jev 추천</span> : null}
-        {sfxQuery.trim() && !["searching", "judging"].includes(sfxSearchStatus) && !sfxItems.length ? <span role="status">맞는 효과음이 없어요</span> : null}
+        {sfxQuery.trim() && !["searching", "judging", "search-error"].includes(sfxSearchStatus) && !sfxItems.length ? <span role="status">맞는 효과음이 없어요</span> : null}
       </> : null}
       {tab === "voice" ? <Recorder projectId={props.project.id} clips={props.project.timeline.voice} onAdd={props.onAddVoice} onRecordingChange={props.onRecordingChange} onError={props.onError} onSnackbar={props.onSnackbar} /> : null}
     </div>
