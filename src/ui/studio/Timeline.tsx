@@ -13,7 +13,7 @@ import { findOverlayInLayers } from "../../core/timeline/overlay-layers";
 import { moveOverlayClipToLayer, moveOverlayClipToVideo1, moveVideo1ClipToOverlay } from "../../core/timeline/video-track-edits";
 import { findVideoClipAtTime } from "../../core/timeline/video-pointer";
 import { moveVideoGroup } from "../../core/timeline/video-groups";
-import { isSameTrackDropPosition, isUnchangedTimeline, resolveVideoTrackAtPointer, VIDEO_TRACK_EDIT_GRID_SELECTOR } from "./video-track-drop";
+import { decideActionMove, isUnchangedTimeline, resolveVideoTrackAtPointer, VIDEO_TRACK_EDIT_GRID_SELECTOR } from "./video-track-drop";
 import { timelinePointerSeconds } from "./timeline-zoom";
 
 const TRACKS = [
@@ -298,34 +298,31 @@ export function Timeline(props: {
             const grid = editorHost.current?.querySelector<HTMLElement>(VIDEO_TRACK_EDIT_GRID_SELECTOR);
             const y = drag?.clientY ?? 0;
             const targetRow = grid ? resolveVideoTrackAtPointer(displayRows.map((item) => item.id), y, grid.getBoundingClientRect().top, grid.scrollTop) : null;
-            const isVideoRow = (id?: string) => id === "video" || id === "video-new" || Boolean(id && /^video-[2-9]\d*$/.test(id));
             const layerFor = (id: string) => id === "video-new" ? props.timeline.overlays.length : Number(id.slice("video-".length)) - 2;
-            const crossingRows = drag && targetRow && targetRow !== drag.rowId && isVideoRow(drag.rowId) && isVideoRow(targetRow);
             const groupId = props.timeline.video.find((clip) => clip.id === action.id)?.groupId ?? findOverlayInLayers(props.timeline.overlays, action.id)?.clip.groupId;
             const sourceStart = drag?.rowId === "video" ? videoStartTimes(props.timeline)[action.id] ?? start : findOverlayInLayers(props.timeline.overlays, action.id)?.clip.startSec ?? start;
-            if (drag && isSameTrackDropPosition(drag.rowId, row.id, sourceStart, start)) {
+            const decision = decideActionMove({ dragSourceTrack: drag?.rowId ?? null, editorRow: row.id, targetRow, sourceStart, start, groupId });
+            if (decision.kind === "reset") {
               resetEditor();
               return;
             }
-            const groupFirstStart = groupId ? Math.min(...[
-              ...props.timeline.video.filter((clip) => clip.groupId === groupId).map((clip) => videoStartTimes(props.timeline)[clip.id]!),
-              ...props.timeline.overlays.flat().filter((clip) => clip.groupId === groupId).map((clip) => clip.startSec),
-            ]) : sourceStart;
-            const groupTargetStart = start - (sourceStart - groupFirstStart);
-            if (groupId && crossingRows && targetRow) {
-              doEdit(() => moveVideoGroup(props.timeline, groupId, { track: targetRow, startSec: groupTargetStart }, props.inputs ?? []));
-            } else if (crossingRows && drag?.rowId === "video" && targetRow !== "video") {
-              doEdit(() => moveVideo1ClipToOverlay(props.timeline, action.id, props.inputs ?? [], layerFor(targetRow!)));
-            } else if (crossingRows && drag?.rowId !== "video" && targetRow === "video") {
+            if (decision.kind === "move-group" && groupId) {
+              const groupFirstStart = Math.min(...[
+                ...props.timeline.video.filter((clip) => clip.groupId === groupId).map((clip) => videoStartTimes(props.timeline)[clip.id]!),
+                ...props.timeline.overlays.flat().filter((clip) => clip.groupId === groupId).map((clip) => clip.startSec),
+              ]);
+              const groupTargetStart = start - (sourceStart - groupFirstStart);
+              doEdit(() => moveVideoGroup(props.timeline, groupId, { track: decision.targetTrack, startSec: groupTargetStart }, props.inputs ?? []));
+            } else if (decision.kind === "video1-to-overlay") {
+              doEdit(() => moveVideo1ClipToOverlay(props.timeline, action.id, props.inputs ?? [], layerFor(decision.targetTrack)));
+            } else if (decision.kind === "overlay-to-video1") {
               doEdit(() => moveOverlayClipToVideo1(props.timeline, action.id, start, [crypto.randomUUID(), crypto.randomUUID()]));
-            } else if (crossingRows && drag?.rowId !== "video" && targetRow !== "video") {
-              doEdit(() => moveOverlayClipToLayer(props.timeline, action.id, layerFor(targetRow!)));
-            } else if (groupId && targetRow) doEdit(() => moveVideoGroup(props.timeline, groupId, { track: targetRow, startSec: groupTargetStart }, props.inputs ?? []));
-            else if (row.id === "video") doEdit(() => reorderVideoByStart(props.timeline, action.id, start));
-            else if (/^video-[2-9]\d*$/.test(row.id)) doEdit(() => moveOverlayClip(props.timeline, action.id, start));
-            else if (row.id === "captions") doEdit(() => moveCaptionClip(props.timeline, action.id, start));
-            else if (row.id === "voice") doEdit(() => ({ ...props.timeline, voice: moveAudioClip(props.timeline.voice, action.id, start) }));
-            else if (row.id === "sfx") doEdit(() => ({ ...props.timeline, sfx: moveAudioClip(props.timeline.sfx, action.id, start) }));
+            } else if (decision.kind === "overlay-to-overlay") {
+              doEdit(() => moveOverlayClipToLayer(props.timeline, action.id, layerFor(decision.targetTrack)));
+            } else if (decision.kind === "reorder-video1") doEdit(() => reorderVideoByStart(props.timeline, action.id, start));
+            else if (decision.kind === "move-overlay") doEdit(() => moveOverlayClip(props.timeline, action.id, start));
+            else if (decision.kind === "move-caption") doEdit(() => moveCaptionClip(props.timeline, action.id, start));
+            else if (decision.kind === "move-audio") doEdit(() => ({ ...props.timeline, [decision.track]: moveAudioClip(props.timeline[decision.track], action.id, start) }));
           }}
           onActionResizeEnd={({ action, row, start, end, dir }) => {
             const edge = dir === "left" ? "start" : "end";
