@@ -6,7 +6,7 @@ import type { Project } from "../../core/schema";
 import { api, mediaUrl } from "../api";
 import { Recorder } from "./Recorder";
 import { inputDisplayName } from "../../core/input";
-import { MEME_PAGE_SIZE, mergeMemePages, memePreviewAutoplay, memePreviewPreload, memePreviewSource, releaseMemePreview, shouldLoadMemePage } from "./library-window";
+import { MEME_PAGE_SIZE, canMemePreviewPlay, memePageHasMore, mergeMemePages, memePreviewPreload, memePreviewSource, releaseMemePreview, shouldLoadMemePage, shouldRequestMemePage } from "./library-window";
 import { createLatestRequestGuard, debounceSearch } from "./library-request";
 
 type Tab = "media" | "meme" | "sfx" | "voice";
@@ -31,12 +31,20 @@ export function LibraryPanel(props: {
   const [sfxQuery, setSfxQuery] = useState("");
   const [memePage, setMemePage] = useState(1);
   const [memes, setMemes] = useState<MemeItem[]>([]);
+  const [memeLoading, setMemeLoading] = useState(false);
+  const [memeHasMore, setMemeHasMore] = useState(true);
+  const [hoveredMemeId, setHoveredMemeId] = useState<string | null>(null);
   const [sfxItems, setSfxItems] = useState<SfxItem[]>([]);
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
   const sfxRequests = useRef(createLatestRequestGuard());
   const memePageGeneration = useRef(0);
   const loadedMemePages = useRef(new Set<number>());
+  const inFlightMemePages = useRef(new Set<string>());
+  const memeLoadingRef = useRef(false);
+  const memeHasMoreRef = useRef(true);
+  const libraryContentRef = useRef<HTMLDivElement>(null);
+  const memeEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     let active = true;
@@ -51,20 +59,58 @@ export function LibraryPanel(props: {
   }, [props.onError, props.project.id, props.project.inputs, tab]);
 
   useEffect(() => {
-    if (tab !== "meme" || !shouldLoadMemePage([...loadedMemePages.current], memePage)) return;
+    if (tab !== "meme" || !memeHasMoreRef.current || !shouldLoadMemePage([...loadedMemePages.current], memePage)) return;
     const generation = memePageGeneration.current;
+    const requestKey = `${generation}:${memePage}`;
+    if (inFlightMemePages.current.has(requestKey)) return;
+    inFlightMemePages.current.add(requestKey);
+    memeLoadingRef.current = true;
+    setMemeLoading(true);
+    let requested = false;
     const search = debounceSearch((query) => {
+      requested = true;
       const params = new URLSearchParams({ limit: String(MEME_PAGE_SIZE), offset: String((memePage - 1) * MEME_PAGE_SIZE) });
       if (query.trim()) params.set("q", query.trim());
       void api<MemeItem[]>("GET", `/api/library/memes?${params}`).then((items) => {
         if (generation !== memePageGeneration.current) return;
         loadedMemePages.current.add(memePage);
+        const hasMore = memePageHasMore(items.length);
+        memeHasMoreRef.current = hasMore;
+        setMemeHasMore(hasMore);
         setMemes((current) => mergeMemePages(current, items, memePage));
-      }).catch((error) => { if (generation === memePageGeneration.current) props.onError(error instanceof Error ? error.message : String(error)); });
+      }).catch((error) => { if (generation === memePageGeneration.current) props.onError(error instanceof Error ? error.message : String(error)); }).finally(() => {
+        inFlightMemePages.current.delete(requestKey);
+        if (generation === memePageGeneration.current) {
+          memeLoadingRef.current = false;
+          setMemeLoading(false);
+        }
+      });
     }, 250);
     search(memeQuery);
-    return () => { search.cancel(); };
+    return () => {
+      search.cancel();
+      if (requested) return;
+      if (!inFlightMemePages.current.has(requestKey)) return;
+      inFlightMemePages.current.delete(requestKey);
+      if (generation === memePageGeneration.current) {
+        memeLoadingRef.current = false;
+        setMemeLoading(false);
+      }
+    };
   }, [memePage, memeQuery, props.onError, tab]);
+
+  useEffect(() => {
+    if (tab !== "meme" || !memeEndRef.current) return;
+    const observer = new IntersectionObserver((entries) => {
+      if (!entries.some((entry) => entry.isIntersecting)) return;
+      if (!shouldRequestMemePage({ reachedEnd: true, loading: memeLoadingRef.current, hasMore: memeHasMoreRef.current })) return;
+      memeLoadingRef.current = true;
+      setMemeLoading(true);
+      setMemePage((page) => page + 1);
+    }, { root: libraryContentRef.current });
+    observer.observe(memeEndRef.current);
+    return () => observer.disconnect();
+  }, [memeHasMore, memeLoading, memePage, memes.length, tab]);
 
   useEffect(() => {
     const request = sfxRequests.current.next();
@@ -101,8 +147,14 @@ export function LibraryPanel(props: {
   function searchMemes(query: string) {
     memePageGeneration.current += 1;
     loadedMemePages.current.clear();
+    inFlightMemePages.current.clear();
+    memeLoadingRef.current = false;
+    memeHasMoreRef.current = true;
+    setMemeLoading(false);
+    setMemeHasMore(true);
     setMemes([]);
     setMemePage(1);
+    setHoveredMemeId(null);
     setMemeQuery(query);
   }
 
@@ -116,7 +168,7 @@ export function LibraryPanel(props: {
     <div className="studio-library-tabs" role="tablist" aria-label="라이브러리 종류">
       {([["media", "미디어"], ["meme", "짤"], ["sfx", "효과음"], ["voice", "음성"]] as [Tab, string][]).map(([id, label]) => <button key={id} type="button" role="tab" aria-selected={tab === id} onClick={() => setTab(id)}>{label}</button>)}
     </div>
-    <div className="studio-library-content">
+    <div className="studio-library-content" ref={libraryContentRef}>
       {tab === "media" ? <>
         <AttachmentField label="미디어 넣기" description="영상·사진을 영상 트랙에 끌어 놓으세요." accept={["video/mp4", "video/quicktime", "image/*"]}>
           <div className="studio-attachment" onClick={() => void chooseMedia()}><ActionButton variant="neutralWeak" loading={busy}>미디어 넣기</ActionButton><span>영상·사진 파일을 선택해요.</span></div>
@@ -130,10 +182,11 @@ export function LibraryPanel(props: {
       </> : null}
       {tab === "meme" ? <>
         <input className="studio-search" aria-label="짤 검색" placeholder="짤 검색" value={memeQuery} onChange={(event) => searchMemes(event.currentTarget.value)} />
-        <div className="studio-library-grid">{memes.map((meme) => <button key={meme.id} type="button" draggable onDragStart={(event) => drag(event, "meme", meme.id)} className={props.selectedId === meme.id ? "is-selected" : ""} onClick={() => props.onSelectMeme(meme)} title={meme.description ?? meme.id}>
-          <MemePreview url={meme.url} /><span>{meme.description ?? meme.emotion}</span>
+        <div className="studio-library-grid">{memes.map((meme) => <button key={meme.id} type="button" draggable onDragStart={(event) => drag(event, "meme", meme.id)} className={props.selectedId === meme.id ? "is-selected" : ""} onMouseEnter={() => setHoveredMemeId(meme.id)} onMouseLeave={() => setHoveredMemeId((id) => id === meme.id ? null : id)} onClick={() => props.onSelectMeme(meme)} title={meme.description ?? meme.id}>
+          <MemePreview url={meme.url} id={meme.id} hoveredId={hoveredMemeId} /><span>{meme.description ?? meme.emotion}</span>
         </button>)}</div>
-        {memes.length === memePage * MEME_PAGE_SIZE ? <button type="button" className="studio-library-more" onClick={() => setMemePage((page) => page + 1)}>더 보기</button> : null}
+        <div ref={memeEndRef} className="studio-library-end" aria-hidden="true" />
+        {memeLoading ? <span role="status">짤을 불러오는 중…</span> : null}
       </> : null}
       {tab === "sfx" ? <>
         <input className="studio-search" aria-label="효과음 검색" placeholder="효과음 검색" value={sfxQuery} onChange={(event) => searchSfx(event.currentTarget.value)} />
@@ -144,9 +197,10 @@ export function LibraryPanel(props: {
   </aside>;
 }
 
-function MemePreview({ url }: { url: string }) {
+function MemePreview({ id, url, hoveredId }: { id: string; url: string; hoveredId: string | null }) {
   const ref = useRef<HTMLVideoElement>(null);
   const [visible, setVisible] = useState(false);
+  const playing = canMemePreviewPlay(id, hoveredId, visible);
   const wasVisible = useRef(false);
 
   useEffect(() => {
@@ -168,13 +222,29 @@ function MemePreview({ url }: { url: string }) {
     wasVisible.current = visible;
   }, [visible]);
 
+  useEffect(() => {
+    const video = ref.current;
+    if (!video) return;
+    if (playing) {
+      void video.play().catch(() => {});
+    } else {
+      video.pause();
+      if (video.readyState > 0) video.currentTime = 0;
+    }
+  }, [playing]);
+
   return <video
     ref={ref}
     src={memePreviewSource(url, visible)}
     muted
     playsInline
-    autoPlay={memePreviewAutoplay(visible)}
+    loop
     preload={memePreviewPreload(visible)}
-    onLoadedData={(event) => event.currentTarget.pause()}
+    onLoadedMetadata={(event) => {
+      if (!playing) event.currentTarget.currentTime = Math.min(0.01, event.currentTarget.duration || 0.01);
+    }}
+    onSeeked={(event) => {
+      if (!playing && event.currentTarget.currentTime !== 0) event.currentTarget.currentTime = 0;
+    }}
   />;
 }

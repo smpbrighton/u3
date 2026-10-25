@@ -1,4 +1,4 @@
-export const MEME_PAGE_SIZE = 48;
+export const MEME_PAGE_SIZE = 24;
 
 export function memePreviewSource(url: string, visible: boolean): string | undefined {
   return visible ? url : undefined;
@@ -8,8 +8,8 @@ export function memePreviewPreload(visible: boolean): "metadata" | "none" {
   return visible ? "metadata" : "none";
 }
 
-export function memePreviewAutoplay(visible: boolean): boolean {
-  return visible;
+export function canMemePreviewPlay(id: string, hoveredId: string | null, visible: boolean): boolean {
+  return visible && hoveredId === id;
 }
 
 export function releaseMemePreview(video: Pick<HTMLMediaElement, "removeAttribute" | "load">): void {
@@ -30,6 +30,14 @@ export function mergeMemePages<T extends { id: string }>(current: readonly T[], 
 
 export function shouldLoadMemePage(loadedPages: readonly number[], page: number): boolean {
   return !loadedPages.includes(page);
+}
+
+export function memePageHasMore(pageSize: number, expectedSize = MEME_PAGE_SIZE): boolean {
+  return pageSize >= expectedSize;
+}
+
+export function shouldRequestMemePage(state: { reachedEnd: boolean; loading: boolean; hasMore: boolean }): boolean {
+  return state.reachedEnd && !state.loading && state.hasMore;
 }
 
 export function pageMemes<T>(items: readonly T[], page: number, pageSize = MEME_PAGE_SIZE): T[] {

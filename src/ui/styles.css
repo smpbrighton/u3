@@ -120,7 +120,7 @@ button:disabled { cursor: not-allowed; }
 .studio-library-grid button { position: relative; aspect-ratio: 1; overflow: hidden; padding: 0; border: 2px solid transparent; border-radius: 8px; background: var(--seed-color-palette-gray-200); }
 .studio-library-grid button.is-selected { border-color: var(--seed-color-palette-blue-500); }
 .studio-library-grid video { width: 100%; height: 100%; object-fit: cover; }
-.studio-library-more { min-height: 36px; border: 1px solid var(--seed-color-palette-gray-300); border-radius: 6px; background: white; }
+.studio-library-end { min-height: 1px; }
 .studio-library-grid span { position: absolute; right: 3px; bottom: 3px; left: 3px; overflow: hidden; padding: 2px 4px; border-radius: 4px; color: white; background: rgb(0 0 0 / 62%); font-size: 10px; text-overflow: ellipsis; white-space: nowrap; }
 .studio-search { width: 100%; height: 38px; padding: 0 10px; border: 1px solid var(--seed-color-palette-gray-300); border-radius: 8px; background: var(--seed-color-bg-layer-default); }
 .studio-recorder { display: flex; flex-direction: column; gap: 14px; }
