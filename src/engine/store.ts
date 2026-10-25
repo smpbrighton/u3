@@ -3,6 +3,7 @@ import { randomBytes } from "node:crypto";
 import { readFile, readdir, mkdir, rename, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
+import { migrateLibraryReference } from "../core/library-reference";
 import { Project } from "../core/schema";
 import { HttpError } from "./http";
 
@@ -11,6 +12,16 @@ async function writeJsonAtomic(file: string, value: unknown): Promise<void> {
   const temp = `${file}.${process.pid}.${randomBytes(4).toString("hex")}.tmp`;
   await writeFile(temp, `${JSON.stringify(value, null, 2)}\n`, "utf8");
   await rename(temp, file);
+}
+
+function migrateProjectLibraryReferences(project: Project): Project {
+  const sfx = project.timeline.sfx.map(clip => {
+    const file = migrateLibraryReference(clip.file);
+    return file ? { ...clip, file } : clip;
+  });
+  return sfx.every((clip, index) => clip === project.timeline.sfx[index])
+    ? project
+    : { ...project, timeline: { ...project.timeline, sfx } };
 }
 
 const pad = (value: number) => String(value).padStart(2, "0");
@@ -68,7 +79,7 @@ export class Store {
     for (const folder of folders) {
       if (!folder.isDirectory()) continue;
       try {
-        const project = Project.parse(JSON.parse(await readFile(path.join(this.projectDir(folder.name), "project.json"), "utf8")));
+        const project = migrateProjectLibraryReferences(Project.parse(JSON.parse(await readFile(path.join(this.projectDir(folder.name), "project.json"), "utf8"))));
         if (project.id === folder.name) projects.push(project);
       } catch {
         // 잘못된 project.json은 목록에서 제외한다.
@@ -93,7 +104,7 @@ export class Store {
     }
     const parsed = Project.safeParse(raw);
     if (!parsed.success) throw new HttpError(500, "broken-project", `project.json 형식이 맞지 않습니다: ${id}`);
-    return parsed.data.id === id ? parsed.data : null;
+    return parsed.data.id === id ? migrateProjectLibraryReferences(parsed.data) : null;
   }
 
   async getProject(id: string): Promise<Project | null> {
@@ -116,7 +127,7 @@ export class Store {
   }
 
   async saveProject(value: Project): Promise<Project> {
-    const project = Project.parse(value);
+    const project = migrateProjectLibraryReferences(Project.parse(value));
     await this.lock(`project:${project.id}`, async () => {
       await this.ensureProject(project.id);
       await writeJsonAtomic(path.join(this.projectDir(project.id), "project.json"), project);

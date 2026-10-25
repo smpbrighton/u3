@@ -8,7 +8,7 @@ import { Recorder } from "./Recorder";
 
 type Tab = "media" | "meme" | "sfx" | "voice";
 interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
-interface SfxItem { id: string; category: string; title: string; file: string; url: string; durationSec: number }
+interface SfxItem { id: string; category: string; title: string; file: string; ref: string; url: string; durationSec: number }
 
 export function LibraryPanel(props: {
   project: Project;

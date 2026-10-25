@@ -1,5 +1,6 @@
 import type { Hono } from "hono";
 import path from "node:path";
+import { createLibraryReference } from "../../core/library-reference";
 import type { AppContext } from "../app";
 import { listMemes, listSfx, searchLibrary } from "../pipeline/library";
 import { mediaUrl } from "../pipeline/media-server";
@@ -16,18 +17,23 @@ function libraryMediaUrl(
     ?? `${origin}/api/media/library/${relative.split(path.sep).map(encodeURIComponent).join("/")}?token=${encodeURIComponent(context.token)}`;
 }
 
+function libraryMediaReference(file: string, root: string): string {
+  const libraryRoot = path.basename(root) === "library" ? root : path.join(root, "library");
+  return createLibraryReference(path.relative(libraryRoot, file));
+}
+
 export function registerLibraryRoutes(app: Hono, context: AppContext): void {
   app.get("/api/library/memes", async c => {
     const root = process.env.U3_LIBRARY_DIR ?? path.join(process.cwd(), "resources");
     const items = searchLibrary(await listMemes(root), c.req.query("q") ?? "");
     const origin = new URL(c.req.url).origin;
-    return c.json(items.map(item => ({ ...item, url: libraryMediaUrl(item.file, root, context, origin) })));
+    return c.json(items.map(item => ({ ...item, ref: libraryMediaReference(item.file, root), url: libraryMediaUrl(item.file, root, context, origin) })));
   });
 
   app.get("/api/library/sfx", async c => {
     const root = process.env.U3_LIBRARY_DIR ?? path.join(process.cwd(), "resources");
     const items = searchLibrary(await listSfx(root), c.req.query("q") ?? "");
     const origin = new URL(c.req.url).origin;
-    return c.json(items.map(item => ({ ...item, url: libraryMediaUrl(item.file, root, context, origin) })));
+    return c.json(items.map(item => ({ ...item, ref: libraryMediaReference(item.file, root), url: libraryMediaUrl(item.file, root, context, origin) })));
   });
 }

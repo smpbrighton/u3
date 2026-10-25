@@ -4,7 +4,8 @@ import { timelineToRender } from "../../core/timeline/to-render";
 import type { Project } from "../../core/schema";
 import { U3Short } from "../../remotion/U3Short";
 import type { U3ShortProps } from "../../remotion/types";
-import { api, mediaUrl } from "../api";
+import { api, libraryMediaUrl, mediaUrl } from "../api";
+import { libraryReferencePath } from "../../core/library-reference";
 
 export function Preview(props: {
   project: Project;
@@ -25,7 +26,9 @@ export function Preview(props: {
       const [inputEntries, memeItems, fileEntries] = await Promise.all([
         Promise.all(props.project.inputs.map(async (input) => [input.id, await mediaUrl(props.project.id, input.file)] as const)),
         api<{ id: string; url: string }[]>("GET", "/api/library/memes").catch(() => []),
-        Promise.all(render.audio.filter((layer) => layer.file && !layer.file.startsWith("http")).map(async (layer) => [layer.file!, await mediaUrl(props.project.id, layer.file!)] as const)),
+        Promise.all(render.audio.filter((layer) => layer.file && !layer.file.startsWith("http")).map(async (layer) => [layer.file!, libraryReferencePath(layer.file!)
+          ? await libraryMediaUrl(layer.file!)
+          : await mediaUrl(props.project.id, layer.file!)] as const)),
       ]);
       if (!active) return;
       setSources({

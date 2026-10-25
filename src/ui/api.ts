@@ -1,4 +1,5 @@
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { libraryReferencePath } from "../core/library-reference";
 
 type EngineConnection = { port: number; token: string };
 type Method = "GET" | "POST" | "PUT" | "DELETE";
@@ -64,6 +65,15 @@ export async function mediaUrl(projectId: string, relativePath: string): Promise
   const encoded = relativePath.split("/").map(encodeURIComponent).join("/");
   if (import.meta.env.DEV) return `/api/media/projects/${encodeURIComponent(projectId)}/${encoded}?token=${encodeURIComponent(engine.token)}`;
   return `http://127.0.0.1:${engine.port}/api/media/projects/${encodeURIComponent(projectId)}/${encoded}?token=${encodeURIComponent(engine.token)}`;
+}
+
+export async function libraryMediaUrl(reference: string): Promise<string> {
+  const relativePath = libraryReferencePath(reference);
+  if (!relativePath) throw new Error("라이브러리 미디어 참조가 올바르지 않습니다");
+  const engine = await connection();
+  const encoded = relativePath.split("/").map(encodeURIComponent).join("/");
+  const origin = isTauri() && !import.meta.env.DEV ? `http://127.0.0.1:${engine.port}` : "";
+  return `${origin}/api/media/library/${encoded}?token=${encodeURIComponent(engine.token)}`;
 }
 
 export interface EngineJob {

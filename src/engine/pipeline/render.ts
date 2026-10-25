@@ -3,6 +3,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderMedia, selectComposition, type CancelSignal, type RenderMediaProgress } from "@remotion/renderer";
 import type { Input, Timeline } from "../../core/schema";
+import { libraryReferencePath } from "../../core/library-reference";
 import { timelineToRender } from "../../core/timeline/to-render";
 import type { U3ShortProps } from "../../remotion/types";
 import { createMediaRunner, FFPROBE } from "./ffmpeg";
@@ -51,8 +52,14 @@ function resolvePath(file: string, root: string): string {
   return path.resolve(root, file);
 }
 
-function asUrl(file: string, root: string, resolveMediaUrl?: (absolutePath: string) => string): string {
-  const resolved = resolvePath(file, root);
+export function asUrl(
+  file: string,
+  root: string,
+  resolveMediaUrl?: (absolutePath: string) => string,
+  libraryRoot = root,
+): string {
+  const libraryRelative = libraryReferencePath(file);
+  const resolved = libraryRelative ? path.resolve(libraryRoot, libraryRelative) : resolvePath(file, root);
   if (/^(https?:|data:|file:)/i.test(resolved)) return resolved;
   return resolveMediaUrl ? resolveMediaUrl(resolved) : resolved;
 }
@@ -80,7 +87,7 @@ export async function renderShort(options: RenderShortOptions) {
   const memeIds = [...new Set(render.video.filter((item) => item.kind === "meme").map((item) => item.memeId!))];
   const memes = Object.fromEntries(await Promise.all(memeIds.map(async (id) => [id, asUrl(id, options.libraryFolder, options.resolveMediaUrl)] as const)));
   const memeFrames = Object.fromEntries(await Promise.all(memeIds.map(async (id) => [id, await videoFrames(resolvePath(id, options.libraryFolder))] as const)));
-  const audio = render.audio.map((layer) => layer.file ? { ...layer, file: asUrl(layer.file, options.projectFolder, options.resolveMediaUrl) } : layer);
+  const audio = render.audio.map((layer) => layer.file ? { ...layer, file: asUrl(layer.file, options.projectFolder, options.resolveMediaUrl, options.libraryFolder) } : layer);
   const props: U3ShortProps = { render: { ...render, audio }, inputs, inputKinds, memes, memeFrames };
   const serveUrl = await getBundle();
   const executable = options.browserExecutable ?? process.env.U3_CHROME_EXECUTABLE;

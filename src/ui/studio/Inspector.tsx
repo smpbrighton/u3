@@ -7,7 +7,7 @@ import { ProgressCircle } from "../../../seed-design/ui/progress-circle";
 import { AlertDialog } from "@seed-design/react";
 import { api, watchJob, type EngineJob } from "../api";
 
-interface SfxItem { id: string; category: string; title: string; file: string; url: string; durationSec: number }
+interface SfxItem { id: string; category: string; title: string; file: string; ref: string; url: string; durationSec: number }
 type TranscriptResult = { captions: TimelineData["captions"]; replaced: TimelineData["captions"] };
 
 export function Inspector(props: {
@@ -191,7 +191,7 @@ export function Inspector(props: {
     return <InspectorShell title={track === "voice" ? "음성 속성" : "효과음 속성"} error={error} {...dialogProps}>
       <GainControl label="트랙 볼륨" gain={audioGain[track].gain} muted={audioGain[track].muted} onChange={(value) => updateGain(track, value)} onMute={() => toggleMute(track)} />
       <GainControl label="클립 볼륨" gain={clip.gain} onChange={(value) => updateClip(clip.id, { gain: value }, track)} />
-      {track === "sfx" ? <label>효과음 바꾸기<select value={clip.file} onChange={(event) => { const item = sfxItems.find((sfx) => sfx.url === event.currentTarget.value); if (item) updateClip(clip.id, { file: item.url, inStartSec: 0, inEndSec: item.durationSec }, "sfx"); }}>{sfxItems.map((item) => <option key={item.id} value={item.url}>{item.title}</option>)}</select></label> : null}
+      {track === "sfx" ? <label>효과음 바꾸기<select value={clip.file} onChange={(event) => { const item = sfxItems.find((sfx) => sfx.ref === event.currentTarget.value); if (item) updateClip(clip.id, { file: item.ref, inStartSec: 0, inEndSec: item.durationSec }, "sfx"); }}>{sfxItems.map((item) => <option key={item.id} value={item.ref}>{item.title}</option>)}</select></label> : null}
       {track === "voice" ? <label className="studio-radio"><input type="radio" name="sttTarget" checked={sttTarget === "voice"} onChange={() => setSttTarget("voice")} /> 음성 트랙에서 받아 적기</label> : null}
       {track === "voice" ? <ActionButton variant="neutralWeak" onClick={() => void createCaptions()}>자막 만들기</ActionButton> : null}
     </InspectorShell>;

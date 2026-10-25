@@ -14,7 +14,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { replaceMemeClip } from "../studio/replace-meme-clip";
 
 interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
-interface SfxItem { id: string; category: string; title: string; file: string; url: string; durationSec: number }
+interface SfxItem { id: string; category: string; title: string; file: string; ref: string; url: string; durationSec: number }
 
 export function Studio(props: {
   project: Project;
@@ -106,7 +106,7 @@ export function Studio(props: {
   }
 
   function addSfx(item: SfxItem) {
-    const clip = { id: crypto.randomUUID(), startSec: playhead, file: item.url, inStartSec: 0, inEndSec: item.durationSec, gain: 1 };
+    const clip = { id: crypto.randomUUID(), startSec: playhead, file: item.ref, inStartSec: 0, inEndSec: item.durationSec, gain: 1 };
     edit({ ...timeline, sfx: [...timeline.sfx, clip] });
     setSelected({ id: clip.id, track: "sfx" });
   }
