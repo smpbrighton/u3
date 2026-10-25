@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { MEME_PAGE_SIZE, memePreviewPreload, memePreviewSource, pageMemes } from "../../src/ui/studio/library-window";
+import { MEME_PAGE_SIZE, memePreviewPreload, memePreviewSource, mergeMemePages, pageMemes, shouldLoadMemePage } from "../../src/ui/studio/library-window";
 import { debounceSearch, createLatestRequestGuard } from "../../src/ui/studio/library-request";
 
 describe("studio library loading", () => {
@@ -20,6 +20,15 @@ describe("studio library loading", () => {
     expect(memePreviewSource("/meme.mp4", true)).toBe("/meme.mp4");
     expect(memePreviewPreload(true)).toBe("metadata");
     expect(memePreviewPreload(false)).toBe("none");
+  });
+
+  it("페이지를 다시 받아도 짤 id를 중복 병합하지 않고 이미 받은 페이지는 건너뛴다", () => {
+    const first = mergeMemePages([], [{ id: "a" }, { id: "b" }], 1);
+    const second = mergeMemePages(first, [{ id: "c" }], 2);
+
+    expect(mergeMemePages(second, [{ id: "c" }], 2).map((item) => item.id)).toEqual(["a", "b", "c"]);
+    expect(shouldLoadMemePage([1, 2], 2)).toBe(false);
+    expect(shouldLoadMemePage([1, 2], 3)).toBe(true);
   });
 
   it("검색 입력은 debounce 뒤 한 번만 실행한다", () => {
