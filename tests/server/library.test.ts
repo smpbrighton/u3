@@ -36,4 +36,25 @@ describe("sidecar library routes", () => {
     expect(items[0]!.id).toBe("laugh-1");
     expect(items[0]!.url).toContain("token=secret");
   });
+
+  it("applies optional offset and limit to meme results without wrapping the response", async () => {
+    root = await mkdtemp(path.join(os.tmpdir(), "u3-library-page-"));
+    const folder = path.join(root, "library", "memes", "laugh");
+    await mkdir(folder, { recursive: true });
+    for (const [index, id] of ["first", "middle", "last"].entries()) {
+      await writeFile(path.join(folder, `${id}.mp4`), "clip");
+      await writeFile(path.join(folder, `${id}.json`), JSON.stringify({
+        id, emotion: "laugh", situations: [], importedAt: `2026-09-0${index + 1}T00:00:00.000Z`, tagsConfirmed: true,
+      }));
+    }
+    vi.stubEnv("U3_LIBRARY_DIR", path.join(root, "library"));
+    const app = createApp({ store: new Store(path.join(root, "store")), jobs: new Jobs(), token: "secret", codexPath: async () => null, jevAvailable: false });
+
+    const response = await app.request("http://127.0.0.1/api/library/memes?limit=1&offset=1", { headers: { authorization: "Bearer secret" } });
+    const items = await response.json() as { id: string }[];
+
+    expect(response.status).toBe(200);
+    expect(items).toHaveLength(1);
+    expect(items[0]?.id).toBe("middle");
+  });
 });
