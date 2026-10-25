@@ -52,9 +52,13 @@ export function splitOverlayClip(timeline: Timeline, clipId: string, atSec: numb
   const duration = overlayDuration(clip);
   const offset = atSec - clip.startSec;
   if (!(offset > 0 && offset < duration)) throw new RangeError("자르기 위치는 겹친 영상 클립 안쪽이어야 합니다");
+  const transitionSplit = clip.startTransition || clip.endTransition ? {
+    left: { endTransition: { kind: { kind: "none" as const }, durationSec: 0.5 } },
+    right: { startTransition: { kind: { kind: "none" as const }, durationSec: 0.5 } },
+  } : { left: {}, right: {} };
   const pieces: [OverlayClip, OverlayClip] = "durationSec" in clip
-    ? [{ ...clip, id: ids[0], durationSec: offset }, { ...clip, id: ids[1], startSec: atSec, durationSec: duration - offset }]
-    : [{ ...clip, id: ids[0], inEndSec: clip.inStartSec + offset }, { ...clip, id: ids[1], startSec: atSec, inStartSec: clip.inStartSec + offset }];
+    ? [{ ...clip, id: ids[0], durationSec: offset, ...transitionSplit.left }, { ...clip, id: ids[1], startSec: atSec, durationSec: duration - offset, ...transitionSplit.right }]
+    : [{ ...clip, id: ids[0], inEndSec: clip.inStartSec + offset, ...transitionSplit.left }, { ...clip, id: ids[1], startSec: atSec, inStartSec: clip.inStartSec + offset, ...transitionSplit.right }];
   const overlays = timeline.overlays.map((layer, index) => index === found.layer ? layer.flatMap((item) => item.id === clipId ? pieces : [item]) : layer);
   return { ...timeline, overlays };
 }
@@ -76,11 +80,15 @@ export function splitVideoClip(timeline: Timeline, clipId: string, atSec: number
   const offset = atSec - start;
   const duration = clipDuration(clip);
   if (!(offset > 0 && offset < duration)) throw new RangeError("자르기 위치는 클립 안쪽이어야 합니다");
+  const transitionSplit = clip.startTransition || clip.endTransition ? {
+    left: { endTransition: { kind: { kind: "none" as const }, durationSec: 0.5 } },
+    right: { startTransition: { kind: { kind: "none" as const }, durationSec: 0.5 } },
+  } : { left: {}, right: {} };
   const pieces: [VideoClip, VideoClip] = "durationSec" in clip
-    ? [{ ...clip, id: ids[0], durationSec: offset }, { ...clip, id: ids[1], durationSec: duration - offset }]
+    ? [{ ...clip, id: ids[0], durationSec: offset, ...transitionSplit.left }, { ...clip, id: ids[1], durationSec: duration - offset, ...transitionSplit.right }]
     : [
-        { ...clip, id: ids[0], inEndSec: clip.inStartSec + offset },
-        { ...clip, id: ids[1], inStartSec: clip.inStartSec + offset },
+        { ...clip, id: ids[0], inEndSec: clip.inStartSec + offset, ...transitionSplit.left },
+        { ...clip, id: ids[1], inStartSec: clip.inStartSec + offset, ...transitionSplit.right },
       ];
   if (clip.kind === "meme" && pieces.some((piece) => "durationSec" in piece && (piece.durationSec < 0.5 || piece.durationSec > 4))) {
     throw new RangeError("짤 길이는 0.5~4초여야 합니다");

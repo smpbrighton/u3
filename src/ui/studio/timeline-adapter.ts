@@ -1,4 +1,4 @@
-import type { Input, Timeline } from "../../core/schema";
+import type { ClipTransitionInput, Input, Timeline } from "../../core/schema";
 import { inputDisplayName } from "../../core/input";
 import { clipDuration, videoStartTimes } from "../../core/timeline/ops";
 import { TRACK_ROW_HEIGHT } from "./timeline-layout";
@@ -10,6 +10,11 @@ export interface StudioAction {
   effectId: string;
   flexible: boolean;
   movable: boolean;
+  groupId?: string;
+  groupBefore?: boolean;
+  groupAfter?: boolean;
+  startTransition?: ClipTransitionInput;
+  endTransition?: ClipTransitionInput;
 }
 
 export interface StudioRow {
@@ -45,14 +50,24 @@ export function labelForAction(id: string, timeline: Timeline, inputs: readonly 
 }
 
 const row = (id: string, actions: StudioAction[], rowHeight = TRACK_ROW_HEIGHT, name?: string): StudioRow => ({ id, actions, rowHeight, ...(name ? { name } : {}) });
-const action = (id: string, start: number, end: number, effectId: string, movable = true): StudioAction => ({ id, start, end, effectId, flexible: movable, movable });
+const action = (id: string, start: number, end: number, effectId: string, movable = true, extra: Partial<StudioAction> = {}): StudioAction => ({ id, start, end, effectId, flexible: movable, movable, ...extra });
+
+function markGroupEdges(actions: StudioAction[]): StudioAction[] {
+  return actions.map((item, index) => ({
+    ...item,
+    ...(item.groupId ? {
+      groupBefore: actions[index - 1]?.groupId === item.groupId,
+      groupAfter: actions[index + 1]?.groupId === item.groupId,
+    } : {}),
+  }));
+}
 
 export function timelineToStudioRows(timeline: Timeline): StudioRow[] {
   const starts = videoStartTimes(timeline);
-  const videoActions = timeline.video.map((clip) => action(clip.id, starts[clip.id]!, starts[clip.id]! + clipDuration(clip), clip.kind));
+  const videoActions = markGroupEdges(timeline.video.map((clip) => action(clip.id, starts[clip.id]!, starts[clip.id]! + clipDuration(clip), clip.kind, true, { groupId: clip.groupId, startTransition: clip.startTransition, endTransition: clip.endTransition })));
   const overlayRows = timeline.overlays.map((layer, index) => row(
     `video-${index + 2}`,
-    layer.map((clip) => action(clip.id, clip.startSec, clip.startSec + ("durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec), "overlay")),
+    markGroupEdges(layer.map((clip) => action(clip.id, clip.startSec, clip.startSec + ("durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec), "overlay", true, { groupId: clip.groupId, startTransition: clip.startTransition, endTransition: clip.endTransition }))),
     TRACK_ROW_HEIGHT,
     `영상 ${index + 2}`,
   )).reverse();

@@ -6,10 +6,15 @@ const overlayDuration = (clip: OverlayClip) => "durationSec" in clip ? clip.dura
 const overlayBox = { x: 0.5, y: 0.5, width: 0.6 };
 
 function videoClipToOverlay(clip: VideoClip, startSec: number, inputs: readonly Input[]): OverlayClip {
-  if (clip.kind === "meme") return { id: clip.id, memeId: clip.memeId, startSec, durationSec: clip.durationSec, ...overlayBox };
+  const metadata = {
+    ...(clip.groupId ? { groupId: clip.groupId } : {}),
+    ...(clip.startTransition ? { startTransition: clip.startTransition } : {}),
+    ...(clip.endTransition ? { endTransition: clip.endTransition } : {}),
+  };
+  if (clip.kind === "meme") return { id: clip.id, memeId: clip.memeId, startSec, durationSec: clip.durationSec, ...overlayBox, ...metadata };
   const input = inputs.find((item) => item.id === clip.inputId);
-  if (input?.kind === "photo" || "durationSec" in clip) return { id: clip.id, kind: "photo", inputId: clip.inputId, startSec, durationSec: "durationSec" in clip ? clip.durationSec : input?.durationSec ?? 3, ...overlayBox };
-  return { id: clip.id, kind: "video", inputId: clip.inputId, startSec, inStartSec: clip.inStartSec, inEndSec: clip.inEndSec, ...overlayBox };
+  if (input?.kind === "photo" || "durationSec" in clip) return { id: clip.id, kind: "photo", inputId: clip.inputId, startSec, durationSec: "durationSec" in clip ? clip.durationSec : input?.durationSec ?? 3, ...overlayBox, ...metadata };
+  return { id: clip.id, kind: "video", inputId: clip.inputId, startSec, inStartSec: clip.inStartSec, inEndSec: clip.inEndSec, ...overlayBox, ...metadata };
 }
 
 export function moveVideo1ClipToOverlay(timeline: Timeline, clipId: string, inputs: readonly Input[], targetLayer?: number): Timeline {
@@ -38,10 +43,10 @@ export function moveOverlayClipToVideo1(timeline: Timeline, clipId: string, atSe
   const duration = overlayDuration(clip);
   const at = Math.max(0, atSec);
   const insert = (): VideoClip => "memeId" in clip
-    ? { id: clip.id, kind: "meme", memeId: clip.memeId, durationSec: duration }
+    ? { id: clip.id, kind: "meme", memeId: clip.memeId, durationSec: duration, ...(clip.groupId ? { groupId: clip.groupId } : {}), ...(clip.startTransition ? { startTransition: clip.startTransition } : {}), ...(clip.endTransition ? { endTransition: clip.endTransition } : {}) }
     : clip.kind === "video"
-      ? { id: clip.id, kind: "main", inputId: clip.inputId, inStartSec: clip.inStartSec, inEndSec: clip.inEndSec }
-      : { id: clip.id, kind: "main", inputId: clip.inputId, durationSec: duration };
+      ? { id: clip.id, kind: "main", inputId: clip.inputId, inStartSec: clip.inStartSec, inEndSec: clip.inEndSec, ...(clip.groupId ? { groupId: clip.groupId } : {}), ...(clip.startTransition ? { startTransition: clip.startTransition } : {}), ...(clip.endTransition ? { endTransition: clip.endTransition } : {}) }
+      : { id: clip.id, kind: "main", inputId: clip.inputId, durationSec: duration, ...(clip.groupId ? { groupId: clip.groupId } : {}), ...(clip.startTransition ? { startTransition: clip.startTransition } : {}), ...(clip.endTransition ? { endTransition: clip.endTransition } : {}) };
   const video: VideoClip[] = [];
   const starts = videoStartTimes(timeline);
   let inserted = false;

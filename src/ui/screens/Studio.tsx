@@ -17,6 +17,7 @@ import { decideOverlayDrop } from "../studio/overlay-drop";
 import { timelineToStudioRows } from "../studio/timeline-adapter";
 import { TIMELINE_RULER_HEIGHT, TRACK_ROW_HEIGHT } from "../studio/timeline-layout";
 import { findOverlayInLayers, placeOverlayAtLayer, placeOverlayInLowestLayer } from "../../core/timeline/overlay-layers";
+import { canGroupVideoClips, groupVideoClips, selectVideoRange, ungroupVideoClips, type VideoClipRef } from "../../core/timeline/video-groups";
 
 interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
 interface SfxItem { id: string; category: string; title: string; file: string; ref: string; url: string; durationSec: number }
@@ -31,6 +32,7 @@ export function Studio(props: {
   const [history, setHistory] = useState<TimelineHistory>(() => createHistory(props.project.timeline));
   const [playhead, setPlayhead] = useState(0);
   const [selected, setSelected] = useState<{ id: string | null; track: string | null }>({ id: null, track: null });
+  const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [zoom, setZoom] = useState(4);
   const [snap, setSnap] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -44,6 +46,7 @@ export function Studio(props: {
   useEffect(() => {
     setHistory(createHistory(props.project.timeline));
     setSelected({ id: null, track: null });
+    setSelectedIds([]);
   }, [props.project.id]);
 
   const edit = useCallback((next: TimelineData) => {
@@ -65,11 +68,39 @@ export function Studio(props: {
       if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z" && !isTextInput(event.target)) {
         event.preventDefault();
         moveHistory(event.shiftKey ? "redo" : "undo");
+        return;
+      }
+      if (event.metaKey || event.ctrlKey || event.altKey || isTextInput(event.target)) return;
+      if (event.key.toLowerCase() === "m") {
+        if (event.shiftKey) {
+          const selectedClip = findVideoClip(timeline, selected.id);
+          const groupId = selectedClip?.groupId;
+          if (!groupId) { props.onSnackbar("묶음 클립을 선택하세요."); return; }
+          edit(ungroupVideoClips(timeline, selectedIds));
+        } else {
+          const refs: VideoClipRef[] = selectedIds.map((id) => ({ id, track: videoTrackForId(timeline, id) ?? selected.track ?? "" }));
+          const canGroup = canGroupVideoClips(timeline, refs);
+          if (!canGroup.ok) { props.onSnackbar(canGroup.reason ?? "클립을 묶을 수 없습니다."); return; }
+          edit(groupVideoClips(timeline, refs, crypto.randomUUID()));
+        }
+        event.preventDefault();
+        return;
+      }
+      if ((event.key === "Delete" || event.key === "Backspace") && selectedIds.length && selected.track?.startsWith("video")) {
+        const groupIds = new Set(selectedIds.flatMap((id) => {
+          const clip = findVideoClip(timeline, id);
+          return clip?.groupId ? [clip.groupId] : [];
+        }));
+        const removed = new Set([...selectedIds, ...timeline.video.filter((clip) => clip.groupId && groupIds.has(clip.groupId)).map((clip) => clip.id), ...timeline.overlays.flat().filter((clip) => clip.groupId && groupIds.has(clip.groupId)).map((clip) => clip.id)]);
+        edit({ ...timeline, video: timeline.video.filter((clip) => !removed.has(clip.id)), overlays: timeline.overlays.map((layer) => layer.filter((clip) => !removed.has(clip.id))).filter((layer) => layer.length) });
+        setSelected({ id: null, track: null });
+        setSelectedIds([]);
+        event.preventDefault();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [moveHistory]);
+  }, [moveHistory, timeline, selected, selectedIds, edit, props.onSnackbar]);
 
   async function save(): Promise<boolean> {
     setSaving(true);
@@ -93,7 +124,7 @@ export function Studio(props: {
     if (insertion === 0 && at >= duration) list.push(clip);
     else list.splice(insertion < 0 ? list.length : insertion, 0, clip);
     edit({ ...timeline, video: list });
-    setSelected({ id: clip.id, track: "video" });
+    setSelected({ id: clip.id, track: "video" }); setSelectedIds([clip.id]);
   }
 
   function addMeme(meme: MemeItem, replaceId?: string) {
@@ -107,7 +138,7 @@ export function Studio(props: {
     const video = [...timeline.video];
     video.splice(insertAfter >= 0 ? insertAfter + 1 : video.length, 0, clip);
     edit({ ...timeline, video });
-    setSelected({ id: clip.id, track: "video" });
+    setSelected({ id: clip.id, track: "video" }); setSelectedIds([clip.id]);
   }
 
   function addOverlay(source: { type: "meme"; meme: MemeItem } | { type: "input"; id: string }, startSec: number, targetLayer?: number) {
@@ -120,7 +151,7 @@ export function Studio(props: {
       const overlay = { ...common, memeId: source.meme.id, durationSec };
       const overlays = targetLayer === undefined ? placeOverlayInLowestLayer(timeline.overlays, overlay) : placeOverlayAtLayer(timeline.overlays, overlay, targetLayer);
       edit({ ...timeline, overlays });
-      setSelected({ id: common.id, track: `video-${findOverlayInLayers(overlays, common.id)!.layer + 2}` });
+      setSelected({ id: common.id, track: `video-${findOverlayInLayers(overlays, common.id)!.layer + 2}` }); setSelectedIds([common.id]);
       return;
     }
     const input = props.project.inputs.find((item) => item.id === source.id);
@@ -130,13 +161,13 @@ export function Studio(props: {
       : { ...common, kind: "photo" as const, inputId: input.id, durationSec: Math.min(3, remaining) };
     const overlays = targetLayer === undefined ? placeOverlayInLowestLayer(timeline.overlays, overlay) : placeOverlayAtLayer(timeline.overlays, overlay, targetLayer);
     edit({ ...timeline, overlays });
-    setSelected({ id: common.id, track: `video-${findOverlayInLayers(overlays, common.id)!.layer + 2}` });
+    setSelected({ id: common.id, track: `video-${findOverlayInLayers(overlays, common.id)!.layer + 2}` }); setSelectedIds([common.id]);
   }
 
   function addSfx(item: SfxItem) {
     const clip = { id: crypto.randomUUID(), startSec: playhead, file: item.ref, inStartSec: 0, inEndSec: item.durationSec, gain: 1 };
     edit({ ...timeline, sfx: [...timeline.sfx, clip] });
-    setSelected({ id: clip.id, track: "sfx" });
+    setSelected({ id: clip.id, track: "sfx" }); setSelectedIds([clip.id]);
   }
 
   async function onDrop(event: React.DragEvent<HTMLDivElement>) {
@@ -206,7 +237,7 @@ export function Studio(props: {
           <input aria-label="재생 헤드" type="range" min="0" max={duration} step="0.01" value={Math.min(playhead, duration)} onChange={(event) => setPlayhead(Number(event.currentTarget.value))} />
         </div>
       </section>
-      <Inspector project={{ ...props.project, timeline }} selectedId={selected.id} selectedTrack={selected.track} timeline={timeline} onChange={edit} onProject={props.onProject} onSnackbar={props.onSnackbar} />
+      <Inspector project={{ ...props.project, timeline }} selectedId={selected.id} selectedIds={selectedIds} selectedTrack={selected.track} timeline={timeline} onChange={edit} onProject={props.onProject} onSnackbar={props.onSnackbar} onUngroup={() => edit(ungroupVideoClips(timeline, selectedIds))} />
     </div>
     <div className="studio-edit-toolbar">
       <button type="button" aria-label="재생" onClick={() => setPlaying(true)}><HugeiconsIcon icon={PlayIcon} size={16} /></button>
@@ -236,7 +267,16 @@ export function Studio(props: {
       <label>확대 <input type="range" min="1" max="10" step="0.1" value={zoom} onChange={(event) => setZoom(Number(event.currentTarget.value))} /><output>{zoom.toFixed(1)}×</output></label>
     </div>
     <div className="studio-timeline-drop" onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
-      <Timeline timeline={timeline} inputs={props.project.inputs} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} onSelect={(id, track) => setSelected({ id, track })} onPlayhead={setPlayhead} onEdit={edit} onError={props.onError} onBlocked={props.onSnackbar} onSnapChange={setSnap} onZoomChange={setZoom} onMute={toggleMute} inputDurations={Object.fromEntries(props.project.inputs.map((input) => [input.id, input.durationSec ?? 1]))} />
+      <Timeline timeline={timeline} inputs={props.project.inputs} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} selectedIds={selectedIds} onSelect={(id, track, shift) => {
+        if (!id) { setSelected({ id: null, track: null }); setSelectedIds([]); return; }
+        const ids = shift && selected.id
+          ? selected.track === track
+            ? selectVideoRange(timeline, track ?? "", selected.id, id).map((item) => item.id)
+            : [...selectedIds, id]
+          : [id];
+        const expanded = expandVideoGroupSelection(timeline, ids);
+        setSelected({ id, track }); setSelectedIds(expanded);
+      }} onPlayhead={setPlayhead} onEdit={edit} onError={props.onError} onBlocked={props.onSnackbar} onSnapChange={setSnap} onZoomChange={setZoom} onMute={toggleMute} inputDurations={Object.fromEntries(props.project.inputs.map((input) => [input.id, input.durationSec ?? 1]))} />
     </div>
     {exportOpen ? <ExportDialog projectId={props.project.id} projectName={props.project.name} timelineLength={Math.max(duration, ...timeline.voice.map(clip => clip.startSec + clip.inEndSec - clip.inStartSec), ...timeline.sfx.map(clip => clip.startSec + clip.inEndSec - clip.inStartSec))} onClose={() => setExportOpen(false)} onSnackbar={props.onSnackbar} /> : null}
   </section>;
@@ -244,6 +284,30 @@ export function Studio(props: {
 
 function isTextInput(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
+}
+
+function findVideoClip(timeline: TimelineData, id: string | null) {
+  if (!id) return undefined;
+  return timeline.video.find((clip) => clip.id === id) ?? timeline.overlays.flat().find((clip) => clip.id === id);
+}
+
+function videoTrackForId(timeline: TimelineData, id: string): string | undefined {
+  if (timeline.video.some((clip) => clip.id === id)) return "video";
+  const layer = timeline.overlays.findIndex((items) => items.some((clip) => clip.id === id));
+  return layer < 0 ? undefined : `video-${layer + 2}`;
+}
+
+function expandVideoGroupSelection(timeline: TimelineData, selectedIds: readonly string[]): string[] {
+  const groupIds = new Set(selectedIds.flatMap((id) => {
+    const clip = findVideoClip(timeline, id);
+    return clip?.groupId ? [clip.groupId] : [];
+  }));
+  if (!groupIds.size) return [...selectedIds];
+  return [...new Set([
+    ...selectedIds,
+    ...timeline.video.filter((clip) => clip.groupId && groupIds.has(clip.groupId)).map((clip) => clip.id),
+    ...timeline.overlays.flat().filter((clip) => clip.groupId && groupIds.has(clip.groupId)).map((clip) => clip.id),
+  ])];
 }
 
 function timeLabel(seconds: number): string {

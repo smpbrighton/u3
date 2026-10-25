@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { AudioClip, OverlayClip, Project, Timeline as TimelineData } from "../../core/schema";
+import type { AudioClip, ClipTransitionInput, OverlayClip, Project, Timeline as TimelineData, TransitionKind } from "../../core/schema";
 import { deleteOverlayClip, moveVideoClip, overlayDuration, videoDuration, videoStartTimes } from "../../core/timeline/ops";
 import { findOverlayInLayers, updateOverlayInLayers } from "../../core/timeline/overlay-layers";
 import { ActionButton } from "../../../seed-design/ui/action-button";
@@ -14,11 +14,13 @@ type TranscriptResult = { captions: TimelineData["captions"]; replaced: Timeline
 export function Inspector(props: {
   project: Project;
   selectedId: string | null;
+  selectedIds: readonly string[];
   selectedTrack: string | null;
   timeline: TimelineData;
   onChange: (timeline: TimelineData) => void;
   onProject: (project: Project) => void;
   onSnackbar: (message: string) => void;
+  onUngroup: () => void;
 }) {
   const [sfxItems, setSfxItems] = useState<SfxItem[]>([]);
   const [job, setJob] = useState<EngineJob | null>(null);
@@ -47,8 +49,10 @@ export function Inspector(props: {
 
   if (overlay) {
     const duration = overlayDuration(overlay);
-    const updateOverlay = (changes: { startSec?: number; durationSec?: number; inEndSec?: number; x?: number; y?: number; width?: number }) => props.onChange({ ...props.timeline, overlays: updateOverlayInLayers(props.timeline.overlays, overlay.id, (item) => ({ ...item, ...changes } as OverlayClip)) });
+    const updateOverlay = (changes: { startSec?: number; durationSec?: number; inEndSec?: number; x?: number; y?: number; width?: number; startTransition?: ClipTransitionInput; endTransition?: ClipTransitionInput }) => props.onChange({ ...props.timeline, overlays: updateOverlayInLayers(props.timeline.overlays, overlay.id, (item) => ({ ...item, ...changes } as OverlayClip)) });
+    const groupCount = overlay.groupId ? props.timeline.overlays.flat().filter((item) => item.groupId === overlay.groupId).length : 0;
     return <InspectorShell title={`${props.selectedTrack === "video" ? "영상 2" : props.selectedTrack?.replace(/^video-/, "영상 ") ?? "영상 2"} 속성`} error={error}>
+      {groupCount ? <GroupSummary count={groupCount} onUngroup={props.onUngroup} /> : null}
       <label>시작 시각 <b>{overlay.startSec.toFixed(1)}초</b><input type="range" min="0" max={Math.max(0, videoDuration(props.timeline) - duration)} step="0.1" value={Math.min(overlay.startSec, Math.max(0, videoDuration(props.timeline) - duration))} onChange={(event) => updateOverlay({ startSec: Number(event.currentTarget.value) })} /></label>
       <label>길이 <b>{duration.toFixed(1)}초</b><input type="number" min="0.1" max={videoDuration(props.timeline) - overlay.startSec} step="0.1" value={duration} onChange={(event) => {
         const value = Number(event.currentTarget.value);
@@ -58,6 +62,9 @@ export function Inspector(props: {
       <label>가로 위치 <b>{Math.round(overlay.x * 100)}%</b><input type="range" min="0" max="1" step="0.01" value={overlay.x} onChange={(event) => updateOverlay({ x: Number(event.currentTarget.value) })} /></label>
       <label>세로 위치 <b>{Math.round(overlay.y * 100)}%</b><input type="range" min="0" max="1" step="0.01" value={overlay.y} onChange={(event) => updateOverlay({ y: Number(event.currentTarget.value) })} /></label>
       <label>폭 <b>{Math.round(overlay.width * 100)}%</b><input type="range" min="0.1" max="1" step="0.01" value={overlay.width} onChange={(event) => updateOverlay({ width: Number(event.currentTarget.value) })} /></label>
+      <TransitionControl label="시작 효과" value={overlay.startTransition} durationSec={duration} onChange={(value) => updateOverlay({ startTransition: value })} />
+      <TransitionControl label="끝 효과" value={overlay.endTransition} durationSec={duration} onChange={(value) => updateOverlay({ endTransition: value })} />
+      <p className="studio-help">앞 클립의 끝 효과와 다르면 뒤 클립의 시작 효과를 씁니다.</p>
       <ActionButton variant="neutralWeak" onClick={() => props.onChange(deleteOverlayClip(props.timeline, overlay.id))}>겹친 영상 삭제</ActionButton>
     </InspectorShell>;
   }
@@ -184,12 +191,14 @@ export function Inspector(props: {
     const start = videoStarts[video.id]!;
     const selectedInput = video.kind === "main" ? props.project.inputs.find((item) => item.id === video.inputId) : undefined;
     const duration = "durationSec" in video ? video.durationSec : video.inEndSec - video.inStartSec;
+    const groupCount = video.groupId ? props.timeline.video.filter((item) => item.groupId === video.groupId).length : 0;
     const editTrim = (edge: "start" | "end", value: number) => {
       if (video.kind !== "main" || !("inStartSec" in video)) return;
       const updated = props.timeline.video.map((item) => item.id === video.id ? { ...video, [edge === "start" ? "inStartSec" : "inEndSec"]: value } : item);
       props.onChange({ ...props.timeline, video: updated });
     };
     return <InspectorShell title={video.kind === "meme" ? "짤 속성" : "영상 클립"} error={error} {...dialogProps}>
+      {groupCount ? <GroupSummary count={groupCount} onUngroup={props.onUngroup} /> : null}
       {video.kind === "main" && "inStartSec" in video ? <div className="studio-inspector-grid">
         <label>원본 시작<input type="number" min="0" step="0.1" value={video.inStartSec} onChange={(event) => editTrim("start", Number(event.currentTarget.value))} /></label>
         <label>원본 끝<input type="number" min="0.1" max={selectedInput?.durationSec} step="0.1" value={video.inEndSec} onChange={(event) => editTrim("end", Number(event.currentTarget.value))} /></label>
@@ -199,6 +208,9 @@ export function Inspector(props: {
         <div className="studio-inspector-actions"><ActionButton variant="neutralWeak" onClick={() => props.onChange(moveVideoClip(props.timeline, video.id, Math.max(0, props.timeline.video.findIndex((item) => item.id === video.id) - 1)))}>본 화면 앞</ActionButton><ActionButton variant="ghost" onClick={() => props.onChange(moveVideoClip(props.timeline, video.id, Math.min(props.timeline.video.length - 1, props.timeline.video.findIndex((item) => item.id === video.id) + 1)))}>본 화면 뒤</ActionButton></div>
         <p className="studio-help">왼쪽에서 다른 짤을 누르면 바꿔요.</p>
       </> : <CaptionEditor caption={props.timeline.captions.find((item) => item.startSec <= start + duration && item.endSec >= start)} timeline={props.timeline} onChange={props.onChange} />}
+      <TransitionControl label="시작 효과" value={video.startTransition} durationSec={duration} onChange={(value) => updateVideoTransition(video.id, "startTransition", value, props.timeline, props.onChange)} />
+      <TransitionControl label="끝 효과" value={video.endTransition} durationSec={duration} onChange={(value) => updateVideoTransition(video.id, "endTransition", value, props.timeline, props.onChange)} />
+      <p className="studio-help">앞 클립의 끝 효과와 다르면 뒤 클립의 시작 효과를 씁니다.</p>
       <p className="studio-help">클립 위치 {start.toFixed(1)}초 · 길이 {duration.toFixed(1)}초</p>
     </InspectorShell>;
   }
@@ -233,6 +245,45 @@ export function Inspector(props: {
   </InspectorShell>;
 
   return <InspectorShell title="속성" {...dialogProps}><p className="studio-help">클립을 선택하면 속성을 편집할 수 있어요.</p></InspectorShell>;
+}
+
+function updateVideoTransition(id: string, edge: "startTransition" | "endTransition", value: ClipTransitionInput, timeline: TimelineData, onChange: (timeline: TimelineData) => void) {
+  onChange({ ...timeline, video: timeline.video.map((clip) => clip.id === id ? { ...clip, [edge]: value } : clip) });
+}
+
+function GroupSummary(props: { count: number; onUngroup: () => void }) {
+  return <div className="studio-inspector-actions"><span className="studio-help">묶음 {props.count}개 클립</span><ActionButton variant="neutralWeak" onClick={props.onUngroup}>묶음 풀기</ActionButton></div>;
+}
+
+function TransitionControl(props: { label: string; value?: ClipTransitionInput; durationSec: number; onChange: (value: ClipTransitionInput) => void }) {
+  const kind = props.value?.kind ?? { kind: "none" as const };
+  const duration = props.value?.durationSec ?? 0.5;
+  const maxDuration = Math.min(2, props.durationSec / 2);
+  const types: { value: TransitionKind["kind"]; label: string }[] = [
+    { value: "none", label: "없음" }, { value: "dissolve", label: "디졸브" }, { value: "black-fade", label: "검은 화면 페이드" },
+    { value: "slide", label: "밀기" }, { value: "wipe", label: "와이프" }, { value: "iris", label: "원형 열기" }, { value: "zoom", label: "확대 전환" },
+  ];
+  const setKind = (name: TransitionKind["kind"]) => {
+    if (name !== "none" && maxDuration < 0.1) return;
+    let nextKind: TransitionKind;
+    if (name === "slide" || name === "wipe") nextKind = { kind: name, direction: kind.kind === name ? kind.direction : "left" };
+    else nextKind = { kind: name } as TransitionKind;
+    const nextDuration = name === "none" || maxDuration < 0.1 ? 0.5 : Math.max(0.1, Math.min(maxDuration, duration));
+    props.onChange({ kind: nextKind, durationSec: nextDuration });
+  };
+  return <fieldset className="studio-transition-control">
+    <legend>{props.label}</legend>
+    <select aria-label={props.label} value={kind.kind} onChange={(event) => setKind(event.currentTarget.value as TransitionKind["kind"])}>
+      {types.map((item) => <option key={item.value} value={item.value} disabled={item.value !== "none" && maxDuration < 0.1}>{item.label}</option>)}
+    </select>
+    {kind.kind === "slide" || kind.kind === "wipe" ? <select aria-label={`${props.label} 방향`} value={kind.direction} onChange={(event) => props.onChange({ kind: { ...kind, direction: event.currentTarget.value as "left" | "right" | "up" | "down" }, durationSec: duration })}>
+      <option value="left">왼쪽</option><option value="right">오른쪽</option><option value="up">위</option><option value="down">아래</option>
+    </select> : null}
+    {kind.kind !== "none" ? <label>길이 <input aria-label={`${props.label} 길이`} type="number" min="0.1" max={maxDuration} step="0.1" value={Math.min(maxDuration, duration)} disabled={maxDuration < 0.1} onChange={(event) => {
+      const next = Number(event.currentTarget.value);
+      if (Number.isFinite(next) && next >= 0.1 && next <= maxDuration) props.onChange({ kind, durationSec: next });
+    }} /></label> : null}
+  </fieldset>;
 }
 
 function InspectorShell(props: {

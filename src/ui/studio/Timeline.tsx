@@ -11,6 +11,10 @@ import { scaleWidthForZoom, scrollLeftForZoomAnchor, zoomFromPinch, zoomFromWhee
 import { TIMELINE_ACTION_INSET, TIMELINE_RULER_HEIGHT, TRACK_ROW_HEIGHT, timelineActionHeight, timelineEditorHeight } from "./timeline-layout";
 import { findOverlayInLayers } from "../../core/timeline/overlay-layers";
 import { moveOverlayClipToLayer, moveOverlayClipToVideo1, moveVideo1ClipToOverlay } from "../../core/timeline/video-track-edits";
+import { findVideoClipAtTime } from "../../core/timeline/video-pointer";
+import { deleteVideoGroup, moveVideoGroup } from "../../core/timeline/video-groups";
+import { resolveVideoTrackAtPointer } from "./video-track-drop";
+import { timelinePointerSeconds } from "./timeline-zoom";
 
 const TRACKS = [
   { id: "captions", name: "자막", color: "#F7A54A" },
@@ -31,7 +35,8 @@ export function Timeline(props: {
   inputDurations?: Record<string, number>;
   audioDurations?: Record<string, number>;
   selectedId: string | null;
-  onSelect: (id: string | null, track: string | null) => void;
+  selectedIds: readonly string[];
+  onSelect: (id: string | null, track: string | null, shift?: boolean) => void;
   onPlayhead: (time: number) => void;
   onEdit: (timeline: TimelineData) => void;
   onError: (message: string) => void;
@@ -45,11 +50,11 @@ export function Timeline(props: {
   const zoomRef = useRef(props.zoom);
   const gestureZoom = useRef(props.zoom);
   const dragTarget = useRef<{ id: string; rowId: string; clientY: number } | null>(null);
+  const pointerPosition = useRef<{ x: number; y: number } | null>(null);
   const [sfxItems, setSfxItems] = useState<SfxLabel[]>([]);
   const [memeItems, setMemeItems] = useState<MemeLabel[]>([]);
-  const [draggingVideoClip, setDraggingVideoClip] = useState(false);
   const rows = useMemo(() => timelineToStudioRows(props.timeline), [props.timeline]);
-  const displayRows = draggingVideoClip ? [...rows.slice(0, 1), { id: "video-new", name: "새 영상 트랙", actions: [], rowHeight: TRACK_ROW_HEIGHT }, ...rows.slice(1)] : rows;
+  const displayRows = useMemo(() => [...rows.slice(0, 1), { id: "video-new", name: "새 영상 트랙", actions: [], rowHeight: TRACK_ROW_HEIGHT }, ...rows.slice(1)], [rows]);
   const overlayTracks = displayRows.filter((row) => /^video-[2-9]\d*$/.test(row.id) || row.id === "video-new").map((row) => ({
     id: row.id,
     name: row.name ?? "영상 2",
@@ -57,7 +62,7 @@ export function Timeline(props: {
   }));
   const tracks = TRACKS.filter((track) => rows.some((row) => row.id === track.id)).flatMap((track) => track.id === "video" ? [...overlayTracks, track] : [track]);
   const starts = useMemo(() => videoStartTimes(props.timeline), [props.timeline]);
-  const data = displayRows.map((item) => ({ ...item, actions: item.actions.map((action) => ({ ...action, selected: action.id === props.selectedId })) }));
+  const data = displayRows.map((item) => ({ ...item, actions: item.actions.map((action) => ({ ...action, selected: props.selectedIds.includes(action.id) })) }));
 
   useEffect(() => {
     let active = true;
@@ -82,9 +87,28 @@ export function Timeline(props: {
   useEffect(() => { zoomRef.current = props.zoom; }, [props.zoom]);
 
   useEffect(() => {
-    const trackPointer = (event: MouseEvent) => { if (dragTarget.current) dragTarget.current.clientY = event.clientY; };
-    window.addEventListener("mousemove", trackPointer);
-    return () => window.removeEventListener("mousemove", trackPointer);
+    const trackPointer = (event: PointerEvent) => {
+      pointerPosition.current = { x: event.clientX, y: event.clientY };
+      if (dragTarget.current) dragTarget.current.clientY = event.clientY;
+    };
+    window.addEventListener("pointermove", trackPointer);
+    return () => window.removeEventListener("pointermove", trackPointer);
+  }, []);
+
+  useEffect(() => {
+    const finishDrag = () => { requestAnimationFrame(() => { dragTarget.current = null; }); };
+    const cancelDrag = () => { dragTarget.current = null; };
+    const onKeyDown = (event: KeyboardEvent) => { if (event.key === "Escape") cancelDrag(); };
+    window.addEventListener("pointerup", finishDrag, true);
+    window.addEventListener("mouseup", finishDrag, true);
+    window.addEventListener("blur", finishDrag);
+    window.addEventListener("keydown", onKeyDown, true);
+    return () => {
+      window.removeEventListener("pointerup", finishDrag, true);
+      window.removeEventListener("mouseup", finishDrag, true);
+      window.removeEventListener("blur", finishDrag);
+      window.removeEventListener("keydown", onKeyDown, true);
+    };
   }, []);
 
   useEffect(() => {
@@ -144,18 +168,35 @@ export function Timeline(props: {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key.toLowerCase() !== "s" || event.metaKey || event.ctrlKey || event.altKey || isTextInput(event.target)) return;
-      const selectedOverlay = props.selectedId ? findOverlayInLayers(props.timeline.overlays, props.selectedId)?.clip : undefined;
-      const overlayClip = selectedOverlay && props.playhead > selectedOverlay.startSec && props.playhead < selectedOverlay.startSec + overlayDuration(selectedOverlay) ? selectedOverlay : undefined;
-      const videoClip = props.timeline.video.find((clip) => props.playhead > starts[clip.id]! && props.playhead < starts[clip.id]! + ("durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec));
-      if (!videoClip && !overlayClip) return;
+      if ((event.key.toLowerCase() !== "s" && event.key.toLowerCase() !== "c") || event.metaKey || event.ctrlKey || event.altKey || isTextInput(event.target)) return;
+      let targetId: string | undefined;
+      let atSec: number | undefined;
+      if (event.key.toLowerCase() === "c") {
+        const pointer = pointerPosition.current;
+        const grid = editorHost.current?.querySelector<HTMLElement>(".ReactVirtualized__Grid");
+        const rect = grid?.getBoundingClientRect();
+        if (!pointer || !grid || !rect || pointer.x < rect.left || pointer.x > rect.right || pointer.y < rect.top || pointer.y > rect.bottom) return;
+        const rowIndex = Math.floor((pointer.y - rect.top + grid.scrollTop) / TRACK_ROW_HEIGHT);
+        const rowId = displayRows[rowIndex]?.id;
+        atSec = timelinePointerSeconds(pointer.x, rect.left, grid.scrollLeft, zoomRef.current);
+        targetId = rowId ? findVideoClipAtTime(props.timeline, rowId, atSec)?.id : undefined;
+      } else {
+        const selectedOverlay = props.selectedId ? findOverlayInLayers(props.timeline.overlays, props.selectedId)?.clip : undefined;
+        const overlayClip = selectedOverlay && props.playhead > selectedOverlay.startSec && props.playhead < selectedOverlay.startSec + overlayDuration(selectedOverlay) ? selectedOverlay : undefined;
+        const videoClip = props.timeline.video.find((clip) => props.playhead > starts[clip.id]! && props.playhead < starts[clip.id]! + ("durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec));
+        targetId = overlayClip?.id ?? videoClip?.id;
+        atSec = props.playhead;
+      }
+      if (!targetId || atSec === undefined) return;
       event.preventDefault();
-      try { props.onEdit(overlayClip ? splitOverlayClip(props.timeline, overlayClip.id, props.playhead) : splitVideoClip(props.timeline, videoClip!.id, props.playhead)); }
-      catch (error) { props.onError(error instanceof Error ? error.message : String(error)); }
+      try {
+        const overlay = findOverlayInLayers(props.timeline.overlays, targetId);
+        props.onEdit(overlay ? splitOverlayClip(props.timeline, targetId, atSec) : splitVideoClip(props.timeline, targetId, atSec));
+      } catch (error) { props.onError(error instanceof Error ? error.message : String(error)); }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [props.timeline, props.playhead, props.selectedId, starts, props.onEdit, props.onError]);
+  }, [props.timeline, props.playhead, props.selectedId, starts, props.onEdit, props.onError, displayRows]);
 
   const selectedTrack = (rowId: string) => rowId;
   const doEdit = (change: () => TimelineData) => {
@@ -164,13 +205,14 @@ export function Timeline(props: {
   };
   const actionStyle = (action: StudioAction) => ({
     background: TRACKS.find((track) => track.id === action.effectId)?.color ?? (action.effectId === "overlay" ? "#A875D6" : "#8A929E"),
-    borderRadius: 6,
+    borderRadius: `${action.groupBefore ? 0 : 6}px ${action.groupAfter ? 0 : 6}px ${action.groupAfter ? 0 : 6}px ${action.groupBefore ? 0 : 6}px`,
     color: "#fff",
     fontSize: 11,
     padding: "3px 5px",
     height: timelineActionHeight(),
     margin: `${TIMELINE_ACTION_INSET}px 0`,
     display: "flex",
+    position: "relative" as const,
     alignItems: "center",
     overflow: "hidden",
     textOverflow: "ellipsis",
@@ -184,7 +226,7 @@ export function Timeline(props: {
   } as CSSProperties}>
     <div className="studio-timeline-toolbar">
       <div className="studio-track-labels studio-track-labels--toolbar" />
-      <span>재생 헤드에서 자르기 <kbd>S</kbd></span>
+      <span>포인터에서 자르기 <kbd>C</kbd> · 재생 헤드에서 자르기 <kbd>S</kbd> · 묶기 <kbd>M</kbd> / 풀기 <kbd>⇧M</kbd></span>
       <label>스냅 <input type="checkbox" checked={props.snap} onChange={(event) => props.onSnapChange?.(event.currentTarget.checked)} /></label>
       <label className="studio-zoom">확대 <input type="range" min="1" max="10" step="0.1" value={props.zoom} onChange={(event) => props.onZoomChange?.(Number(event.currentTarget.value))} /><output>{props.zoom.toFixed(1)}×</output></label>
     </div>
@@ -212,34 +254,49 @@ export function Timeline(props: {
           enableRowDrag={false}
           style={{ height: timelineEditorHeight(tracks.length), width: "100%" }}
           getScaleRender={(scale) => <span className="studio-ruler-tick">{Math.round(scale)}s</span>}
-          getActionRender={(action) => <div style={actionStyle(action as StudioAction)} title={labelForAction(action.id, props.timeline, props.inputs, sfxItems, memeItems)}>{labelForAction(action.id, props.timeline, props.inputs, sfxItems, memeItems)}</div>}
+          getActionRender={(action) => {
+            const item = action as StudioAction;
+            const label = labelForAction(action.id, props.timeline, props.inputs, sfxItems, memeItems);
+            const marker = { position: "absolute" as const, top: 1, width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderBottom: "6px solid rgba(255,255,255,.9)" };
+            return <div style={actionStyle(item)} title={label}>
+              {item.startTransition?.kind.kind === "dissolve" ? <span aria-label="시작 디졸브" style={{ ...marker, left: 3 }} /> : null}
+              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+              {item.endTransition?.kind.kind === "dissolve" ? <span aria-label="끝 디졸브" style={{ ...marker, right: 3 }} /> : null}
+            </div>;
+          }}
           onCursorDrag={(time) => props.onPlayhead(time)}
           onClickTimeArea={(time) => { props.onPlayhead(time); return true; }}
-          onClickAction={(event, { action, row }) => { event.stopPropagation(); props.onSelect(action.id, selectedTrack(row.id)); }}
+          onClickAction={(event, { action, row }) => { event.stopPropagation(); props.onSelect(action.id, selectedTrack(row.id), event.shiftKey); }}
           onActionMoveStart={({ action, row }) => {
-            if (row.id === "video" || /^video-[2-9]\d*$/.test(row.id)) { dragTarget.current = { id: action.id, rowId: row.id, clientY: 0 }; setDraggingVideoClip(true); }
+            if (row.id === "video" || /^video-[2-9]\d*$/.test(row.id)) { dragTarget.current = { id: action.id, rowId: row.id, clientY: pointerPosition.current?.y ?? 0 }; }
           }}
           onActionMoveEnd={({ action, row, start }) => {
             const drag = dragTarget.current;
             dragTarget.current = null;
-            setDraggingVideoClip(false);
+            if (!drag && (row.id === "video" || /^video-[2-9]\d*$/.test(row.id))) return;
             const grid = editorHost.current?.querySelector<HTMLElement>(".ReactVirtualized__Grid");
             const y = drag?.clientY ?? 0;
-            const targetIndex = grid && y ? Math.floor((y - grid.getBoundingClientRect().top + grid.scrollTop) / TRACK_ROW_HEIGHT) : -1;
-            const targetRow = targetIndex >= 0 ? displayRows[targetIndex]?.id : undefined;
+            const targetRow = grid ? resolveVideoTrackAtPointer(displayRows.map((item) => item.id), y, grid.getBoundingClientRect().top, grid.scrollTop) : null;
             const isVideoRow = (id?: string) => id === "video" || id === "video-new" || Boolean(id && /^video-[2-9]\d*$/.test(id));
             const layerFor = (id: string) => id === "video-new" ? props.timeline.overlays.length : Number(id.slice("video-".length)) - 2;
             const crossingRows = drag && targetRow && targetRow !== drag.rowId && isVideoRow(drag.rowId) && isVideoRow(targetRow);
-            if (crossingRows && drag.rowId === "video" && targetRow !== "video") {
-              const clip = props.timeline.video.find((item) => item.id === action.id);
-              if (!clip) return;
-              try { props.onEdit(moveVideo1ClipToOverlay(props.timeline, action.id, props.inputs ?? [], layerFor(targetRow!))); }
-              catch (error) { props.onBlocked?.(error instanceof Error ? error.message : String(error)); }
-            } else if (crossingRows && drag.rowId !== "video" && targetRow === "video") {
+            const groupId = props.timeline.video.find((clip) => clip.id === action.id)?.groupId ?? findOverlayInLayers(props.timeline.overlays, action.id)?.clip.groupId;
+            const sourceStart = drag?.rowId === "video" ? videoStartTimes(props.timeline)[action.id] ?? start : findOverlayInLayers(props.timeline.overlays, action.id)?.clip.startSec ?? start;
+            const groupFirstStart = groupId ? Math.min(...[
+              ...props.timeline.video.filter((clip) => clip.groupId === groupId).map((clip) => videoStartTimes(props.timeline)[clip.id]!),
+              ...props.timeline.overlays.flat().filter((clip) => clip.groupId === groupId).map((clip) => clip.startSec),
+            ]) : sourceStart;
+            const groupTargetStart = start - (sourceStart - groupFirstStart);
+            if (groupId && crossingRows && targetRow) {
+              doEdit(() => moveVideoGroup(props.timeline, groupId, { track: targetRow, startSec: groupTargetStart }, props.inputs ?? []));
+            } else if (crossingRows && drag?.rowId === "video" && targetRow !== "video") {
+              doEdit(() => moveVideo1ClipToOverlay(props.timeline, action.id, props.inputs ?? [], layerFor(targetRow!)));
+            } else if (crossingRows && drag?.rowId !== "video" && targetRow === "video") {
               doEdit(() => moveOverlayClipToVideo1(props.timeline, action.id, start, [crypto.randomUUID(), crypto.randomUUID()]));
-            } else if (crossingRows && drag.rowId !== "video" && targetRow !== "video") {
+            } else if (crossingRows && drag?.rowId !== "video" && targetRow !== "video") {
               doEdit(() => moveOverlayClipToLayer(props.timeline, action.id, layerFor(targetRow!)));
-            } else if (row.id === "video") doEdit(() => reorderVideoByStart(props.timeline, action.id, start));
+            } else if (groupId && targetRow) doEdit(() => moveVideoGroup(props.timeline, groupId, { track: targetRow, startSec: groupTargetStart }, props.inputs ?? []));
+            else if (row.id === "video") doEdit(() => reorderVideoByStart(props.timeline, action.id, start));
             else if (/^video-[2-9]\d*$/.test(row.id)) doEdit(() => moveOverlayClip(props.timeline, action.id, start));
             else if (row.id === "captions") doEdit(() => moveCaptionClip(props.timeline, action.id, start));
             else if (row.id === "voice") doEdit(() => ({ ...props.timeline, voice: moveAudioClip(props.timeline.voice, action.id, start) }));
@@ -265,7 +322,10 @@ export function Timeline(props: {
           onDoubleClickAction={(event, { action, row }) => {
             event.preventDefault();
             if (row.id === "captions") doEdit(() => ({ ...props.timeline, captions: deleteCaptionClip(props.timeline.captions, action.id) }));
-            if (/^video-[2-9]\d*$/.test(row.id)) doEdit(() => deleteOverlayClip(props.timeline, action.id));
+            const groupId = props.timeline.video.find((clip) => clip.id === action.id)?.groupId ?? findOverlayInLayers(props.timeline.overlays, action.id)?.clip.groupId;
+            if (groupId) doEdit(() => deleteVideoGroup(props.timeline, groupId));
+            else if (row.id === "video") doEdit(() => ({ ...props.timeline, video: props.timeline.video.filter((clip) => clip.id !== action.id) }));
+            else if (/^video-[2-9]\d*$/.test(row.id)) doEdit(() => deleteOverlayClip(props.timeline, action.id));
             if (row.id === "voice") doEdit(() => ({ ...props.timeline, voice: deleteAudioClip(props.timeline.voice, action.id) }));
             if (row.id === "sfx") doEdit(() => ({ ...props.timeline, sfx: deleteAudioClip(props.timeline.sfx, action.id) }));
           }}

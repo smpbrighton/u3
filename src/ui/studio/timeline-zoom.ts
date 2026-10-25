@@ -25,6 +25,10 @@ export function pixelsToSeconds(pixels: number, scaleWidth: number): number {
   return pixels / scaleWidth;
 }
 
+export function timelinePointerSeconds(clientX: number, gridLeft: number, scrollLeft: number, zoom: number): number {
+  return pixelsToSeconds(clientX - gridLeft - 20 + scrollLeft, scaleWidthForZoom(zoom));
+}
+
 export function scrollLeftForZoomAnchor(
   scrollLeft: number,
   pointerX: number,
