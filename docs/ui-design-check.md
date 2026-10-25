@@ -219,3 +219,23 @@
 ## 캡처 현황
 
 `out/manual/`에 브라우저 뷰포트 1440×900 캡처를 저장했다. W12는 `w12-input.png`, `w12-script.png`, `w12-script-progress.png`, `w12-studio.png`에 남겼다. `/Users/smp/Desktop/화면 기록 2026-10-24 오후 11.14.18.mov`에서 Codex 대본을 실제 생성하고 스튜디오 진입을 확인했다. 수동 데이터는 `U3_DATA_DIR=out/manual/store`에 저장했다.
+
+## W26 SEED Design 재설계
+
+W26에서 화면 입력과 선택 컨트롤을 SEED Design 컴포넌트로 교체했다. `index.html`은 `data-seed`와 `data-seed-color-mode="light-only"`, `color-scheme=light`를 선언한다. 내부 SEED 클래스 덮어쓰기와 유효하지 않은 basement 토큰을 제거했다. 화면별 세부 변경은 `architecture/changes/026-seed-redesign/plan.md`와 커밋 기록에 있다.
+
+- 홈: Side Navigation, Badge, ActionButton, Menu, AlertDialog, Dialog, TextField를 사용한다.
+- 입력: TextField와 ActionButton을 사용한다. OS 파일 선택기는 Tauri API를 유지한다.
+- 대본: Select Box와 TextField를 사용한다.
+- 설정: SEED Select를 사용한다.
+- Studio: Tabs, TextField, Slider, Switch, RadioGroup, Select, ToggleButton, Dialog, Snackbar를 사용한다.
+- 숫자 입력은 `TextFieldInput`과 `inputMode="decimal"`을 사용한다. 값은 문자열로 받아 숫자로 파싱한다.
+- 유일하게 raw `<input>`으로 남긴 항목은 Recorder의 숨김 파일 선택기다. Tauri OS 파일 가져오기를 연결하는 입력이다.
+- 타임라인의 영상·오디오 클립 색과 드롭 위치 안내 색은 데이터 구분 용도다. 역할 토큰으로 대응할 수 없어 데이터 색을 유지한다.
+- 화면 캡처는 앱 창 단위로 `out/manual/w26-*.png`에 저장한다. 조작할 수 없는 화면은 실행 후 기록한다.
+
+### W26 실행 결과
+
+`pnpm tauri dev`를 지정한 `out/manual/store`와 앱 라이브러리 경로로 실행했다. 앱 창 캡처는 `out/manual/w26-home.png`에 저장했다. 이 세션에는 네이티브 앱 입력을 조작할 수 있는 도구가 없고 `smp:computer` 사용도 금지되어 있어 입력·대본·설정·Studio·내보내기 화면은 열지 못했다. 따라서 해당 화면은 캡처하지 않았다.
+
+`pnpm dlx @seed-design/cli@latest compat`는 종료 코드 0으로 끝났다. 출력은 “모든 스니펫이 현재 @seed-design/react, @seed-design/css와 호환돼요.”였다. UI 타입 검사와 단축키 테스트도 통과했다.
