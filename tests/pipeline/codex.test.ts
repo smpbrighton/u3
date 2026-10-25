@@ -62,6 +62,22 @@ describe("Codex CLI", () => {
       .rejects.toThrow("대본 스키마");
   });
 
+  it("reads the schema-constrained agent message when the CLI has no output-file option", async () => {
+    const calls: string[][] = [];
+    const runner: CodexProcessRunner = vi.fn(async request => {
+      calls.push(request.args);
+      if (request.args[0] === "login") return success("Logged in using ChatGPT");
+      if (request.args.includes("--help")) return success("--output-schema --json --ephemeral --sandbox --image");
+      const stdout = JSON.stringify({ type: "item.completed", item: { type: "agent_message", text: JSON.stringify(validScript) } });
+      return success(stdout);
+    });
+
+    const result = await codexCliRunner({ bin: "fake-codex", run: runner }).runScript({ prompt: "대본" });
+
+    expect(result.output).toEqual(validScript);
+    expect(calls.at(-1)).not.toContain("--output-last-message");
+  });
+
   it("rejects a logged-out CLI before content execution", async () => {
     const runner: CodexProcessRunner = vi.fn(async () => success("Not logged in"));
     await expect(codexCliRunner({ bin: "fake-codex", run: runner }).runScript({ prompt: "대본" }))
