@@ -13,6 +13,29 @@ afterEach(async () => {
 });
 
 describe("sidecar library routes", () => {
+  it("returns situation-search meme candidates from the non-project library route", async () => {
+    root = await mkdtemp(path.join(os.tmpdir(), "u3-library-meme-situation-"));
+    const folder = path.join(root, "library", "memes", "laugh");
+    await mkdir(folder, { recursive: true });
+    await writeFile(path.join(folder, "laugh-1.mp4"), "clip");
+    await writeFile(path.join(folder, "laugh-1.json"), JSON.stringify({
+      id: "laugh-1", emotion: "laugh", situations: ["친구가 어이없는 말을 했을 때"], importedAt: "2026-09-01T00:00:00.000Z", tagsConfirmed: true, description: "황당한 표정",
+    }));
+    vi.stubEnv("U3_LIBRARY_DIR", path.join(root, "library"));
+    const app = createApp({ store: new Store(path.join(root, "store")), jobs: new Jobs(), token: "secret", codexPath: async () => null, jevAvailable: false });
+
+    const response = await app.request("http://127.0.0.1/api/library/memes/search", {
+      method: "POST",
+      headers: { authorization: "Bearer secret", "content-type": "application/json" },
+      body: JSON.stringify({ q: "친구가 어이없는 말을 했을 때" }),
+    });
+    const result = await response.json() as { items: { id: string }[]; by: string };
+
+    expect(response.status).toBe(200);
+    expect(result.items.map(item => item.id)).toContain("laugh-1");
+    expect(result.by).toBe("rule");
+  });
+
   it("lists sidecars, filters by search text, and returns tokenized media URLs", async () => {
     root = await mkdtemp(path.join(os.tmpdir(), "u3-library-route-"));
     const folder = path.join(root, "library", "memes", "laugh");
