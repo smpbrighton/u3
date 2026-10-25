@@ -1,0 +1,27 @@
+{
+  "app": "U3",
+  "intent": "U3 다음 대본 버튼",
+  "memories": [
+    {
+      "anchor": "다음:",
+      "anchor_at": [
+        1463,
+        942
+      ],
+      "context": [
+        "대본"
+      ],
+      "expect": "대본 방식",
+      "kind": "text",
+      "offset": [
+        11,
+        -16
+      ],
+      "tool": "click",
+      "window": [
+        1568,
+        980
+      ]
+    }
+  ]
+}

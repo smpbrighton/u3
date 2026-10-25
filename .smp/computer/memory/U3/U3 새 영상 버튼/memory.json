@@ -1,0 +1,27 @@
+{
+  "app": "U3",
+  "intent": "U3 새 영상 버튼",
+  "memories": [
+    {
+      "anchor": "새",
+      "anchor_at": [
+        1186,
+        84
+      ],
+      "context": [
+        "영상"
+      ],
+      "expect": "끌어 놓거나",
+      "kind": "text",
+      "offset": [
+        11,
+        8
+      ],
+      "tool": "click",
+      "window": [
+        1280,
+        800
+      ]
+    }
+  ]
+}
