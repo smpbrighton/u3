@@ -32,4 +32,46 @@ describe("timelineFromScript", () => {
     const outside: CodexScript = { scenes: [{ caption: "길이 초과", inputIndex: 2, reaction: null, memeBefore: false, memeAfter: false, sfxCategory: null, startSec: 9, endSec: 13 }] };
     expect(() => timelineFromScript(outside, inputs)).toThrow(/원본 길이/u);
   });
+
+  it("sfxCategory별 라이브러리 효과음을 자막과 같은 시각에 최대 1.5초 배치한다", () => {
+    const script: CodexScript = { scenes: [
+      { caption: "놀람", inputIndex: 1, reaction: null, memeBefore: false, memeAfter: false, sfxCategory: "shock", startSec: null, endSec: null },
+      { caption: "반전", inputIndex: 2, reaction: null, memeBefore: false, memeAfter: false, sfxCategory: "reveal", startSec: 3, endSec: 6 },
+    ] };
+    const timeline = timelineFromScript(script, inputs, {
+      projectId: "project-a",
+      sfxLibrary: {
+        shock: [{ ...sound, id: "shock-1", category: "shock", file: "shock.wav", durationSec: 0.4 }],
+        reveal: [{ ...sound, id: "reveal-1", category: "reveal", file: "reveal.wav", durationSec: 2.4 }],
+      },
+    });
+
+    expect(timeline.sfx).toHaveLength(2);
+    expect(timeline.sfx[0]).toMatchObject({ startSec: timeline.captions[0]?.startSec, file: "shock.wav", inStartSec: 0, inEndSec: 0.4 });
+    expect(timeline.sfx[1]).toMatchObject({ startSec: timeline.captions[1]?.startSec, file: "reveal.wav", inStartSec: 0, inEndSec: 1.5 });
+  });
+
+  it("효과음 분류가 없거나 해당 분류 라이브러리가 비면 클립을 만들지 않는다", () => {
+    const script: CodexScript = { scenes: [
+      { caption: "기본 반응", inputIndex: 1, reaction: null, memeBefore: false, memeAfter: false, sfxCategory: null, startSec: null, endSec: null },
+      { caption: "라이브러리 없음", inputIndex: 2, reaction: null, memeBefore: false, memeAfter: false, sfxCategory: "alarm", startSec: 1, endSec: 3 },
+    ] };
+    const timeline = timelineFromScript(script, inputs, { projectId: "project-a", sfxLibrary: { shock: [sound] } });
+
+    expect(timeline.sfx).toEqual([]);
+  });
+
+  it("같은 프로젝트 ID와 장면 번호에서 같은 효과음 파일을 고른다", () => {
+    const script: CodexScript = { scenes: [
+      { caption: "장면", inputIndex: 1, reaction: null, memeBefore: false, memeAfter: false, sfxCategory: "laugh", startSec: null, endSec: null },
+    ] };
+    const sfxLibrary = { laugh: [
+      { ...sound, id: "laugh-1", file: "laugh-1.wav" },
+      { ...sound, id: "laugh-2", file: "laugh-2.wav" },
+    ] };
+    const first = timelineFromScript(script, inputs, { projectId: "project-a", sfxLibrary });
+    const second = timelineFromScript(script, inputs, { projectId: "project-a", sfxLibrary });
+
+    expect(first.sfx[0]?.file).toBe(second.sfx[0]?.file);
+  });
 });
