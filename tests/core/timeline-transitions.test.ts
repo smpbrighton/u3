@@ -16,8 +16,8 @@ describe("클립 전환 효과", () => {
       delete clip.endTransition;
     }
     const project = Project.parse(raw);
-    expect(project.timeline.video[0]?.startTransition).toEqual({ kind: "none", durationSec: 0.5 });
-    expect(project.timeline.video[0]?.endTransition).toEqual({ kind: "none", durationSec: 0.5 });
+    expect(project.timeline.video[0]?.startTransition).toEqual({ kind: { kind: "none" }, durationSec: 0.5 });
+    expect(project.timeline.video[0]?.endTransition).toEqual({ kind: { kind: "none" }, durationSec: 0.5 });
   });
 
   it("디졸브·검은 화면·밀기·와이프·원형 열기·확대 효과의 시작과 끝 프레임을 계산한다", () => {
