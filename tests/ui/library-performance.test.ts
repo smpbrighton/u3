@@ -1,5 +1,5 @@
 import { describe, expect, it, vi } from "vitest";
-import { MEME_PAGE_SIZE, memePreviewPreload, memePreviewSource, mergeMemePages, pageMemes, shouldLoadMemePage } from "../../src/ui/studio/library-window";
+import { MEME_PAGE_SIZE, memePreviewAutoplay, memePreviewPreload, memePreviewSource, mergeMemePages, pageMemes, shouldLoadMemePage } from "../../src/ui/studio/library-window";
 import { debounceSearch, createLatestRequestGuard } from "../../src/ui/studio/library-request";
 
 describe("studio library loading", () => {
@@ -20,6 +20,8 @@ describe("studio library loading", () => {
     expect(memePreviewSource("/meme.mp4", true)).toBe("/meme.mp4");
     expect(memePreviewPreload(true)).toBe("metadata");
     expect(memePreviewPreload(false)).toBe("none");
+    expect(memePreviewAutoplay(true)).toBe(true);
+    expect(memePreviewAutoplay(false)).toBe(false);
   });
 
   it("페이지를 다시 받아도 짤 id를 중복 병합하지 않고 이미 받은 페이지는 건너뛴다", () => {
