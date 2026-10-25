@@ -1,6 +1,6 @@
 # 0011 편집 모델: 여러 영상 트랙
 
-Status: accepted
+Status: superseded-by 0012
 Source: changes/001-desktop-studio/spec.md
 Supersedes: 0010
 
