@@ -12,6 +12,8 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { inputDisplayName } from "../../core/input";
 import { scriptGenerationView, type ScriptGenerationState } from "./script-workflow";
 
+type SfxLibraryResponseItem = SfxLibraryItem & { url: string };
+
 export function Script(props: {
   project: Project;
   status: SystemStatus | null;
@@ -103,9 +105,9 @@ export function Script(props: {
         return scene;
       }));
       const script = { scenes } as CodexScript;
-      const sfxItems = await api<SfxLibraryItem[]>("GET", "/api/library/sfx", undefined, controller.signal).catch(() => []);
+      const sfxItems = await api<SfxLibraryResponseItem[]>("GET", "/api/library/sfx", undefined, controller.signal).catch(() => []);
       const sfxLibrary: Record<string, SfxLibraryItem[]> = {};
-      for (const item of sfxItems) (sfxLibrary[item.category] ??= []).push(item);
+      for (const item of sfxItems) (sfxLibrary[item.category] ??= []).push({ ...item, file: item.url });
       const timeline = timelineFromScript(script, inputs, { projectId: props.project.id, memes, sfxLibrary });
       const saved = await api<Project>("PUT", `/api/projects/${props.project.id}`, {
         ...props.project,
