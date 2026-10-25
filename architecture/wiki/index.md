@@ -8,6 +8,6 @@
 
 ## concept
 - [로컬 모델과 리소스](pages/concept-local-models.md) — bge-m3·Whisper의 받기, 대체 경로와 실행 측정.
-- [타임라인 편집](pages/concept-timeline-editing.md) — 다중 트랙 편집·자막 시각 변환·렌더 흐름.
+- [타임라인 편집](pages/concept-timeline-editing.md) — 대본·미디어에서 타임라인 구성, 라이브러리 참조와 렌더 및 검증 상태.
 
 ## answer
