@@ -52,8 +52,13 @@ async function startFixtureServer() {
   };
 }
 
-async function framePixels(file: string, frame: number, out: string, rendered: boolean) {
-  const crop = rendered ? "crop=128:128:476:896,scale=64:64:flags=area" : "crop=64:64:238:448";
+async function framePixels(file: string, frame: number, out: string, rendered: boolean, x = 0.5, y = 0.5) {
+  const size = rendered ? 128 : 64;
+  const width = rendered ? 1080 : 540;
+  const height = rendered ? 1920 : 960;
+  const left = Math.round(x * width - size / 2);
+  const top = Math.round(y * height - size / 2);
+  const crop = `crop=${size}:${size}:${left}:${top}${rendered ? ",scale=64:64:flags=area" : ""}`;
   await execFile("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", file, "-vf", `select=eq(n\\,${frame}),${crop},format=rgb24`, "-vsync", "0", "-frames:v", "1", "-f", "rawvideo", out]);
   return readFile(out);
 }
@@ -147,12 +152,20 @@ async function main() {
 
     const overlay = expected.overlay.find((item) => item.id === "overlay-smoke");
     assert(overlay?.kind === "meme", "겹친 짤 fixture를 찾지 못했습니다");
-    const overlayPixels = await framePixels(outputPath, overlay.startFrame + 5, path.join(outputDir, "overlay.rgb"), true);
-    const sourcePixels = await framePixels(sourceFile, 2 * 30 + 12, path.join(outputDir, "overlay-source.rgb"), false);
-    const overlayMae = pixelMae(overlayPixels, sourcePixels);
+    const overlayFrame = overlay.startFrame + 5;
+    const overlaySource = expected.video.find((item) => overlayFrame >= item.startFrame && overlayFrame < item.startFrame + item.durationInFrames);
+    assert(overlaySource?.sourceStartFrame !== undefined, "겹친 짤 아래에서 재생할 영상 프레임을 찾지 못했습니다");
+    const sourceFrame = overlaySource.sourceStartFrame + overlayFrame - overlaySource.startFrame;
+    const overlayPixels = await framePixels(outputPath, overlayFrame, path.join(outputDir, "overlay-center.rgb"), true);
+    const sourceCenterPixels = await framePixels(sourceFile, sourceFrame, path.join(outputDir, "overlay-source-center.rgb"), false);
+    const overlayMae = pixelMae(overlayPixels, sourceCenterPixels);
     assert(overlayMae > 5, `겹친 영상 구간의 중심 픽셀이 바뀌지 않았습니다: MAE ${overlayMae.toFixed(2)}`);
+    const outsidePixels = await framePixels(outputPath, overlayFrame, path.join(outputDir, "overlay-outside.rgb"), true, 0.1, 0.5);
+    const sourceOutsidePixels = await framePixels(sourceFile, sourceFrame, path.join(outputDir, "overlay-source-outside.rgb"), false, 0.1, 0.5);
+    const outsideMae = pixelMae(outsidePixels, sourceOutsidePixels);
+    assert(outsideMae < 4, `겹친 창 바깥에 아래 영상이 보이지 않습니다: MAE ${outsideMae.toFixed(2)}`);
 
-    console.log(`✓ smoke passed: 1080×1920, 30fps, ${actualFrames} frames, audio max ${maxVolume} dB, cut edge source frame ${nearest.sourceFrame} (MAE ${nearest.mae.toFixed(2)}, separation ${minFrameSeparation.toFixed(2)}), dissolve MAE ${transitionMaeBefore.toFixed(2)}/${transitionMaeAfter.toFixed(2)} (${(betweenRatio * 100).toFixed(1)}% in range), overlay center MAE ${overlayMae.toFixed(2)}`);
+    console.log(`✓ smoke passed: 1080×1920, 30fps, ${actualFrames} frames, audio max ${maxVolume} dB, cut edge source frame ${nearest.sourceFrame} (MAE ${nearest.mae.toFixed(2)}, separation ${minFrameSeparation.toFixed(2)}), dissolve MAE ${transitionMaeBefore.toFixed(2)}/${transitionMaeAfter.toFixed(2)} (${(betweenRatio * 100).toFixed(1)}% in range), overlay center MAE ${overlayMae.toFixed(2)}, outside MAE ${outsideMae.toFixed(2)}`);
   } finally {
     await media.close();
   }
