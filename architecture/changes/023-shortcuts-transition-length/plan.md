@@ -1,0 +1,51 @@
+# W23 스튜디오 단축키·더블클릭·전환 길이 계획
+
+Track: lite.
+
+## 검토 목록
+- 없음. 요구, 테스트 우선 커밋 순서, 확인 방법이 지정되어 있다.
+
+## 결정
+- 단축키 판정은 순수 함수 하나에서 `KeyboardEvent.code` 우선으로 처리하고, code가 비어 있을 때만 key로 대체한다.
+- 한글 입력 중에도 물리 키 기준 단축키를 유지한다. 입력 필드와 조합 입력에서는 단축키를 실행하지 않는다.
+- macOS 메뉴는 기본 메뉴의 앱·편집·창 항목을 유지하고 Minimize 항목에서 cmd+M 가속기를 제거한다.
+- Space는 재생 상태를 토글하고, recording 중 재생 불가 상태를 유지한다. 입력 요소와 range 슬라이더에서는 실행하지 않는다.
+- 타임라인 더블클릭은 클립 선택만 한다. Delete와 Backspace는 선택된 영상·자막·음성·효과음 클립을 삭제한다. 영상 1의 마지막 클립 보호를 유지한다.
+- 시작·끝 효과 길이는 0.1초 단위 range와 직접 입력으로 편집한다. 입력은 blur 또는 Enter 때 범위로 clamp한다.
+- 테스트 전용 커밋 뒤 구현 커밋을 만들고, 구현 커밋에서는 tests와 fixture를 수정하지 않는다.
+
+## 바꿀 파일
+- `architecture/changes/023-shortcuts-transition-length/plan.md`
+- `src/ui/studio/shortcuts.ts`, 관련 `tests/ui/shortcuts.test.ts`
+- `src/ui/studio/Timeline.tsx`, `src/ui/screens/Studio.tsx`, 관련 타임라인 삭제 순수 함수와 테스트
+- `src/ui/studio/Inspector.tsx`, 필요한 전환 길이 순수 함수와 테스트
+- `src/core/timeline/to-render.ts` 및 관련 테스트(저장된 전환 길이의 렌더 clamp가 없을 때만)
+- `src-tauri/src/main.rs`
+
+## 순서
+1. 이 계획을 `W23: 스튜디오 단축키·더블클릭·전환 길이 계획`으로 커밋한다.
+2. 단축키 물리 코드 판정, 한글 입력 값, 텍스트 입력/조합 입력 예외 실패 테스트를 작성해 `W23: 단축키 실패 테스트`로 커밋한다.
+3. 테스트를 수정하지 않고 Studio와 Timeline의 keydown 처리를 공통 판정 함수에 연결한다.
+4. 자막·음성·효과음 Delete 대상 계산의 실패 테스트를 작성해 `W23: 비영상 클립 삭제 실패 테스트`로 커밋한다. 더블클릭 삭제 부재는 Timeline의 삭제 호출 제거로 확인한다.
+5. 테스트를 수정하지 않고 Delete/Backspace를 모든 선택 행에 연결하고 더블클릭 삭제 경로를 없앤다.
+6. 전환 길이 clamp와 입력 해석, 저장된 길이의 render clamp 실패 테스트를 작성해 `W23: 전환 길이 실패 테스트`로 커밋한다.
+7. 테스트를 수정하지 않고 range, 표시값, 직접 입력을 구현한다. 렌더 clamp가 없으면 추가한다.
+8. Rust 메뉴를 기본 메뉴와 같은 구성으로 설정하고 Minimize cmd+M을 제거한다. Tauri 2.12.5 API와 Edit Undo 가속기 동작을 확인한다.
+9. 지정 환경으로 `pnpm tauri dev`를 실행하고 전환 길이 슬라이더가 보이는 창만 캡처한다. 입력 소스/키 입력을 조작할 수 없으면 테스트 증거로 대체하고 보고한다. 실행한 앱과 sidecar를 종료한다.
+10. `pnpm verify`를 실행하고 종료 코드와 마지막 20줄을 확인한다. 변경을 계획과 대조하고 모두 현재 브랜치에 커밋한다. push와 main 변경은 하지 않는다.
+
+## 위험과 대응
+- `event.code`는 IME의 `event.key` 값에 영향을 받지 않으므로 한글 입력 중 물리 키 동작을 테스트한다.
+- cmd+M은 macOS 기본 Window > Minimize 가속기와 충돌할 수 있다. 메뉴에서 해당 가속기만 제거하고 앱·Edit 메뉴는 보존한다.
+- Delete 선택은 현재 선택된 행과 ID를 명시적으로 계산한다. 영상 1의 마지막 클립은 기존 차단 동작을 유지한다.
+- 기존 저장 데이터의 효과 길이가 새 범위를 넘으면 Inspector 표시와 렌더 양쪽에서 클립 절반/2초 상한을 적용한다.
+
+## 완료 증거
+- 각 요구의 테스트 실패 전용 커밋 뒤 구현 커밋.
+- `out/manual/w23-transition.png` 또는 화면 캡처가 불가능한 사유와 테스트 증거.
+- Rust 메뉴의 `cargo check` 또는 `pnpm verify` Rust 검사 결과.
+- `pnpm verify` 종료 코드 0, 마지막 줄 `✓ verify passed`.
+- 실행한 앱과 sidecar 프로세스 종료.
+
+## 롤백
+- W23 커밋을 역순으로 되돌린다. 프로젝트 데이터 형식은 변경하지 않는다.
