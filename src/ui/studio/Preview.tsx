@@ -7,6 +7,7 @@ import type { U3ShortProps } from "../../remotion/types";
 import { api, libraryMediaUrl, mediaUrl } from "../api";
 import { libraryReferencePath } from "../../core/library-reference";
 import { frameForTime, frameToSeekAfterPlayerReady } from "./preview-seek";
+import { hasAllRenderSources } from "./preview-sources";
 
 export function Preview(props: {
   project: Project;
@@ -18,8 +19,8 @@ export function Preview(props: {
 }) {
   const playerRef = useRef<PlayerRef>(null);
   const [sources, setSources] = useState<{ inputs: Record<string, string>; memes: Record<string, string>; files: Record<string, string> }>({ inputs: {}, memes: {}, files: {} });
-  const [sourcesReady, setSourcesReady] = useState(false);
   const render = useMemo(() => timelineToRender(props.project.timeline), [props.project.timeline]);
+  const sourcesReady = hasAllRenderSources(render, { ...sources, overlayInputs: sources.inputs });
   useEffect(() => {
     let active = true;
     void (async () => {
@@ -32,21 +33,26 @@ export function Preview(props: {
       ]);
       if (!active) return;
       const memeById = new Map(memeItems.map((item) => [item.id, item.url]));
-      const missingMemeIds = [...new Set(render.overlay.filter((item) => item.kind === "meme").map((item) => item.memeId!))].filter((id) => !memeById.has(id));
+      const referencedMemeIds = [
+        ...render.video.filter((item) => item.kind === "meme").map((item) => item.memeId!),
+        ...render.overlay.filter((item) => item.kind === "meme").map((item) => item.memeId!),
+        ...render.audio.filter((item) => item.track === "meme").map((item) => item.inputId!),
+      ];
+      const missingMemeIds = [...new Set(referencedMemeIds)].filter((id) => !memeById.has(id));
       const extraMemes = await Promise.all(missingMemeIds.map(async (id) => {
         const matches = await api<{ id: string; url: string }[]>("GET", `/api/library/memes?q=${encodeURIComponent(id)}`).catch(() => []);
         return matches.find((item) => item.id === id);
       }));
+      if (!active) return;
       extraMemes.forEach((item) => { if (item) memeById.set(item.id, item.url); });
       setSources({
         inputs: Object.fromEntries(inputEntries),
         memes: Object.fromEntries(memeById),
         files: { ...Object.fromEntries(fileEntries), ...Object.fromEntries(render.audio.filter((layer) => layer.file?.startsWith("http")).map((layer) => [layer.file!, layer.file!])) },
       });
-      setSourcesReady(true);
-    })().catch(() => { if (active) setSourcesReady(true); });
+    })().catch(() => {});
     return () => { active = false; };
-  }, [props.project.id, props.project.inputs, props.project.timeline.video, render.audio, render.overlay]);
+  }, [props.project.id, props.project.inputs, render.video, render.audio, render.overlay]);
   const propsForPlayer = useMemo<U3ShortProps>(() => ({
     render: {
       ...render,
