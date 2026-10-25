@@ -83,15 +83,15 @@ const frame = (seconds: number) => Math.round(seconds * RENDER_FPS);
 const volume = (gain: { gain: number; muted: boolean }, clipGain = 1) => gain.muted ? 0 : gain.gain * clipGain;
 const NO_TRANSITION: ClipTransition = { kind: { kind: "none" }, durationSec: 0.5 };
 
-function transition(clip: { startTransition?: ClipTransitionInput; endTransition?: ClipTransitionInput }, edge: "start" | "end"): ClipTransition {
+function transition(clip: { startTransition?: ClipTransitionInput; endTransition?: ClipTransitionInput }, edge: "start" | "end", durationSec: number): ClipTransition {
   const value = clip[edge === "start" ? "startTransition" : "endTransition"];
-  return value ? { kind: value.kind, durationSec: value.durationSec ?? 0.5 } : NO_TRANSITION;
+  return value ? { kind: value.kind, durationSec: Math.min(2, durationSec / 2, Math.max(0.1, value.durationSec ?? 0.5)) } : NO_TRANSITION;
 }
 
-function transitionProps(clip: { startTransition?: ClipTransitionInput; endTransition?: ClipTransitionInput }) {
+function transitionProps(clip: { startTransition?: ClipTransitionInput; endTransition?: ClipTransitionInput }, durationSec: number) {
   return {
-    ...(clip.startTransition ? { startTransition: transition(clip, "start") } : {}),
-    ...(clip.endTransition ? { endTransition: transition(clip, "end") } : {}),
+    ...(clip.startTransition ? { startTransition: transition(clip, "start", durationSec) } : {}),
+    ...(clip.endTransition ? { endTransition: transition(clip, "end", durationSec) } : {}),
   };
 }
 
@@ -119,14 +119,14 @@ export function timelineToRender(timeline: Timeline): RenderTimeline {
     const endFrame = frame(cursorSec + durationSec);
     const durationInFrames = endFrame - startFrame;
     if ("durationSec" in clip && clip.kind === "meme") {
-      video.push({ id: clip.id, kind: "meme", startFrame, durationInFrames, memeId: clip.memeId, ...transitionProps(clip) });
+      video.push({ id: clip.id, kind: "meme", startFrame, durationInFrames, memeId: clip.memeId, ...transitionProps(clip, durationSec) });
       mainBounds.push({ id: clip.id, startFrame, endFrame, durationInFrames, kind: "meme" });
       audio.push({ id: `${clip.id}-audio`, track: "meme", startFrame, durationInFrames, sourceStartFrame: 0, volume: volume(timeline.audio.source), inputId: clip.memeId });
     } else if ("durationSec" in clip) {
-      video.push({ id: clip.id, kind: "main", startFrame, durationInFrames, inputId: clip.inputId, ...transitionProps(clip) });
+      video.push({ id: clip.id, kind: "main", startFrame, durationInFrames, inputId: clip.inputId, ...transitionProps(clip, durationSec) });
       mainBounds.push({ id: clip.id, startFrame, endFrame, durationInFrames, kind: "main" });
     } else {
-      video.push({ id: clip.id, kind: "main", startFrame, durationInFrames, inputId: clip.inputId, sourceStartFrame: frame(clip.inStartSec), ...transitionProps(clip) });
+      video.push({ id: clip.id, kind: "main", startFrame, durationInFrames, inputId: clip.inputId, sourceStartFrame: frame(clip.inStartSec), ...transitionProps(clip, durationSec) });
       mainBounds.push({ id: clip.id, startFrame, endFrame, durationInFrames, kind: "main" });
       const separated = stems[clip.inputId];
       if (separated) {
@@ -150,7 +150,7 @@ export function timelineToRender(timeline: Timeline): RenderTimeline {
     durationInFrames: frame(overlayDuration(clip)),
     ...( "memeId" in clip ? { memeId: clip.memeId } : { inputId: clip.inputId, ...(clip.kind === "video" ? { sourceStartFrame: frame(clip.inStartSec) } : {}) }),
     x: clip.x, y: clip.y, width: clip.width,
-    ...transitionProps(clip),
+    ...transitionProps(clip, overlayDuration(clip)),
   })));
   for (const clip of timeline.overlays.flat().filter((item): item is Extract<OverlayClip, { kind: "video" }> => "kind" in item && item.kind === "video")) {
     const startFrame = frame(clip.startSec);
@@ -183,7 +183,7 @@ export function timelineToRender(timeline: Timeline): RenderTimeline {
     const right = mainBounds[index]!;
     const leftClip = timeline.video[index - 1]!;
     const rightClip = timeline.video[index]!;
-    const effect = boundaryTransition(transition(leftClip, "end"), transition(rightClip, "start"));
+    const effect = boundaryTransition(transition(leftClip, "end", clipDuration(leftClip)), transition(rightClip, "start", clipDuration(rightClip)));
     if (effect.kind.kind === "none") continue;
     const effectFrames = Math.min(frame(effect.durationSec), Math.floor(left.durationInFrames / 2), Math.floor(right.durationInFrames / 2));
     if (effectFrames < 1) continue;
@@ -208,7 +208,7 @@ export function timelineToRender(timeline: Timeline): RenderTimeline {
   }
   const first = mainBounds[0];
   if (first) {
-    const effect = transition(timeline.video[0]!, "start");
+    const effect = transition(timeline.video[0]!, "start", clipDuration(timeline.video[0]!));
     if (effect.kind.kind !== "none") {
       const durationInFrames = Math.min(frame(effect.durationSec), Math.floor(first.durationInFrames / 2));
       if (durationInFrames > 0) {
@@ -219,7 +219,7 @@ export function timelineToRender(timeline: Timeline): RenderTimeline {
   }
   const last = mainBounds.at(-1);
   if (last) {
-    const effect = transition(timeline.video.at(-1)!, "end");
+    const effect = transition(timeline.video.at(-1)!, "end", clipDuration(timeline.video.at(-1)!));
     if (effect.kind.kind !== "none") {
       const durationInFrames = Math.min(frame(effect.durationSec), Math.floor(last.durationInFrames / 2));
       if (durationInFrames > 0) {

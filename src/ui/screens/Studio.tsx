@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Project, Timeline as TimelineData, VideoClip } from "../../core/schema";
-import { deleteVideoSelection, videoDuration, videoStartTimes, VIDEO_TRACK_REQUIRED_MESSAGE } from "../../core/timeline/ops";
+import { videoDuration, videoStartTimes, VIDEO_TRACK_REQUIRED_MESSAGE } from "../../core/timeline/ops";
 import { createHistory, pushHistory, redo, undo, type TimelineHistory } from "../../core/timeline/history";
 import { ActionButton } from "../../../seed-design/ui/action-button";
 import { Preview } from "../studio/Preview";
@@ -12,14 +12,20 @@ import { ExportDialog } from "../ExportDialog";
 import { ArrowLeft01Icon, PlayIcon, PauseIcon, Undo02Icon, Redo02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { replaceMemeClip } from "../studio/replace-meme-clip";
-import { pixelsToSeconds, scaleWidthForZoom } from "../studio/timeline-zoom";
+import { scaleWidthForZoom } from "../studio/timeline-zoom";
 import { decideOverlayDrop } from "../studio/overlay-drop";
+import { VIDEO_TRACK_EDIT_GRID_SELECTOR } from "../studio/video-track-drop";
 import { timelineToStudioRows } from "../studio/timeline-adapter";
-import { TIMELINE_RULER_HEIGHT, TRACK_ROW_HEIGHT } from "../studio/timeline-layout";
-import { findOverlayInLayers, placeOverlayAtLayer, placeOverlayInLowestLayer } from "../../core/timeline/overlay-layers";
+import { TRACK_ROW_HEIGHT } from "../studio/timeline-layout";
+import { findOverlayInLayers, placeOverlayAtLayer, placeOverlayInLowestLayer, updateOverlayInLayers } from "../../core/timeline/overlay-layers";
 import { canGroupVideoClips, groupVideoClips, selectVideoRange, ungroupVideoClips, type VideoClipRef } from "../../core/timeline/video-groups";
 import { timelineToRender } from "../../core/timeline/to-render";
 import { clampTimeToLastFrame } from "../studio/preview-seek";
+import { studioShortcut } from "../studio/shortcuts";
+import { deleteStudioSelection } from "../studio/delete-selection";
+import { decideNewLaneDrop } from "../studio/library-drop";
+import { nextSfxLane } from "../../core/timeline/sfx-lanes";
+import { resolveLibraryDropPosition } from "../studio/library-drop";
 
 interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
 interface SfxItem { id: string; category: string; title: string; file: string; ref: string; url: string; durationSec: number }
@@ -72,14 +78,23 @@ export function Studio(props: {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "z" && !isTextInput(event.target)) {
+      const shortcut = studioShortcut({
+        key: event.key, code: event.code, metaKey: event.metaKey, ctrlKey: event.ctrlKey,
+        altKey: event.altKey, shiftKey: event.shiftKey, isComposing: event.isComposing,
+        keyCode: event.keyCode, targetTagName: (event.target as HTMLElement | null)?.tagName,
+        targetType: (event.target as HTMLInputElement | null)?.type,
+        targetIsContentEditable: (event.target as HTMLElement | null)?.isContentEditable,
+      });
+      if (shortcut === "undo" || shortcut === "redo") {
+        event.preventDefault(); moveHistory(shortcut); return;
+      }
+      if (shortcut === "toggle-play") {
         event.preventDefault();
-        moveHistory(event.shiftKey ? "redo" : "undo");
+        if (!event.repeat && !recording) setPlaying((value) => !value);
         return;
       }
-      if (event.metaKey || event.ctrlKey || event.altKey || isTextInput(event.target)) return;
-      if (event.key.toLowerCase() === "m") {
-        if (event.shiftKey) {
+      if (shortcut === "group" || shortcut === "ungroup") {
+        if (shortcut === "ungroup") {
           const selectedClip = findVideoClip(timeline, selected.id);
           const groupId = selectedClip?.groupId;
           if (!groupId) { props.onSnackbar("묶음 클립을 선택하세요."); return; }
@@ -93,20 +108,20 @@ export function Studio(props: {
         event.preventDefault();
         return;
       }
-      if ((event.key === "Delete" || event.key === "Backspace") && selectedIds.length && selected.track?.startsWith("video")) {
-        const result = deleteVideoSelection(timeline, selectedIds);
-        if (result.blocked) props.onSnackbar(VIDEO_TRACK_REQUIRED_MESSAGE);
-        else {
-          edit(result.timeline);
-          setSelected({ id: null, track: null });
-          setSelectedIds([]);
+      if (shortcut === "delete" && selectedIds.length && selected.track) {
+        let next = timeline;
+        for (const id of selectedIds) {
+          const result = deleteStudioSelection(next, selected.track, id);
+          if (result.blocked) { props.onSnackbar(VIDEO_TRACK_REQUIRED_MESSAGE); event.preventDefault(); return; }
+          next = result.timeline;
         }
+        edit(next); setSelected({ id: null, track: null }); setSelectedIds([]);
         event.preventDefault();
       }
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [moveHistory, timeline, selected, selectedIds, edit, props.onSnackbar]);
+  }, [moveHistory, timeline, selected, selectedIds, edit, props.onSnackbar, recording]);
 
   async function save(): Promise<boolean> {
     setSaving(true);
@@ -138,13 +153,12 @@ export function Studio(props: {
       edit(replaceMemeClip(timeline, replaceId, meme.id));
       return;
     }
-    const durationSec = Math.max(0.5, Math.min(4, Math.min(meme.durationSec ?? 2, 2)));
-    const clip: VideoClip = { id: crypto.randomUUID(), kind: "meme", memeId: meme.id, durationSec };
-    const insertAfter = selected.track === "video" ? timeline.video.findIndex((item) => item.id === selected.id) : -1;
-    const video = [...timeline.video];
-    video.splice(insertAfter >= 0 ? insertAfter + 1 : video.length, 0, clip);
-    edit({ ...timeline, video });
-    setSelected({ id: clip.id, track: "video" }); setSelectedIds([clip.id]);
+    const selectedOverlay = selected.id ? findOverlayInLayers(timeline.overlays, selected.id) : undefined;
+    if (selectedOverlay && "memeId" in selectedOverlay.clip) {
+      edit({ ...timeline, overlays: updateOverlayInLayers(timeline.overlays, selectedOverlay.clip.id, (clip) => "memeId" in clip ? { ...clip, memeId: meme.id } : clip) });
+      return;
+    }
+    addOverlay({ type: "meme", meme }, playhead);
   }
 
   function addOverlay(source: { type: "meme"; meme: MemeItem } | { type: "input"; id: string }, startSec: number, targetLayer?: number) {
@@ -170,46 +184,46 @@ export function Studio(props: {
     setSelected({ id: common.id, track: `video-${findOverlayInLayers(overlays, common.id)!.layer + 2}` }); setSelectedIds([common.id]);
   }
 
-  function addSfx(item: SfxItem) {
-    const clip = { id: crypto.randomUUID(), startSec: playhead, file: item.ref, inStartSec: 0, inEndSec: item.durationSec, gain: 1 };
+  function addSfx(item: SfxItem, startSec = playhead, lane = 0) {
+    const clip = { id: crypto.randomUUID(), startSec, file: item.ref, inStartSec: 0, inEndSec: item.durationSec, gain: 1, lane };
     edit({ ...timeline, sfx: [...timeline.sfx, clip] });
-    setSelected({ id: clip.id, track: "sfx" }); setSelectedIds([clip.id]);
+    setSelected({ id: clip.id, track: lane === 0 ? "sfx" : `sfx-${lane}` }); setSelectedIds([clip.id]);
   }
 
-  async function onDrop(event: React.DragEvent<HTMLDivElement>) {
+  async function onDrop(event: React.DragEvent<HTMLElement>, fromPreview = false) {
     event.preventDefault();
     const raw = event.dataTransfer.getData("application/u3-studio-item");
     if (!raw) return;
     try {
       const data = JSON.parse(raw) as { type: string; id: string };
-      if (data.type === "video" || data.type === "meme") {
-        const grid = document.querySelector<HTMLElement>(".studio-timeline-editor .ReactVirtualized__Grid");
-        const time = grid ? Math.max(0, pixelsToSeconds(event.clientX - grid.getBoundingClientRect().left + grid.scrollLeft - 20, scaleWidthForZoom(zoom))) : videoDuration(timeline);
-        const host = document.querySelector<HTMLElement>(".studio-timeline-editor");
-        const rows = timelineToStudioRows(timeline);
-        const rowIndex = host ? Math.floor((event.clientY - host.getBoundingClientRect().top - TIMELINE_RULER_HEIGHT) / TRACK_ROW_HEIGHT) : -1;
-        const targetTrack = rowIndex >= 0 ? rows[rowIndex]?.id ?? "other" : "other";
-        const startsAt = videoStartTimes(timeline);
-        const hitsVideoClip = timeline.video.some((clip) => time >= startsAt[clip.id]! && time < startsAt[clip.id]! + ("durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec));
-        const decision = decideOverlayDrop({ source: { kind: data.type === "meme" ? "meme" : props.project.inputs.find((input) => input.id === data.id)?.kind ?? "video", id: data.id }, targetTrack: targetTrack === "video" ? "video" : /^video-[2-9]\d*$/.test(targetTrack) ? "overlay" : "other", hitsVideoClip, atSec: time, videoDurationSec: videoDuration(timeline) });
-        if (decision.kind === "overlay") {
-          if (data.type === "meme") {
-            const items = await api<MemeItem[]>("GET", "/api/library/memes");
-            const item = items.find((meme) => meme.id === data.id);
-            if (item) addOverlay({ type: "meme", meme: item }, decision.startSec, /^video-[2-9]\d*$/.test(targetTrack) ? Number(targetTrack.slice(6)) - 2 : undefined);
-          } else addOverlay({ type: "input", id: data.id }, decision.startSec, /^video-[2-9]\d*$/.test(targetTrack) ? Number(targetTrack.slice(6)) - 2 : undefined);
-        } else if (decision.kind === "append-video" && data.type === "video") addVideo(data.id, decision.startSec);
-        else if (data.type === "meme") {
-          const items = await api<MemeItem[]>("GET", "/api/library/memes");
-          const item = items.find((meme) => meme.id === data.id);
-          if (item) addMeme(item);
-        }
+      const editor = document.querySelector<HTMLElement>(".studio-timeline-editor");
+      const grid = editor?.querySelector<HTMLElement>(VIDEO_TRACK_EDIT_GRID_SELECTOR);
+      const rows = timelineToStudioRows(timeline);
+      const position = !fromPreview && grid ? resolveLibraryDropPosition({ pointerX: event.clientX, pointerY: event.clientY, gridLeft: grid.getBoundingClientRect().left, gridTop: grid.getBoundingClientRect().top, scrollLeft: grid.scrollLeft, scrollTop: grid.scrollTop, scaleWidth: scaleWidthForZoom(zoom), rows: ["captions", "video-new", ...rows.filter((row) => /^video-(?:[2-9]|[1-9]\d+)$/.test(row.id)).map((row) => row.id), "video", ...rows.filter((row) => !/^(?:captions|video|video-(?:[2-9]|[1-9]\d+))$/.test(row.id)).map((row) => row.id)] }) : null;
+      const atSec = fromPreview ? playhead : position?.atSec ?? videoDuration(timeline);
+      if (data.type === "meme") {
+        const items = await api<MemeItem[]>("GET", "/api/library/memes");
+        const item = items.find((meme) => meme.id === data.id);
+        if (!item) return;
+        const decision = decideNewLaneDrop({ kind: "meme", atSec, videoDurationSec: videoDuration(timeline), mediaDurationSec: item.durationSec ?? 2, trackCount: timeline.overlays.length });
+        if (decision) addOverlay({ type: "meme", meme: { ...item, durationSec: decision.durationSec } }, decision.startSec, decision.track);
+        return;
       }
       if (data.type === "sfx") {
         const items = await api<SfxItem[]>("GET", "/api/library/sfx");
         const item = items.find((sfx) => sfx.id === data.id);
-        if (item) addSfx(item);
+        if (!item) return;
+        const decision = decideNewLaneDrop({ kind: "sfx", atSec, videoDurationSec: videoDuration(timeline), mediaDurationSec: item.durationSec, trackCount: nextSfxLane(timeline.sfx) });
+        if (decision) addSfx(item, decision.startSec, decision.track);
+        return;
       }
+      if (fromPreview || (data.type !== "video" && data.type !== "photo")) return;
+      const targetTrack = position?.track ?? "other";
+      const startsAt = videoStartTimes(timeline);
+      const hitsVideoClip = timeline.video.some((clip) => atSec >= startsAt[clip.id]! && atSec < startsAt[clip.id]! + ("durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec));
+      const decision = decideOverlayDrop({ source: { kind: props.project.inputs.find((input) => input.id === data.id)?.kind ?? "video", id: data.id }, targetTrack: targetTrack === "video" ? "video" : /^video-(?:[2-9]|[1-9]\d+)$/.test(targetTrack) ? "overlay" : "other", hitsVideoClip, atSec, videoDurationSec: videoDuration(timeline) });
+      if (decision.kind === "overlay") addOverlay({ type: "input", id: data.id }, decision.startSec, /^video-(?:[2-9]|[1-9]\d+)$/.test(targetTrack) ? Number(targetTrack.slice(6)) - 2 : undefined);
+      else if (decision.kind === "append-video") addVideo(data.id, decision.startSec);
     } catch { props.onError("클립을 추가하지 못했어요."); }
   }
 
@@ -235,10 +249,10 @@ export function Studio(props: {
     </header>
     <div className="studio-workspace">
       <LibraryPanel project={{ ...props.project, timeline }} selectedId={selected.id} playhead={playhead} onAddVoice={addVoice} onRecordingChange={(active) => { setRecording(active); if (active) setPlaying(false); }} onAddVideo={(id) => addVideo(id)} onSelectMeme={(meme) => addMeme(meme, timeline.video.find((clip) => clip.id === selected.id && clip.kind === "meme")?.id)} onAddSfx={addSfx} onProject={props.onProject} onError={props.onError} onSnackbar={props.onSnackbar} />
-      <section className="studio-preview-area" aria-label="미리보기">
+      <section className="studio-preview-area" aria-label="미리보기" onDragOver={(event) => event.preventDefault()} onDrop={(event) => void onDrop(event, true)}>
         <Preview project={{ ...props.project, timeline }} time={playhead} playing={playing} muteOriginal={recording} onTime={setPlayhead} onPlaying={setPlaying} />
         <div className="studio-playback-controls">
-          <button type="button" aria-label={playing ? "일시 정지" : "재생"} onClick={() => setPlaying((value) => !value)}><HugeiconsIcon icon={playing ? PauseIcon : PlayIcon} size={18} /></button>
+          <button type="button" aria-label={playing ? "일시 정지" : "재생"} disabled={recording} onClick={() => setPlaying((value) => !value)}><HugeiconsIcon icon={playing ? PauseIcon : PlayIcon} size={18} /></button>
           <span>{timeLabel(playhead)} / {timeLabel(duration)}</span>
           <input aria-label="재생 헤드" type="range" min="0" max={duration} step="0.01" value={Math.min(playhead, duration)} onChange={(event) => setPlayhead(Number(event.currentTarget.value))} />
         </div>
@@ -246,7 +260,7 @@ export function Studio(props: {
       <Inspector project={{ ...props.project, timeline }} selectedId={selected.id} selectedIds={selectedIds} selectedTrack={selected.track} timeline={timeline} onChange={edit} onProject={props.onProject} onSnackbar={props.onSnackbar} onUngroup={() => edit(ungroupVideoClips(timeline, selectedIds))} />
     </div>
     <div className="studio-edit-toolbar">
-      <button type="button" aria-label="재생" onClick={() => setPlaying(true)}><HugeiconsIcon icon={PlayIcon} size={16} /></button>
+      <button type="button" aria-label="재생" disabled={recording} onClick={() => setPlaying(true)}><HugeiconsIcon icon={PlayIcon} size={16} /></button>
       <span>{timeLabel(playhead)}</span>
       <ActionButton
         className="studio-history-button"
@@ -272,7 +286,7 @@ export function Studio(props: {
       <span>스냅</span><input type="checkbox" checked={snap} onChange={(event) => setSnap(event.currentTarget.checked)} />
       <label>확대 <input type="range" min="1" max="10" step="0.1" value={zoom} onChange={(event) => setZoom(Number(event.currentTarget.value))} /><output>{zoom.toFixed(1)}×</output></label>
     </div>
-    <div className="studio-timeline-drop" onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
+    <div className="studio-timeline-drop" onDragOver={(event) => event.preventDefault()} onDrop={(event) => void onDrop(event)}>
       <Timeline timeline={timeline} inputs={props.project.inputs} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} selectedIds={selectedIds} onSelect={(id, track, shift) => {
         if (!id) { setSelected({ id: null, track: null }); setSelectedIds([]); return; }
         const ids = shift && selected.id
@@ -288,9 +302,6 @@ export function Studio(props: {
   </section>;
 }
 
-function isTextInput(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
-}
 
 function findVideoClip(timeline: TimelineData, id: string | null) {
   if (!id) return undefined;

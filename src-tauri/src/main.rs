@@ -9,6 +9,8 @@ use std::sync::Mutex;
 use std::thread::sleep;
 use std::time::{Duration, Instant};
 use tauri::{Manager, State};
+#[cfg(target_os = "macos")]
+use tauri::menu::{Menu, PredefinedMenuItem, Submenu};
 
 // 엔진이 멈춰도 앱 종료가 5초 넘게 대기하지 않도록 제한한다.
 const ENGINE_EXIT_TIMEOUT: Duration = Duration::from_secs(5);
@@ -125,6 +127,8 @@ fn main() {
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
         .setup(|app| {
+            #[cfg(target_os = "macos")]
+            app.set_menu(macos_menu(app)?)?;
             #[cfg(debug_assertions)]
             {
                 let (child, connection) = start_engine()?;
@@ -186,4 +190,37 @@ fn main() {
                 }
             }
         });
+}
+
+#[cfg(target_os = "macos")]
+fn macos_menu<M: Manager<tauri::Wry>>(manager: &M) -> tauri::Result<Menu<tauri::Wry>> {
+    let app = manager.app_handle();
+    let package_name = app.package_info().name.clone();
+    let app_menu = Submenu::with_items(app, package_name, true, &[
+        &PredefinedMenuItem::about(app, None, None)?,
+        &PredefinedMenuItem::separator(app)?,
+        &PredefinedMenuItem::services(app, None)?,
+        &PredefinedMenuItem::separator(app)?,
+        &PredefinedMenuItem::hide(app, None)?,
+        &PredefinedMenuItem::hide_others(app, None)?,
+        &PredefinedMenuItem::separator(app)?,
+        &PredefinedMenuItem::quit(app, None)?,
+    ])?;
+    let edit_menu = Submenu::with_items(app, "Edit", true, &[
+        &PredefinedMenuItem::undo(app, None)?,
+        &PredefinedMenuItem::redo(app, None)?,
+        &PredefinedMenuItem::separator(app)?,
+        &PredefinedMenuItem::cut(app, None)?,
+        &PredefinedMenuItem::copy(app, None)?,
+        &PredefinedMenuItem::paste(app, None)?,
+        &PredefinedMenuItem::select_all(app, None)?,
+    ])?;
+    let view_menu = Submenu::with_items(app, "View", true, &[&PredefinedMenuItem::fullscreen(app, None)?])?;
+    let window_menu = Submenu::with_items(app, "Window", true, &[
+        &PredefinedMenuItem::maximize(app, None)?,
+        &PredefinedMenuItem::separator(app)?,
+        &PredefinedMenuItem::close_window(app, None)?,
+    ])?;
+    let help_menu = Submenu::with_items(app, "Help", true, &[])?;
+    Menu::with_items(app, &[&app_menu, &edit_menu, &view_menu, &window_menu, &help_menu])
 }

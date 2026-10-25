@@ -1,4 +1,4 @@
-const VIDEO_TRACK = /^(?:video|video-[2-9]\d*|video-new)$/;
+const VIDEO_TRACK = /^(?:video|video-(?:[2-9]|[1-9]\d+)|video-new)$/;
 
 export type ActionMoveDecision =
   | { kind: "reset" }
@@ -39,10 +39,15 @@ export function decideActionMove(input: ActionMoveInput): ActionMoveDecision {
     return dragSourceTrack === "video" ? { kind: "reorder-video1" } : { kind: "move-overlay" };
   }
   if (editorRow === "video") return { kind: "reorder-video1" };
-  if (/^video-[2-9]\d*$/.test(editorRow)) return { kind: "move-overlay" };
+  if (/^video-(?:[2-9]|[1-9]\d+)$/.test(editorRow)) return { kind: "move-overlay" };
   if (editorRow === "captions") return { kind: "move-caption" };
-  if (editorRow === "voice" || editorRow === "sfx") return { kind: "move-audio", track: editorRow };
+  if (editorRow === "voice") return { kind: "move-audio", track: "voice" };
+  if (editorRow === "sfx" || /^sfx-\d+$/.test(editorRow)) return { kind: "move-audio", track: "sfx" };
   return { kind: "ignore" };
+}
+
+export function shouldResetNewTrackDrop(input: { overlayCount: number; sourceTrack: string; sourceClipCount: number }): boolean {
+  return input.overlayCount > 0 && input.sourceTrack === `video-${input.overlayCount + 1}` && input.sourceClipCount === 1;
 }
 
 export function isUnchangedTimeline(current: unknown, next: unknown): boolean {

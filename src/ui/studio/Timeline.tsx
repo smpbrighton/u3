@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import type { Input, Timeline as TimelineData } from "../../core/schema";
 import { VolumeIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { deleteAudioClip, deleteCaptionClip, deleteOverlayClip, deleteVideoSelection, moveAudioClip, moveCaptionClip, moveOverlayClip, overlayDuration, splitOverlayClip, splitVideoClip, trimAudioClip, trimCaptionClip, trimOverlayClip, trimVideoClip, videoStartTimes, VIDEO_TRACK_REQUIRED_MESSAGE } from "../../core/timeline/ops";
+import { moveAudioClip, moveCaptionClip, moveOverlayClip, overlayDuration, splitOverlayClip, splitVideoClip, trimAudioClip, trimCaptionClip, trimOverlayClip, trimVideoClip, videoStartTimes } from "../../core/timeline/ops";
 import { labelForAction, timelineToStudioRows, reorderVideoByStart, type StudioAction, type MemeLabel, type SfxLabel } from "./timeline-adapter";
 import { api } from "../api";
 import { scaleWidthForZoom, scrollLeftForZoomAnchor, zoomFromPinch, zoomFromWheel } from "./timeline-zoom";
@@ -13,8 +13,10 @@ import { findOverlayInLayers } from "../../core/timeline/overlay-layers";
 import { moveOverlayClipToLayer, moveOverlayClipToVideo1, moveVideo1ClipToOverlay } from "../../core/timeline/video-track-edits";
 import { findVideoClipAtTime } from "../../core/timeline/video-pointer";
 import { moveVideoGroup } from "../../core/timeline/video-groups";
-import { decideActionMove, isUnchangedTimeline, resolveVideoTrackAtPointer, VIDEO_TRACK_EDIT_GRID_SELECTOR } from "./video-track-drop";
+import { decideActionMove, isUnchangedTimeline, resolveVideoTrackAtPointer, shouldResetNewTrackDrop, VIDEO_TRACK_EDIT_GRID_SELECTOR } from "./video-track-drop";
 import { timelinePointerSeconds } from "./timeline-zoom";
+import { studioShortcut } from "./shortcuts";
+import { normalizeSfxLanes } from "../../core/timeline/sfx-lanes";
 
 const TRACKS = [
   { id: "captions", name: "자막", color: "#F7A54A" },
@@ -56,12 +58,16 @@ export function Timeline(props: {
   const [editorKey, setEditorKey] = useState(0);
   const rows = useMemo(() => timelineToStudioRows(props.timeline), [props.timeline]);
   const displayRows = useMemo(() => [...rows.slice(0, 1), { id: "video-new", name: "새 영상 트랙", actions: [], rowHeight: TRACK_ROW_HEIGHT }, ...rows.slice(1)], [rows]);
-  const overlayTracks = displayRows.filter((row) => /^video-[2-9]\d*$/.test(row.id) || row.id === "video-new").map((row) => ({
+  const overlayTracks = displayRows.filter((row) => /^video-(?:[2-9]|[1-9]\d+)$/.test(row.id) || row.id === "video-new").map((row) => ({
     id: row.id,
     name: row.name ?? "영상 2",
     color: "#A875D6",
   }));
-  const tracks = TRACKS.filter((track) => rows.some((row) => row.id === track.id)).flatMap((track) => track.id === "video" ? [...overlayTracks, track] : [track]);
+  const tracks = TRACKS.filter((track) => rows.some((row) => row.id === track.id)).flatMap((track) => track.id === "video"
+    ? [...overlayTracks, track]
+    : track.id === "sfx"
+      ? rows.filter((row) => row.id === "sfx" || /^sfx-\d+$/.test(row.id)).map((row) => ({ id: row.id, name: row.name ?? "효과음", color: track.color }))
+      : [track]);
   const starts = useMemo(() => videoStartTimes(props.timeline), [props.timeline]);
   const data = displayRows.map((item) => ({ ...item, actions: item.actions.map((action) => ({ ...action, selected: props.selectedIds.includes(action.id) })) }));
 
@@ -169,10 +175,11 @@ export function Timeline(props: {
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if ((event.key.toLowerCase() !== "s" && event.key.toLowerCase() !== "c") || event.metaKey || event.ctrlKey || event.altKey || isTextInput(event.target)) return;
+      const shortcut = studioShortcut({ key: event.key, code: event.code, metaKey: event.metaKey, ctrlKey: event.ctrlKey, altKey: event.altKey, shiftKey: event.shiftKey, isComposing: event.isComposing, keyCode: event.keyCode, targetTagName: (event.target as HTMLElement | null)?.tagName, targetType: (event.target as HTMLInputElement | null)?.type, targetIsContentEditable: (event.target as HTMLElement | null)?.isContentEditable });
+      if (shortcut !== "split-pointer" && shortcut !== "split-playhead") return;
       let targetId: string | undefined;
       let atSec: number | undefined;
-      if (event.key.toLowerCase() === "c") {
+      if (shortcut === "split-pointer") {
         const pointer = pointerPosition.current;
         const grid = editorHost.current?.querySelector<HTMLElement>(VIDEO_TRACK_EDIT_GRID_SELECTOR);
         const rect = grid?.getBoundingClientRect();
@@ -246,7 +253,7 @@ export function Timeline(props: {
   } as CSSProperties}>
     <div className="studio-timeline-toolbar">
       <div className="studio-track-labels studio-track-labels--toolbar" />
-      <span>포인터에서 자르기 <kbd>C</kbd> · 재생 헤드에서 자르기 <kbd>S</kbd> · 묶기 <kbd>M</kbd> / 풀기 <kbd>⇧M</kbd></span>
+      <span>포인터에서 자르기 <kbd>C</kbd> · 재생 헤드에서 자르기 <kbd>S</kbd> · 묶기 <kbd>⌘M</kbd> / 풀기 <kbd>⇧⌘M</kbd></span>
       <label>스냅 <input type="checkbox" checked={props.snap} onChange={(event) => props.onSnapChange?.(event.currentTarget.checked)} /></label>
       <label className="studio-zoom">확대 <input type="range" min="1" max="10" step="0.1" value={props.zoom} onChange={(event) => props.onZoomChange?.(Number(event.currentTarget.value))} /><output>{props.zoom.toFixed(1)}×</output></label>
     </div>
@@ -255,7 +262,7 @@ export function Timeline(props: {
         <div className="studio-track-ruler" />
         {tracks.map((track) => <div key={track.id} className="studio-track-label" style={{ borderLeftColor: track.color }}>
           <span>{track.name}</span>
-          {(track.id === "source" || track.id === "stem-voice" || track.id === "stem-bg" || track.id === "voice" || track.id === "sfx") && <button type="button" aria-label={`${track.name} 음소거`} onClick={() => props.onMute?.(track.id)}><HugeiconsIcon icon={VolumeIcon} size={16} /></button>}
+          {(track.id === "source" || track.id === "stem-voice" || track.id === "stem-bg" || track.id === "voice" || track.id === "sfx" || /^sfx-\d+$/.test(track.id)) && <button type="button" aria-label={`${track.name} 음소거`} onClick={() => props.onMute?.(track.id.startsWith("sfx") ? "sfx" : track.id)}><HugeiconsIcon icon={VolumeIcon} size={16} /></button>}
         </div>)}
       </div>
       <div className="studio-timeline-editor" ref={editorHost}>
@@ -289,15 +296,19 @@ export function Timeline(props: {
           onClickTimeArea={(time) => { props.onPlayhead(time); return true; }}
           onClickAction={(event, { action, row }) => { event.stopPropagation(); props.onSelect(action.id, selectedTrack(row.id), event.shiftKey); }}
           onActionMoveStart={({ action, row }) => {
-            if (row.id === "video" || /^video-[2-9]\d*$/.test(row.id)) { dragTarget.current = { id: action.id, rowId: row.id, clientY: pointerPosition.current?.y ?? 0 }; }
+            if (row.id === "video" || /^video-(?:[2-9]|[1-9]\d+)$/.test(row.id)) { dragTarget.current = { id: action.id, rowId: row.id, clientY: pointerPosition.current?.y ?? 0 }; }
           }}
           onActionMoveEnd={({ action, row, start }) => {
             const drag = dragTarget.current;
             dragTarget.current = null;
-            if (!drag && (row.id === "video" || /^video-[2-9]\d*$/.test(row.id))) return;
+            if (!drag && (row.id === "video" || /^video-(?:[2-9]|[1-9]\d+)$/.test(row.id))) return;
             const grid = editorHost.current?.querySelector<HTMLElement>(VIDEO_TRACK_EDIT_GRID_SELECTOR);
             const y = drag?.clientY ?? 0;
             const targetRow = grid ? resolveVideoTrackAtPointer(displayRows.map((item) => item.id), y, grid.getBoundingClientRect().top, grid.scrollTop) : null;
+            const sourceOverlay = findOverlayInLayers(props.timeline.overlays, action.id);
+            if (targetRow === "video-new" && sourceOverlay && shouldResetNewTrackDrop({ overlayCount: props.timeline.overlays.length, sourceTrack: drag?.rowId ?? "", sourceClipCount: props.timeline.overlays[sourceOverlay.layer]?.length ?? 0 })) {
+              resetEditor(); return;
+            }
             const layerFor = (id: string) => id === "video-new" ? props.timeline.overlays.length : Number(id.slice("video-".length)) - 2;
             const groupId = props.timeline.video.find((clip) => clip.id === action.id)?.groupId ?? findOverlayInLayers(props.timeline.overlays, action.id)?.clip.groupId;
             const sourceStart = drag?.rowId === "video" ? videoStartTimes(props.timeline)[action.id] ?? start : findOverlayInLayers(props.timeline.overlays, action.id)?.clip.startSec ?? start;
@@ -331,28 +342,19 @@ export function Timeline(props: {
               const toSec = dir === "left" ? start : end;
               if (clip?.kind === "main" && "inStartSec" in clip) doEdit(() => trimVideoClip(props.timeline, action.id, edge, toSec, props.inputDurations?.[clip.inputId]));
               else if (clip) doEdit(() => trimVideoClip(props.timeline, action.id, edge, toSec));
-            } else if (/^video-[2-9]\d*$/.test(row.id)) doEdit(() => trimOverlayClip(props.timeline, action.id, edge, dir === "left" ? start : end));
+            } else if (/^video-(?:[2-9]|[1-9]\d+)$/.test(row.id)) doEdit(() => trimOverlayClip(props.timeline, action.id, edge, dir === "left" ? start : end));
             else if (row.id === "captions") doEdit(() => trimCaptionClip(props.timeline, action.id, edge, dir === "left" ? start : end));
-            else if (row.id === "voice" || row.id === "sfx") {
+            else if (row.id === "voice" || row.id === "sfx" || /^sfx-\d+$/.test(row.id)) {
               const clips = row.id === "voice" ? props.timeline.voice : props.timeline.sfx;
               const clip = clips.find((item) => item.id === action.id);
               if (!clip) return;
               const updated = trimAudioClip(clips, clip.id, edge, dir === "left" ? start : end, props.audioDurations?.[clip.file] ?? clip.inEndSec);
-              doEdit(() => ({ ...props.timeline, [row.id]: updated }));
+              doEdit(() => row.id === "voice" ? { ...props.timeline, voice: updated } : { ...props.timeline, sfx: normalizeSfxLanes(updated) });
             }
           }}
           onDoubleClickAction={(event, { action, row }) => {
-            event.preventDefault();
-            if (row.id === "captions") doEdit(() => ({ ...props.timeline, captions: deleteCaptionClip(props.timeline.captions, action.id) }));
-            const groupId = props.timeline.video.find((clip) => clip.id === action.id)?.groupId ?? findOverlayInLayers(props.timeline.overlays, action.id)?.clip.groupId;
-            if (groupId || row.id === "video") {
-              const result = deleteVideoSelection(props.timeline, [action.id]);
-              if (result.blocked) props.onBlocked?.(VIDEO_TRACK_REQUIRED_MESSAGE);
-              else doEdit(() => result.timeline);
-            }
-            else if (/^video-[2-9]\d*$/.test(row.id)) doEdit(() => deleteOverlayClip(props.timeline, action.id));
-            if (row.id === "voice") doEdit(() => ({ ...props.timeline, voice: deleteAudioClip(props.timeline.voice, action.id) }));
-            if (row.id === "sfx") doEdit(() => ({ ...props.timeline, sfx: deleteAudioClip(props.timeline.sfx, action.id) }));
+            event.preventDefault(); event.stopPropagation();
+            props.onSelect(action.id, selectedTrack(row.id), event.shiftKey);
           }}
           onActionMoving={({ row }) => row.id === "source" || row.id.startsWith("stem-") ? false : undefined}
         />
@@ -360,8 +362,3 @@ export function Timeline(props: {
     </div>
   </section>;
 }
-
-function isTextInput(target: EventTarget | null): boolean {
-  return target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
-}
-

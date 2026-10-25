@@ -1,5 +1,6 @@
 import type { AudioClip, CodexScript, Input, MemeMeta, SfxMeta, Timeline, VideoClip } from "../schema";
 import { pickSfxFile, resolveSceneSfx, SCENE_SFX_MAX_SEC } from "../sfx";
+import { placeOverlayInLowestLayer } from "./overlay-layers";
 
 export const DEFAULT_CHARS_PER_SEC = 5.7;
 export const DEFAULT_PHOTO_MIN_SEC = 1.5;
@@ -34,6 +35,7 @@ function videoClip(sceneIndex: number, input: Input, startSec: number, endSec: n
 
 export function timelineFromScript(script: CodexScript, inputs: readonly Input[], options: FromScriptOptions = {}): Timeline {
   const video: VideoClip[] = [];
+  let overlays: Timeline["overlays"] = [];
   const captions: Timeline["captions"] = [];
   const sfx: AudioClip[] = [];
   let cursor = 0;
@@ -55,13 +57,15 @@ export function timelineFromScript(script: CodexScript, inputs: readonly Input[]
         ? options.alternateMemes?.[index] ?? meme
         : meme;
       if (!selected) throw new Error(`장면 ${index + 1}의 짤을 찾을 수 없습니다`);
-      video.push({ id: `scene-${index}-meme-${suffix}`, kind: "meme", memeId: selected.id, durationSec: Math.min(selected.durationSec ?? DEFAULT_MEME_MAX_SEC, DEFAULT_MEME_MAX_SEC) });
+      const durationSec = Math.min(selected.durationSec ?? DEFAULT_MEME_MAX_SEC, DEFAULT_MEME_MAX_SEC, mainDuration);
+      const start = suffix === "before" ? cursor : Math.max(cursor, cursor + mainDuration - durationSec);
+      overlays = placeOverlayInLowestLayer(overlays, { id: `scene-${index}-meme-${suffix}`, memeId: selected.id, startSec: start, durationSec, x: 0.5, y: 0.5, width: 0.6 });
     };
     if (scene.memeBefore) addMeme("before");
     video.push(videoClip(index, input, mainStart, mainEnd));
     if (scene.memeAfter) addMeme("after");
 
-    const durationSec = video.slice(-((scene.memeBefore ? 1 : 0) + 1 + (scene.memeAfter ? 1 : 0))).reduce((sum, clip) => sum + ("durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec), 0);
+    const durationSec = mainDuration;
     captions.push({ id: `scene-${index}-caption`, startSec: cursor, endSec: cursor + durationSec, text: scene.caption });
     const category = resolveSceneSfx(
       { sfxCategory: scene.sfxCategory ?? undefined, reaction: scene.reaction ?? undefined },
@@ -83,7 +87,7 @@ export function timelineFromScript(script: CodexScript, inputs: readonly Input[]
   });
 
   return {
-    video, overlays: [], captions, voice: [], sfx,
+    video, overlays, captions, voice: [], sfx,
     audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } },
   };
 }

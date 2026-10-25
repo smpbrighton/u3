@@ -7,6 +7,7 @@ import { PageBanner } from "../../../seed-design/ui/page-banner";
 import { ProgressCircle } from "../../../seed-design/ui/progress-circle";
 import { AlertDialog } from "@seed-design/react";
 import { api, watchJob, type EngineJob } from "../api";
+import { clampTransitionDuration, parseTransitionDuration, transitionDurationLimit } from "./transition-length";
 
 interface SfxItem { id: string; category: string; title: string; file: string; ref: string; url: string; durationSec: number }
 type TranscriptResult = { captions: TimelineData["captions"]; replaced: TimelineData["captions"] };
@@ -257,8 +258,10 @@ function GroupSummary(props: { count: number; onUngroup: () => void }) {
 
 function TransitionControl(props: { label: string; value?: ClipTransitionInput; durationSec: number; onChange: (value: ClipTransitionInput) => void }) {
   const kind = props.value?.kind ?? { kind: "none" as const };
-  const duration = props.value?.durationSec ?? 0.5;
-  const maxDuration = Math.min(2, props.durationSec / 2);
+  const maxDuration = transitionDurationLimit(props.durationSec);
+  const duration = clampTransitionDuration(props.value?.durationSec ?? 0.5, props.durationSec);
+  const [durationInput, setDurationInput] = useState(String(duration));
+  useEffect(() => setDurationInput(String(duration)), [duration]);
   const types: { value: TransitionKind["kind"]; label: string }[] = [
     { value: "none", label: "없음" }, { value: "dissolve", label: "디졸브" }, { value: "black-fade", label: "검은 화면 페이드" },
     { value: "slide", label: "밀기" }, { value: "wipe", label: "와이프" }, { value: "iris", label: "원형 열기" }, { value: "zoom", label: "확대 전환" },
@@ -279,10 +282,16 @@ function TransitionControl(props: { label: string; value?: ClipTransitionInput; 
     {kind.kind === "slide" || kind.kind === "wipe" ? <select aria-label={`${props.label} 방향`} value={kind.direction} onChange={(event) => props.onChange({ kind: { ...kind, direction: event.currentTarget.value as "left" | "right" | "up" | "down" }, durationSec: duration })}>
       <option value="left">왼쪽</option><option value="right">오른쪽</option><option value="up">위</option><option value="down">아래</option>
     </select> : null}
-    {kind.kind !== "none" ? <label>길이 <input aria-label={`${props.label} 길이`} type="number" min="0.1" max={maxDuration} step="0.1" value={Math.min(maxDuration, duration)} disabled={maxDuration < 0.1} onChange={(event) => {
-      const next = Number(event.currentTarget.value);
-      if (Number.isFinite(next) && next >= 0.1 && next <= maxDuration) props.onChange({ kind, durationSec: next });
-    }} /></label> : null}
+    {kind.kind !== "none" ? <>
+      <label className="studio-range-label">길이 <b>{duration.toFixed(1)}초</b><input aria-label={`${props.label} 길이 조절`} type="range" min="0.1" max={maxDuration} step="0.1" value={duration} disabled={maxDuration < 0.1} onChange={(event) => {
+        const next = clampTransitionDuration(Number(event.currentTarget.value), props.durationSec);
+        setDurationInput(String(next)); props.onChange({ kind, durationSec: next });
+      }} /></label>
+      <label>길이 입력 <input aria-label={`${props.label} 길이`} type="number" min="0.1" max={maxDuration} step="0.1" value={durationInput} disabled={maxDuration < 0.1} onChange={(event) => setDurationInput(event.currentTarget.value)} onBlur={() => {
+        const next = parseTransitionDuration(durationInput, props.durationSec, maxDuration, duration);
+        setDurationInput(String(next)); props.onChange({ kind, durationSec: next });
+      }} onKeyDown={(event) => { if (event.key === "Enter") event.currentTarget.blur(); }} /></label>
+    </> : null}
   </fieldset>;
 }
 
