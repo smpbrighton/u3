@@ -13,7 +13,7 @@ import { findOverlayInLayers } from "../../core/timeline/overlay-layers";
 import { moveOverlayClipToLayer, moveOverlayClipToVideo1, moveVideo1ClipToOverlay } from "../../core/timeline/video-track-edits";
 import { findVideoClipAtTime } from "../../core/timeline/video-pointer";
 import { deleteVideoGroup, moveVideoGroup } from "../../core/timeline/video-groups";
-import { resolveVideoTrackAtPointer } from "./video-track-drop";
+import { isSameTrackDropPosition, resolveVideoTrackAtPointer, VIDEO_TRACK_EDIT_GRID_SELECTOR } from "./video-track-drop";
 import { timelinePointerSeconds } from "./timeline-zoom";
 
 const TRACKS = [
@@ -53,6 +53,7 @@ export function Timeline(props: {
   const pointerPosition = useRef<{ x: number; y: number } | null>(null);
   const [sfxItems, setSfxItems] = useState<SfxLabel[]>([]);
   const [memeItems, setMemeItems] = useState<MemeLabel[]>([]);
+  const [editorKey, setEditorKey] = useState(0);
   const rows = useMemo(() => timelineToStudioRows(props.timeline), [props.timeline]);
   const displayRows = useMemo(() => [...rows.slice(0, 1), { id: "video-new", name: "새 영상 트랙", actions: [], rowHeight: TRACK_ROW_HEIGHT }, ...rows.slice(1)], [rows]);
   const overlayTracks = displayRows.filter((row) => /^video-[2-9]\d*$/.test(row.id) || row.id === "video-new").map((row) => ({
@@ -173,7 +174,7 @@ export function Timeline(props: {
       let atSec: number | undefined;
       if (event.key.toLowerCase() === "c") {
         const pointer = pointerPosition.current;
-        const grid = editorHost.current?.querySelector<HTMLElement>(".ReactVirtualized__Grid");
+          const grid = editorHost.current?.querySelector<HTMLElement>(VIDEO_TRACK_EDIT_GRID_SELECTOR);
         const rect = grid?.getBoundingClientRect();
         if (!pointer || !grid || !rect || pointer.x < rect.left || pointer.x > rect.right || pointer.y < rect.top || pointer.y > rect.bottom) return;
         const rowIndex = Math.floor((pointer.y - rect.top + grid.scrollTop) / TRACK_ROW_HEIGHT);
@@ -240,6 +241,7 @@ export function Timeline(props: {
       </div>
       <div className="studio-timeline-editor" ref={editorHost}>
         <TimelineEditor
+          key={editorKey}
           ref={ref}
           editorData={data as never}
           effects={{}}
@@ -274,7 +276,7 @@ export function Timeline(props: {
             const drag = dragTarget.current;
             dragTarget.current = null;
             if (!drag && (row.id === "video" || /^video-[2-9]\d*$/.test(row.id))) return;
-            const grid = editorHost.current?.querySelector<HTMLElement>(".ReactVirtualized__Grid");
+            const grid = editorHost.current?.querySelector<HTMLElement>(VIDEO_TRACK_EDIT_GRID_SELECTOR);
             const y = drag?.clientY ?? 0;
             const targetRow = grid ? resolveVideoTrackAtPointer(displayRows.map((item) => item.id), y, grid.getBoundingClientRect().top, grid.scrollTop) : null;
             const isVideoRow = (id?: string) => id === "video" || id === "video-new" || Boolean(id && /^video-[2-9]\d*$/.test(id));
@@ -282,6 +284,10 @@ export function Timeline(props: {
             const crossingRows = drag && targetRow && targetRow !== drag.rowId && isVideoRow(drag.rowId) && isVideoRow(targetRow);
             const groupId = props.timeline.video.find((clip) => clip.id === action.id)?.groupId ?? findOverlayInLayers(props.timeline.overlays, action.id)?.clip.groupId;
             const sourceStart = drag?.rowId === "video" ? videoStartTimes(props.timeline)[action.id] ?? start : findOverlayInLayers(props.timeline.overlays, action.id)?.clip.startSec ?? start;
+            if (drag && isSameTrackDropPosition(drag.rowId, row.id, sourceStart, start)) {
+              setEditorKey((current) => current + 1);
+              return;
+            }
             const groupFirstStart = groupId ? Math.min(...[
               ...props.timeline.video.filter((clip) => clip.groupId === groupId).map((clip) => videoStartTimes(props.timeline)[clip.id]!),
               ...props.timeline.overlays.flat().filter((clip) => clip.groupId === groupId).map((clip) => clip.startSec),

@@ -8,6 +8,7 @@ import type { U3ShortProps } from "./types";
 import type { ClipTransition } from "../core/schema";
 import type { RenderAudioLayer, RenderTransition, RenderVideoSequence } from "../core/timeline/to-render";
 import { transitionProgressAt, transitionStyleAt, type TransitionStyle } from "../core/timeline/transitions";
+import { overlayMediaStyle } from "./overlay-style";
 
 ensureFonts();
 
@@ -41,10 +42,9 @@ const OverlayLayer: React.FC<{ props: U3ShortProps; index: number }> = ({ props,
   const edge = overlayEdgeStyle(clip.startTransition, clip.endTransition, frame, clip.durationInFrames, props.render.fps);
   const src = clip.kind === "meme" ? props.memes[clip.memeId!] : props.overlayInputs[clip.inputId!];
   if (!src) throw new Error(`겹친 영상 URL이 없습니다: ${clip.kind === "meme" ? clip.memeId : clip.inputId}`);
-  const style: React.CSSProperties = { position: "absolute", left: `${clip.x * 100}%`, top: `${clip.y * 100}%`, width: `${clip.width * 100}%`, transform: `translate(-50%, -50%) ${edge.transform}`, opacity: edge.opacity, clipPath: edge.clipPath, overflow: "hidden", display: "block" };
-  const contentStyle: React.CSSProperties = { display: "block", width: "100%", height: "auto" };
-  if (clip.kind === "photo") return <Img src={src} style={{ ...style, ...contentStyle }} />;
-  const video = <Video src={src} muted trimBefore={clip.kind === "video" ? clip.sourceStartFrame ?? 0 : 0} loop={false} objectFit="contain" style={{ ...style, ...contentStyle }} />;
+  const style = overlayMediaStyle(clip, edge);
+  if (clip.kind === "photo") return <Img src={src} style={style} />;
+  const video = <Video src={src} muted trimBefore={clip.kind === "video" ? clip.sourceStartFrame ?? 0 : 0} loop={false} objectFit="contain" style={style} />;
   if (clip.kind !== "meme") return video;
   const loopFrames = Math.max(1, props.memeFrames[clip.memeId!] ?? clip.durationInFrames);
   return <Loop durationInFrames={loopFrames} times={Math.ceil(clip.durationInFrames / loopFrames)} name="겹친 짤 반복 재생">{video}</Loop>;

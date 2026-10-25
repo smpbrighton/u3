@@ -1,5 +1,11 @@
 const VIDEO_TRACK = /^(?:video|video-[2-9]\d*|video-new)$/;
 
+export const VIDEO_TRACK_EDIT_GRID_SELECTOR = ".timeline-editor-edit-area .ReactVirtualized__Grid";
+
+export function isSameTrackDropPosition(sourceTrack: string, targetTrack: string, sourceStart: number, targetStart: number): boolean {
+  return sourceTrack === targetTrack && Math.abs(sourceStart - targetStart) < 1e-6;
+}
+
 export function resolveVideoTrackAtPointer(
   rows: readonly string[],
   pointerY: number,
