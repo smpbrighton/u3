@@ -10,20 +10,21 @@ const meme: MemeMeta = { id: "m1", emotion: "laugh", situations: [], importedAt:
 const sound: SfxMeta = { id: "s1", category: "laugh", file: "s.wav", title: "laugh", source: "local", license: "MIT", durationSec: 0.4 };
 
 describe("timelineFromScript", () => {
-  it("장면을 앞짤·본 화면·뒤짤 순으로 만들고 같은 시각에 자막·효과음을 둔다", () => {
+  it("짤을 영상 2 오버레이에 두고 본 화면 길이로 자막·효과음 시각을 계산한다", () => {
     const script: CodexScript = { scenes: [
       { caption: "사진 장면", inputIndex: 1, reaction: "웃음", memeBefore: true, memeAfter: true, sfxCategory: "laugh", startSec: null, endSec: null },
       { caption: "영상 장면", inputIndex: 2, reaction: null, memeBefore: false, memeAfter: false, sfxCategory: null, startSec: 3, endSec: 6 },
     ] };
     const timeline = timelineFromScript(script, inputs, { memes: { 0: meme }, sfx: { 0: sound } });
-    expect(timeline.video.map((clip) => clip.id)).toEqual(["scene-0-meme-before", "scene-0-main", "scene-0-meme-after", "scene-1-main"]);
+    expect(timeline.video.map((clip) => clip.id)).toEqual(["scene-0-main", "scene-1-main"]);
     const photoDuration = Math.max(1.5, [..."사진 장면"].length / 5.7);
-    expect(timeline.video[1]).toMatchObject({ durationSec: photoDuration });
-    expect(timeline.video[0]).toMatchObject({ durationSec: 2 });
-    expect(timeline.video[2]).toMatchObject({ durationSec: 2 });
-    expect(timeline.captions[0]).toMatchObject({ startSec: 0, endSec: photoDuration + 4 });
+    expect(timeline.video[0]).toMatchObject({ durationSec: photoDuration });
+    expect(timeline.overlays.flat().map((clip) => clip.id)).toEqual(["scene-0-meme-before", "scene-0-meme-after"]);
+    expect(timeline.overlays[0]?.[0]).toMatchObject({ startSec: 0, durationSec: photoDuration, x: 0.5, width: 0.6 });
+    expect(timeline.overlays[1]?.[0]).toMatchObject({ startSec: 0, durationSec: photoDuration });
+    expect(timeline.captions[0]).toMatchObject({ startSec: 0, endSec: photoDuration });
     expect(timeline.sfx[0]).toMatchObject({ startSec: 0, file: "s.wav" });
-    expect(timeline.captions[1]?.startSec).toBe(photoDuration + 4);
+    expect(timeline.captions[1]?.startSec).toBe(photoDuration);
     expect(timeline.video.at(-1)).toMatchObject({ inStartSec: 3, inEndSec: 6 });
   });
   it("사진 기본 길이는 최소 1.5초이고 영상 구간은 원본 경계에서 거부한다", () => {
