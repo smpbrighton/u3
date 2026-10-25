@@ -1,5 +1,12 @@
 # log
 
+## [2026-10-25] ingest | W17 홈 썸네일과 내보내기 경고
+- `pages/concept-home-export.md`
+- `pages/entity-desktop-app.md`
+- `index.md`
+- `architecture/changes/` 문서는 범위에 포함된 커밋에서 변경되지 않았다.
+- 내보내기 경고 표시와 홈 썸네일은 수동 확인했다. 경고 뒤 실제 덮어쓰기 실행은 미검증이다. `docs/manual-check.md` `git:b3a4d65`
+
 ## [2026-10-25] ingest | desktop-studio 구현 및 설치 앱 수동 확인
 - `pages/entity-desktop-app.md`
 - `pages/entity-engine-shutdown.md`

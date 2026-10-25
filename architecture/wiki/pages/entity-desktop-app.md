@@ -14,6 +14,7 @@ U3는 macOS Apple Silicon 대상 Tauri 2 앱이며 React UI와 Node sidecar 엔�
 ## 관계
 - [엔진 종료](entity-engine-shutdown.md)
 - [타임라인 편집](concept-timeline-editing.md)
+- [홈 카드와 내보내기 경고](concept-home-export.md)
 - [로컬 모델과 리소스](concept-local-models.md)
 
 ## 출처
