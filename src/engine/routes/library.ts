@@ -22,10 +22,17 @@ function libraryMediaReference(file: string, root: string): string {
   return createLibraryReference(path.relative(libraryRoot, file));
 }
 
+function page(items: ReturnType<typeof searchLibrary>, c: { req: { query: (name: string) => string | undefined } }) {
+  const limit = Number(c.req.query("limit"));
+  const offset = Number(c.req.query("offset"));
+  if (!Number.isInteger(limit) || limit < 1 || !Number.isInteger(offset) || offset < 0) return items;
+  return items.slice(offset, offset + Math.min(limit, 200));
+}
+
 export function registerLibraryRoutes(app: Hono, context: AppContext): void {
   app.get("/api/library/memes", async c => {
     const root = process.env.U3_LIBRARY_DIR ?? path.join(process.cwd(), "resources");
-    const items = searchLibrary(await listMemes(root), c.req.query("q") ?? "");
+    const items = page(searchLibrary(await listMemes(root), c.req.query("q") ?? ""), c);
     const origin = new URL(c.req.url).origin;
     return c.json(items.map(item => ({ ...item, ref: libraryMediaReference(item.file, root), url: libraryMediaUrl(item.file, root, context, origin) })));
   });

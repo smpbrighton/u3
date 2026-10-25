@@ -18,6 +18,8 @@ export type LibraryEntry = {
   durationSec?: number;
 };
 
+const memeCache = new Map<string, Promise<LibraryEntry[]>>();
+
 function libraryBase(root: string): string {
   return path.basename(root) === "library" ? root : path.join(root, "library");
 }
@@ -50,7 +52,7 @@ async function mediaFiles(root: string, subdirectory: string): Promise<LibraryEn
   return output;
 }
 
-export async function listMemes(root = process.env.U3_LIBRARY_DIR ?? path.join(process.cwd(), "resources")): Promise<LibraryEntry[]> {
+async function readMemes(root: string): Promise<LibraryEntry[]> {
   const directory = path.join(libraryBase(root), "memes");
   const folders = await readdir(directory, { withFileTypes: true }).catch(() => []);
   const memes: LibraryEntry[] = [];
@@ -82,6 +84,23 @@ export async function listMemes(root = process.env.U3_LIBRARY_DIR ?? path.join(p
     }
   }
   return memes.sort((a, b) => a.importedAt.localeCompare(b.importedAt) || a.id.localeCompare(b.id));
+}
+
+export async function listMemes(root = process.env.U3_LIBRARY_DIR ?? path.join(process.cwd(), "resources")): Promise<LibraryEntry[]> {
+  const key = path.resolve(root);
+  let result = memeCache.get(key);
+  if (!result) {
+    result = readMemes(root);
+    memeCache.set(key, result);
+    void result.catch(() => {
+      if (memeCache.get(key) === result) memeCache.delete(key);
+    });
+  }
+  return result;
+}
+
+export function invalidateMemeCache(root = process.env.U3_LIBRARY_DIR ?? path.join(process.cwd(), "resources")): void {
+  memeCache.delete(path.resolve(root));
 }
 
 export async function listSfx(root = process.env.U3_LIBRARY_DIR ?? path.join(process.cwd(), "resources")): Promise<LibraryEntry[]> {
