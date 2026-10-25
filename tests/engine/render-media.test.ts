@@ -25,7 +25,7 @@ describe("render route media", () => {
     const project = Project.parse(JSON.parse(await readFile(path.join(fixtureRoot, "project.json"), "utf8")));
     project.inputs = [{ id: "main-video", kind: "video", file: "input/video.mp4", durationSec: 4 }];
     project.timeline = {
-      video: [{ id: "main-video-clip", kind: "main", inputId: "main-video", inStartSec: 0, inEndSec: 4 }],
+      video: [{ id: "main-video-clip", kind: "main", inputId: "main-video", inStartSec: 0, inEndSec: 4, startTransition: { kind: { kind: "none" }, durationSec: 0.5 }, endTransition: { kind: { kind: "none" }, durationSec: 0.5 } }],
       overlays: [],
       captions: [],
       voice: [],
