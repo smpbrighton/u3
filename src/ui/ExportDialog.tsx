@@ -8,6 +8,7 @@ import { PageBanner } from "../../seed-design/ui/page-banner";
 import { ProgressCircle } from "../../seed-design/ui/progress-circle";
 import { api, watchJob, type EngineJob } from "./api";
 import { exportOverwriteWarning } from "./export-warning";
+import { DialogRoot, DialogContent, DialogBody, DialogFooter } from "../../seed-design/ui/dialog";
 
 function formatDuration(seconds: number): string {
   const wholeSeconds = Math.max(0, Math.floor(seconds));
@@ -110,9 +111,9 @@ export function ExportDialog(props: {
   const overwriteWarning = exportOverwriteWarning(outputPath, outputExists, complete);
 
   return (
-    <div className="export-backdrop" role="presentation">
-      <section className="export-dialog section-card" role="dialog" aria-modal="true" aria-labelledby="export-title">
-        <h1 id="export-title">mp4 내보내기</h1>
+    <DialogRoot open onOpenChange={open => { if (!open) props.onClose(); }}>
+      <DialogContent className="export-dialog section-card" title="mp4 내보내기" showCloseButton={false}>
+        <DialogBody>
         <div className="export-location">
           <span className="export-field-label">저장 위치</span>
           <div className="export-path-row"><span className="export-path" title={outputPath ?? undefined}>{outputPath ?? `~/Movies/U3/${defaultName}`}</span><ActionButton variant="neutralWeak" disabled={running} onClick={() => void chooseLocation()}>바꾸기</ActionButton></div>
@@ -123,11 +124,12 @@ export function ExportDialog(props: {
         {job?.status === "discarded" ? <p role="status">내보내기를 취소했어요.</p> : null}
         {error ? <div className="page-banner-wrap" role="alert"><PageBanner tone="warning" variant="weak" description={error} /></div> : null}
         {complete ? <div className="export-complete" role="status"><span>내보내기를 마쳤어요.</span>{isTauri() ? <ActionButton variant="neutralWeak" onClick={() => void showInFinder()}>Finder 에서 보기</ActionButton> : null}</div> : null}
-        <div className="action-row export-actions">
+        </DialogBody>
+        <DialogFooter className="action-row export-actions">
           <ActionButton variant="ghost" onClick={props.onClose}>닫기</ActionButton>
           {!complete && !running ? <ActionButton variant="brandSolid" disabled={!outputPath} onClick={() => void startExport()}>내보내기</ActionButton> : null}
-        </div>
-      </section>
-    </div>
+        </DialogFooter>
+      </DialogContent>
+    </DialogRoot>
   );
 }
