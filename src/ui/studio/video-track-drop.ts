@@ -6,6 +6,10 @@ export function isSameTrackDropPosition(sourceTrack: string, targetTrack: string
   return sourceTrack === targetTrack && Math.abs(sourceStart - targetStart) < 1e-6;
 }
 
+export function isUnchangedTimeline(current: unknown, next: unknown): boolean {
+  return JSON.stringify(current) === JSON.stringify(next);
+}
+
 export function resolveVideoTrackAtPointer(
   rows: readonly string[],
   pointerY: number,

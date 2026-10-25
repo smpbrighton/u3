@@ -13,7 +13,7 @@ import { findOverlayInLayers } from "../../core/timeline/overlay-layers";
 import { moveOverlayClipToLayer, moveOverlayClipToVideo1, moveVideo1ClipToOverlay } from "../../core/timeline/video-track-edits";
 import { findVideoClipAtTime } from "../../core/timeline/video-pointer";
 import { moveVideoGroup } from "../../core/timeline/video-groups";
-import { isSameTrackDropPosition, resolveVideoTrackAtPointer, VIDEO_TRACK_EDIT_GRID_SELECTOR } from "./video-track-drop";
+import { isSameTrackDropPosition, isUnchangedTimeline, resolveVideoTrackAtPointer, VIDEO_TRACK_EDIT_GRID_SELECTOR } from "./video-track-drop";
 import { timelinePointerSeconds } from "./timeline-zoom";
 
 const TRACKS = [
@@ -200,8 +200,27 @@ export function Timeline(props: {
   }, [props.timeline, props.playhead, props.selectedId, starts, props.onEdit, props.onError, displayRows]);
 
   const selectedTrack = (rowId: string) => rowId;
+  const resetEditor = () => {
+    const host = editorHost.current;
+    const editGrid = host?.querySelector<HTMLElement>(VIDEO_TRACK_EDIT_GRID_SELECTOR);
+    const rulerGrid = host?.querySelector<HTMLElement>(".timeline-editor-time-area .ReactVirtualized__Grid");
+    const scrollTop = editGrid?.scrollTop ?? 0;
+    const scrollLeft = rulerGrid?.scrollLeft ?? 0;
+    setEditorKey((current) => current + 1);
+    requestAnimationFrame(() => {
+      ref.current?.setScrollLeft(scrollLeft);
+      ref.current?.setScrollTop(scrollTop);
+    });
+  };
   const doEdit = (change: () => TimelineData) => {
-    try { props.onEdit(change()); }
+    try {
+      const next = change();
+      if (isUnchangedTimeline(props.timeline, next)) {
+        resetEditor();
+        return;
+      }
+      props.onEdit(next);
+    }
     catch (error) { props.onError(error instanceof Error ? error.message : String(error)); }
   };
   const actionStyle = (action: StudioAction) => ({
@@ -285,7 +304,7 @@ export function Timeline(props: {
             const groupId = props.timeline.video.find((clip) => clip.id === action.id)?.groupId ?? findOverlayInLayers(props.timeline.overlays, action.id)?.clip.groupId;
             const sourceStart = drag?.rowId === "video" ? videoStartTimes(props.timeline)[action.id] ?? start : findOverlayInLayers(props.timeline.overlays, action.id)?.clip.startSec ?? start;
             if (drag && isSameTrackDropPosition(drag.rowId, row.id, sourceStart, start)) {
-              setEditorKey((current) => current + 1);
+              resetEditor();
               return;
             }
             const groupFirstStart = groupId ? Math.min(...[
