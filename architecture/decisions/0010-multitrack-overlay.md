@@ -1,6 +1,6 @@
 # 0010 편집 모델: 다중 트랙 타임라인과 겹친 영상 트랙
 
-Status: accepted
+Status: superseded-by 0011
 Source: changes/001-desktop-studio/spec.md
 Supersedes: 0005
 
