@@ -3,7 +3,7 @@ import { mkdtemp, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { Hono } from "hono";
-import { tokenGuard } from "../../src/engine/http";
+import { onError, tokenGuard } from "../../src/engine/http";
 import { registerOutputRoutes } from "../../src/engine/routes/output";
 
 describe("output exists route", () => {
@@ -12,6 +12,7 @@ describe("output exists route", () => {
     const file = path.join(directory, "existing.mp4");
     await writeFile(file, "video");
     const app = new Hono();
+    app.onError(onError);
     app.use("/api/*", tokenGuard("test-token"));
     registerOutputRoutes(app);
 
@@ -30,6 +31,7 @@ describe("output exists route", () => {
 
   it("rejects relative paths and non-mp4 paths", async () => {
     const app = new Hono();
+    app.onError(onError);
     app.use("/api/*", tokenGuard("test-token"));
     registerOutputRoutes(app);
     const headers = { authorization: "Bearer test-token" };
