@@ -5,6 +5,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { ActionButton } from "../../../seed-design/ui/action-button";
 import { api, mediaUrl } from "../api";
 import type { Input as ProjectInput, Project } from "../types";
+import { inputDisplayName } from "../../core/input";
 import { ArrowLeft01Icon, ArrowUp01Icon, ArrowDown01Icon, FileUploadIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 
@@ -34,7 +35,9 @@ export function Input(props: {
 
   useEffect(() => {
     let active = true;
-    void Promise.all(inputs.map(async input => [input.id, await mediaUrl(props.project.id, input.file)] as const))
+    void Promise.all(inputs.map(async input => [input.id, input.kind === "video"
+      ? (await api<{ url: string }>("GET", `/api/projects/${props.project.id}/inputs/${input.id}/thumbnail`)).url
+      : await mediaUrl(props.project.id, input.file)] as const))
       .then(entries => { if (active) setMediaUrls(Object.fromEntries(entries)); });
     return () => { active = false; };
   }, [props.project.id, props.project.inputs]);
@@ -178,13 +181,13 @@ export function Input(props: {
             <ol className="media-list">
               {inputs.map((input, index) => (
                 <li className="media-row" key={input.id} draggable onDragStart={event => event.dataTransfer.setData("text/plain", String(index))} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); void reorder(Number(event.dataTransfer.getData("text/plain")), index); }}>
-                  <span className="media-preview">{input.kind === "photo" ? <img src={mediaUrls[input.id]} alt="" /> : <video src={mediaUrls[input.id]} muted preload="metadata" />}</span>
+                  <span className="media-preview"><img src={mediaUrls[input.id]} alt="" /></span>
                   <span className="media-kind">{index + 1}</span>
-                  <span className="media-row-name">{input.file.split("/").at(-1)}</span>
+                  <span className="media-row-name">{inputDisplayName(input)}</span>
                   <span className="media-kind">{input.kind === "video" ? "영상" : "사진"}</span>
-                  <ActionButton variant="neutralWeak" size="small" aria-label={`위로 이동 ${input.file.split("/").at(-1)}`} disabled={index === 0} onClick={() => void reorder(index, index - 1)}><HugeiconsIcon icon={ArrowUp01Icon} size={16} /></ActionButton>
-                  <ActionButton variant="neutralWeak" size="small" aria-label={`아래로 이동 ${input.file.split("/").at(-1)}`} disabled={index === inputs.length - 1} onClick={() => void reorder(index, index + 1)}><HugeiconsIcon icon={ArrowDown01Icon} size={16} /></ActionButton>
-                  <ActionButton variant="ghost" size="small" aria-label={`빼기 ${input.file.split("/").at(-1)}`} onClick={() => void removeInput(input.id)}>빼기</ActionButton>
+                  <ActionButton variant="neutralWeak" size="small" aria-label={`위로 이동 ${inputDisplayName(input)}`} disabled={index === 0} onClick={() => void reorder(index, index - 1)}><HugeiconsIcon icon={ArrowUp01Icon} size={16} /></ActionButton>
+                  <ActionButton variant="neutralWeak" size="small" aria-label={`아래로 이동 ${inputDisplayName(input)}`} disabled={index === inputs.length - 1} onClick={() => void reorder(index, index + 1)}><HugeiconsIcon icon={ArrowDown01Icon} size={16} /></ActionButton>
+                  <ActionButton variant="ghost" size="small" aria-label={`빼기 ${inputDisplayName(input)}`} onClick={() => void removeInput(input.id)}>빼기</ActionButton>
                 </li>
               ))}
             </ol>

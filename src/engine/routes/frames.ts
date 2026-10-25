@@ -1,12 +1,29 @@
 import type { Hono } from "hono";
-import { mkdir } from "node:fs/promises";
+import { access, mkdir } from "node:fs/promises";
 import path from "node:path";
 import type { AppContext } from "../app";
 import { HttpError } from "../http";
-import { extractFrames, frameAllocation } from "../pipeline/frames";
+import { extractFrames, extractThumbnail, frameAllocation } from "../pipeline/frames";
 import { mediaUrl } from "../pipeline/media-server";
 
 export function registerFrameRoutes(app: Hono, context: AppContext): void {
+  app.get("/api/projects/:id/inputs/:inputId/thumbnail", async c => {
+    const id = c.req.param("id");
+    const inputId = c.req.param("inputId");
+    const project = await context.store.getProject(id);
+    if (!project) throw new HttpError(404, "not-found", "프로젝트가 없습니다");
+    const input = project.inputs.find(item => item.id === inputId);
+    if (!input) throw new HttpError(404, "input-not-found", "입력 항목이 없습니다");
+    const source = path.resolve(context.store.projectDir(id), input.file);
+    const thumbnail = path.join(context.store.projectDir(id), "input", ".thumbnails", `${input.id}.jpg`);
+    await access(thumbnail).catch(() => extractThumbnail(source, thumbnail));
+    const relative = path.relative(context.store.projectDir(id), thumbnail);
+    const origin = new URL(c.req.url).origin;
+    const url = context.mediaServer?.url("projects", `${id}/${relative}`)
+      ?? mediaUrl(id, relative, context.token, origin);
+    return c.json({ url });
+  });
+
   app.post("/api/projects/:id/frames", async c => {
     const id = c.req.param("id");
     const project = await context.store.getProject(id);
@@ -28,19 +45,14 @@ export function registerFrameRoutes(app: Hono, context: AppContext): void {
     };
     const output: { inputId: string; frames: { file: string; url: string }[] }[] = [];
 
-    for (const [index, input] of videos.entries()) {
+    let videoIndex = 0;
+    for (const input of project.inputs) {
       const source = path.resolve(context.store.projectDir(id), input.file);
       const directory = path.join(context.store.projectDir(id), "input", ".frames", input.id);
       await mkdir(directory, { recursive: true });
-      const frames = await extractFrames(source, directory, counts[index] ?? 10);
-      output.push({ inputId: input.id, frames: frames.map(file => ({ file, url: frameUrl(file) })) });
-    }
-
-    for (const input of photos) {
-      const source = path.resolve(context.store.projectDir(id), input.file);
-      const directory = path.join(context.store.projectDir(id), "input", ".frames", input.id);
-      await mkdir(directory, { recursive: true });
-      const frames = await extractFrames(source, directory, 1, undefined, true);
+      const frames = input.kind === "video"
+        ? await extractFrames(source, directory, counts[videoIndex++] ?? 10)
+        : await extractFrames(source, directory, 1, undefined, true);
       output.push({ inputId: input.id, frames: frames.map(file => ({ file, url: frameUrl(file) })) });
     }
 

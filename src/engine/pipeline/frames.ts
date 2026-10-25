@@ -52,3 +52,13 @@ export async function extractFrames(
   }
   return output;
 }
+
+export async function extractThumbnail(input: string, output: string, signal?: AbortSignal): Promise<string> {
+  await mkdir(path.dirname(output), { recursive: true });
+  await runFfmpeg([
+    "-i", input, "-frames:v", "1",
+    "-vf", "scale='if(gte(iw,ih),768,-2)':'if(gte(iw,ih),-2,768)'",
+    "-q:v", "3", output,
+  ], signal);
+  return output;
+}

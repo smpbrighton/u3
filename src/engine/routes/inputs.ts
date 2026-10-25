@@ -40,6 +40,7 @@ export function registerInputRoutes(app: Hono, ctx: AppContext) {
         id: item.id,
         kind: item.file.kind,
         file: path.relative(ctx.store.projectDir(id), item.dest),
+        displayName: path.basename(item.file.path),
         ...(durationSec ? { durationSec } : {}),
       };
     }));
