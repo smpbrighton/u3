@@ -8,8 +8,8 @@
   ],
   "timeline": {
     "video": [
-      { "id": "video-opening", "kind": "main", "inputId": "main-video", "inStartSec": 0, "inEndSec": 1, "endTransition": { "kind": { "kind": "dissolve" }, "durationSec": 0.6 } },
-      { "id": "photo-insert", "kind": "main", "inputId": "photo", "durationSec": 1, "startTransition": { "kind": { "kind": "dissolve" }, "durationSec": 0.6 } },
+      { "id": "video-opening", "kind": "main", "inputId": "main-video", "inStartSec": 0, "inEndSec": 1, "endTransition": { "kind": { "kind": "dissolve" }, "durationSec": 0.5 } },
+      { "id": "photo-insert", "kind": "main", "inputId": "photo", "durationSec": 1, "startTransition": { "kind": { "kind": "dissolve" }, "durationSec": 0.5 } },
       { "id": "meme-front-clip", "kind": "meme", "memeId": "meme-front", "durationSec": 0.8 },
       { "id": "video-trimmed", "kind": "main", "inputId": "main-video", "inStartSec": 2, "inEndSec": 3 },
       { "id": "meme-back-clip", "kind": "meme", "memeId": "meme-back", "durationSec": 0.8 }
