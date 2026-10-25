@@ -115,7 +115,7 @@ input::placeholder, textarea::placeholder { color: var(--seed-color-palette-gray
 .studio-meme-card-button { position: absolute; z-index: 1; inset: 0; width: 100%; height: 100%; padding: 0; color: transparent; background: transparent; }
 .studio-meme-card-content { display: flex; width: 100%; height: 100%; min-width: 0; flex-direction: column; align-items: stretch; pointer-events: none; }
 .studio-meme-card-content video { display: block; width: 100%; min-height: 0; flex: 1 1 auto; object-fit: cover; }
-.studio-meme-description { display: -webkit-box; height: 26px; max-height: 26px; min-height: 26px; flex: 0 0 26px; overflow: hidden; padding: 2px 4px; color: var(--seed-color-fg-neutral); background: var(--seed-color-bg-layer-default); font-size: 10px; line-height: 11px; white-space: normal; line-clamp: 2; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+.studio-meme-description { display: -webkit-box; height: calc(2 * var(--seed-line-height-t1)); max-height: calc(2 * var(--seed-line-height-t1)); min-height: calc(2 * var(--seed-line-height-t1)); flex: 0 0 calc(2 * var(--seed-line-height-t1)); overflow: hidden; padding: 0 4px; color: var(--seed-color-fg-neutral); background: var(--seed-color-bg-layer-default); font-size: var(--seed-font-size-t1); line-height: var(--seed-line-height-t1); white-space: normal; line-clamp: 2; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
 .studio-library-end { min-height: 1px; }
 .studio-library-list,.studio-library-list *,.studio-library-grid,.studio-library-grid * { -webkit-user-drag: none; }
 .studio-library-pointer-dragging,.studio-library-pointer-dragging * { user-select: none !important; }

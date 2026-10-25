@@ -22,6 +22,10 @@ W26의 1280×800 레이아웃 결함을 수정했다. SEED 컴포넌트 내부 �
 | Studio · 짤 | 설명을 두 줄로 제한하고 넘치는 문자를 숨긴다. | `out/manual/w27-fix-memes.png` |
 | Studio · 타임라인 도구 줄 | 스냅 Toggle Button과 확대 라벨을 SEED `t3` typography로 맞췄다. | `out/manual/w27-fix-studio.png` |
 
+### 재검토 수정 2회차
+
+짤 설명은 SEED `t1` line-height 두 줄 높이로 고정했다. 세로 padding을 없애고 설명 요소에 `overflow: hidden`을 적용해 셋째 줄이 보이지 않게 했다. 캡처는 `out/manual/w27-fix-memes.png`에 저장한다.
+
 화면설계 원본은 `/Volumes/X31/workspace/smp_workspace/u3-design/canvas.json`과 각 보드의 `.dc.html`이다. 공통 구현은 SEED 토큰과 컴포넌트를 사용한다. 캡처는 브라우저 탭의 1440×900 콘텐츠 영역만 저장했다. `out/manual/`은 gitignore 대상이다.
 
 ## 화면별 대조
