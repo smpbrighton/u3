@@ -6,7 +6,7 @@ import type { Project } from "../../core/schema";
 import { api, mediaUrl } from "../api";
 import { Recorder } from "./Recorder";
 import { inputDisplayName } from "../../core/input";
-import { MEME_PAGE_SIZE, pageMemes } from "./library-window";
+import { MEME_PAGE_SIZE, memePreviewSource, pageMemes } from "./library-window";
 import { createLatestRequestGuard, debounceSearch } from "./library-request";
 
 type Tab = "media" | "meme" | "sfx" | "voice";
@@ -152,12 +152,13 @@ function MemePreview({ url }: { url: string }) {
     const observer = new IntersectionObserver((entries) => {
       if (entries.some((entry) => entry.isIntersecting)) {
         setVisible(true);
-        observer.disconnect();
+      } else {
+        setVisible(false);
       }
     });
     observer.observe(video);
     return () => observer.disconnect();
   }, []);
 
-  return <video ref={ref} src={visible ? url : undefined} muted preload="none" />;
+  return <video ref={ref} src={memePreviewSource(url, visible)} muted preload="none" />;
 }
