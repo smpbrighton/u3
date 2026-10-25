@@ -25,14 +25,16 @@ describe("meme library cache", () => {
     await writeMeme("first");
 
     const first = await listMemes(root);
-    await writeMeme("second");
     const cached = await listMemes(root);
-
     expect(cached).toBe(first);
-    expect(cached.map((item) => item.id)).toEqual(["first"]);
 
+    await writeMeme("second");
+    const changed = await listMemes(root);
+    expect(changed.map((item) => item.id)).toEqual(["first", "second"]);
+
+    await writeMeme("third");
     invalidateMemeCache(root);
     const refreshed = await listMemes(root);
-    expect(refreshed.map((item) => item.id)).toEqual(["first", "second"]);
+    expect(refreshed.map((item) => item.id)).toEqual(["first", "second", "third"]);
   });
 });
