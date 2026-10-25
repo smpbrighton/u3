@@ -19,6 +19,14 @@ describe("timeline ops", () => {
     ]);
     expect(timeline.video[0]).toMatchObject({ inStartSec: 0, inEndSec: 4 });
   });
+  it("묶인 영상을 자른 조각은 묶음을 유지하고 바깥 전환만 보존한다", () => {
+    const grouped: Timeline = { ...base(), video: [{ id: "g", kind: "main", inputId: "in", inStartSec: 0, inEndSec: 4, groupId: "group-a", startTransition: { kind: { kind: "dissolve" }, durationSec: 0.5 }, endTransition: { kind: { kind: "zoom" }, durationSec: 0.5 } }] };
+    const split = splitVideoClip(grouped, "g", 2);
+    expect(split.video).toEqual([
+      { id: "g-a", kind: "main", inputId: "in", inStartSec: 0, inEndSec: 2, groupId: "group-a", startTransition: { kind: { kind: "dissolve" }, durationSec: 0.5 }, endTransition: { kind: { kind: "none" }, durationSec: 0.5 } },
+      { id: "g-b", kind: "main", inputId: "in", inStartSec: 2, inEndSec: 4, groupId: "group-a", startTransition: { kind: { kind: "none" }, durationSec: 0.5 }, endTransition: { kind: { kind: "zoom" }, durationSec: 0.5 } },
+    ]);
+  });
   it("사진과 짤은 길이를 나누고 트림·이동 뒤 시작 시각을 다시 계산한다", () => {
     let timeline = splitVideoClip(base(), "photo", 5.5);
     expect(timeline.video.slice(1, 3).map((clip) => "durationSec" in clip ? clip.durationSec : 0)).toEqual([1.5, 1.5]);
