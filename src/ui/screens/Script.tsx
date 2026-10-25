@@ -3,6 +3,7 @@ import { ActionButton } from "../../../seed-design/ui/action-button";
 import { PageBanner } from "../../../seed-design/ui/page-banner";
 import { ProgressCircle } from "../../../seed-design/ui/progress-circle";
 import { TextField, TextFieldTextarea } from "../../../seed-design/ui/text-field";
+import { RadioSelectBoxRoot, RadioSelectBoxItem } from "../../../seed-design/ui/select-box";
 import { api, watchJob, type EngineJob } from "../api";
 import type { CodexScript, FrameGroup, Project, SystemStatus } from "../types";
 import type { MemeMeta } from "../../core/schema";
@@ -170,9 +171,9 @@ export function Script(props: {
         </ActionButton>
         <strong>{props.project.name}</strong>
         <ol className="steps" aria-label="단계">
-          <li className="step"><button type="button" onClick={props.onBack}>1 미디어</button></li>
+          <li className="step"><ActionButton variant="ghost" size="small" onClick={props.onBack}>1 미디어</ActionButton></li>
           <li className="step" aria-current="step">2 대본</li>
-          <li className="step"><button type="button" onClick={props.onStudio} disabled={!props.project.timeline.video.length}>3 스튜디오</button></li>
+          <li className="step"><ActionButton variant="ghost" size="small" onClick={props.onStudio} disabled={!props.project.timeline.video.length}>3 스튜디오</ActionButton></li>
         </ol>
       </header>
       <main className="script-main">
@@ -181,39 +182,10 @@ export function Script(props: {
             <PageBanner tone="warning" variant="weak" description={codexMessage} />
           </div>
         ) : null}
-        <fieldset className="script-mode-options">
-          <legend>대본 방식</legend>
-          <button
-            className="script-mode-option"
-            type="button"
-            aria-pressed={mode === "ai"}
-            onClick={() => setMode("ai")}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-              <path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z" />
-              <path d="M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" />
-            </svg>
-            <span>
-              <strong>AI 추천</strong>
-              <small>영상 프레임과 사진을 보고 AI가 씁니다</small>
-            </span>
-          </button>
-          <button
-            className="script-mode-option"
-            type="button"
-            aria-pressed={mode === "direct"}
-            onClick={() => setMode("direct")}
-          >
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
-              <path d="M12 20h9" />
-              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
-            </svg>
-            <span>
-              <strong>직접 쓰기</strong>
-              <small>간략하게 쓰면 AI가 장면 대본으로 만듭니다</small>
-            </span>
-          </button>
-        </fieldset>
+        <RadioSelectBoxRoot aria-label="대본 방식" value={mode} onValueChange={value => setMode(value as "ai" | "direct")} columns={2}>
+          <RadioSelectBoxItem value="ai" label="AI 추천" description="영상 프레임과 사진을 보고 AI가 씁니다" />
+          <RadioSelectBoxItem value="direct" label="직접 쓰기" description="간략하게 쓰면 AI가 장면 대본으로 만듭니다" />
+        </RadioSelectBoxRoot>
       {mode === "ai" ? (
         <section className="section-card" aria-labelledby="frame-title" style={{ marginTop: 20 }}>
           <div className="screen-header">
