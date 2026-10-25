@@ -24,7 +24,7 @@ import { clampTimeToLastFrame } from "../studio/preview-seek";
 import { studioShortcut } from "../studio/shortcuts";
 import { deleteStudioSelection } from "../studio/delete-selection";
 import { decideNewLaneDrop } from "../studio/library-drop";
-import { nextSfxLane } from "../../core/timeline/sfx-lanes";
+import { audioGroupForRow, nextSfxLane, sfxLane, sfxRowId } from "../../core/timeline/sfx-lanes";
 import { resolveLibraryDropPosition } from "../studio/library-drop";
 
 interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
@@ -187,7 +187,7 @@ export function Studio(props: {
   function addSfx(item: SfxItem, startSec = playhead, lane = 0) {
     const clip = { id: crypto.randomUUID(), startSec, file: item.ref, inStartSec: 0, inEndSec: item.durationSec, gain: 1, lane };
     edit({ ...timeline, sfx: [...timeline.sfx, clip] });
-    setSelected({ id: clip.id, track: lane === 0 ? "sfx" : `sfx-${lane}` }); setSelectedIds([clip.id]);
+    setSelected({ id: clip.id, track: sfxRowId(lane, [...timeline.sfx.map(sfxLane), lane]) }); setSelectedIds([clip.id]);
   }
 
   async function onDrop(event: React.DragEvent<HTMLElement>, fromPreview = false) {
@@ -228,12 +228,13 @@ export function Studio(props: {
   }
 
   function toggleMute(track: string) {
-    if (track === "source" || track === "voice" || track === "sfx") {
-      edit({ ...timeline, audio: { ...timeline.audio, [track]: { ...timeline.audio[track], muted: !timeline.audio[track].muted } } });
+    const group = audioGroupForRow(track);
+    if (group === "source" || group === "voice" || group === "sfx") {
+      edit({ ...timeline, audio: { ...timeline.audio, [group]: { ...timeline.audio[group], muted: !timeline.audio[group].muted } } });
       return;
     }
-    if (track === "stem-voice" || track === "stem-bg") {
-      const stem = track === "stem-voice" ? "voice" : "bg";
+    if (group === "stem-voice" || group === "stem-bg") {
+      const stem = group === "stem-voice" ? "voice" : "bg";
       const stems = { ...timeline.audio.stems };
       for (const [inputId, gains] of Object.entries(stems)) stems[inputId] = { ...gains, [stem]: { ...gains[stem], muted: !gains[stem].muted } };
       edit({ ...timeline, audio: { ...timeline.audio, stems } });

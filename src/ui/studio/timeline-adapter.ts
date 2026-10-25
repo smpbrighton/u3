@@ -1,7 +1,7 @@
 import type { ClipTransitionInput, Input, Timeline } from "../../core/schema";
 import { inputDisplayName } from "../../core/input";
 import { clipDuration, videoStartTimes } from "../../core/timeline/ops";
-import { sfxLane } from "../../core/timeline/sfx-lanes";
+import { sfxLane, sfxRowId } from "../../core/timeline/sfx-lanes";
 import { TRACK_ROW_HEIGHT } from "./timeline-layout";
 
 export interface StudioAction {
@@ -95,7 +95,7 @@ export function timelineToStudioRows(timeline: Timeline): StudioRow[] {
     ...(stemVoice.length ? [row("stem-voice", stemVoice)] : []),
     ...(stemBg.length ? [row("stem-bg", stemBg)] : []),
     row("voice", timeline.voice.map((clip) => action(clip.id, clip.startSec, clip.startSec + clip.inEndSec - clip.inStartSec, "voice"))),
-    ...[...new Set([0, ...timeline.sfx.map(sfxLane)])].sort((a, b) => a - b).map((lane, index) => row(lane === 0 ? "sfx" : `sfx-${index + 1}`, timeline.sfx.filter((clip) => sfxLane(clip) === lane).map((clip) => action(clip.id, clip.startSec, clip.startSec + clip.inEndSec - clip.inStartSec, "sfx")), TRACK_ROW_HEIGHT, lane === 0 ? "효과음" : `효과음 ${index + 1}`)),
+    ...[...new Set([0, ...timeline.sfx.map(sfxLane)])].sort((a, b) => a - b).map((lane, index, lanes) => row(sfxRowId(lane, lanes), timeline.sfx.filter((clip) => sfxLane(clip) === lane).map((clip) => action(clip.id, clip.startSec, clip.startSec + clip.inEndSec - clip.inStartSec, "sfx")), TRACK_ROW_HEIGHT, lane === 0 ? "효과음" : `효과음 ${index + 1}`)),
   ];
 }
 

@@ -16,7 +16,7 @@ import { moveVideoGroup } from "../../core/timeline/video-groups";
 import { decideActionMove, isUnchangedTimeline, resolveVideoTrackAtPointer, shouldResetNewTrackDrop, VIDEO_TRACK_EDIT_GRID_SELECTOR } from "./video-track-drop";
 import { timelinePointerSeconds } from "./timeline-zoom";
 import { studioShortcut } from "./shortcuts";
-import { normalizeSfxLanes } from "../../core/timeline/sfx-lanes";
+import { audioGroupForRow, normalizeSfxLanes } from "../../core/timeline/sfx-lanes";
 
 const TRACKS = [
   { id: "captions", name: "자막", color: "#F7A54A" },
@@ -260,10 +260,20 @@ export function Timeline(props: {
     <div className="studio-timeline-body">
       <div className="studio-track-labels">
         <div className="studio-track-ruler" />
-        {tracks.map((track) => <div key={track.id} className="studio-track-label" style={{ borderLeftColor: track.color }}>
-          <span>{track.name}</span>
-          {(track.id === "source" || track.id === "stem-voice" || track.id === "stem-bg" || track.id === "voice" || track.id === "sfx" || /^sfx-\d+$/.test(track.id)) && <button type="button" aria-label={`${track.name} 음소거`} onClick={() => props.onMute?.(track.id.startsWith("sfx") ? "sfx" : track.id)}><HugeiconsIcon icon={VolumeIcon} size={16} /></button>}
-        </div>)}
+        {tracks.map((track) => {
+          const group = audioGroupForRow(track.id);
+          const stems = Object.values(props.timeline.audio.stems ?? {});
+          const muted = group === "source" ? props.timeline.audio.source.muted
+            : group === "voice" ? props.timeline.audio.voice.muted
+              : group === "sfx" ? props.timeline.audio.sfx.muted
+                : group === "stem-voice" ? stems.length > 0 && stems.every((item) => item.voice.muted)
+                  : group === "stem-bg" ? stems.length > 0 && stems.every((item) => item.bg.muted)
+                    : false;
+          return <div key={track.id} className="studio-track-label" style={{ borderLeftColor: track.color }}>
+            <span>{track.name}</span>
+            {group ? <button type="button" aria-label={muted ? `${track.name} 음소거 해제` : `${track.name} 음소거`} aria-pressed={muted} className={muted ? "is-muted" : undefined} onClick={() => props.onMute?.(group)}><HugeiconsIcon icon={VolumeIcon} size={16} /></button> : null}
+          </div>;
+        })}
       </div>
       <div className="studio-timeline-editor" ref={editorHost}>
         <TimelineEditor
