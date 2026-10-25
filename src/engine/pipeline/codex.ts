@@ -46,6 +46,19 @@ export function parseCodexEvents(stdout: string): { usage: Record<string, number
   return { usage, failed, reason, detail };
 }
 
+export function parseCodexMessage(stdout: string): string | null {
+  let message: string | null = null;
+  for (const line of stdout.split("\n")) {
+    try {
+      const event = JSON.parse(line) as { type?: unknown; item?: { type?: unknown; text?: unknown } };
+      if (event.type === "item.completed" && event.item?.type === "agent_message" && typeof event.item.text === "string") message = event.item.text;
+    } catch {
+      continue;
+    }
+  }
+  return message;
+}
+
 export function codexFailureReason(text: string): string {
   if (/rate.?limit|usage.?limit|quota|limit.?reached/i.test(text)) return "사용 한도에 도달했습니다";
   if (/auth|log.?in|unauthorized|token.?expired/i.test(text)) return "Codex 로그인이 필요합니다";
@@ -53,12 +66,12 @@ export function codexFailureReason(text: string): string {
   return "Codex CLI 요청이 실패했습니다";
 }
 
-export function codexCliArgs(params: { schemaFile: string; outputFile: string; cwd: string; images?: readonly string[]; model?: string; effort?: string }): string[] {
+export function codexCliArgs(params: { schemaFile: string; outputFile?: string; cwd: string; images?: readonly string[]; model?: string; effort?: string }): string[] {
   return [
     "exec", "--ephemeral", "--skip-git-repo-check", "--sandbox", "read-only",
     "--disable", "apps", "--disable", "shell_tool", "--disable", "unified_exec", "--disable", "image_generation",
     "-c", "mcp_servers={}", "--json", "--output-schema", params.schemaFile,
-    "--output-last-message", params.outputFile, "-C", params.cwd,
+    ...(params.outputFile ? ["--output-last-message", params.outputFile] : []), "-C", params.cwd,
     "-m", params.model ?? "gpt-6-luna", "-c", `model_reasoning_effort=${JSON.stringify(params.effort ?? "medium")}`,
     ...(params.images ?? []).flatMap(image => ["--image", image]),
     "-",
@@ -136,6 +149,7 @@ export function codexCliRunner(options: CodexRunnerOptions) {
   const env = { ...process.env, ...options.env };
   const run = options.run ?? runCodexProcess;
   let capabilitiesChecked = false;
+  let supportsOutputLastMessage = false;
 
   return {
     async runScript(request: {
@@ -167,8 +181,9 @@ export function codexCliRunner(options: CodexRunnerOptions) {
         }
         if (!capabilitiesChecked) {
           const help = await execute(["exec", "--help"]);
-          const flags = ["--output-schema", "--output-last-message", "--json", "--ephemeral", "--sandbox", "--image"];
+          const flags = ["--output-schema", "--json", "--ephemeral", "--sandbox", "--image"];
           if (help.code !== 0 || !flags.every(flag => help.stdout.includes(flag))) throw new CodexError("설치된 Codex CLI가 필요한 옵션을 지원하지 않습니다");
+          supportsOutputLastMessage = help.stdout.includes("--output-last-message");
           capabilitiesChecked = true;
         }
         const schemaFile = path.join(work, "schema.json");
@@ -211,7 +226,7 @@ export function codexCliRunner(options: CodexRunnerOptions) {
           ? `${request.prompt}\n\n영상별 받아 적은 말소리:\n${transcripts.map(item => `- ${item.inputId}: ${item.text}`).join("\n")}`
           : request.prompt;
         const absoluteImages = images.map(image => path.resolve(image));
-        const result = await execute(codexCliArgs({ schemaFile, outputFile, cwd: work, images: absoluteImages, model: options.model, effort: options.effort }), prompt, options.timeoutMs ?? 10 * 60_000);
+        const result = await execute(codexCliArgs({ schemaFile, ...(supportsOutputLastMessage ? { outputFile } : {}), cwd: work, images: absoluteImages, model: options.model, effort: options.effort }), prompt, options.timeoutMs ?? 10 * 60_000);
         const events = parseCodexEvents(result.stdout);
         usage = events.usage;
         if (result.aborted) throw new CodexError("Codex 요청이 취소되었습니다", usage);
@@ -221,13 +236,23 @@ export function codexCliRunner(options: CodexRunnerOptions) {
           const detail = (events.detail ?? result.stderr).replace(/(?:\/Users\/|\/home\/)[^\s:]+/g, "[경로]").trim().slice(-300);
           throw new CodexError(`Codex ${events.reason ?? codexFailureReason(result.stderr)} (종료 코드 ${result.code})${detail ? `: ${detail}` : ""}`, usage);
         }
-        const info = await stat(outputFile).catch(() => null);
-        if (!info?.isFile() || info.size === 0 || info.size > 4 * 1024 * 1024) throw new CodexError("Codex 결과 파일이 없거나 크기가 맞지 않습니다", usage);
         let raw: unknown;
-        try {
-          raw = JSON.parse(await readFile(outputFile, "utf8"));
-        } catch {
-          throw new CodexError("Codex 결과 파일이 JSON이 아닙니다", usage);
+        if (supportsOutputLastMessage) {
+          const info = await stat(outputFile).catch(() => null);
+          if (!info?.isFile() || info.size === 0 || info.size > 4 * 1024 * 1024) throw new CodexError("Codex 결과 파일이 없거나 크기가 맞지 않습니다", usage);
+          try {
+            raw = JSON.parse(await readFile(outputFile, "utf8"));
+          } catch {
+            throw new CodexError("Codex 결과 파일이 JSON이 아닙니다", usage);
+          }
+        } else {
+          const message = parseCodexMessage(result.stdout);
+          if (!message) throw new CodexError("Codex 응답에서 대본을 찾을 수 없습니다", usage);
+          try {
+            raw = JSON.parse(message);
+          } catch {
+            throw new CodexError("Codex 응답이 JSON이 아닙니다", usage);
+          }
         }
         const output = CodexScript.safeParse(compiled.restore(raw));
         if (!output.success) throw new CodexError("Codex 결과가 대본 스키마와 맞지 않습니다", usage);

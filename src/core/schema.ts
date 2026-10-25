@@ -4,6 +4,7 @@ export const Input = z.object({
   id: z.string().min(1),
   kind: z.enum(["video", "photo"]),
   file: z.string().min(1),
+  displayName: z.string().min(1).optional(),
   durationSec: z.number().positive().optional(),
 });
 export type Input = z.infer<typeof Input>;
