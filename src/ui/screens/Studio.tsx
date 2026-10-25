@@ -6,7 +6,7 @@ import { ActionButton } from "../../../seed-design/ui/action-button";
 import { Preview } from "../studio/Preview";
 import { Timeline } from "../studio/Timeline";
 import { Inspector } from "../studio/Inspector";
-import { LibraryPanel } from "../studio/LibraryPanel";
+import { LibraryPanel, type LibraryDragItem } from "../studio/LibraryPanel";
 import { api } from "../api";
 import { ExportDialog } from "../ExportDialog";
 import { ArrowLeft01Icon, PlayIcon, PauseIcon, Undo02Icon, Redo02Icon } from "@hugeicons/core-free-icons";
@@ -25,7 +25,7 @@ import { studioShortcut } from "../studio/shortcuts";
 import { deleteStudioSelection } from "../studio/delete-selection";
 import { decideNewLaneDrop } from "../studio/library-drop";
 import { audioGroupForRow, nextSfxLane, sfxLane, sfxRowId } from "../../core/timeline/sfx-lanes";
-import { resolveLibraryDropPosition } from "../studio/library-drop";
+import { resolveLibraryDropPosition, resolvePointerDropTarget } from "../studio/library-drop";
 
 interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
 interface SfxItem { id: string; category: string; title: string; file: string; ref: string; url: string; durationSec: number }
@@ -47,6 +47,7 @@ export function Studio(props: {
   const [playing, setPlaying] = useState(false);
   const [recording, setRecording] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [libraryDropGuide, setLibraryDropGuide] = useState<{ x: number; top: number; height: number } | null>(null);
   const timeline = history.present;
   const duration = useMemo(() => Math.max(0.1, videoDuration(timeline)), [timeline]);
   const render = useMemo(() => timelineToRender(timeline), [timeline]);
@@ -190,41 +191,53 @@ export function Studio(props: {
     setSelected({ id: clip.id, track: sfxRowId(lane, [...timeline.sfx.map(sfxLane), lane]) }); setSelectedIds([clip.id]);
   }
 
-  async function onDrop(event: React.DragEvent<HTMLElement>, fromPreview = false) {
-    event.preventDefault();
-    const raw = event.dataTransfer.getData("application/u3-studio-item");
-    if (!raw) return;
+  async function addLibraryItemAt(item: LibraryDragItem, clientX: number, clientY: number) {
     try {
-      const data = JSON.parse(raw) as { type: string; id: string };
       const editor = document.querySelector<HTMLElement>(".studio-timeline-editor");
       const grid = editor?.querySelector<HTMLElement>(VIDEO_TRACK_EDIT_GRID_SELECTOR);
+      const preview = document.querySelector<HTMLElement>(".studio-preview-area");
+      const gridRect = grid?.getBoundingClientRect();
+      const previewRect = preview?.getBoundingClientRect();
+      const target = resolvePointerDropTarget({
+        clientX, clientY,
+        previewRect: previewRect ? { left: previewRect.left, top: previewRect.top, right: previewRect.right, bottom: previewRect.bottom } : null,
+        timelineRect: gridRect ? { left: gridRect.left, top: gridRect.top, right: gridRect.right, bottom: gridRect.bottom } : null,
+        gridLeft: gridRect?.left ?? 0, scrollLeft: grid?.scrollLeft ?? 0, scaleWidth: scaleWidthForZoom(zoom), playhead,
+      });
+      if (target.kind === "none") return;
       const rows = timelineToStudioRows(timeline);
-      const position = !fromPreview && grid ? resolveLibraryDropPosition({ pointerX: event.clientX, pointerY: event.clientY, gridLeft: grid.getBoundingClientRect().left, gridTop: grid.getBoundingClientRect().top, scrollLeft: grid.scrollLeft, scrollTop: grid.scrollTop, scaleWidth: scaleWidthForZoom(zoom), rows: ["captions", "video-new", ...rows.filter((row) => /^video-(?:[2-9]|[1-9]\d+)$/.test(row.id)).map((row) => row.id), "video", ...rows.filter((row) => !/^(?:captions|video|video-(?:[2-9]|[1-9]\d+))$/.test(row.id)).map((row) => row.id)] }) : null;
-      const atSec = fromPreview ? playhead : position?.atSec ?? videoDuration(timeline);
-      if (data.type === "meme") {
-        const items = await api<MemeItem[]>("GET", "/api/library/memes");
-        const item = items.find((meme) => meme.id === data.id);
-        if (!item) return;
-        const decision = decideNewLaneDrop({ kind: "meme", atSec, videoDurationSec: videoDuration(timeline), mediaDurationSec: item.durationSec ?? 2, trackCount: timeline.overlays.length });
-        if (decision) addOverlay({ type: "meme", meme: { ...item, durationSec: decision.durationSec } }, decision.startSec, decision.track);
+      const position = target.kind === "timeline" && gridRect ? resolveLibraryDropPosition({ pointerX: clientX, pointerY: clientY, gridLeft: gridRect.left, gridTop: gridRect.top, scrollLeft: grid!.scrollLeft, scrollTop: grid!.scrollTop, scaleWidth: scaleWidthForZoom(zoom), rows: ["captions", "video-new", ...rows.filter((row) => /^video-(?:[2-9]|[1-9]\d+)$/.test(row.id)).map((row) => row.id), "video", ...rows.filter((row) => !/^(?:captions|video|video-(?:[2-9]|[1-9]\d+))$/.test(row.id)).map((row) => row.id)] }) : null;
+      const atSec = target.atSec;
+      if (item.type === "meme") {
+        const decision = decideNewLaneDrop({ kind: "meme", atSec, videoDurationSec: videoDuration(timeline), mediaDurationSec: item.meme.durationSec ?? 2, trackCount: timeline.overlays.length });
+        if (decision) addOverlay({ type: "meme", meme: { ...item.meme, durationSec: decision.durationSec } }, decision.startSec, decision.track);
         return;
       }
-      if (data.type === "sfx") {
-        const items = await api<SfxItem[]>("GET", "/api/library/sfx");
-        const item = items.find((sfx) => sfx.id === data.id);
-        if (!item) return;
-        const decision = decideNewLaneDrop({ kind: "sfx", atSec, videoDurationSec: videoDuration(timeline), mediaDurationSec: item.durationSec, trackCount: nextSfxLane(timeline.sfx) });
-        if (decision) addSfx(item, decision.startSec, decision.track);
+      if (item.type === "sfx") {
+        const decision = decideNewLaneDrop({ kind: "sfx", atSec, videoDurationSec: videoDuration(timeline), mediaDurationSec: item.sfx.durationSec, trackCount: nextSfxLane(timeline.sfx) });
+        if (decision) addSfx(item.sfx, decision.startSec, decision.track);
         return;
       }
-      if (fromPreview || (data.type !== "video" && data.type !== "photo")) return;
+      if (target.kind !== "timeline") return;
       const targetTrack = position?.track ?? "other";
       const startsAt = videoStartTimes(timeline);
       const hitsVideoClip = timeline.video.some((clip) => atSec >= startsAt[clip.id]! && atSec < startsAt[clip.id]! + ("durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec));
-      const decision = decideOverlayDrop({ source: { kind: props.project.inputs.find((input) => input.id === data.id)?.kind ?? "video", id: data.id }, targetTrack: targetTrack === "video" ? "video" : /^video-(?:[2-9]|[1-9]\d+)$/.test(targetTrack) ? "overlay" : "other", hitsVideoClip, atSec, videoDurationSec: videoDuration(timeline) });
-      if (decision.kind === "overlay") addOverlay({ type: "input", id: data.id }, decision.startSec, /^video-(?:[2-9]|[1-9]\d+)$/.test(targetTrack) ? Number(targetTrack.slice(6)) - 2 : undefined);
-      else if (decision.kind === "append-video") addVideo(data.id, decision.startSec);
+      const decision = decideOverlayDrop({ source: { kind: props.project.inputs.find((input) => input.id === item.id)?.kind ?? "video", id: item.id }, targetTrack: targetTrack === "video" ? "video" : /^video-(?:[2-9]|[1-9]\d+)$/.test(targetTrack) ? "overlay" : "other", hitsVideoClip, atSec, videoDurationSec: videoDuration(timeline) });
+      if (decision.kind === "overlay") addOverlay({ type: "input", id: item.id }, decision.startSec, /^video-(?:[2-9]|[1-9]\d+)$/.test(targetTrack) ? Number(targetTrack.slice(6)) - 2 : undefined);
+      else if (decision.kind === "append-video") addVideo(item.id, decision.startSec);
     } catch { props.onError("클립을 추가하지 못했어요."); }
+  }
+
+  function updateLibraryDropGuide(clientX: number, clientY: number) {
+    const grid = document.querySelector<HTMLElement>(`.studio-timeline-editor ${VIDEO_TRACK_EDIT_GRID_SELECTOR}`);
+    const rect = grid?.getBoundingClientRect();
+    const target = resolvePointerDropTarget({
+      clientX, clientY, previewRect: null,
+      timelineRect: rect ? { left: rect.left, top: rect.top, right: rect.right, bottom: rect.bottom } : null,
+      gridLeft: rect?.left ?? 0, scrollLeft: grid?.scrollLeft ?? 0, scaleWidth: scaleWidthForZoom(zoom), playhead,
+    });
+    if (target.kind !== "timeline" || !rect) { setLibraryDropGuide(null); return; }
+    setLibraryDropGuide({ x: rect.left + target.atSec * scaleWidthForZoom(zoom) - grid!.scrollLeft, top: rect.top, height: rect.height });
   }
 
   function toggleMute(track: string) {
@@ -249,8 +262,8 @@ export function Studio(props: {
       <ActionButton variant="brandSolid" onClick={() => void save().then(saved => { if (saved) setExportOpen(true); })}>mp4 내보내기</ActionButton>
     </header>
     <div className="studio-workspace">
-      <LibraryPanel project={{ ...props.project, timeline }} selectedId={selected.id} playhead={playhead} onAddVoice={addVoice} onRecordingChange={(active) => { setRecording(active); if (active) setPlaying(false); }} onAddVideo={(id) => addVideo(id)} onSelectMeme={(meme) => addMeme(meme, timeline.video.find((clip) => clip.id === selected.id && clip.kind === "meme")?.id)} onAddSfx={addSfx} onProject={props.onProject} onError={props.onError} onSnackbar={props.onSnackbar} />
-      <section className="studio-preview-area" aria-label="미리보기" onDragOver={(event) => event.preventDefault()} onDrop={(event) => void onDrop(event, true)}>
+      <LibraryPanel project={{ ...props.project, timeline }} selectedId={selected.id} playhead={playhead} onAddVoice={addVoice} onRecordingChange={(active) => { setRecording(active); if (active) setPlaying(false); }} onAddVideo={(id) => addVideo(id)} onSelectMeme={(meme) => addMeme(meme, timeline.video.find((clip) => clip.id === selected.id && clip.kind === "meme")?.id)} onAddSfx={addSfx} onPointerDrop={(item, x, y) => void addLibraryItemAt(item, x, y)} onPointerMove={updateLibraryDropGuide} onPointerCancel={() => setLibraryDropGuide(null)} onProject={props.onProject} onError={props.onError} onSnackbar={props.onSnackbar} />
+      <section className="studio-preview-area" aria-label="미리보기">
         <Preview project={{ ...props.project, timeline }} time={playhead} playing={playing} muteOriginal={recording} onTime={setPlayhead} onPlaying={setPlaying} />
         <div className="studio-playback-controls">
           <button type="button" aria-label={playing ? "일시 정지" : "재생"} disabled={recording} onClick={() => setPlaying((value) => !value)}><HugeiconsIcon icon={playing ? PauseIcon : PlayIcon} size={18} /></button>
@@ -285,7 +298,8 @@ export function Studio(props: {
       <span>스냅</span><input type="checkbox" checked={snap} onChange={(event) => setSnap(event.currentTarget.checked)} />
       <label>확대 <input type="range" min="1" max="10" step="0.1" value={zoom} onChange={(event) => setZoom(Number(event.currentTarget.value))} /><output>{zoom.toFixed(1)}×</output></label>
     </div>
-    <div className="studio-timeline-drop" onDragOver={(event) => event.preventDefault()} onDrop={(event) => void onDrop(event)}>
+    <div className="studio-timeline-drop">
+      {libraryDropGuide ? <div className="studio-library-drop-guide" style={{ left: libraryDropGuide.x, top: libraryDropGuide.top, height: libraryDropGuide.height }} /> : null}
       <Timeline timeline={timeline} inputs={props.project.inputs} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} selectedIds={selectedIds} onSelect={(id, track, shift) => {
         if (!id) { setSelected({ id: null, track: null }); setSelectedIds([]); return; }
         const ids = shift && selected.id

@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type DragEvent } from "react";
+import { useEffect, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 import { AttachmentField } from "../../../seed-design/ui/attachment-field";
 import { ActionButton } from "../../../seed-design/ui/action-button";
@@ -8,10 +8,12 @@ import { Recorder } from "./Recorder";
 import { inputDisplayName } from "../../core/input";
 import { MEME_PAGE_SIZE, canMemePreviewPlay, memePageHasMore, mergeMemePages, memePreviewPreload, memePreviewSource, releaseMemePreview, shouldLoadMemePage, shouldRequestMemePage } from "./library-window";
 import { createAbortableRequestGuard, debounceSearch } from "./library-request";
+import { decidePointerDrag } from "./library-drop";
 
 type Tab = "media" | "meme" | "sfx" | "voice";
 interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
 interface SfxItem { id: string; category: string; title: string; file: string; ref: string; url: string; durationSec: number }
+export type LibraryDragItem = { type: "video"; id: string; label: string; image?: string } | { type: "meme"; id: string; label: string; image: string; meme: MemeItem } | { type: "sfx"; id: string; label: string; sfx: SfxItem };
 
 export function LibraryPanel(props: {
   project: Project;
@@ -19,6 +21,9 @@ export function LibraryPanel(props: {
   onAddVideo: (inputId: string) => void;
   onSelectMeme: (meme: MemeItem) => void;
   onAddSfx: (sfx: SfxItem) => void;
+  onPointerDrop: (item: LibraryDragItem, clientX: number, clientY: number) => void;
+  onPointerMove: (clientX: number, clientY: number) => void;
+  onPointerCancel: () => void;
   playhead: number;
   onAddVoice: (file: string, durationSec: number) => void;
   onRecordingChange: (recording: boolean) => void;
@@ -39,6 +44,15 @@ export function LibraryPanel(props: {
   const [sfxSearchStatus, setSfxSearchStatus] = useState<"idle" | "searching" | "judging" | "jev" | "fallback" | "search-error">("idle");
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
   const [busy, setBusy] = useState(false);
+  const [pointerDrag, setPointerDrag] = useState<{ item: LibraryDragItem; x: number; y: number } | null>(null);
+  const gesture = useRef<{ id: number; x: number; y: number; item: LibraryDragItem; dragging: boolean } | null>(null);
+  const dropHandler = useRef(props.onPointerDrop);
+  const moveHandler = useRef(props.onPointerMove);
+  const cancelHandler = useRef(props.onPointerCancel);
+  dropHandler.current = props.onPointerDrop;
+  moveHandler.current = props.onPointerMove;
+  cancelHandler.current = props.onPointerCancel;
+  const suppressClick = useRef(false);
   const memeSituationRequests = useRef(createAbortableRequestGuard());
   const sfxRequests = useRef(createAbortableRequestGuard());
   const memePageGeneration = useRef(0);
@@ -48,6 +62,72 @@ export function LibraryPanel(props: {
   const memeHasMoreRef = useRef(true);
   const libraryContentRef = useRef<HTMLDivElement>(null);
   const memeEndRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const move = (event: PointerEvent) => {
+      const current = gesture.current;
+      if (!current || current.id !== event.pointerId) return;
+      if (!current.dragging && decidePointerDrag({ startX: current.x, startY: current.y, currentX: event.clientX, currentY: event.clientY }).kind === "drag") {
+        current.dragging = true;
+        document.body.classList.add("studio-library-pointer-dragging");
+      }
+      if (current.dragging) {
+        event.preventDefault();
+        setPointerDrag({ item: current.item, x: event.clientX, y: event.clientY });
+        moveHandler.current(event.clientX, event.clientY);
+      }
+    };
+    const finish = (event: PointerEvent) => {
+      const current = gesture.current;
+      if (!current || current.id !== event.pointerId) return;
+      gesture.current = null;
+      if (current.dragging) {
+        event.preventDefault();
+        suppressClick.current = true;
+        window.setTimeout(() => { suppressClick.current = false; }, 0);
+        document.body.classList.remove("studio-library-pointer-dragging");
+        setPointerDrag(null);
+        cancelHandler.current();
+        dropHandler.current(current.item, event.clientX, event.clientY);
+      }
+    };
+    const cancel = (event: KeyboardEvent) => {
+      if (event.key !== "Escape" || !gesture.current?.dragging) return;
+      gesture.current = null;
+      document.body.classList.remove("studio-library-pointer-dragging");
+      setPointerDrag(null);
+      cancelHandler.current();
+    };
+    const cancelPointer = (event: PointerEvent) => {
+      if (!gesture.current || gesture.current.id !== event.pointerId) return;
+      gesture.current = null;
+      document.body.classList.remove("studio-library-pointer-dragging");
+      setPointerDrag(null);
+      cancelHandler.current();
+    };
+    window.addEventListener("pointermove", move, { passive: false });
+    window.addEventListener("pointerup", finish);
+    window.addEventListener("pointercancel", cancelPointer);
+    window.addEventListener("keydown", cancel);
+    return () => {
+      window.removeEventListener("pointermove", move);
+      window.removeEventListener("pointerup", finish);
+      window.removeEventListener("pointercancel", cancelPointer);
+      window.removeEventListener("keydown", cancel);
+      document.body.classList.remove("studio-library-pointer-dragging");
+    };
+  }, []);
+
+  function beginPointerDrag(event: ReactPointerEvent, item: LibraryDragItem) {
+    if (event.button !== 0) return;
+    try { event.currentTarget.setPointerCapture(event.pointerId); } catch { /* window listeners still track the gesture */ }
+    gesture.current = { id: event.pointerId, x: event.clientX, y: event.clientY, item, dragging: false };
+  }
+
+  function clickUnlessDragging(event: MouseEvent, action: () => void) {
+    if (suppressClick.current) { event.preventDefault(); event.stopPropagation(); return; }
+    action();
+  }
 
   useEffect(() => {
     let active = true;
@@ -208,11 +288,6 @@ export function LibraryPanel(props: {
     finally { setBusy(false); }
   }
 
-  function drag(event: DragEvent, type: string, id: string) {
-    event.dataTransfer.setData("application/u3-studio-item", JSON.stringify({ type, id }));
-    event.dataTransfer.effectAllowed = "copy";
-  }
-
   function searchMemes(query: string) {
     memeSituationRequests.current.begin();
     memePageGeneration.current += 1;
@@ -243,8 +318,8 @@ export function LibraryPanel(props: {
         <AttachmentField label="미디어 넣기" description="영상·사진을 영상 트랙에 끌어 놓으세요." accept={["video/mp4", "video/quicktime", "image/*"]}>
           <div className="studio-attachment" onClick={() => void chooseMedia()}><ActionButton variant="neutralWeak" loading={busy}>미디어 넣기</ActionButton><span>영상·사진 파일을 선택해요.</span></div>
         </AttachmentField>
-        <ul className="studio-library-list">{props.project.inputs.filter((input) => input.id !== "placeholder").map((input) => <li key={input.id} draggable onDragStart={(event) => drag(event, "video", input.id)}>
-          <button type="button" className="studio-media-item" onClick={() => props.onAddVideo(input.id)}>
+        <ul className="studio-library-list">{props.project.inputs.filter((input) => input.id !== "placeholder").map((input) => <li key={input.id}>
+          <button type="button" className="studio-media-item" onPointerDown={(event) => beginPointerDrag(event, { type: "video", id: input.id, label: inputDisplayName(input), image: mediaUrls[input.id] })} onClick={(event) => clickUnlessDragging(event, () => props.onAddVideo(input.id))}>
             <span className="studio-media-thumb"><img src={mediaUrls[input.id]} alt="" /></span>
             <span><b>{inputDisplayName(input)}</b><small>{input.kind === "video" ? "영상" : "사진"}{input.durationSec ? ` · ${input.durationSec.toFixed(1)}초` : ""}</small></span>
           </button>
@@ -254,7 +329,7 @@ export function LibraryPanel(props: {
         <input className="studio-search" aria-label="짤 검색" placeholder="짤 검색" value={memeQuery} onChange={(event) => searchMemes(event.currentTarget.value)} />
         {memeSearchStatus === "judging" ? <span role="status">Jev가 고르는 중…</span> : null}
         {memeSearchStatus === "fallback" ? <span role="status">Jev 추천을 쓸 수 없어 검색 순서로 보여요</span> : null}
-        <div className="studio-library-grid">{memes.map((meme) => <button key={meme.id} type="button" draggable onDragStart={(event) => drag(event, "meme", meme.id)} className={props.selectedId === meme.id ? "is-selected" : ""} onMouseEnter={() => setHoveredMemeId(meme.id)} onMouseLeave={() => setHoveredMemeId((id) => id === meme.id ? null : id)} onClick={() => props.onSelectMeme(meme)} title={meme.description ?? meme.id}>
+        <div className="studio-library-grid">{memes.map((meme) => <button key={meme.id} type="button" onPointerDown={(event) => beginPointerDrag(event, { type: "meme", id: meme.id, label: meme.description ?? meme.emotion, image: meme.url, meme })} className={props.selectedId === meme.id ? "is-selected" : ""} onMouseEnter={() => setHoveredMemeId(meme.id)} onMouseLeave={() => setHoveredMemeId((id) => id === meme.id ? null : id)} onClick={(event) => clickUnlessDragging(event, () => props.onSelectMeme(meme))} title={meme.description ?? meme.id}>
           <MemePreview url={meme.url} id={meme.id} hoveredId={hoveredMemeId} /><span>{meme.description ?? meme.emotion}</span>
         </button>)}</div>
         <div ref={memeEndRef} className="studio-library-end" aria-hidden="true" />
@@ -266,12 +341,13 @@ export function LibraryPanel(props: {
         <input className="studio-search" aria-label="효과음 검색" placeholder="효과음 검색" value={sfxQuery} onChange={(event) => searchSfx(event.currentTarget.value)} />
         {sfxSearchStatus === "judging" ? <span role="status">Jev가 고르는 중…</span> : null}
         {sfxSearchStatus === "fallback" ? <span role="status">Jev 추천을 쓸 수 없어 검색 순서로 보여요</span> : null}
-        <ul className="studio-library-list">{sfxItems.map((item) => <li key={item.id} draggable onDragStart={(event) => drag(event, "sfx", item.id)}><button type="button" className="studio-library-choice" onClick={() => props.onAddSfx(item)}><span>♫</span><span><b>{item.title}</b><small>{item.category} · {item.durationSec.toFixed(1)}초</small></span></button></li>)}</ul>
+        <ul className="studio-library-list">{sfxItems.map((item) => <li key={item.id}><button type="button" className="studio-library-choice" onPointerDown={(event) => beginPointerDrag(event, { type: "sfx", id: item.id, label: item.title, sfx: item })} onClick={(event) => clickUnlessDragging(event, () => props.onAddSfx(item))}><span>♫</span><span><b>{item.title}</b><small>{item.category} · {item.durationSec.toFixed(1)}초</small></span></button></li>)}</ul>
         {sfxSearchStatus === "jev" ? <span role="status">Jev 추천</span> : null}
         {sfxQuery.trim() && !["searching", "judging", "search-error"].includes(sfxSearchStatus) && !sfxItems.length ? <span role="status">맞는 효과음이 없어요</span> : null}
       </> : null}
       {tab === "voice" ? <Recorder projectId={props.project.id} clips={props.project.timeline.voice} onAdd={props.onAddVoice} onRecordingChange={props.onRecordingChange} onError={props.onError} onSnackbar={props.onSnackbar} /> : null}
     </div>
+    {pointerDrag ? <div className="studio-pointer-drag-preview" style={{ left: pointerDrag.x + 14, top: pointerDrag.y + 14 }}>{pointerDrag.item.type === "meme" ? <video src={pointerDrag.item.image} muted autoPlay loop playsInline /> : <span>{pointerDrag.item.type === "sfx" ? "♫ " : ""}{pointerDrag.item.label}</span>}</div> : null}
   </aside>;
 }
 
