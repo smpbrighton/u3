@@ -85,7 +85,7 @@ export const Slider = React.forwardRef<HTMLDivElement, SliderProps>(
     const renderFooter = renderDescription || renderErrorMessage;
 
     if (
-      process.env.NODE_ENV !== "production" &&
+      import.meta.env.DEV &&
       !label &&
       !props.getAriaLabel &&
       !props.getAriaLabelledby

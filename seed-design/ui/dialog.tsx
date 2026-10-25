@@ -47,7 +47,7 @@ export const DialogContent = forwardRef<HTMLDivElement, DialogContentProps>(
       !title &&
       !otherProps["aria-labelledby"] &&
       !otherProps["aria-label"] &&
-      process.env.NODE_ENV !== "production"
+      import.meta.env.DEV
     ) {
       console.warn(
         "DialogContent: aria-labelledby or aria-label should be provided if title is not provided.",

@@ -5,8 +5,13 @@ import { api, mediaUrl } from "../api";
 import type { Project, SystemStatus } from "../types";
 import { MoreHorizontalIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { AlertDialog } from "@seed-design/react";
+import { AlertDialogRoot, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogAction } from "../../../seed-design/ui/alert-dialog";
+import { MenuRoot, MenuTrigger, MenuContent, MenuItem } from "../../../seed-design/ui/menu";
+import { DialogRoot, DialogContent, DialogBody, DialogFooter } from "../../../seed-design/ui/dialog";
+import { TextField, TextFieldInput } from "../../../seed-design/ui/text-field";
 import { projectThumbnailInput } from "./home-thumbnail";
+
+const AlertDialog = { Root: AlertDialogRoot, Content: AlertDialogContent, Header: AlertDialogHeader, Title: AlertDialogTitle, Description: AlertDialogDescription, Footer: AlertDialogFooter, Action: AlertDialogAction };
 
 function relativeTime(value: string): string {
   const minutes = Math.max(0, Math.floor((Date.now() - new Date(value).getTime()) / 60_000));
@@ -132,7 +137,7 @@ export function Home(props: {
             const complete = project.timeline.video.length > 0;
             return (
               <div className="project-card-wrap" key={project.id}>
-              <button className="project-card" onClick={() => props.onOpen(project)}>
+              <ActionButton variant="ghost" className="project-card" onClick={() => props.onOpen(project)}>
                 <span className={thumbnails[project.id] ? "project-thumb" : `project-thumb project-thumb--empty${complete ? " project-thumb--complete" : ""}`}>
                   {thumbnails[project.id] ? <img src={thumbnails[project.id]} alt="" /> : null}
                   {!complete ? <span className="project-status">대본 전</span> : null}
@@ -140,13 +145,15 @@ export function Home(props: {
                 </span>
                 <span className="project-name">{project.name}</span>
                 <span className="project-meta">{scenes ? `장면 ${scenes}` : inputCount ? `미디어 ${inputCount}` : "미디어 넣기 전"} · {relativeTime(project.savedAt)}</span>
-              </button>
+              </ActionButton>
               <div className="project-menu-wrap">
-                <button className="project-menu-trigger" aria-label={`${project.name} 메뉴`} aria-haspopup="menu" aria-expanded={openMenu === project.id} onClick={() => setOpenMenu(openMenu === project.id ? null : project.id)}><HugeiconsIcon icon={MoreHorizontalIcon} size={20} /></button>
-                {openMenu === project.id ? <div className="project-menu" role="menu">
-                  <button role="menuitem" onClick={() => { setEditing(project); setName(project.name); setOpenMenu(null); }}>이름 바꾸기</button>
-                  <button role="menuitem" onClick={() => { setDeleting(project); setOpenMenu(null); }}>삭제</button>
-                </div> : null}
+                <MenuRoot open={openMenu === project.id} onOpenChange={open => setOpenMenu(open ? project.id : null)}>
+                  <MenuTrigger asChild><ActionButton layout="iconOnly" variant="neutralWeak" aria-label={`${project.name} 메뉴`}><HugeiconsIcon icon={MoreHorizontalIcon} size={20} /></ActionButton></MenuTrigger>
+                  <MenuContent>
+                    <MenuItem label="이름 바꾸기" onClick={() => { setEditing(project); setName(project.name); setOpenMenu(null); }} />
+                    <MenuItem label="삭제" onClick={() => { setDeleting(project); setOpenMenu(null); }} />
+                  </MenuContent>
+                </MenuRoot>
               </div>
               </div>
             );
@@ -162,18 +169,17 @@ export function Home(props: {
       )}
       {props.status && !codexReady ? <span className="visually-hidden">대본 생성은 Codex 상태를 확인한 뒤 시작할 수 있어요.</span> : null}
       <AlertDialog.Root open={Boolean(deleting)} onOpenChange={open => { if (!open) setDeleting(null); }}>
-        <AlertDialog.Backdrop /><AlertDialog.Positioner><AlertDialog.Content className="w11-alert-dialog">
+        <AlertDialog.Content>
           <AlertDialog.Header><AlertDialog.Title>‘{deleting?.name}’을 삭제할까요?</AlertDialog.Title><AlertDialog.Description>원본 복사본, 녹음, 분리한 소리, 자막이 함께 지워져요. 삭제하면 되돌릴 수 없어요.</AlertDialog.Description></AlertDialog.Header>
-          <AlertDialog.Footer className="w11-alert-dialog-footer"><ActionButton variant="neutralWeak" onClick={() => setDeleting(null)}>취소</ActionButton><AlertDialog.Action asChild><ActionButton variant="criticalSolid" onClick={() => void deleteProject()}>삭제</ActionButton></AlertDialog.Action></AlertDialog.Footer>
-        </AlertDialog.Content></AlertDialog.Positioner>
+          <AlertDialog.Footer><ActionButton variant="neutralWeak" onClick={() => setDeleting(null)}>취소</ActionButton><AlertDialog.Action asChild><ActionButton variant="criticalSolid" onClick={() => void deleteProject()}>삭제</ActionButton></AlertDialog.Action></AlertDialog.Footer>
+        </AlertDialog.Content>
       </AlertDialog.Root>
-      <AlertDialog.Root open={Boolean(editing)} onOpenChange={open => { if (!open) setEditing(null); }}>
-        <AlertDialog.Backdrop /><AlertDialog.Positioner><AlertDialog.Content className="w11-alert-dialog">
-          <AlertDialog.Header><AlertDialog.Title>영상 이름 바꾸기</AlertDialog.Title><AlertDialog.Description>새 이름을 입력해 주세요.</AlertDialog.Description></AlertDialog.Header>
-          <input className="rename-input" aria-label="영상 이름" value={name} onChange={event => setName(event.target.value)} onKeyDown={event => { if (event.key === "Enter") void renameProject(); }} />
-          <AlertDialog.Footer className="w11-alert-dialog-footer"><ActionButton variant="neutralWeak" onClick={() => setEditing(null)}>취소</ActionButton><ActionButton variant="brandSolid" disabled={!name.trim()} onClick={() => void renameProject()}>저장</ActionButton></AlertDialog.Footer>
-        </AlertDialog.Content></AlertDialog.Positioner>
-      </AlertDialog.Root>
+      <DialogRoot open={Boolean(editing)} onOpenChange={open => { if (!open) setEditing(null); }}>
+        <DialogContent title="영상 이름 바꾸기" description="새 이름을 입력해 주세요." showCloseButton={false}>
+          <DialogBody><TextField aria-label="영상 이름" value={name} onValueChange={values => setName(values.value)}><TextFieldInput onKeyDown={event => { if (event.key === "Enter") void renameProject(); }} /></TextField></DialogBody>
+          <DialogFooter><ActionButton variant="neutralWeak" onClick={() => setEditing(null)}>취소</ActionButton><ActionButton variant="brandSolid" disabled={!name.trim()} onClick={() => void renameProject()}>저장</ActionButton></DialogFooter>
+        </DialogContent>
+      </DialogRoot>
     </section>
   );
 }

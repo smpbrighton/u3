@@ -52,7 +52,7 @@ export const RadioGroup = React.forwardRef<HTMLDivElement, RadioGroupProps>(
     const [variantProps, restProps] = radioGroup.splitVariantProps(props);
 
     if (
-      process.env.NODE_ENV !== "production" &&
+      import.meta.env.DEV &&
       !label &&
       !restProps["aria-label"] &&
       !restProps["aria-labelledby"]

@@ -54,7 +54,7 @@ export const SelectRoot = ({
   const renderErrorMessage = errorMessage && props.invalid;
   const renderFooter = renderDescription || renderErrorMessage;
 
-  if (process.env.NODE_ENV !== "production" && !label) {
+  if (import.meta.env.DEV && !label) {
     console.warn(
       "SelectRoot: Provide a `label` prop for better accessibility. Please ignore this warning if you've provided `aria-label` or `aria-labelledby` to the `SelectTrigger` inside. This warning will not be shown in production builds.",
     );

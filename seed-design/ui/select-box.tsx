@@ -68,7 +68,7 @@ export const RadioSelectBoxRoot = React.forwardRef<HTMLDivElement, RadioSelectBo
     const [variantProps, restProps] = selectBoxGroup.splitVariantProps(props);
 
     if (
-      process.env.NODE_ENV !== "production" &&
+      import.meta.env.DEV &&
       !label &&
       !restProps["aria-label"] &&
       !restProps["aria-labelledby"]
@@ -211,7 +211,7 @@ export const CheckSelectBoxGroup = React.forwardRef<HTMLDivElement, CheckSelectB
     const [variantProps, restProps] = selectBoxGroup.splitVariantProps(props);
 
     if (
-      process.env.NODE_ENV !== "production" &&
+      import.meta.env.DEV &&
       !label &&
       !restProps["aria-label"] &&
       !restProps["aria-labelledby"]

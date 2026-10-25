@@ -11,6 +11,10 @@ import { PageBanner } from "../../seed-design/ui/page-banner";
 import { Studio } from "./screens/Studio";
 import type { Project, SystemStatus } from "./types";
 import { projectOpenScreen } from "./project-screen";
+import { ActionButton } from "../../seed-design/ui/action-button";
+import { SideNavigationProvider, SideNavigationRoot, SideNavigationHeader, SideNavigationContent, SideNavigationGroup } from "../../seed-design/ui/side-navigation";
+import { SnackbarProvider, Snackbar, useSnackbarAdapter } from "../../seed-design/ui/snackbar";
+import { Badge } from "../../seed-design/ui/badge";
 
 type Screen = "home" | "input" | "script" | "studio" | "settings" | "carousel";
 type Connection = { port: number; token: string };
@@ -28,6 +32,7 @@ export function App() {
   const [connection, setConnection] = useState<Connection | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<string | null>(null);
+  const dismissSnackbar = useCallback(() => setSnackbar(null), []);
 
   useEffect(() => {
     let active = true;
@@ -47,12 +52,6 @@ export function App() {
     void connect();
     return () => { active = false; };
   }, []);
-
-  useEffect(() => {
-    if (!snackbar) return;
-    const timeout = window.setTimeout(() => setSnackbar(null), 5000);
-    return () => window.clearTimeout(timeout);
-  }, [snackbar]);
 
   const openProject = useCallback((next: Project) => {
     setProject(next);
@@ -84,26 +83,35 @@ export function App() {
         <span className="carousel-placeholder-icon" aria-hidden="true"><HugeiconsIcon icon={CarouselHorizontalIcon} size={28} /></span>
         <h2>캐러셀은 준비 중이에요</h2>
         <p>사진 여러 장으로 넘겨 보는 게시물을 만드는 기능이에요. 다음 버전에서 열려요. 지금은 영상 메뉴에서 숏폼을 만들 수 있어요.</p>
-        <button className="carousel-go-button" onClick={() => go("home")}>영상으로 가기</button>
+        <ActionButton className="carousel-go-button" variant="neutralWeak" onClick={() => go("home")}>영상으로 가기</ActionButton>
       </div>
     </section>
   ) : <Settings onSnackbar={setSnackbar} onError={setSnackbar} />;
 
   return (
+    <SnackbarProvider>
     <div className={`app-shell${screen === "studio" ? " app-shell--studio" : ""}`} data-engine-connected={Boolean(connection)}>
-      <nav className="sidebar" aria-label="주 메뉴">
-        <p className="brand">U3</p>
-        {NAVIGATION.map(item => (
-          <button key={item.screen} className="nav-button" aria-current={(item.screen === "home" ? screen === "home" : screen === item.screen) ? "page" : undefined} onClick={() => go(item.screen)}>
-            <span className="nav-icon" aria-hidden="true"><HugeiconsIcon icon={item.icon} size={20} /></span>{item.label}{"badge" in item ? <span className="nav-badge">{item.badge}</span> : null}
-          </button>
-        ))}
-      </nav>
+      <SideNavigationProvider>
+        <SideNavigationRoot className="sidebar" aria-label="주 메뉴">
+          <SideNavigationHeader><p className="brand">U3</p></SideNavigationHeader>
+          <SideNavigationContent><SideNavigationGroup items={NAVIGATION.map(item => ({ key: item.screen, label: <>{item.label}{"badge" in item ? <Badge tone="informative" variant="weak" size="medium">{item.badge}</Badge> : null}</>, prefixIcon: <HugeiconsIcon icon={item.icon} size={20} />, current: (item.screen === "home" ? screen === "home" : screen === item.screen), onClick: () => go(item.screen) }))} /></SideNavigationContent>
+        </SideNavigationRoot>
+      </SideNavigationProvider>
       <main className="main-column">
         {error ? <div className="page-banner-wrap" role="alert"><PageBanner tone="warning" variant="weak" description={`엔진에 연결하지 못했어요. ${error}`} /></div> : null}
         {page}
       </main>
-      {snackbar ? <div className="snackbar" role="status">{snackbar}</div> : null}
+      <SnackbarPresenter message={snackbar} onClose={dismissSnackbar} />
     </div>
+    </SnackbarProvider>
   );
+}
+
+function SnackbarPresenter(props: { message: string | null; onClose: () => void }) {
+  const adapter = useSnackbarAdapter();
+  useEffect(() => {
+    if (!props.message) return;
+    adapter.create({ timeout: 5000, onClose: props.onClose, render: () => <Snackbar message={props.message!} /> });
+  }, [adapter, props.message, props.onClose]);
+  return null;
 }
