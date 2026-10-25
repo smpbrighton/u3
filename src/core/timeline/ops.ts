@@ -1,4 +1,5 @@
-import type { AudioClip, TextClip, Timeline, VideoClip } from "../schema";
+import type { AudioClip, OverlayClip, TextClip, Timeline, VideoClip } from "../schema";
+import { findOverlayInLayers, removeOverlayFromLayers, updateOverlayInLayers } from "./overlay-layers";
 
 export function clipDuration(clip: VideoClip): number {
   return "durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec;
@@ -16,6 +17,51 @@ export function videoStartTimes(timeline: Timeline): Record<string, number> {
 
 export function videoDuration(timeline: Timeline): number {
   return timeline.video.reduce((sum, clip) => sum + clipDuration(clip), 0);
+}
+
+export function overlayDuration(clip: OverlayClip): number {
+  return "durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec;
+}
+
+export function moveOverlayClip(timeline: Timeline, clipId: string, startSec: number): Timeline {
+  const found = findOverlayInLayers(timeline.overlays, clipId);
+  if (!found) throw new Error(`overlay 클립을 찾을 수 없습니다: ${clipId}`);
+  if (!Number.isFinite(startSec) || startSec < 0 || startSec + overlayDuration(found.clip) > videoDuration(timeline)) throw new RangeError("겹친 영상은 본 영상 길이 안에서 이동해야 합니다");
+  return { ...timeline, overlays: updateOverlayInLayers(timeline.overlays, clipId, (clip) => ({ ...clip, startSec })) };
+}
+
+export function trimOverlayClip(timeline: Timeline, clipId: string, edge: "start" | "end", toSec: number): Timeline {
+  const found = findOverlayInLayers(timeline.overlays, clipId);
+  if (!found) throw new Error(`overlay 클립을 찾을 수 없습니다: ${clipId}`);
+  const clip = found.clip;
+  const end = clip.startSec + overlayDuration(clip);
+  if (edge === "start" ? toSec <= clip.startSec || toSec >= end : toSec <= clip.startSec || toSec > videoDuration(timeline)) throw new RangeError("겹친 영상 트림 구간이 올바르지 않습니다");
+  const overlays = updateOverlayInLayers(timeline.overlays, clipId, (item) => {
+    if ("durationSec" in item) return edge === "start" ? { ...item, startSec: toSec, durationSec: end - toSec } : { ...item, durationSec: toSec - item.startSec };
+    return edge === "start"
+      ? { ...item, startSec: toSec, inStartSec: item.inStartSec + toSec - item.startSec }
+      : { ...item, inEndSec: item.inStartSec + toSec - item.startSec };
+  });
+  return { ...timeline, overlays };
+}
+
+export function splitOverlayClip(timeline: Timeline, clipId: string, atSec: number, ids: readonly [string, string] = [`${clipId}-a`, `${clipId}-b`]): Timeline {
+  const found = findOverlayInLayers(timeline.overlays, clipId);
+  if (!found) throw new Error(`overlay 클립을 찾을 수 없습니다: ${clipId}`);
+  const clip = found.clip;
+  const duration = overlayDuration(clip);
+  const offset = atSec - clip.startSec;
+  if (!(offset > 0 && offset < duration)) throw new RangeError("자르기 위치는 겹친 영상 클립 안쪽이어야 합니다");
+  const pieces: [OverlayClip, OverlayClip] = "durationSec" in clip
+    ? [{ ...clip, id: ids[0], durationSec: offset }, { ...clip, id: ids[1], startSec: atSec, durationSec: duration - offset }]
+    : [{ ...clip, id: ids[0], inEndSec: clip.inStartSec + offset }, { ...clip, id: ids[1], startSec: atSec, inStartSec: clip.inStartSec + offset }];
+  const overlays = timeline.overlays.map((layer, index) => index === found.layer ? layer.flatMap((item) => item.id === clipId ? pieces : [item]) : layer);
+  return { ...timeline, overlays };
+}
+
+export function deleteOverlayClip(timeline: Timeline, clipId: string): Timeline {
+  if (!findOverlayInLayers(timeline.overlays, clipId)) throw new Error(`overlay 클립을 찾을 수 없습니다: ${clipId}`);
+  return { ...timeline, overlays: removeOverlayFromLayers(timeline.overlays, clipId) };
 }
 
 function requireClip<T extends { id: string }>(clips: readonly T[], id: string, track: string): T {

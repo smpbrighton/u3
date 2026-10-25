@@ -29,6 +29,19 @@ const VideoLayer: React.FC<{ props: U3ShortProps; index: number }> = ({ props, i
   return <MainVideo src={src} sourceStartFrame={sequence.sourceStartFrame ?? 0} durationInFrames={sequence.durationInFrames} />;
 };
 
+const OverlayLayer: React.FC<{ props: U3ShortProps; index: number }> = ({ props, index }) => {
+  const clip = props.render.overlay[index]!;
+  const src = clip.kind === "meme" ? props.memes[clip.memeId!] : props.overlayInputs[clip.inputId!];
+  if (!src) throw new Error(`겹친 영상 URL이 없습니다: ${clip.kind === "meme" ? clip.memeId : clip.inputId}`);
+  const style: React.CSSProperties = { position: "absolute", left: `${clip.x * 100}%`, top: `${clip.y * 100}%`, width: `${clip.width * 100}%`, transform: "translate(-50%, -50%)", display: "block" };
+  const contentStyle: React.CSSProperties = { display: "block", width: "100%", height: "auto" };
+  if (clip.kind === "photo") return <Img src={src} style={{ ...style, ...contentStyle }} />;
+  const video = <Video src={src} muted trimBefore={clip.kind === "video" ? clip.sourceStartFrame ?? 0 : 0} loop={false} objectFit="contain" style={{ ...style, ...contentStyle }} />;
+  if (clip.kind !== "meme") return video;
+  const loopFrames = Math.max(1, props.memeFrames[clip.memeId!] ?? clip.durationInFrames);
+  return <Loop durationInFrames={loopFrames} times={Math.ceil(clip.durationInFrames / loopFrames)} name="겹친 짤 반복 재생">{video}</Loop>;
+};
+
 export const SceneCaption: React.FC<{ text: string }> = ({ text }) => {
   const caption = useMemo(() => {
     const context = document.createElement("canvas").getContext("2d");
@@ -85,6 +98,11 @@ export const U3Short: React.FC<U3ShortProps> = (props) => (
     {props.render.video.map((item, index) => (
       <Sequence key={item.id} from={item.startFrame} durationInFrames={item.durationInFrames} layout="none" name={`영상 ${item.id}`}>
         <VideoLayer props={props} index={index} />
+      </Sequence>
+    ))}
+    {props.render.overlay.map((item, index) => (
+      <Sequence key={item.id} from={item.startFrame} durationInFrames={item.durationInFrames} layout="none" name={`겹친 영상 ${item.id}`}>
+        <OverlayLayer props={props} index={index} />
       </Sequence>
     ))}
     {props.render.captions.map((caption) => (

@@ -31,15 +31,22 @@ export function Preview(props: {
           : await mediaUrl(props.project.id, layer.file!)] as const)),
       ]);
       if (!active) return;
+      const memeById = new Map(memeItems.map((item) => [item.id, item.url]));
+      const missingMemeIds = [...new Set(render.overlay.filter((item) => item.kind === "meme").map((item) => item.memeId!))].filter((id) => !memeById.has(id));
+      const extraMemes = await Promise.all(missingMemeIds.map(async (id) => {
+        const matches = await api<{ id: string; url: string }[]>("GET", `/api/library/memes?q=${encodeURIComponent(id)}`).catch(() => []);
+        return matches.find((item) => item.id === id);
+      }));
+      extraMemes.forEach((item) => { if (item) memeById.set(item.id, item.url); });
       setSources({
         inputs: Object.fromEntries(inputEntries),
-        memes: Object.fromEntries(memeItems.map((item) => [item.id, item.url])),
+        memes: Object.fromEntries(memeById),
         files: { ...Object.fromEntries(fileEntries), ...Object.fromEntries(render.audio.filter((layer) => layer.file?.startsWith("http")).map((layer) => [layer.file!, layer.file!])) },
       });
       setSourcesReady(true);
     })().catch(() => { if (active) setSourcesReady(true); });
     return () => { active = false; };
-  }, [props.project.id, props.project.inputs, props.project.timeline.video, render.audio]);
+  }, [props.project.id, props.project.inputs, props.project.timeline.video, render.audio, render.overlay]);
   const propsForPlayer = useMemo<U3ShortProps>(() => ({
     render: {
       ...render,
@@ -52,6 +59,7 @@ export function Preview(props: {
     inputs: sources.inputs,
     inputKinds: Object.fromEntries(props.project.inputs.map((input) => [input.id, input.kind])),
     memes: sources.memes,
+    overlayInputs: sources.inputs,
     memeFrames: {},
   }), [props.project.id, props.project.inputs, render, sources, props.muteOriginal]);
 

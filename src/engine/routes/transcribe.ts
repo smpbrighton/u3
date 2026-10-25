@@ -77,7 +77,7 @@ export function registerTranscribeRoutes(app: Hono, context: AppContext, run?: W
       const endSec = Math.max(clip.startSec + 0.01, ...words.map(word => word.end));
       const fakeTimeline = {
         ...project.timeline,
-        video: [{ id: `audio-${clip.id}`, kind: "main" as const, inputId: "", inStartSec: 0, inEndSec: endSec }],
+        video: [{ id: `audio-${clip.id}`, kind: "main" as const, inputId: "", inStartSec: 0, inEndSec: endSec }], overlays: [],
       };
       const built = captionsFromTranscript(fakeTimeline, "", words, loadMeasurer(), captionOptions, `whisper-${clip.id}`);
       await mkdir(path.join(projectDir, "transcripts"), { recursive: true });

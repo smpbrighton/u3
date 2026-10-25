@@ -24,6 +24,16 @@ export const VideoClip = VideoClipBase.superRefine((clip, ctx) => {
 });
 export type VideoClip = z.infer<typeof VideoClip>;
 
+const OverlayBase = z.object({ id: z.string().min(1), startSec: z.number().min(0), x: z.number().min(0).max(1), y: z.number().min(0).max(1), width: z.number().positive().max(1) });
+export const OverlayClip = z.union([
+  OverlayBase.extend({ memeId: z.string().min(1), durationSec: z.number().positive() }),
+  OverlayBase.extend({ inputId: z.string().min(1), kind: z.literal("video"), inStartSec: z.number().min(0), inEndSec: z.number().positive() }).superRefine((clip, ctx) => {
+    if (clip.inEndSec <= clip.inStartSec) ctx.addIssue({ code: "custom", path: ["inEndSec"], message: "inEndSec는 inStartSec보다 커야 합니다" });
+  }),
+  OverlayBase.extend({ inputId: z.string().min(1), kind: z.literal("photo"), durationSec: z.number().positive() }),
+]);
+export type OverlayClip = z.infer<typeof OverlayClip>;
+
 export const TextClip = z.object({ id: z.string().min(1), startSec: z.number().min(0), endSec: z.number().positive(), text: z.string() })
   .superRefine((clip, ctx) => {
     if (clip.endSec <= clip.startSec) ctx.addIssue({ code: "custom", path: ["endSec"], message: "endSec는 startSec보다 커야 합니다" });
@@ -37,6 +47,7 @@ export type AudioClip = z.infer<typeof AudioClip>;
 
 export const Timeline = z.object({
   video: z.array(VideoClip),
+  overlays: z.array(z.array(OverlayClip)).default([]),
   captions: z.array(TextClip),
   voice: z.array(AudioClip),
   sfx: z.array(AudioClip),

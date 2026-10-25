@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from "react";
-import type { AudioClip, Project, Timeline as TimelineData } from "../../core/schema";
-import { moveVideoClip, videoStartTimes } from "../../core/timeline/ops";
+import type { AudioClip, OverlayClip, Project, Timeline as TimelineData } from "../../core/schema";
+import { deleteOverlayClip, moveVideoClip, overlayDuration, videoDuration, videoStartTimes } from "../../core/timeline/ops";
+import { findOverlayInLayers, updateOverlayInLayers } from "../../core/timeline/overlay-layers";
 import { ActionButton } from "../../../seed-design/ui/action-button";
 import { PageBanner } from "../../../seed-design/ui/page-banner";
 import { ProgressCircle } from "../../../seed-design/ui/progress-circle";
@@ -34,6 +35,7 @@ export function Inspector(props: {
 
   const videoStarts = useMemo(() => videoStartTimes(props.timeline), [props.timeline]);
   const video = props.timeline.video.find((clip) => clip.id === props.selectedId);
+  const overlay = props.selectedId ? findOverlayInLayers(props.timeline.overlays, props.selectedId)?.clip : undefined;
   const caption = props.timeline.captions.find((clip) => clip.id === props.selectedId);
   const voiceClip = props.timeline.voice.find((clip) => clip.id === props.selectedId);
   const sfxClip = props.timeline.sfx.find((clip) => clip.id === props.selectedId);
@@ -42,6 +44,23 @@ export function Inspector(props: {
   const input = sourceClip?.kind === "main" ? props.project.inputs.find((item) => item.id === sourceClip.inputId) : undefined;
   const audioGain = props.timeline.audio;
   const separated = input ? audioGain.stems?.[input.id] : undefined;
+
+  if (overlay) {
+    const duration = overlayDuration(overlay);
+    const updateOverlay = (changes: { startSec?: number; durationSec?: number; inEndSec?: number; x?: number; y?: number; width?: number }) => props.onChange({ ...props.timeline, overlays: updateOverlayInLayers(props.timeline.overlays, overlay.id, (item) => ({ ...item, ...changes } as OverlayClip)) });
+    return <InspectorShell title={`${props.selectedTrack === "video" ? "영상 2" : props.selectedTrack?.replace(/^video-/, "영상 ") ?? "영상 2"} 속성`} error={error}>
+      <label>시작 시각 <b>{overlay.startSec.toFixed(1)}초</b><input type="range" min="0" max={Math.max(0, videoDuration(props.timeline) - duration)} step="0.1" value={Math.min(overlay.startSec, Math.max(0, videoDuration(props.timeline) - duration))} onChange={(event) => updateOverlay({ startSec: Number(event.currentTarget.value) })} /></label>
+      <label>길이 <b>{duration.toFixed(1)}초</b><input type="number" min="0.1" max={videoDuration(props.timeline) - overlay.startSec} step="0.1" value={duration} onChange={(event) => {
+        const value = Number(event.currentTarget.value);
+        if (!Number.isFinite(value) || value <= 0 || value > videoDuration(props.timeline) - overlay.startSec) return;
+        updateOverlay("durationSec" in overlay ? { durationSec: value } : { inEndSec: overlay.inStartSec + value });
+      }} /></label>
+      <label>가로 위치 <b>{Math.round(overlay.x * 100)}%</b><input type="range" min="0" max="1" step="0.01" value={overlay.x} onChange={(event) => updateOverlay({ x: Number(event.currentTarget.value) })} /></label>
+      <label>세로 위치 <b>{Math.round(overlay.y * 100)}%</b><input type="range" min="0" max="1" step="0.01" value={overlay.y} onChange={(event) => updateOverlay({ y: Number(event.currentTarget.value) })} /></label>
+      <label>폭 <b>{Math.round(overlay.width * 100)}%</b><input type="range" min="0.1" max="1" step="0.01" value={overlay.width} onChange={(event) => updateOverlay({ width: Number(event.currentTarget.value) })} /></label>
+      <ActionButton variant="neutralWeak" onClick={() => props.onChange(deleteOverlayClip(props.timeline, overlay.id))}>겹친 영상 삭제</ActionButton>
+    </InspectorShell>;
+  }
 
   const updateGain = (track: "source" | "voice" | "sfx", gain: number) => props.onChange({ ...props.timeline, audio: { ...audioGain, [track]: { ...audioGain[track], gain } } });
   const toggleMute = (track: "source" | "voice" | "sfx") => props.onChange({ ...props.timeline, audio: { ...audioGain, [track]: { ...audioGain[track], muted: !audioGain[track].muted } } });

@@ -6,7 +6,7 @@ export const RemotionRoot: React.FC = () => (
   <Composition
     id="U3Short"
     component={U3Short}
-    defaultProps={{ render: { fps: 30, video: [], captions: [], audio: [], durationInFrames: 1 }, inputs: {}, inputKinds: {}, memes: {}, memeFrames: {} }}
+    defaultProps={{ render: { fps: 30, video: [], overlay: [], captions: [], audio: [], durationInFrames: 1 }, inputs: {}, inputKinds: {}, memes: {}, overlayInputs: {}, memeFrames: {} }}
     width={1080}
     height={1920}
     fps={30}

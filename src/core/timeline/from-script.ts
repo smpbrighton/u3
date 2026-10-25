@@ -83,7 +83,7 @@ export function timelineFromScript(script: CodexScript, inputs: readonly Input[]
   });
 
   return {
-    video, captions, voice: [], sfx,
+    video, overlays: [], captions, voice: [], sfx,
     audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } },
   };
 }

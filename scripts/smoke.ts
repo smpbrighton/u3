@@ -27,7 +27,8 @@ async function startFixtureServer() {
     try { file = Buffer.from(new URL(req.url ?? "/", "http://localhost").pathname.slice(1), "base64url").toString(); }
     catch { res.writeHead(400).end(); return; }
     const resolved = path.resolve(file);
-    if (!resolved.startsWith(fixtureRoot + path.sep)) { res.writeHead(403).end(); return; }
+    const allowedRoots = [fixtureRoot, outputDir].map(root => path.resolve(root));
+    if (!allowedRoots.some(root => resolved.startsWith(root + path.sep))) { res.writeHead(403).end(); return; }
     const info = await stat(resolved).catch(() => null);
     if (!info?.isFile()) { res.writeHead(404).end(); return; }
     const headers: Record<string, string | number> = { "Access-Control-Allow-Origin": "*", "Access-Control-Expose-Headers": "Content-Length, Content-Range, Accept-Ranges", "Accept-Ranges": "bytes", "Content-Type": resolved.endsWith(".jpg") ? "image/jpeg" : resolved.endsWith(".wav") ? "audio/wav" : "video/mp4" };

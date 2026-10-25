@@ -14,13 +14,15 @@ export interface StudioAction {
 
 export interface StudioRow {
   id: string;
+  name?: string;
   actions: StudioAction[];
   rowHeight: number;
 }
 
 export interface SfxLabel { ref: string; title?: string; category?: string }
+export interface MemeLabel { id: string; description?: string }
 
-export function labelForAction(id: string, timeline: Timeline, inputs: readonly Input[] = [], sfxItems: readonly SfxLabel[] = []): string {
+export function labelForAction(id: string, timeline: Timeline, inputs: readonly Input[] = [], sfxItems: readonly SfxLabel[] = [], memes: readonly MemeLabel[] = []): string {
   const caption = timeline.captions.find(item => item.id === id);
   if (caption) return caption.text;
   const video = timeline.video.find(item => item.id === id);
@@ -29,6 +31,12 @@ export function labelForAction(id: string, timeline: Timeline, inputs: readonly 
     const input = inputs.find(item => item.id === video.inputId);
     return input ? inputDisplayName(input) : video.inputId;
   }
+  const overlay = timeline.overlays.flat().find(item => item.id === id);
+  if (overlay) {
+    if ("memeId" in overlay) return memes.find((item) => item.id === overlay.memeId)?.description ?? overlay.memeId;
+    const input = inputs.find(item => item.id === overlay.inputId);
+    return input ? inputDisplayName(input) : overlay.inputId;
+  }
   const sfx = timeline.sfx.find(item => item.id === id);
   if (sfx) return sfxItems.find(item => item.ref === sfx.file)?.title || "효과음";
   const voice = timeline.voice.find(item => item.id === id);
@@ -36,12 +44,18 @@ export function labelForAction(id: string, timeline: Timeline, inputs: readonly 
   return id.startsWith("source:") ? "원본 소리" : id.replace(/^stem-(voice|bg):/, "$1");
 }
 
-const row = (id: string, actions: StudioAction[], rowHeight = TRACK_ROW_HEIGHT): StudioRow => ({ id, actions, rowHeight });
+const row = (id: string, actions: StudioAction[], rowHeight = TRACK_ROW_HEIGHT, name?: string): StudioRow => ({ id, actions, rowHeight, ...(name ? { name } : {}) });
 const action = (id: string, start: number, end: number, effectId: string, movable = true): StudioAction => ({ id, start, end, effectId, flexible: movable, movable });
 
 export function timelineToStudioRows(timeline: Timeline): StudioRow[] {
   const starts = videoStartTimes(timeline);
   const videoActions = timeline.video.map((clip) => action(clip.id, starts[clip.id]!, starts[clip.id]! + clipDuration(clip), clip.kind));
+  const overlayRows = timeline.overlays.map((layer, index) => row(
+    `video-${index + 2}`,
+    layer.map((clip) => action(clip.id, clip.startSec, clip.startSec + ("durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec), "overlay")),
+    TRACK_ROW_HEIGHT,
+    `영상 ${index + 2}`,
+  )).reverse();
   const sourceActions = timeline.video.flatMap((clip) => {
     if (clip.kind !== "main" || !("inStartSec" in clip) || timeline.audio.stems?.[clip.inputId]) return [];
     const start = starts[clip.id]!;
@@ -59,7 +73,8 @@ export function timelineToStudioRows(timeline: Timeline): StudioRow[] {
   });
   return [
     row("captions", timeline.captions.map((clip) => action(clip.id, clip.startSec, clip.endSec, "caption"))),
-    row("video", videoActions),
+    ...overlayRows,
+    row("video", videoActions, TRACK_ROW_HEIGHT, "영상 1"),
     ...(sourceActions.length ? [row("source", sourceActions)] : []),
     ...(stemVoice.length ? [row("stem-voice", stemVoice)] : []),
     ...(stemBg.length ? [row("stem-bg", stemBg)] : []),

@@ -142,7 +142,7 @@ export class Store {
       name,
       inputs: [{ id: "placeholder", kind: "photo", file: "pending" }],
       timeline: {
-        video: [], captions: [], voice: [], sfx: [],
+        video: [], overlays: [], captions: [], voice: [], sfx: [],
         audio: {
           source: { gain: 1, muted: false },
           voice: { gain: 1, muted: false },

@@ -13,6 +13,10 @@ import { ArrowLeft01Icon, PlayIcon, PauseIcon, Undo02Icon, Redo02Icon } from "@h
 import { HugeiconsIcon } from "@hugeicons/react";
 import { replaceMemeClip } from "../studio/replace-meme-clip";
 import { pixelsToSeconds, scaleWidthForZoom } from "../studio/timeline-zoom";
+import { decideOverlayDrop } from "../studio/overlay-drop";
+import { timelineToStudioRows } from "../studio/timeline-adapter";
+import { TIMELINE_RULER_HEIGHT, TRACK_ROW_HEIGHT } from "../studio/timeline-layout";
+import { findOverlayInLayers, placeOverlayAtLayer, placeOverlayInLowestLayer } from "../../core/timeline/overlay-layers";
 
 interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
 interface SfxItem { id: string; category: string; title: string; file: string; ref: string; url: string; durationSec: number }
@@ -106,6 +110,29 @@ export function Studio(props: {
     setSelected({ id: clip.id, track: "video" });
   }
 
+  function addOverlay(source: { type: "meme"; meme: MemeItem } | { type: "input"; id: string }, startSec: number, targetLayer?: number) {
+    const total = videoDuration(timeline);
+    const remaining = total - startSec;
+    if (remaining <= 0) return;
+    const common = { id: crypto.randomUUID(), startSec, x: 0.5, y: 0.5, width: 0.6 };
+    if (source.type === "meme") {
+      const durationSec = Math.min(source.meme.durationSec ?? 2, remaining);
+      const overlay = { ...common, memeId: source.meme.id, durationSec };
+      const overlays = targetLayer === undefined ? placeOverlayInLowestLayer(timeline.overlays, overlay) : placeOverlayAtLayer(timeline.overlays, overlay, targetLayer);
+      edit({ ...timeline, overlays });
+      setSelected({ id: common.id, track: `video-${findOverlayInLayers(overlays, common.id)!.layer + 2}` });
+      return;
+    }
+    const input = props.project.inputs.find((item) => item.id === source.id);
+    if (!input) return;
+    const overlay = input.kind === "video"
+      ? { ...common, kind: "video" as const, inputId: input.id, inStartSec: 0, inEndSec: Math.min(input.durationSec ?? remaining, remaining) }
+      : { ...common, kind: "photo" as const, inputId: input.id, durationSec: Math.min(3, remaining) };
+    const overlays = targetLayer === undefined ? placeOverlayInLowestLayer(timeline.overlays, overlay) : placeOverlayAtLayer(timeline.overlays, overlay, targetLayer);
+    edit({ ...timeline, overlays });
+    setSelected({ id: common.id, track: `video-${findOverlayInLayers(overlays, common.id)!.layer + 2}` });
+  }
+
   function addSfx(item: SfxItem) {
     const clip = { id: crypto.randomUUID(), startSec: playhead, file: item.ref, inStartSec: 0, inEndSec: item.durationSec, gain: 1 };
     edit({ ...timeline, sfx: [...timeline.sfx, clip] });
@@ -118,15 +145,28 @@ export function Studio(props: {
     if (!raw) return;
     try {
       const data = JSON.parse(raw) as { type: string; id: string };
-      if (data.type === "video") {
+      if (data.type === "video" || data.type === "meme") {
         const grid = document.querySelector<HTMLElement>(".studio-timeline-editor .ReactVirtualized__Grid");
         const time = grid ? Math.max(0, pixelsToSeconds(event.clientX - grid.getBoundingClientRect().left + grid.scrollLeft - 20, scaleWidthForZoom(zoom))) : videoDuration(timeline);
-        addVideo(data.id, time);
-      }
-      if (data.type === "meme") {
-        const items = await api<MemeItem[]>("GET", "/api/library/memes");
-        const item = items.find((meme) => meme.id === data.id);
-        if (item) addMeme(item);
+        const host = document.querySelector<HTMLElement>(".studio-timeline-editor");
+        const rows = timelineToStudioRows(timeline);
+        const rowIndex = host ? Math.floor((event.clientY - host.getBoundingClientRect().top - TIMELINE_RULER_HEIGHT) / TRACK_ROW_HEIGHT) : -1;
+        const targetTrack = rowIndex >= 0 ? rows[rowIndex]?.id ?? "other" : "other";
+        const startsAt = videoStartTimes(timeline);
+        const hitsVideoClip = timeline.video.some((clip) => time >= startsAt[clip.id]! && time < startsAt[clip.id]! + ("durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec));
+        const decision = decideOverlayDrop({ source: { kind: data.type === "meme" ? "meme" : props.project.inputs.find((input) => input.id === data.id)?.kind ?? "video", id: data.id }, targetTrack: targetTrack === "video" ? "video" : /^video-[2-9]\d*$/.test(targetTrack) ? "overlay" : "other", hitsVideoClip, atSec: time, videoDurationSec: videoDuration(timeline) });
+        if (decision.kind === "overlay") {
+          if (data.type === "meme") {
+            const items = await api<MemeItem[]>("GET", "/api/library/memes");
+            const item = items.find((meme) => meme.id === data.id);
+            if (item) addOverlay({ type: "meme", meme: item }, decision.startSec, /^video-[2-9]\d*$/.test(targetTrack) ? Number(targetTrack.slice(6)) - 2 : undefined);
+          } else addOverlay({ type: "input", id: data.id }, decision.startSec, /^video-[2-9]\d*$/.test(targetTrack) ? Number(targetTrack.slice(6)) - 2 : undefined);
+        } else if (decision.kind === "append-video" && data.type === "video") addVideo(data.id, decision.startSec);
+        else if (data.type === "meme") {
+          const items = await api<MemeItem[]>("GET", "/api/library/memes");
+          const item = items.find((meme) => meme.id === data.id);
+          if (item) addMeme(item);
+        }
       }
       if (data.type === "sfx") {
         const items = await api<SfxItem[]>("GET", "/api/library/sfx");
@@ -196,7 +236,7 @@ export function Studio(props: {
       <label>확대 <input type="range" min="1" max="10" step="0.1" value={zoom} onChange={(event) => setZoom(Number(event.currentTarget.value))} /><output>{zoom.toFixed(1)}×</output></label>
     </div>
     <div className="studio-timeline-drop" onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
-      <Timeline timeline={timeline} inputs={props.project.inputs} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} onSelect={(id, track) => setSelected({ id, track })} onPlayhead={setPlayhead} onEdit={edit} onError={props.onError} onSnapChange={setSnap} onZoomChange={setZoom} onMute={toggleMute} inputDurations={Object.fromEntries(props.project.inputs.map((input) => [input.id, input.durationSec ?? 1]))} />
+      <Timeline timeline={timeline} inputs={props.project.inputs} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} onSelect={(id, track) => setSelected({ id, track })} onPlayhead={setPlayhead} onEdit={edit} onError={props.onError} onBlocked={props.onSnackbar} onSnapChange={setSnap} onZoomChange={setZoom} onMute={toggleMute} inputDurations={Object.fromEntries(props.project.inputs.map((input) => [input.id, input.durationSec ?? 1]))} />
     </div>
     {exportOpen ? <ExportDialog projectId={props.project.id} projectName={props.project.name} timelineLength={Math.max(duration, ...timeline.voice.map(clip => clip.startSec + clip.inEndSec - clip.inStartSec), ...timeline.sfx.map(clip => clip.startSec + clip.inEndSec - clip.inStartSec))} onClose={() => setExportOpen(false)} onSnackbar={props.onSnackbar} /> : null}
   </section>;
