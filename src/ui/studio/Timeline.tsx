@@ -7,6 +7,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { deleteAudioClip, deleteCaptionClip, moveAudioClip, moveCaptionClip, splitVideoClip, trimAudioClip, trimCaptionClip, trimVideoClip, videoStartTimes } from "../../core/timeline/ops";
 import { labelForAction, timelineToStudioRows, reorderVideoByStart, type StudioAction, type SfxLabel } from "./timeline-adapter";
 import { api } from "../api";
+import { scaleWidthForZoom, scrollLeftForZoomAnchor, zoomFromPinch, zoomFromWheel } from "./timeline-zoom";
 
 const TRACKS = [
   { id: "captions", name: "자막", color: "#F7A54A" },
@@ -36,6 +37,9 @@ export function Timeline(props: {
   onMute?: (track: string) => void;
 }) {
   const ref = useRef<TimelineState>(null);
+  const editorHost = useRef<HTMLDivElement>(null);
+  const zoomRef = useRef(props.zoom);
+  const gestureZoom = useRef(props.zoom);
   const [sfxItems, setSfxItems] = useState<SfxLabel[]>([]);
   const rows = useMemo(() => timelineToStudioRows(props.timeline), [props.timeline]);
   const tracks = TRACKS.filter((track) => rows.some((row) => row.id === track.id));
@@ -51,6 +55,63 @@ export function Timeline(props: {
   useEffect(() => {
     ref.current?.setTime(props.playhead);
   }, [props.playhead]);
+
+  useEffect(() => { zoomRef.current = props.zoom; }, [props.zoom]);
+
+  useEffect(() => {
+    const host = editorHost.current;
+    if (!host) return;
+    const applyZoom = (nextZoom: number, clientX: number) => {
+      const previousZoom = zoomRef.current;
+      if (nextZoom === previousZoom) return;
+      const grid = host.querySelector<HTMLElement>(".ReactVirtualized__Grid");
+      const gridRect = grid?.getBoundingClientRect();
+      if (!grid || !gridRect) return;
+      const pointerX = clientX - gridRect.left - 20;
+      const scrollLeft = grid.scrollLeft;
+      const nextScroll = scrollLeftForZoomAnchor(
+        scrollLeft,
+        pointerX,
+        scaleWidthForZoom(previousZoom),
+        scaleWidthForZoom(nextZoom),
+      );
+      zoomRef.current = nextZoom;
+      props.onZoomChange?.(nextZoom);
+      requestAnimationFrame(() => ref.current?.setScrollLeft(nextScroll));
+    };
+    const onWheel = (event: WheelEvent) => {
+      if (!event.metaKey && !event.ctrlKey) return;
+      event.preventDefault();
+      event.stopPropagation();
+      const delta = event.deltaY * (event.deltaMode === WheelEvent.DOM_DELTA_LINE ? 16 : event.deltaMode === WheelEvent.DOM_DELTA_PAGE ? 100 : 1);
+      applyZoom(zoomFromWheel(zoomRef.current, delta), event.clientX);
+    };
+    const onGestureStart = (event: Event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      gestureZoom.current = zoomRef.current;
+    };
+    const onGestureChange = (event: Event) => {
+      const gesture = event as Event & { scale: number; clientX: number };
+      event.preventDefault();
+      event.stopPropagation();
+      applyZoom(zoomFromPinch(gestureZoom.current, gesture.scale), gesture.clientX);
+    };
+    const onGestureEnd = (event: Event) => {
+      event.preventDefault();
+      event.stopPropagation();
+    };
+    host.addEventListener("wheel", onWheel, { passive: false });
+    host.addEventListener("gesturestart", onGestureStart, { passive: false });
+    host.addEventListener("gesturechange", onGestureChange, { passive: false });
+    host.addEventListener("gestureend", onGestureEnd, { passive: false });
+    return () => {
+      host.removeEventListener("wheel", onWheel);
+      host.removeEventListener("gesturestart", onGestureStart);
+      host.removeEventListener("gesturechange", onGestureChange);
+      host.removeEventListener("gestureend", onGestureEnd);
+    };
+  }, [props.onZoomChange]);
 
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
@@ -87,7 +148,7 @@ export function Timeline(props: {
       <div className="studio-track-labels studio-track-labels--toolbar" />
       <span>재생 헤드에서 자르기 <kbd>S</kbd></span>
       <label>스냅 <input type="checkbox" checked={props.snap} onChange={(event) => props.onSnapChange?.(event.currentTarget.checked)} /></label>
-      <label className="studio-zoom">확대 <input type="range" min="1" max="10" value={props.zoom} onChange={(event) => props.onZoomChange?.(Number(event.currentTarget.value))} /></label>
+      <label className="studio-zoom">확대 <input type="range" min="1" max="10" step="0.1" value={props.zoom} onChange={(event) => props.onZoomChange?.(Number(event.currentTarget.value))} /><output>{props.zoom.toFixed(1)}×</output></label>
     </div>
     <div className="studio-timeline-body">
       <div className="studio-track-labels">
@@ -97,13 +158,13 @@ export function Timeline(props: {
           {(track.id === "source" || track.id === "stem-voice" || track.id === "stem-bg" || track.id === "voice" || track.id === "sfx") && <button type="button" aria-label={`${track.name} 음소거`} onClick={() => props.onMute?.(track.id)}><HugeiconsIcon icon={VolumeIcon} size={16} /></button>}
         </div>)}
       </div>
-      <div className="studio-timeline-editor">
+      <div className="studio-timeline-editor" ref={editorHost}>
         <TimelineEditor
           ref={ref}
           editorData={data as never}
           effects={{}}
           scale={1}
-          scaleWidth={48 + (props.zoom - 1) * 18}
+          scaleWidth={scaleWidthForZoom(props.zoom)}
           scaleSplitCount={5}
           rowHeight={54}
           minScaleCount={Math.max(20, Math.ceil((Math.max(1, ...props.timeline.video.map((clip) => starts[clip.id]! + ("durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec))) / 10)))}

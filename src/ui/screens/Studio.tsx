@@ -12,6 +12,7 @@ import { ExportDialog } from "../ExportDialog";
 import { ArrowLeft01Icon, PlayIcon, PauseIcon, Undo02Icon, Redo02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { replaceMemeClip } from "../studio/replace-meme-clip";
+import { pixelsToSeconds, scaleWidthForZoom } from "../studio/timeline-zoom";
 
 interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
 interface SfxItem { id: string; category: string; title: string; file: string; ref: string; url: string; durationSec: number }
@@ -119,7 +120,7 @@ export function Studio(props: {
       const data = JSON.parse(raw) as { type: string; id: string };
       if (data.type === "video") {
         const grid = document.querySelector<HTMLElement>(".studio-timeline-editor .ReactVirtualized__Grid");
-        const time = grid ? Math.max(0, (event.clientX - grid.getBoundingClientRect().left + grid.scrollLeft - 20) / (48 + (zoom - 1) * 18)) : videoDuration(timeline);
+        const time = grid ? Math.max(0, pixelsToSeconds(event.clientX - grid.getBoundingClientRect().left + grid.scrollLeft - 20, scaleWidthForZoom(zoom))) : videoDuration(timeline);
         addVideo(data.id, time);
       }
       if (data.type === "meme") {
@@ -192,7 +193,7 @@ export function Studio(props: {
       </ActionButton>
       <span className="studio-toolbar-spacer" />
       <span>스냅</span><input type="checkbox" checked={snap} onChange={(event) => setSnap(event.currentTarget.checked)} />
-      <label>확대 <input type="range" min="1" max="10" value={zoom} onChange={(event) => setZoom(Number(event.currentTarget.value))} /></label>
+      <label>확대 <input type="range" min="1" max="10" step="0.1" value={zoom} onChange={(event) => setZoom(Number(event.currentTarget.value))} /><output>{zoom.toFixed(1)}×</output></label>
     </div>
     <div className="studio-timeline-drop" onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
       <Timeline timeline={timeline} inputs={props.project.inputs} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} onSelect={(id, track) => setSelected({ id, track })} onPlayhead={setPlayhead} onEdit={edit} onError={props.onError} onSnapChange={setSnap} onZoomChange={setZoom} onMute={toggleMute} inputDurations={Object.fromEntries(props.project.inputs.map((input) => [input.id, input.durationSec ?? 1]))} />
