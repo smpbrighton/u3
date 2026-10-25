@@ -62,5 +62,12 @@ describe("studio timeline adapter", () => {
     const next = { ...timeline, overlays: [[overlay]] };
     expect(timelineToStudioRows(next).map((item) => item.id)).toEqual(["captions", "overlay-0", "video", "source", "voice", "sfx"]);
     expect(labelForAction("overlay-1", next, [{ id: "photo", kind: "photo", file: "photo.jpg", displayName: "사진" }])).toBe("사진");
+    expect(timelineToStudioRows(next)[1]?.name).toBe("겹친 영상");
+  });
+  it("겹친 영상 층이 여러 개면 아래부터 번호를 붙인다", () => {
+    const a = { id: "a", memeId: "a", startSec: 0, durationSec: 2, x: 0.5, y: 0.5, width: 0.6 };
+    const b = { ...a, id: "b", memeId: "b" };
+    const rows = timelineToStudioRows({ ...timeline, overlays: [[a], [b]] });
+    expect(rows.slice(1, 3).map((row) => [row.id, row.name])).toEqual([["overlay-0", "겹친 영상 1"], ["overlay-1", "겹친 영상 2"]]);
   });
 });

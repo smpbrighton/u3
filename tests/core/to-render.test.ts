@@ -41,4 +41,8 @@ describe("timelineToRender", () => {
     expect(render.overlay).toEqual([{ id: "o", kind: "meme", startFrame: 30, durationInFrames: 60, memeId: "m", layer: 0, x: 0.5, y: 0.5, width: 0.6 }]);
     expect(render.audio.map((item) => item.id)).not.toContain("o-audio");
   });
+  it("렌더는 낮은 층부터 높은 층 순서로 클립을 낸다", () => {
+    const clip = (id: string) => ({ id, memeId: id, startSec: 1, durationSec: 1, x: 0.5, y: 0.5, width: 0.6 });
+    expect(timelineToRender({ ...timeline, overlays: [[clip("bottom")], [clip("top")]] }).overlay.map((item) => [item.id, item.layer])).toEqual([["bottom", 0], ["top", 1]]);
+  });
 });
