@@ -1,14 +1,16 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ActionButton } from "../../../seed-design/ui/action-button";
 import { PageBanner } from "../../../seed-design/ui/page-banner";
 import { ProgressCircle } from "../../../seed-design/ui/progress-circle";
-import { SegmentedControl, SegmentedControlItem } from "../../../seed-design/ui/segmented-control";
 import { TextField, TextFieldTextarea } from "../../../seed-design/ui/text-field";
 import { api, watchJob, type EngineJob } from "../api";
 import type { CodexScript, FrameGroup, Project, SystemStatus } from "../types";
+import type { MemeMeta } from "../../core/schema";
 import { timelineFromScript } from "../../core/timeline/from-script";
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { inputDisplayName } from "../../core/input";
+import { scriptGenerationView, type ScriptGenerationState } from "./script-workflow";
 
 export function Script(props: {
   project: Project;
@@ -26,6 +28,9 @@ export function Script(props: {
   const [transcriptWarning, setTranscriptWarning] = useState<string | null>(null);
   const [loadingFrames, setLoadingFrames] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [generation, setGeneration] = useState<ScriptGenerationState>({ phase: "idle", message: null, cancellable: false });
+  const controllerRef = useRef<AbortController | null>(null);
+  const jobIdRef = useRef<string | null>(null);
   const canGenerate = Boolean(props.status?.codex.installed && props.status.codex.loggedIn);
   const totalFrames = useMemo(() => frames.reduce((total, group) => total + group.frames.length, 0), [frames]);
   const inputs = useMemo(() => props.project.inputs.filter(input => input.id !== "placeholder"), [props.project.inputs]);
@@ -39,7 +44,7 @@ export function Script(props: {
     const input = inputs.find(item => item.id === inputId);
     if (input?.kind === "photo") return "사진";
     const duration = input?.durationSec ?? 0;
-    const second = frameCount > 1 ? duration * frameIndex / (frameCount - 1) : 0;
+    const second = duration * (frameIndex + 0.5) / frameCount;
     return `${second.toFixed(1)}s`;
   }
 
@@ -63,20 +68,42 @@ export function Script(props: {
     }
     setBusy(true);
     setJob(null);
+    setGeneration({ phase: "starting", message: "대본 작업을 준비하고 있어요.", cancellable: false });
+    jobIdRef.current = null;
     setTranscriptWarning(null);
     const controller = new AbortController();
+    controllerRef.current = controller;
     try {
       const response = await api<EngineJob>("POST", `/api/projects/${props.project.id}/script/recommend`, {
         prompt: mode === "direct" ? prompt.trim() : "영상과 사진을 보고 장면별 대본을 추천해 주세요.",
-      });
-      const done = await watchJob(response.id, setJob, controller.signal);
+      }, controller.signal);
+      jobIdRef.current = response.id;
+      setGeneration({ phase: "running", message: response.message ?? "Codex 실행 중", cancellable: response.cancellable });
+      const done = await watchJob(response.id, next => {
+        setJob(next);
+        setGeneration({ phase: "running", message: next.message, cancellable: next.cancellable });
+      }, controller.signal);
       if (done.status !== "done") throw new Error(done.error ?? done.message ?? "대본 생성을 마치지 못했어요.");
       const result = done.result as { script?: CodexScript; transcriptWarnings?: { inputId: string; warning: string }[] };
       if (!result.script) throw new Error("엔진이 대본을 반환하지 않았어요.");
       const warning = result.transcriptWarnings?.map(item => item.warning).join(" · ") ?? null;
       setTranscriptWarning(warning);
       const inputs = props.project.inputs.filter(input => input.id !== "placeholder");
-      const timeline = timelineFromScript(result.script, inputs);
+      const memes: Record<number, MemeMeta> = {};
+      const scenes = await Promise.all(result.script.scenes.map(async (scene, index) => {
+        if (!scene.memeBefore && !scene.memeAfter) return scene;
+        const ranked = await api<{ list: { meme: MemeMeta }[] }>("POST", `/api/projects/${props.project.id}/memes/rank`, {
+          caption: scene.caption,
+          reaction: scene.reaction,
+          query: scene.caption,
+        }, controller.signal);
+        const selected = ranked.list[0]?.meme;
+        if (!selected) return { ...scene, memeBefore: false, memeAfter: false };
+        memes[index] = selected;
+        return scene;
+      }));
+      const script = { scenes } as CodexScript;
+      const timeline = timelineFromScript(script, inputs, { memes });
       const saved = await api<Project>("PUT", `/api/projects/${props.project.id}`, {
         ...props.project,
         inputs,
@@ -84,22 +111,31 @@ export function Script(props: {
         savedAt: new Date().toISOString(),
       });
       props.onProject(saved);
+      setGeneration({ phase: "idle", message: null, cancellable: false });
       props.onSnackbar(warning ? `대본을 만들었어요. 받아 적기 안내: ${warning}` : "대본을 만들었어요.");
       props.onStudio();
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
-      props.onSnackbar(error instanceof Error ? error.message : String(error));
+      const message = error instanceof Error ? error.message : String(error);
+      setGeneration({ phase: "failed", message: null, cancellable: false, error: message });
+      props.onSnackbar(message);
     } finally {
+      controllerRef.current = null;
+      jobIdRef.current = null;
       setBusy(false);
     }
   }
 
   async function cancel() {
-    if (!job?.id) return;
+    const jobId = jobIdRef.current;
+    if (!jobId) return;
     try {
-      await api("DELETE", `/api/jobs/${job.id}`);
+      await api("DELETE", `/api/jobs/${jobId}`);
+      controllerRef.current?.abort();
       setJob(current => current ? { ...current, status: "discarded", message: "취소했어요." } : current);
+      setGeneration({ phase: "idle", message: null, cancellable: false });
       setBusy(false);
+      props.onSnackbar("대본 만들기를 취소했어요.");
     } catch (error) {
       props.onSnackbar(error instanceof Error ? error.message : String(error));
     }
@@ -110,37 +146,106 @@ export function Script(props: {
     : props.status && !props.status.codex.loggedIn
       ? "Codex에 로그인되어 있지 않아 대본을 만들 수 없어요."
       : null;
+  const workflowView = scriptGenerationView(generation);
 
   return (
-    <section className="screen" aria-labelledby="script-title">
-      <div className="flow-top">
-        <ActionButton variant="ghost" onClick={props.onBack}><HugeiconsIcon icon={ArrowLeft01Icon} size={18} /> 미디어 넣기</ActionButton>
+    <section className="script-screen" aria-label="대본 방식 고르기">
+      <header className="script-header">
+        <ActionButton
+          className="flow-back-button"
+          variant="ghost"
+          aria-label="미디어 넣기로 돌아가기"
+          onClick={props.onBack}
+        >
+          <HugeiconsIcon icon={ArrowLeft01Icon} size={20} />
+        </ActionButton>
         <strong>{props.project.name}</strong>
-        <ol className="steps" aria-label="단계"><li className="step">1 미디어</li><li className="step" aria-current="step">2 대본</li><li className="step">3 스튜디오</li></ol>
-      </div>
-      <header className="screen-header"><div><h1 id="script-title" className="screen-title">대본 방식 고르기</h1></div></header>
-      {codexMessage ? <div className="page-banner-wrap"><PageBanner tone="warning" variant="weak" description={codexMessage} /></div> : null}
-      <section className="section-card script-mode-card" aria-labelledby="script-mode-title">
-        <h2 id="script-mode-title">대본 방식</h2>
-        <SegmentedControl aria-label="대본 방식" value={mode} onValueChange={value => setMode(value as typeof mode)}>
-          <SegmentedControlItem value="ai">AI 추천</SegmentedControlItem>
-          <SegmentedControlItem value="direct">직접 쓰기</SegmentedControlItem>
-        </SegmentedControl>
-      </section>
+        <ol className="steps" aria-label="단계">
+          <li className="step">1 미디어</li>
+          <li className="step" aria-current="step">2 대본</li>
+          <li className="step">3 스튜디오</li>
+        </ol>
+      </header>
+      <main className="script-main">
+        {codexMessage ? (
+          <div className="page-banner-wrap">
+            <PageBanner tone="warning" variant="weak" description={codexMessage} />
+          </div>
+        ) : null}
+        <fieldset className="script-mode-options">
+          <legend>대본 방식</legend>
+          <button
+            className="script-mode-option"
+            type="button"
+            aria-pressed={mode === "ai"}
+            onClick={() => setMode("ai")}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M12 3l1.9 4.6L18.5 9l-4.6 1.9L12 15.5l-1.9-4.6L5.5 9l4.6-1.4z" />
+              <path d="M19 15l.8 2 2 .8-2 .8-.8 2-.8-2-2-.8 2-.8z" />
+            </svg>
+            <span>
+              <strong>AI 추천</strong>
+              <small>영상 프레임과 사진을 보고 AI가 씁니다</small>
+            </span>
+          </button>
+          <button
+            className="script-mode-option"
+            type="button"
+            aria-pressed={mode === "direct"}
+            onClick={() => setMode("direct")}
+          >
+            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" aria-hidden="true">
+              <path d="M12 20h9" />
+              <path d="M16.5 3.5a2.1 2.1 0 0 1 3 3L7 19l-4 1 1-4z" />
+            </svg>
+            <span>
+              <strong>직접 쓰기</strong>
+              <small>간략하게 쓰면 AI가 장면 대본으로 만듭니다</small>
+            </span>
+          </button>
+        </fieldset>
       {mode === "ai" ? (
         <section className="section-card" aria-labelledby="frame-title" style={{ marginTop: 20 }}>
           <div className="screen-header">
-            <div><h2 id="frame-title">AI가 볼 이미지</h2><p className="screen-subtitle">입력별 프레임을 최대 40장까지 보여줘요.</p></div>
+            <div>
+              <h2 id="frame-title">AI가 볼 이미지</h2>
+            </div>
             <span>{loadingFrames ? "불러오는 중" : `${totalFrames} / 40장`}</span>
           </div>
-          {frames.length ? <div className="frame-groups">{frames.map((group, index) => {
-            const input = inputs.find(item => item.id === group.inputId);
-            const fileName = input?.file.split("/").at(-1) ?? "파일";
-            const label = input?.kind === "video"
-              ? `${index + 1} · ${fileName} (영상 ${formatDuration(input.durationSec ?? 0)})`
-              : `${index + 1} · ${fileName} (사진)`;
-            return <div key={group.inputId}><h3 className="frame-group-label">{label}</h3><div className="frame-grid">{group.frames.map((frame, frameIndex) => <div className="frame-card" key={frame.file}><img src={frame.url} alt={`${fileName} ${frameLabel(group.inputId, frameIndex, group.frames.length)}`} /><span>{frameLabel(group.inputId, frameIndex, group.frames.length)}</span></div>)}</div></div>;
-          })}</div> : loadingFrames ? <div className="progress-row"><ProgressCircle size="24" tone="neutral" /> 이미지를 준비하고 있어요.</div> : <p>표시할 이미지가 없어요.</p>}
+          {frames.length ? (
+            <div className="frame-groups">
+              {frames.map(group => {
+                const input = inputs.find(item => item.id === group.inputId);
+                const fileName = input ? inputDisplayName(input) : "파일";
+                const inputNumber = inputs.findIndex(item => item.id === group.inputId) + 1;
+                const label = input?.kind === "video"
+                  ? `${inputNumber} · ${fileName} (영상 ${formatDuration(input.durationSec ?? 0)})`
+                  : `${inputNumber} · ${fileName} (사진)`;
+                return (
+                  <div key={group.inputId}>
+                    <h3 className="frame-group-label">{label}</h3>
+                    <div className="frame-grid">
+                      {group.frames.map((frame, frameIndex) => {
+                        const timeLabel = frameLabel(group.inputId, frameIndex, group.frames.length);
+                        return (
+                          <div className="frame-card" key={frame.file}>
+                            <img src={frame.url} alt={`${fileName} ${timeLabel}`} />
+                            <span>{timeLabel}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          ) : loadingFrames ? (
+            <div className="progress-row">
+              <ProgressCircle size="24" tone="neutral" />
+              이미지를 준비하고 있어요.
+            </div>
+          ) : <p>표시할 이미지가 없어요.</p>}
         </section>
       ) : (
         <section className="section-card" style={{ marginTop: 20 }}>
@@ -149,12 +254,35 @@ export function Script(props: {
           </TextField>
         </section>
       )}
-      {transcriptWarning ? <div className="page-banner-wrap" role="status"><PageBanner tone="warning" variant="weak" description={`받아 적기를 건너뛰었어요: ${transcriptWarning}`} /></div> : null}
-      {job && busy ? <div className="progress-row" aria-live="polite"><ProgressCircle size="24" tone="brand" value={job.progress === null ? undefined : job.progress * 100} />{job.message ?? "대본을 만들고 있어요."}<ActionButton variant="neutralWeak" size="small" onClick={() => void cancel()}>취소</ActionButton></div> : null}
-      {job?.status === "failed" ? <div className="page-banner-wrap" role="alert"><PageBanner tone="warning" variant="weak" description={job.error ?? "대본을 만들지 못했어요."} /></div> : null}
-      <div className="action-row">
+        {transcriptWarning ? (
+          <div className="page-banner-wrap" role="status">
+            <PageBanner tone="warning" variant="weak" description={`받아 적기를 건너뛰었어요: ${transcriptWarning}`} />
+          </div>
+        ) : null}
+        {busy && workflowView.progress ? (
+          <div className="progress-row" aria-live="polite">
+            <ProgressCircle
+              size="24"
+              tone="brand"
+              value={job?.progress === null || job?.progress === undefined ? undefined : job.progress * 100}
+            />
+            {workflowView.progress}
+            {workflowView.showCancel ? (
+              <ActionButton variant="neutralWeak" size="small" onClick={() => void cancel()}>
+                취소
+              </ActionButton>
+            ) : null}
+          </div>
+        ) : null}
+        {workflowView.error ? (
+          <div className="page-banner-wrap" role="alert">
+            <PageBanner tone="warning" variant="weak" description={workflowView.error} />
+          </div>
+        ) : null}
+      </main>
+      <footer className="script-footer">
         <ActionButton variant="brandSolid" disabled={!canGenerate || busy || (mode === "ai" && loadingFrames)} loading={busy} onClick={() => void generate()}>대본 만들기</ActionButton>
-      </div>
+      </footer>
     </section>
   );
 }
