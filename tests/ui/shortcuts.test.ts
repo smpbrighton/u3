@@ -23,6 +23,8 @@ describe("스튜디오 단축키", () => {
     expect(studioShortcut({ key: "z", code: "KeyZ", metaKey: true, targetTagName: "TEXTAREA" })).toBeNull();
     expect(studioShortcut({ key: "m", code: "KeyM", targetTagName: "SELECT" })).toBeNull();
     expect(studioShortcut({ key: " ", code: "Space", targetType: "range" })).toBeNull();
+    expect(studioShortcut({ key: "c", code: "KeyC", targetRole: "slider" })).toBeNull();
+    expect(studioShortcut({ key: " ", code: "Space", targetRole: "switch" })).toBeNull();
   });
 
   it("묶기, 해제, 실행 취소, 다시 실행, 삭제 키를 구분한다", () => {
