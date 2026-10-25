@@ -6,7 +6,7 @@ describe("영상 트랙 끌기 대상 판정", () => {
   const gridTop = 240;
 
   it("눈금 Grid가 먼저 있어도 편집 영역의 Grid를 선택한다", () => {
-    expect(VIDEO_TRACK_EDIT_GRID_SELECTOR).toBe(".edit-area .ReactVirtualized__Grid");
+    expect(VIDEO_TRACK_EDIT_GRID_SELECTOR).toBe(".timeline-editor-edit-area .ReactVirtualized__Grid");
   });
 
   it("grid top 기준 포인터 y로 새 트랙과 기존 영상 행을 고른다", () => {
