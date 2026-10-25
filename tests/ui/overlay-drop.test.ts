@@ -9,6 +9,9 @@ describe("overlay drop 판정", () => {
   it("영상 트랙 끝 뒤에 놓은 미디어는 본 영상으로 이어 붙인다", () => {
     expect(decideOverlayDrop({ source: { kind: "video", id: "v" }, targetTrack: "video", hitsVideoClip: false, atSec: 10, videoDurationSec: 10 })).toEqual({ kind: "append-video", startSec: 10 });
   });
+  it("겹친 영상 행의 끝 뒤에도 놓을 영상이 없으면 영상 1에 이어 붙인다", () => {
+    expect(decideOverlayDrop({ source: { kind: "photo", id: "p" }, targetTrack: "overlay", hitsVideoClip: false, atSec: 10, videoDurationSec: 10 })).toEqual({ kind: "append-video", startSec: 10 });
+  });
   it("영상 길이 밖의 overlay 드롭을 거부한다", () => {
     expect(decideOverlayDrop({ source: { kind: "video", id: "v" }, targetTrack: "overlay", hitsVideoClip: false, atSec: 11, videoDurationSec: 10 })).toEqual({ kind: "reject" });
   });
