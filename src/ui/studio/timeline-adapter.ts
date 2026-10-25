@@ -1,4 +1,5 @@
-import type { Timeline } from "../../core/schema";
+import type { Input, Timeline } from "../../core/schema";
+import { inputDisplayName } from "../../core/input";
 import { clipDuration, videoStartTimes } from "../../core/timeline/ops";
 
 export interface StudioAction {
@@ -14,6 +15,24 @@ export interface StudioRow {
   id: string;
   actions: StudioAction[];
   rowHeight: number;
+}
+
+export interface SfxLabel { ref: string; title?: string; category?: string }
+
+export function labelForAction(id: string, timeline: Timeline, inputs: readonly Input[] = [], sfxItems: readonly SfxLabel[] = []): string {
+  const caption = timeline.captions.find(item => item.id === id);
+  if (caption) return caption.text;
+  const video = timeline.video.find(item => item.id === id);
+  if (video) {
+    if (video.kind === "meme") return video.memeId;
+    const input = inputs.find(item => item.id === video.inputId);
+    return input ? inputDisplayName(input) : video.inputId;
+  }
+  const sfx = timeline.sfx.find(item => item.id === id);
+  if (sfx) return sfxItems.find(item => item.ref === sfx.file)?.title || "효과음";
+  const voice = timeline.voice.find(item => item.id === id);
+  if (voice) return voice.file.split("/").at(-1) ?? voice.file;
+  return id.startsWith("source:") ? "원본 소리" : id.replace(/^stem-(voice|bg):/, "$1");
 }
 
 const row = (id: string, actions: StudioAction[], rowHeight = 54): StudioRow => ({ id, actions, rowHeight });

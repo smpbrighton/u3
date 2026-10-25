@@ -24,6 +24,8 @@ export function Input(props: {
   onProject: (project: Project) => void;
   onBack: () => void;
   onNext: () => void;
+  onScript: () => void;
+  onStudio: () => void;
   onError: (message: string) => void;
 }) {
   const [name, setName] = useState(props.project.name);
@@ -155,7 +157,7 @@ export function Input(props: {
           <input aria-label="영상 이름" value={name} maxLength={120} onChange={event => setName(event.target.value)} />
         </div>
         <ol className="steps" aria-label="단계">
-          <li className="step" aria-current="step">1 미디어</li><li className="step">2 대본</li><li className="step">3 스튜디오</li>
+          <li className="step" aria-current="step">1 미디어</li><li className="step"><button type="button" onClick={props.onScript} disabled={!inputs.length}>2 대본</button></li><li className="step"><button type="button" onClick={props.onStudio} disabled={!props.project.timeline.video.length}>3 스튜디오</button></li>
         </ol>
       </header>
       <main className="input-content">

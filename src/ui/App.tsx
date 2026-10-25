@@ -10,6 +10,7 @@ import { Settings } from "./screens/Settings";
 import { PageBanner } from "../../seed-design/ui/page-banner";
 import { Studio } from "./screens/Studio";
 import type { Project, SystemStatus } from "./types";
+import { projectOpenScreen } from "./project-screen";
 
 type Screen = "home" | "input" | "script" | "studio" | "settings" | "carousel";
 type Connection = { port: number; token: string };
@@ -55,7 +56,7 @@ export function App() {
 
   const openProject = useCallback((next: Project) => {
     setProject(next);
-    setScreen("input");
+    setScreen(projectOpenScreen(next));
     setError(null);
   }, []);
 
@@ -71,7 +72,7 @@ export function App() {
   const page = screen === "home" ? (
     <Home status={status} onNew={openProject} onOpen={openProject} onSettings={() => go("settings")} />
   ) : screen === "input" && project ? (
-    <Input project={project} onProject={setProject} onBack={() => go("home")} onNext={() => go("script")} onError={setSnackbar} />
+    <Input project={project} onProject={setProject} onBack={() => go("home")} onNext={() => go("script")} onScript={() => go("script")} onStudio={() => go("studio")} onError={setSnackbar} />
   ) : screen === "script" && project ? (
     <Script project={project} status={status} onProject={setProject} onStudio={() => go("studio")} onBack={() => go("input")} onSnackbar={setSnackbar} onError={setSnackbar} />
   ) : screen === "studio" && project ? (

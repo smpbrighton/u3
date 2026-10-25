@@ -119,11 +119,13 @@ export function Home(props: {
             const inputCount = project.inputs.filter(input => input.id !== "placeholder").length;
             const scenes = project.timeline.captions.length;
             const duration = timelineDuration(project);
+            const complete = project.timeline.video.length > 0;
             return (
               <div className="project-card-wrap" key={project.id}>
               <button className="project-card" onClick={() => props.onOpen(project)}>
-                <span className={thumbnails[project.id] ? "project-thumb" : "project-thumb project-thumb--empty"}>
-                  {thumbnails[project.id] ? <img src={thumbnails[project.id]} alt="" /> : <span>대본 전</span>}
+                <span className={thumbnails[project.id] ? "project-thumb" : `project-thumb project-thumb--empty${complete ? " project-thumb--complete" : ""}`}>
+                  {thumbnails[project.id] ? <img src={thumbnails[project.id]} alt="" /> : null}
+                  {!complete ? <span className="project-status">대본 전</span> : null}
                   {duration > 0 ? <span className="project-duration">{durationLabel(duration)}</span> : null}
                 </span>
                 <span className="project-name">{project.name}</span>

@@ -5,6 +5,7 @@ import { ActionButton } from "../../../seed-design/ui/action-button";
 import type { Project } from "../../core/schema";
 import { api, mediaUrl } from "../api";
 import { Recorder } from "./Recorder";
+import { inputDisplayName } from "../../core/input";
 
 type Tab = "media" | "meme" | "sfx" | "voice";
 interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
@@ -36,7 +37,9 @@ export function LibraryPanel(props: {
     void Promise.all([
       api<MemeItem[]>("GET", `/api/library/memes${search ? `?${search}` : ""}`),
       api<SfxItem[]>("GET", `/api/library/sfx${search ? `?${search}` : ""}`),
-      Promise.all(props.project.inputs.map(async (input) => [input.id, await mediaUrl(props.project.id, input.file)] as const)),
+      Promise.all(props.project.inputs.map(async (input) => [input.id, input.kind === "video"
+        ? (await api<{ url: string }>("GET", `/api/projects/${props.project.id}/inputs/${encodeURIComponent(input.id)}/thumbnail`)).url
+        : await mediaUrl(props.project.id, input.file)] as const)),
     ]).then(([nextMemes, nextSfx, urls]) => {
       if (!active) return;
       setMemes(nextMemes);
@@ -76,7 +79,7 @@ export function LibraryPanel(props: {
         <ul className="studio-library-list">{props.project.inputs.filter((input) => input.id !== "placeholder").map((input) => <li key={input.id} draggable onDragStart={(event) => drag(event, "video", input.id)}>
           <button type="button" className="studio-media-item" onClick={() => props.onAddVideo(input.id)}>
             <span className="studio-media-thumb">{input.kind === "photo" ? <img src={mediaUrls[input.id]} alt="" /> : <video src={mediaUrls[input.id]} muted preload="metadata" />}</span>
-            <span><b>{input.file.split("/").at(-1)}</b><small>{input.kind === "video" ? "영상" : "사진"}{input.durationSec ? ` · ${input.durationSec.toFixed(1)}초` : ""}</small></span>
+            <span><b>{inputDisplayName(input)}</b><small>{input.kind === "video" ? "영상" : "사진"}{input.durationSec ? ` · ${input.durationSec.toFixed(1)}초` : ""}</small></span>
           </button>
         </li>)}</ul>
       </> : null}

@@ -30,7 +30,9 @@ button:disabled { cursor: not-allowed; }
 .project-card { display: flex; min-width: 0; flex-direction: column; gap: 10px; padding: 10px; border: 1px solid var(--seed-color-palette-gray-700); border-radius: 14px; background: var(--seed-color-bg-layer-default); text-align: left; }
 .project-thumb { position: relative; display: grid; aspect-ratio: 9 / 16; place-items: center; overflow: hidden; border-radius: 9px; background: var(--seed-color-palette-gray-700); color: var(--seed-color-bg-layer-default); }
 .project-thumb--empty { border: 1px dashed var(--seed-color-palette-gray-300); background: var(--seed-color-bg-layer-default); color: var(--seed-color-fg-neutral); }
+.project-thumb--complete { border: 0; background: #3D4450; }
 .project-thumb img { width: 100%; height: 100%; object-fit: cover; }
+.project-status { position: absolute; padding: 6px 10px; border: 1px dashed var(--seed-color-palette-gray-300); border-radius: 6px; background: var(--seed-color-bg-layer-default); color: var(--seed-color-fg-neutral); }
 .project-duration { position: absolute; bottom: 10px; left: 10px; padding: 2px 8px; border-radius: 6px; color: var(--seed-color-bg-layer-default); background: rgb(0 0 0 / 70%); font-size: 12px; }
 .project-name { overflow: hidden; color: var(--seed-color-fg-neutral); font-size: 15px; font-weight: 700; text-overflow: ellipsis; white-space: nowrap; }
 .project-meta { color: var(--seed-color-palette-gray-600); font-size: 13px; }
@@ -40,6 +42,8 @@ button:disabled { cursor: not-allowed; }
 .steps { display: flex; gap: 8px; margin: 0 0 28px; padding: 0; list-style: none; }
 .step { padding: 8px 14px; border: 1px solid var(--seed-color-palette-gray-700); border-radius: 999px; color: var(--seed-color-palette-gray-800); background: var(--seed-color-bg-layer-default); font-size: 14px; }
 .step[aria-current="step"] { color: var(--seed-color-bg-layer-default); background: var(--seed-color-fg-neutral); font-weight: 700; }
+.step button { padding: 0; border: 0; color: inherit; background: transparent; font: inherit; cursor: pointer; }
+.step button:disabled { opacity: 0.5; cursor: default; }
 .drop-area { display: grid; min-height: 200px; place-items: center; margin-bottom: 28px; padding: 26px; border: 1px dashed var(--seed-color-palette-gray-400); border-radius: 16px; background: var(--seed-color-bg-layer-default); text-align: center; }
 .drop-area[data-dragging="true"] { outline: 3px solid var(--seed-color-palette-blue-300); }
 .media-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }

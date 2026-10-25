@@ -1,11 +1,12 @@
 import { Timeline as TimelineEditor, type TimelineState } from "@xzdarcy/react-timeline-editor";
 import "@xzdarcy/react-timeline-editor/dist/react-timeline-editor.css";
-import { useEffect, useMemo, useRef } from "react";
-import type { Timeline as TimelineData } from "../../core/schema";
+import { useEffect, useMemo, useRef, useState } from "react";
+import type { Input, Timeline as TimelineData } from "../../core/schema";
 import { VolumeIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { deleteAudioClip, deleteCaptionClip, moveAudioClip, moveCaptionClip, splitVideoClip, trimAudioClip, trimCaptionClip, trimVideoClip, videoStartTimes } from "../../core/timeline/ops";
-import { timelineToStudioRows, reorderVideoByStart, type StudioAction } from "./timeline-adapter";
+import { labelForAction, timelineToStudioRows, reorderVideoByStart, type StudioAction, type SfxLabel } from "./timeline-adapter";
+import { api } from "../api";
 
 const TRACKS = [
   { id: "captions", name: "자막", color: "#F7A54A" },
@@ -19,6 +20,7 @@ const TRACKS = [
 
 export function Timeline(props: {
   timeline: TimelineData;
+  inputs?: readonly Input[];
   playhead: number;
   zoom: number;
   snap: boolean;
@@ -34,10 +36,17 @@ export function Timeline(props: {
   onMute?: (track: string) => void;
 }) {
   const ref = useRef<TimelineState>(null);
+  const [sfxItems, setSfxItems] = useState<SfxLabel[]>([]);
   const rows = useMemo(() => timelineToStudioRows(props.timeline), [props.timeline]);
   const tracks = TRACKS.filter((track) => rows.some((row) => row.id === track.id));
   const starts = useMemo(() => videoStartTimes(props.timeline), [props.timeline]);
   const data = rows.map((item) => ({ ...item, actions: item.actions.map((action) => ({ ...action, selected: action.id === props.selectedId })) }));
+
+  useEffect(() => {
+    let active = true;
+    void api<SfxLabel[]>("GET", "/api/library/sfx").then(items => { if (active) setSfxItems(items); }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
 
   useEffect(() => {
     ref.current?.setTime(props.playhead);
@@ -104,7 +113,7 @@ export function Timeline(props: {
           enableRowDrag={false}
           style={{ height: 24 + tracks.length * 54, width: "100%" }}
           getScaleRender={(scale) => <span className="studio-ruler-tick">{Math.round(scale)}s</span>}
-          getActionRender={(action) => <div style={actionStyle(action as StudioAction)} title={action.id}>{labelForAction(action.id, props.timeline)}</div>}
+          getActionRender={(action) => <div style={actionStyle(action as StudioAction)} title={labelForAction(action.id, props.timeline, props.inputs, sfxItems)}>{labelForAction(action.id, props.timeline, props.inputs, sfxItems)}</div>}
           onCursorDrag={(time) => props.onPlayhead(time)}
           onClickTimeArea={(time) => { props.onPlayhead(time); return true; }}
           onClickAction={(event, { action, row }) => { event.stopPropagation(); props.onSelect(action.id, selectedTrack(row.id)); }}
@@ -147,12 +156,3 @@ function isTextInput(target: EventTarget | null): boolean {
   return target instanceof HTMLElement && (target.isContentEditable || ["INPUT", "TEXTAREA", "SELECT"].includes(target.tagName));
 }
 
-function labelForAction(id: string, timeline: TimelineData): string {
-  const caption = timeline.captions.find((item) => item.id === id);
-  if (caption) return caption.text;
-  const video = timeline.video.find((item) => item.id === id);
-  if (video) return video.kind === "meme" ? video.memeId : video.inputId;
-  return timeline.voice.find((item) => item.id === id)?.file.split("/").at(-1)
-    ?? timeline.sfx.find((item) => item.id === id)?.file.split("/").at(-1)
-    ?? (id.startsWith("source:") ? "원본 소리" : id.replace(/^stem-(voice|bg):/, "$1"));
-}

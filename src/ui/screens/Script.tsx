@@ -170,9 +170,9 @@ export function Script(props: {
         </ActionButton>
         <strong>{props.project.name}</strong>
         <ol className="steps" aria-label="단계">
-          <li className="step">1 미디어</li>
+          <li className="step"><button type="button" onClick={props.onBack}>1 미디어</button></li>
           <li className="step" aria-current="step">2 대본</li>
-          <li className="step">3 스튜디오</li>
+          <li className="step"><button type="button" onClick={props.onStudio} disabled={!props.project.timeline.video.length}>3 스튜디오</button></li>
         </ol>
       </header>
       <main className="script-main">

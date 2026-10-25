@@ -195,7 +195,7 @@ export function Studio(props: {
       <label>확대 <input type="range" min="1" max="10" value={zoom} onChange={(event) => setZoom(Number(event.currentTarget.value))} /></label>
     </div>
     <div className="studio-timeline-drop" onDragOver={(event) => event.preventDefault()} onDrop={onDrop}>
-      <Timeline timeline={timeline} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} onSelect={(id, track) => setSelected({ id, track })} onPlayhead={setPlayhead} onEdit={edit} onError={props.onError} onSnapChange={setSnap} onZoomChange={setZoom} onMute={toggleMute} inputDurations={Object.fromEntries(props.project.inputs.map((input) => [input.id, input.durationSec ?? 1]))} />
+      <Timeline timeline={timeline} inputs={props.project.inputs} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} onSelect={(id, track) => setSelected({ id, track })} onPlayhead={setPlayhead} onEdit={edit} onError={props.onError} onSnapChange={setSnap} onZoomChange={setZoom} onMute={toggleMute} inputDurations={Object.fromEntries(props.project.inputs.map((input) => [input.id, input.durationSec ?? 1]))} />
     </div>
     {exportOpen ? <ExportDialog projectId={props.project.id} projectName={props.project.name} timelineLength={Math.max(duration, ...timeline.voice.map(clip => clip.startSec + clip.inEndSec - clip.inStartSec), ...timeline.sfx.map(clip => clip.startSec + clip.inEndSec - clip.inStartSec))} onClose={() => setExportOpen(false)} onSnackbar={props.onSnackbar} /> : null}
   </section>;
