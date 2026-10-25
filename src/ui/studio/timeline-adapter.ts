@@ -1,6 +1,7 @@
 import type { Input, Timeline } from "../../core/schema";
 import { inputDisplayName } from "../../core/input";
 import { clipDuration, videoStartTimes } from "../../core/timeline/ops";
+import { TRACK_ROW_HEIGHT } from "./timeline-layout";
 
 export interface StudioAction {
   id: string;
@@ -35,7 +36,7 @@ export function labelForAction(id: string, timeline: Timeline, inputs: readonly 
   return id.startsWith("source:") ? "원본 소리" : id.replace(/^stem-(voice|bg):/, "$1");
 }
 
-const row = (id: string, actions: StudioAction[], rowHeight = 54): StudioRow => ({ id, actions, rowHeight });
+const row = (id: string, actions: StudioAction[], rowHeight = TRACK_ROW_HEIGHT): StudioRow => ({ id, actions, rowHeight });
 const action = (id: string, start: number, end: number, effectId: string, movable = true): StudioAction => ({ id, start, end, effectId, flexible: movable, movable });
 
 export function timelineToStudioRows(timeline: Timeline): StudioRow[] {
@@ -58,7 +59,7 @@ export function timelineToStudioRows(timeline: Timeline): StudioRow[] {
   });
   return [
     row("captions", timeline.captions.map((clip) => action(clip.id, clip.startSec, clip.endSec, "caption"))),
-    row("video", videoActions, 64),
+    row("video", videoActions),
     ...(sourceActions.length ? [row("source", sourceActions)] : []),
     ...(stemVoice.length ? [row("stem-voice", stemVoice)] : []),
     ...(stemBg.length ? [row("stem-bg", stemBg)] : []),

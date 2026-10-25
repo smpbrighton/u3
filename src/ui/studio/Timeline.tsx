@@ -1,6 +1,6 @@
 import { Timeline as TimelineEditor, type TimelineState } from "@xzdarcy/react-timeline-editor";
 import "@xzdarcy/react-timeline-editor/dist/react-timeline-editor.css";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { Input, Timeline as TimelineData } from "../../core/schema";
 import { VolumeIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -8,6 +8,7 @@ import { deleteAudioClip, deleteCaptionClip, moveAudioClip, moveCaptionClip, spl
 import { labelForAction, timelineToStudioRows, reorderVideoByStart, type StudioAction, type SfxLabel } from "./timeline-adapter";
 import { api } from "../api";
 import { scaleWidthForZoom, scrollLeftForZoomAnchor, zoomFromPinch, zoomFromWheel } from "./timeline-zoom";
+import { TIMELINE_ACTION_INSET, TIMELINE_RULER_HEIGHT, TRACK_ROW_HEIGHT, timelineActionHeight, timelineEditorHeight } from "./timeline-layout";
 
 const TRACKS = [
   { id: "captions", name: "자막", color: "#F7A54A" },
@@ -137,13 +138,20 @@ export function Timeline(props: {
     color: "#fff",
     fontSize: 11,
     padding: "3px 5px",
+    height: timelineActionHeight(),
+    margin: `${TIMELINE_ACTION_INSET}px 0`,
+    display: "flex",
+    alignItems: "center",
     overflow: "hidden",
     textOverflow: "ellipsis",
     whiteSpace: "nowrap" as const,
     boxSizing: "border-box" as const,
   });
 
-  return <section className="studio-timeline" aria-label="타임라인">
+  return <section className="studio-timeline" aria-label="타임라인" style={{
+    "--studio-track-row-height": `${TRACK_ROW_HEIGHT}px`,
+    "--studio-ruler-height": `${TIMELINE_RULER_HEIGHT}px`,
+  } as CSSProperties}>
     <div className="studio-timeline-toolbar">
       <div className="studio-track-labels studio-track-labels--toolbar" />
       <span>재생 헤드에서 자르기 <kbd>S</kbd></span>
@@ -166,13 +174,13 @@ export function Timeline(props: {
           scale={1}
           scaleWidth={scaleWidthForZoom(props.zoom)}
           scaleSplitCount={5}
-          rowHeight={54}
+          rowHeight={TRACK_ROW_HEIGHT}
           minScaleCount={Math.max(20, Math.ceil((Math.max(1, ...props.timeline.video.map((clip) => starts[clip.id]! + ("durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec))) / 10)))}
           gridSnap={props.snap}
           dragLine={props.snap}
           autoScroll
           enableRowDrag={false}
-          style={{ height: 24 + tracks.length * 54, width: "100%" }}
+          style={{ height: timelineEditorHeight(tracks.length), width: "100%" }}
           getScaleRender={(scale) => <span className="studio-ruler-tick">{Math.round(scale)}s</span>}
           getActionRender={(action) => <div style={actionStyle(action as StudioAction)} title={labelForAction(action.id, props.timeline, props.inputs, sfxItems)}>{labelForAction(action.id, props.timeline, props.inputs, sfxItems)}</div>}
           onCursorDrag={(time) => props.onPlayhead(time)}
