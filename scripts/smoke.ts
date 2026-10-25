@@ -1,5 +1,5 @@
 import { createReadStream } from "node:fs";
-import { mkdir, readFile, stat } from "node:fs/promises";
+import { copyFile, mkdir, readFile, stat, writeFile } from "node:fs/promises";
 import { createServer } from "node:http";
 import { execFile as execFileCallback } from "node:child_process";
 import { promisify } from "node:util";
@@ -52,7 +52,7 @@ async function startFixtureServer() {
 }
 
 async function framePixels(file: string, frame: number, out: string, rendered: boolean) {
-  const crop = rendered ? "crop=128:128:100:100,scale=64:64:flags=area" : "crop=64:64:50:50";
+  const crop = rendered ? "crop=128:128:476:896,scale=64:64:flags=area" : "crop=64:64:50:50";
   await execFile("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", file, "-vf", `select=eq(n\\,${frame}),${crop},format=rgb24`, "-vsync", "0", "-frames:v", "1", "-f", "rawvideo", out]);
   return readFile(out);
 }
@@ -67,6 +67,13 @@ function pixelMae(a: Buffer, b: Buffer): number {
 async function main() {
   await mkdir(outputDir, { recursive: true });
   const fixture = Project.parse(JSON.parse(await readFile(path.join(fixtureRoot, "project.json"), "utf8")));
+  const libraryFolder = path.join(outputDir, "library");
+  for (const id of ["meme-front", "meme-back"]) {
+    const folder = path.join(libraryFolder, "memes", "smoke");
+    await mkdir(folder, { recursive: true });
+    await copyFile(path.join(fixtureRoot, "input/video.mp4"), path.join(folder, `${id}.mp4`));
+    await writeFile(path.join(folder, `${id}.json`), JSON.stringify({ id, emotion: "smoke", situations: [], importedAt: "", tagsConfirmed: true }));
+  }
   const media = await startFixtureServer();
   try {
     const expected = timelineToRender(fixture.timeline);
@@ -75,7 +82,7 @@ async function main() {
       timeline: fixture.timeline,
       inputs: inputRecords,
       projectFolder: fixtureRoot,
-      libraryFolder: path.join(fixtureRoot, "library"),
+      libraryFolder,
       outputPath,
       resolveMediaUrl: media.url,
       onProgress: ({ progress }) => { if (progress === 1) console.log("render: 100%"); },
@@ -113,7 +120,14 @@ async function main() {
     assert(nearestWrong && nearestWrong.mae - nearest.mae > 4, `경계 후보 프레임의 색 차이가 충분하지 않습니다: 최근접 오차 ${nearest.mae.toFixed(2)}, 잘못된 프레임 오차 ${nearestWrong?.mae.toFixed(2)}`);
     assert(minFrameSeparation > 20, `경계 주변 fixture 프레임의 색 차이가 작습니다: 최소 MAE ${minFrameSeparation.toFixed(2)}`);
 
-    console.log(`✓ smoke passed: 1080×1920, 30fps, ${actualFrames} frames, audio max ${maxVolume} dB, cut edge source frame ${nearest.sourceFrame} (MAE ${nearest.mae.toFixed(2)}, separation ${minFrameSeparation.toFixed(2)})`);
+    const overlay = expected.overlay.find((item) => item.id === "overlay-smoke");
+    assert(overlay?.kind === "meme", "겹친 짤 fixture를 찾지 못했습니다");
+    const overlayPixels = await framePixels(outputPath, overlay.startFrame + 5, path.join(outputDir, "overlay.rgb"), true);
+    const sourcePixels = await framePixels(sourceFile, 2 * 30 + 12, path.join(outputDir, "overlay-source.rgb"), false);
+    const overlayMae = pixelMae(overlayPixels, sourcePixels);
+    assert(overlayMae > 5, `겹친 영상 구간의 중심 픽셀이 바뀌지 않았습니다: MAE ${overlayMae.toFixed(2)}`);
+
+    console.log(`✓ smoke passed: 1080×1920, 30fps, ${actualFrames} frames, audio max ${maxVolume} dB, cut edge source frame ${nearest.sourceFrame} (MAE ${nearest.mae.toFixed(2)}, separation ${minFrameSeparation.toFixed(2)}), overlay center MAE ${overlayMae.toFixed(2)}`);
   } finally {
     await media.close();
   }
