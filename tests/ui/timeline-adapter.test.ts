@@ -18,6 +18,7 @@ describe("studio timeline adapter", () => {
   it("Timeline을 자막·영상·소리 트랙으로 바꾼다", () => {
     const rows = timelineToStudioRows(timeline);
     expect(rows.map((row) => row.id)).toEqual(["captions", "video", "source", "voice", "sfx"]);
+    expect(rows.find((row) => row.id === "video")?.name).toBe("영상 1");
     expect(rows[1]?.actions.map(({ id, start, end }) => ({ id, start, end }))).toEqual([
       { id: "one", start: 0, end: 3 },
       { id: "two", start: 3, end: 5 },
@@ -60,7 +61,7 @@ describe("studio timeline adapter", () => {
   it("겹친 영상 행을 영상 바로 위에 만들고 입력 이름을 라벨로 쓴다", () => {
     const overlay = { id: "overlay-1", kind: "photo" as const, inputId: "photo", startSec: 1, durationSec: 2, x: 0.5, y: 0.5, width: 0.6 };
     const next = { ...timeline, overlays: [[overlay]] };
-    expect(timelineToStudioRows(next).map((item) => item.id)).toEqual(["captions", "overlay-0", "video", "source", "voice", "sfx"]);
+    expect(timelineToStudioRows(next).map((item) => item.id)).toEqual(["captions", "video-2", "video", "source", "voice", "sfx"]);
     expect(labelForAction("overlay-1", next, [{ id: "photo", kind: "photo", file: "photo.jpg", displayName: "사진" }])).toBe("사진");
     expect(timelineToStudioRows(next)[1]?.name).toBe("겹친 영상");
   });
@@ -68,6 +69,6 @@ describe("studio timeline adapter", () => {
     const a = { id: "a", memeId: "a", startSec: 0, durationSec: 2, x: 0.5, y: 0.5, width: 0.6 };
     const b = { ...a, id: "b", memeId: "b" };
     const rows = timelineToStudioRows({ ...timeline, overlays: [[a], [b]] });
-    expect(rows.slice(1, 3).map((row) => [row.id, row.name])).toEqual([["overlay-0", "겹친 영상 1"], ["overlay-1", "겹친 영상 2"]]);
+    expect(rows.slice(1, 3).map((row) => [row.id, row.name])).toEqual([["video-2", "영상 2"], ["video-3", "영상 3"]]);
   });
 });
