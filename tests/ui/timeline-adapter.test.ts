@@ -18,11 +18,11 @@ describe("studio timeline adapter", () => {
   it("Timeline을 자막·영상·소리 트랙으로 바꾼다", () => {
     const rows = timelineToStudioRows(timeline);
     expect(rows.map((row) => row.id)).toEqual(["captions", "video", "source", "voice", "sfx"]);
-    expect(rows[2]?.actions.map(({ id, start, end }) => ({ id, start, end }))).toEqual([
+    expect(rows[1]?.actions.map(({ id, start, end }) => ({ id, start, end }))).toEqual([
       { id: "one", start: 0, end: 3 },
       { id: "two", start: 3, end: 5 },
     ]);
-    expect(rows[3]?.actions[0]).toMatchObject({ id: "source:one", start: 0, end: 3, movable: false });
+    expect(rows[2]?.actions[0]).toMatchObject({ id: "source:one", start: 0, end: 3, movable: false });
   });
 
   it("분리한 입력이 있을 때 목소리·배경 트랙을 보인다", () => {
@@ -34,7 +34,7 @@ describe("studio timeline adapter", () => {
       },
     });
     expect(separated.map((row) => row.id)).toEqual(["captions", "video", "stem-voice", "stem-bg", "voice", "sfx"]);
-    expect(separated[3]?.actions[0]).toMatchObject({ id: "stem-voice:one", start: 0, end: 3, movable: false });
+    expect(separated[2]?.actions[0]).toMatchObject({ id: "stem-voice:one", start: 0, end: 3, movable: false });
   });
 
   it("드래그가 끝난 영상 클립을 목표 시각 순서로 재정렬한다", () => {
