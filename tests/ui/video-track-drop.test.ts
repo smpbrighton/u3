@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { isSameTrackDropPosition, isUnchangedTimeline, VIDEO_TRACK_EDIT_GRID_SELECTOR, resolveVideoTrackAtPointer } from "../../src/ui/studio/video-track-drop";
+import { decideActionMove, isSameTrackDropPosition, isUnchangedTimeline, VIDEO_TRACK_EDIT_GRID_SELECTOR, resolveVideoTrackAtPointer } from "../../src/ui/studio/video-track-drop";
 
 describe("영상 트랙 끌기 대상 판정", () => {
   const rows = ["captions", "video-new", "video-3", "video-2", "video", "source", "voice"];
@@ -43,6 +43,26 @@ describe("영상 트랙 끌기 대상 판정", () => {
     const original = { video: [{ id: "a" }, { id: "b" }], overlays: [] };
     expect(isUnchangedTimeline(original, { video: [{ id: "a" }, { id: "b" }], overlays: [] })).toBe(true);
     expect(isUnchangedTimeline(original, { video: [{ id: "b" }, { id: "a" }], overlays: [] })).toBe(false);
+  });
+
+  it("가로 이동 없이 영상 1에서 새 영상 트랙으로 놓으면 트랙 이동으로 판정한다", () => {
+    expect(decideActionMove({ dragSourceTrack: "video", editorRow: "video", targetRow: "video-new", sourceStart: 4, start: 4 })).toEqual({ kind: "video1-to-overlay", targetTrack: "video-new" });
+  });
+
+  it("같은 행과 같은 시각이면 막대를 복귀한다", () => {
+    expect(decideActionMove({ dragSourceTrack: "video-2", editorRow: "video-2", targetRow: "video-2", sourceStart: 4, start: 4 })).toEqual({ kind: "reset" });
+  });
+
+  it("같은 행에서 시각이 달라지면 같은 트랙 안 이동으로 판정한다", () => {
+    expect(decideActionMove({ dragSourceTrack: "video-2", editorRow: "video-2", targetRow: "video-2", sourceStart: 4, start: 5 })).toEqual({ kind: "move-overlay" });
+  });
+
+  it("대상 행을 못 찾았고 시각도 같으면 막대를 복귀한다", () => {
+    expect(decideActionMove({ dragSourceTrack: "video", editorRow: "video", targetRow: null, sourceStart: 4, start: 4 })).toEqual({ kind: "reset" });
+  });
+
+  it("묶음은 대상 행으로 함께 이동하도록 분류한다", () => {
+    expect(decideActionMove({ dragSourceTrack: "video-2", editorRow: "video-2", targetRow: "video-3", sourceStart: 4, start: 4, groupId: "group" })).toEqual({ kind: "move-group", targetTrack: "video-3" });
   });
 
   it("자막·오디오 행 바깥과 타임라인 밖은 영상 이동 대상으로 고르지 않는다", () => {
