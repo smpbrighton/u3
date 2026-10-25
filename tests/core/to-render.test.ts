@@ -50,3 +50,13 @@ describe("timelineToRender", () => {
     expect(timelineToRender(main).audio).toContainEqual(expect.objectContaining({ id: "upper-source", track: "source", startFrame: 30, durationInFrames: 60, sourceStartFrame: 120, inputId: "in3", volume: 0.7 }));
   });
 });
+
+describe("가변 오버레이 트랙 렌더 순서", () => {
+  it("영상 2부터 6까지 위쪽 순서와 layer 번호를 보존한다", () => {
+    const timelineForLayers: Timeline = { ...timeline, video: [{ id: "base", kind: "main", inputId: "in", durationSec: 5 }], overlays: [
+      [0, 1, 2, 3, 4].map((layer) => ({ id: `o${layer + 2}`, memeId: `m${layer + 2}`, startSec: 0, durationSec: 1, x: 0.5, y: 0.5, width: 0.6 })),
+    ] };
+    const rendered = timelineToRender(timelineForLayers);
+    expect(rendered.overlay.map((item) => [item.id, item.layer])).toEqual([["o2", 0], ["o3", 1], ["o4", 2], ["o5", 3], ["o6", 4]]);
+  });
+});

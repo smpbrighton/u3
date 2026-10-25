@@ -71,3 +71,16 @@ describe("영상 트랙 끌기 대상 판정", () => {
     expect(resolveVideoTrackAtPointer(rows, gridTop - 1, gridTop, 0)).toBeNull();
   });
 });
+
+describe("가변 영상 트랙", () => {
+  it("영상 10 이상도 영상 트랙과 새 트랙으로 판정한다", () => {
+    expect(decideActionMove({ dragSourceTrack: "video-10", editorRow: "video-10", targetRow: "video-10", sourceStart: 2, start: 3 })).toEqual({ kind: "move-overlay" });
+    expect(resolveVideoTrackAtPointer(["video-new", "video-10"], 42, 0, 0)).toBe("video-10");
+  });
+
+  it("최상위 트랙에 클립 하나뿐이면 새 트랙 드롭을 편집 없이 되돌린다", () => {
+    expect(shouldResetNewTrackDrop({ overlayCount: 1, sourceTrack: "video-2", sourceClipCount: 1 })).toBe(true);
+    expect(shouldResetNewTrackDrop({ overlayCount: 2, sourceTrack: "video-2", sourceClipCount: 1 })).toBe(false);
+    expect(shouldResetNewTrackDrop({ overlayCount: 1, sourceTrack: "video-2", sourceClipCount: 2 })).toBe(false);
+  });
+});
