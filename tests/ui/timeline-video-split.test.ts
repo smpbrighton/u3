@@ -30,7 +30,7 @@ describe("C 키 영상 분할 판정", () => {
   it("클립의 앞뒤 0.1초 구간과 클립 바깥은 자르지 않는다", () => {
     expect(findVideoClipAtTime(timeline, "video", 0.1)).toBeNull();
     expect(findVideoClipAtTime(timeline, "video", 2.9)).toBeNull();
-    expect(findVideoClipAtTime(timeline, "video", 3)).toEqual({ id: "second", atSec: 3 });
+    expect(findVideoClipAtTime(timeline, "video", 3)).toBeNull();
     expect(findVideoClipAtTime(timeline, "video-2", 0.9)).toBeNull();
     expect(findVideoClipAtTime(timeline, "video-3", 2)).toBeNull();
   });
