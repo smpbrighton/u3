@@ -1,5 +1,5 @@
 import type { Input, OverlayClip, Timeline, VideoClip } from "../schema";
-import { clipDuration, videoDuration, videoStartTimes } from "./ops";
+import { clipDuration, deleteVideoSelection, videoDuration, videoStartTimes, VIDEO_TRACK_REQUIRED_MESSAGE } from "./ops";
 import { placeOverlayAtLayer, removeOverlayFromLayers } from "./overlay-layers";
 import { moveOverlayClipToVideo1 } from "./video-track-edits";
 
@@ -86,11 +86,9 @@ export function ungroupVideoClips(timeline: Timeline, selectedIds: readonly stri
 
 export function deleteVideoGroup(timeline: Timeline, groupId: string): Timeline {
   if (!groupMembers(timeline, groupId).length) throw new Error(`묶음을 찾을 수 없습니다: ${groupId}`);
-  return {
-    ...timeline,
-    video: timeline.video.filter((clip) => clip.groupId !== groupId),
-    overlays: timeline.overlays.map((layer) => layer.filter((clip) => clip.groupId !== groupId)).filter((layer) => layer.length > 0),
-  };
+  const result = deleteVideoSelection(timeline, groupMembers(timeline, groupId).map(({ id }) => id));
+  if (result.blocked) throw new Error(VIDEO_TRACK_REQUIRED_MESSAGE);
+  return result.timeline;
 }
 
 function videoToOverlay(clip: VideoClip, startSec: number, inputs: readonly Input[]): OverlayClip {
@@ -145,7 +143,7 @@ export function moveVideoGroup(timeline: Timeline, groupId: string, target: Vide
 
   if (sourceTrack === "video") {
     if (target.track === "video") return timeline;
-    if (timeline.video.length - videoMembers.length < 1) throw new Error("영상 1에는 클립이 하나 이상 있어야 합니다");
+    if (timeline.video.length - videoMembers.length < 1) throw new Error(VIDEO_TRACK_REQUIRED_MESSAGE);
     const starts = videoStartTimes(timeline);
     const moved = videoMembers.map((clip) => videoToOverlay(clip, starts[clip.id]!, inputs));
     let overlays = timeline.overlays;

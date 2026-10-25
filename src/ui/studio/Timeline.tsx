@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import type { Input, Timeline as TimelineData } from "../../core/schema";
 import { VolumeIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { deleteAudioClip, deleteCaptionClip, deleteOverlayClip, moveAudioClip, moveCaptionClip, moveOverlayClip, overlayDuration, splitOverlayClip, splitVideoClip, trimAudioClip, trimCaptionClip, trimOverlayClip, trimVideoClip, videoStartTimes } from "../../core/timeline/ops";
+import { deleteAudioClip, deleteCaptionClip, deleteOverlayClip, deleteVideoSelection, moveAudioClip, moveCaptionClip, moveOverlayClip, overlayDuration, splitOverlayClip, splitVideoClip, trimAudioClip, trimCaptionClip, trimOverlayClip, trimVideoClip, videoStartTimes, VIDEO_TRACK_REQUIRED_MESSAGE } from "../../core/timeline/ops";
 import { labelForAction, timelineToStudioRows, reorderVideoByStart, type StudioAction, type MemeLabel, type SfxLabel } from "./timeline-adapter";
 import { api } from "../api";
 import { scaleWidthForZoom, scrollLeftForZoomAnchor, zoomFromPinch, zoomFromWheel } from "./timeline-zoom";
@@ -12,7 +12,7 @@ import { TIMELINE_ACTION_INSET, TIMELINE_RULER_HEIGHT, TRACK_ROW_HEIGHT, timelin
 import { findOverlayInLayers } from "../../core/timeline/overlay-layers";
 import { moveOverlayClipToLayer, moveOverlayClipToVideo1, moveVideo1ClipToOverlay } from "../../core/timeline/video-track-edits";
 import { findVideoClipAtTime } from "../../core/timeline/video-pointer";
-import { deleteVideoGroup, moveVideoGroup } from "../../core/timeline/video-groups";
+import { moveVideoGroup } from "../../core/timeline/video-groups";
 import { isSameTrackDropPosition, resolveVideoTrackAtPointer, VIDEO_TRACK_EDIT_GRID_SELECTOR } from "./video-track-drop";
 import { timelinePointerSeconds } from "./timeline-zoom";
 
@@ -174,7 +174,7 @@ export function Timeline(props: {
       let atSec: number | undefined;
       if (event.key.toLowerCase() === "c") {
         const pointer = pointerPosition.current;
-          const grid = editorHost.current?.querySelector<HTMLElement>(VIDEO_TRACK_EDIT_GRID_SELECTOR);
+        const grid = editorHost.current?.querySelector<HTMLElement>(VIDEO_TRACK_EDIT_GRID_SELECTOR);
         const rect = grid?.getBoundingClientRect();
         if (!pointer || !grid || !rect || pointer.x < rect.left || pointer.x > rect.right || pointer.y < rect.top || pointer.y > rect.bottom) return;
         const rowIndex = Math.floor((pointer.y - rect.top + grid.scrollTop) / TRACK_ROW_HEIGHT);
@@ -329,8 +329,11 @@ export function Timeline(props: {
             event.preventDefault();
             if (row.id === "captions") doEdit(() => ({ ...props.timeline, captions: deleteCaptionClip(props.timeline.captions, action.id) }));
             const groupId = props.timeline.video.find((clip) => clip.id === action.id)?.groupId ?? findOverlayInLayers(props.timeline.overlays, action.id)?.clip.groupId;
-            if (groupId) doEdit(() => deleteVideoGroup(props.timeline, groupId));
-            else if (row.id === "video") doEdit(() => ({ ...props.timeline, video: props.timeline.video.filter((clip) => clip.id !== action.id) }));
+            if (groupId || row.id === "video") {
+              const result = deleteVideoSelection(props.timeline, [action.id]);
+              if (result.blocked) props.onBlocked?.(VIDEO_TRACK_REQUIRED_MESSAGE);
+              else doEdit(() => result.timeline);
+            }
             else if (/^video-[2-9]\d*$/.test(row.id)) doEdit(() => deleteOverlayClip(props.timeline, action.id));
             if (row.id === "voice") doEdit(() => ({ ...props.timeline, voice: deleteAudioClip(props.timeline.voice, action.id) }));
             if (row.id === "sfx") doEdit(() => ({ ...props.timeline, sfx: deleteAudioClip(props.timeline.sfx, action.id) }));

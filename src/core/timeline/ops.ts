@@ -1,6 +1,8 @@
 import type { AudioClip, OverlayClip, TextClip, Timeline, VideoClip } from "../schema";
 import { findOverlayInLayers, removeOverlayFromLayers, updateOverlayInLayers } from "./overlay-layers";
 
+export const VIDEO_TRACK_REQUIRED_MESSAGE = "영상 1에는 클립이 하나 이상 있어야 합니다";
+
 export function clipDuration(clip: VideoClip): number {
   return "durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec;
 }
@@ -126,8 +128,29 @@ export function moveVideoClip(timeline: Timeline, clipId: string, toIndex: numbe
 }
 
 export function deleteVideoClip(timeline: Timeline, clipId: string): Timeline {
-  requireClip(timeline.video, clipId, "video");
-  return { ...timeline, video: timeline.video.filter((clip) => clip.id !== clipId) };
+  return deleteVideoSelection(timeline, [clipId]).timeline;
+}
+
+export function deleteVideoSelection(timeline: Timeline, selectedIds: readonly string[]): { timeline: Timeline; blocked: boolean } {
+  const groupIds = new Set(selectedIds.flatMap((id) => {
+    const clip = timeline.video.find((item) => item.id === id) ?? timeline.overlays.flat().find((item) => item.id === id);
+    return clip?.groupId ? [clip.groupId] : [];
+  }));
+  const removed = new Set([
+    ...selectedIds,
+    ...timeline.video.filter((clip) => clip.groupId && groupIds.has(clip.groupId)).map((clip) => clip.id),
+    ...timeline.overlays.flat().filter((clip) => clip.groupId && groupIds.has(clip.groupId)).map((clip) => clip.id),
+  ]);
+  const video = timeline.video.filter((clip) => !removed.has(clip.id));
+  if (timeline.video.length > 0 && video.length === 0) return { timeline, blocked: true };
+  return {
+    timeline: {
+      ...timeline,
+      video,
+      overlays: timeline.overlays.map((layer) => layer.filter((clip) => !removed.has(clip.id))).filter((layer) => layer.length > 0),
+    },
+    blocked: false,
+  };
 }
 
 export function trimCaptionClip(timeline: Timeline, clipId: string, edge: "start" | "end", toSec: number): Timeline {

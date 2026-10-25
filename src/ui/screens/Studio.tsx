@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import type { Project, Timeline as TimelineData, VideoClip } from "../../core/schema";
-import { videoDuration, videoStartTimes } from "../../core/timeline/ops";
+import { deleteVideoSelection, videoDuration, videoStartTimes, VIDEO_TRACK_REQUIRED_MESSAGE } from "../../core/timeline/ops";
 import { createHistory, pushHistory, redo, undo, type TimelineHistory } from "../../core/timeline/history";
 import { ActionButton } from "../../../seed-design/ui/action-button";
 import { Preview } from "../studio/Preview";
@@ -87,14 +87,13 @@ export function Studio(props: {
         return;
       }
       if ((event.key === "Delete" || event.key === "Backspace") && selectedIds.length && selected.track?.startsWith("video")) {
-        const groupIds = new Set(selectedIds.flatMap((id) => {
-          const clip = findVideoClip(timeline, id);
-          return clip?.groupId ? [clip.groupId] : [];
-        }));
-        const removed = new Set([...selectedIds, ...timeline.video.filter((clip) => clip.groupId && groupIds.has(clip.groupId)).map((clip) => clip.id), ...timeline.overlays.flat().filter((clip) => clip.groupId && groupIds.has(clip.groupId)).map((clip) => clip.id)]);
-        edit({ ...timeline, video: timeline.video.filter((clip) => !removed.has(clip.id)), overlays: timeline.overlays.map((layer) => layer.filter((clip) => !removed.has(clip.id))).filter((layer) => layer.length) });
-        setSelected({ id: null, track: null });
-        setSelectedIds([]);
+        const result = deleteVideoSelection(timeline, selectedIds);
+        if (result.blocked) props.onSnackbar(VIDEO_TRACK_REQUIRED_MESSAGE);
+        else {
+          edit(result.timeline);
+          setSelected({ id: null, track: null });
+          setSelectedIds([]);
+        }
         event.preventDefault();
       }
     };

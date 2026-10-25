@@ -1,5 +1,5 @@
 import type { Input, OverlayClip, Timeline, VideoClip } from "../schema";
-import { clipDuration, videoStartTimes } from "./ops";
+import { clipDuration, videoStartTimes, VIDEO_TRACK_REQUIRED_MESSAGE } from "./ops";
 import { findOverlayInLayers, placeOverlayAtLayer, placeOverlayInLowestLayer, removeOverlayFromLayers } from "./overlay-layers";
 
 const overlayDuration = (clip: OverlayClip) => "durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec;
@@ -18,7 +18,7 @@ function videoClipToOverlay(clip: VideoClip, startSec: number, inputs: readonly 
 }
 
 export function moveVideo1ClipToOverlay(timeline: Timeline, clipId: string, inputs: readonly Input[], targetLayer?: number): Timeline {
-  if (timeline.video.length <= 1) throw new Error("영상 1에는 클립이 하나 이상 있어야 합니다");
+  if (timeline.video.length <= 1) throw new Error(VIDEO_TRACK_REQUIRED_MESSAGE);
   const starts = videoStartTimes(timeline);
   const clip = timeline.video.find((item) => item.id === clipId);
   if (!clip) throw new Error(`영상 1 클립을 찾을 수 없습니다: ${clipId}`);
