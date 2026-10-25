@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Timeline } from "../../src/core/schema";
-import { reorderVideoByStart, timelineToStudioRows } from "../../src/ui/studio/timeline-adapter";
+import { labelForAction, reorderVideoByStart, timelineToStudioRows } from "../../src/ui/studio/timeline-adapter";
 
 const timeline: Timeline = {
   video: [
@@ -40,5 +40,20 @@ describe("studio timeline adapter", () => {
     const reordered = reorderVideoByStart(timeline, "two", 0.2);
     expect(reordered.video.map((clip) => clip.id)).toEqual(["two", "one"]);
     expect(timeline.video.map((clip) => clip.id)).toEqual(["one", "two"]);
+  });
+
+  it("영상 라벨은 원본 표시 이름을, 효과음 라벨은 라이브러리 제목을 쓴다", () => {
+    const withSfx: Timeline = {
+      ...timeline,
+      video: [{ id: "main-clip", kind: "main", inputId: "source", inStartSec: 0, inEndSec: 3 }],
+      sfx: [{ id: "sfx-clip", startSec: 0, file: "u3-library:sfx/laugh/sfx-mum362jc.wav", inStartSec: 0, inEndSec: 1, gain: 1 }],
+    };
+    expect(labelForAction("main-clip", withSfx, [{ id: "source", kind: "video", file: "3ae415d86090.mov", displayName: "화면 기록 2026-10-24 오후 11.14.18.mov" }])).toBe("화면 기록 2026-10-24 오후 11.14.18.mov");
+    expect(labelForAction("sfx-clip", withSfx, [], [{ ref: "u3-library:sfx/laugh/sfx-mum362jc.wav", title: "크게 웃는 소리", category: "웃음" }])).toBe("크게 웃는 소리");
+  });
+
+  it("제목 없는 효과음은 종류 이름을 보인다", () => {
+    const withSfx: Timeline = { ...timeline, sfx: [{ id: "sfx-clip", startSec: 0, file: "u3-library:sfx/alarm/beep.wav", inStartSec: 0, inEndSec: 1, gain: 1 }] };
+    expect(labelForAction("sfx-clip", withSfx, [], [])).toBe("효과음");
   });
 });
