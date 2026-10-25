@@ -1,6 +1,6 @@
 # 0005 편집 모델: 다중 트랙 타임라인
 
-Status: accepted
+Status: superseded-by 0010
 Source: changes/001-desktop-studio/spec.md
 
 ## 맥락
