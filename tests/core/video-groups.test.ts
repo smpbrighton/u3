@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { Input, Timeline } from "../../src/core/schema";
+import { deleteVideoSelection } from "../../src/core/timeline/ops";
 import { canGroupVideoClips, deleteVideoGroup, groupVideoClips, moveVideoGroup, selectVideoRange, ungroupVideoClips } from "../../src/core/timeline/video-groups";
 
 const empty = (): Timeline => ({ video: [], overlays: [], captions: [], voice: [], sfx: [], audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } } });
@@ -59,5 +60,26 @@ describe("영상 클립 묶기", () => {
   it("그룹 하나를 지우면 모든 그룹 멤버가 사라진다", () => {
     const grouped = groupVideoClips(timeline, refs("a", "b"), "g1");
     expect(deleteVideoGroup(grouped, "g1").video.map((clip) => clip.id)).toEqual(["c"]);
+  });
+
+  it("영상 1의 마지막 클립 삭제를 막고 이유를 돌려준다", () => {
+    const last = { ...timeline, video: [timeline.video[0]!] };
+    expect(deleteVideoSelection(last, ["a"])).toEqual({ timeline: last, blocked: true });
+  });
+
+  it("묶음이 영상 1 클립 전체를 포함하면 묶음과 오버레이를 모두 보존한다", () => {
+    const grouped = {
+      ...timeline,
+      video: timeline.video.slice(0, 2).map((clip) => ({ ...clip, groupId: "all-video-1" })),
+      overlays: [[{ ...timeline.overlays[0]![0]!, groupId: "all-video-1" }]],
+    };
+    expect(deleteVideoSelection(grouped, ["a"])).toEqual({ timeline: grouped, blocked: true });
+  });
+
+  it("영상 2 선택을 섞어도 영상 1의 마지막 클립이 남으면 선택 항목을 지운다", () => {
+    const mixed = deleteVideoSelection(timeline, ["a", "x"]);
+    expect(mixed.blocked).toBe(false);
+    expect(mixed.timeline.video.map((clip) => clip.id)).toEqual(["b", "c"]);
+    expect(mixed.timeline.overlays).toEqual([[timeline.overlays[0]![1]]]);
   });
 });
