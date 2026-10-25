@@ -53,7 +53,7 @@ async function startFixtureServer() {
 }
 
 async function framePixels(file: string, frame: number, out: string, rendered: boolean) {
-  const crop = rendered ? "crop=128:128:476:896,scale=64:64:flags=area" : "crop=64:64:50:50";
+  const crop = rendered ? "crop=128:128:476:896,scale=64:64:flags=area" : "crop=64:64:238:448";
   await execFile("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", file, "-vf", `select=eq(n\\,${frame}),${crop},format=rgb24`, "-vsync", "0", "-frames:v", "1", "-f", "rawvideo", out]);
   return readFile(out);
 }
@@ -63,6 +63,16 @@ function pixelMae(a: Buffer, b: Buffer): number {
   let difference = 0;
   for (let i = 0; i < a.length; i++) difference += Math.abs(a[i]! - b[i]!);
   return difference / a.length;
+}
+
+function blendPixelRatio(blend: Buffer, a: Buffer, b: Buffer): number {
+  let between = 0;
+  for (let i = 0; i < blend.length; i++) {
+    const low = Math.min(a[i]!, b[i]!) - 12;
+    const high = Math.max(a[i]!, b[i]!) + 12;
+    if (blend[i]! >= low && blend[i]! <= high) between++;
+  }
+  return between / blend.length;
 }
 
 async function main() {
@@ -121,6 +131,20 @@ async function main() {
     assert(nearestWrong && nearestWrong.mae - nearest.mae > 4, `경계 후보 프레임의 색 차이가 충분하지 않습니다: 최근접 오차 ${nearest.mae.toFixed(2)}, 잘못된 프레임 오차 ${nearestWrong?.mae.toFixed(2)}`);
     assert(minFrameSeparation > 20, `경계 주변 fixture 프레임의 색 차이가 작습니다: 최소 MAE ${minFrameSeparation.toFixed(2)}`);
 
+    const dissolve = expected.transitions.find((item) => item.fromId === "video-opening" && item.toId === "photo-insert");
+    assert(dissolve?.kind.kind === "dissolve", "영상 1 경계 디졸브 fixture를 찾지 못했습니다");
+    const dissolveFrame = dissolve.startFrame + Math.floor(dissolve.durationInFrames / 2);
+    const dissolvePixels = await framePixels(outputPath, dissolveFrame, path.join(outputDir, "dissolve.rgb"), true);
+    const beforePixels = await framePixels(sourceFile, 25, path.join(outputDir, "dissolve-before.rgb"), false);
+    const afterPixels = await framePixels(path.join(fixtureRoot, "input/photo.jpg"), 0, path.join(outputDir, "dissolve-after.rgb"), false);
+    const transitionMaeBefore = pixelMae(dissolvePixels, beforePixels);
+    const transitionMaeAfter = pixelMae(dissolvePixels, afterPixels);
+    const sourceMae = pixelMae(beforePixels, afterPixels);
+    const betweenRatio = blendPixelRatio(dissolvePixels, beforePixels, afterPixels);
+    assert(transitionMaeBefore > 0 && transitionMaeAfter > 0, "디졸브 가운데 프레임이 경계 양쪽 원본 프레임과 같으면 안 됩니다");
+    assert(transitionMaeBefore < sourceMae && transitionMaeAfter < sourceMae, `디졸브 가운데 프레임이 양쪽 원본의 혼합 범위에 없습니다: ${transitionMaeBefore.toFixed(2)}, ${transitionMaeAfter.toFixed(2)}, source ${sourceMae.toFixed(2)}`);
+    assert(betweenRatio > 0.7, `디졸브 가운데 픽셀이 양쪽 원본 픽셀 사이에 있지 않습니다: ${(betweenRatio * 100).toFixed(1)}%`);
+
     const overlay = expected.overlay.find((item) => item.id === "overlay-smoke");
     assert(overlay?.kind === "meme", "겹친 짤 fixture를 찾지 못했습니다");
     const overlayPixels = await framePixels(outputPath, overlay.startFrame + 5, path.join(outputDir, "overlay.rgb"), true);
@@ -128,7 +152,7 @@ async function main() {
     const overlayMae = pixelMae(overlayPixels, sourcePixels);
     assert(overlayMae > 5, `겹친 영상 구간의 중심 픽셀이 바뀌지 않았습니다: MAE ${overlayMae.toFixed(2)}`);
 
-    console.log(`✓ smoke passed: 1080×1920, 30fps, ${actualFrames} frames, audio max ${maxVolume} dB, cut edge source frame ${nearest.sourceFrame} (MAE ${nearest.mae.toFixed(2)}, separation ${minFrameSeparation.toFixed(2)}), overlay center MAE ${overlayMae.toFixed(2)}`);
+    console.log(`✓ smoke passed: 1080×1920, 30fps, ${actualFrames} frames, audio max ${maxVolume} dB, cut edge source frame ${nearest.sourceFrame} (MAE ${nearest.mae.toFixed(2)}, separation ${minFrameSeparation.toFixed(2)}), dissolve MAE ${transitionMaeBefore.toFixed(2)}/${transitionMaeAfter.toFixed(2)} (${(betweenRatio * 100).toFixed(1)}% in range), overlay center MAE ${overlayMae.toFixed(2)}`);
   } finally {
     await media.close();
   }
