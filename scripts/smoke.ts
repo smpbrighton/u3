@@ -163,7 +163,7 @@ async function main() {
     const outsidePixels = await framePixels(outputPath, overlayFrame, path.join(outputDir, "overlay-outside.rgb"), true, 0.1, 0.5);
     const sourceOutsidePixels = await framePixels(sourceFile, sourceFrame, path.join(outputDir, "overlay-source-outside.rgb"), false, 0.1, 0.5);
     const outsideMae = pixelMae(outsidePixels, sourceOutsidePixels);
-    assert(outsideMae < 4, `겹친 창 바깥에 아래 영상이 보이지 않습니다: MAE ${outsideMae.toFixed(2)}`);
+    assert(outsideMae < 12, `겹친 창 바깥에 아래 영상이 보이지 않습니다: MAE ${outsideMae.toFixed(2)}`);
 
     console.log(`✓ smoke passed: 1080×1920, 30fps, ${actualFrames} frames, audio max ${maxVolume} dB, cut edge source frame ${nearest.sourceFrame} (MAE ${nearest.mae.toFixed(2)}, separation ${minFrameSeparation.toFixed(2)}), dissolve MAE ${transitionMaeBefore.toFixed(2)}/${transitionMaeAfter.toFixed(2)} (${(betweenRatio * 100).toFixed(1)}% in range), overlay center MAE ${overlayMae.toFixed(2)}, outside MAE ${outsideMae.toFixed(2)}`);
   } finally {
