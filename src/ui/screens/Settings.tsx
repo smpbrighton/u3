@@ -3,9 +3,7 @@ import { open } from "@tauri-apps/plugin-dialog";
 import { ActionButton } from "../../../seed-design/ui/action-button";
 import { PageBanner } from "../../../seed-design/ui/page-banner";
 import { ProgressCircle } from "../../../seed-design/ui/progress-circle";
-import { Select } from "@seed-design/react";
-import { ArrowDown01Icon, Tick01Icon } from "@hugeicons/core-free-icons";
-import { HugeiconsIcon } from "@hugeicons/react";
+import { SelectRoot, SelectTrigger, SelectContent, SelectGroup, SelectItem } from "../../../seed-design/ui/select";
 import { api, watchJob, watchJobs, type EngineJob } from "../api";
 import type { SystemStatus } from "../types";
 
@@ -161,23 +159,8 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
 }
 
 function ModelSelect(props: { label: string; value: string; items: Array<{ value: string; label: string }>; onChange: (value: string) => void }) {
-  return <Select.Root value={[props.value]} onValueChange={value => { if (value[0]) props.onChange(value[0]); }}>
-    <Select.HiddenSelect aria-label={props.label} />
-    <Select.Trigger className="settings-select" aria-label={props.label}>
-      <Select.Value />
-      <HugeiconsIcon icon={ArrowDown01Icon} size={16} aria-hidden="true" />
-    </Select.Trigger>
-    <Select.Positioner>
-      <Select.Content>
-        <Select.ScrollArea>
-          {props.items.map(item => (
-            <Select.Item key={item.value} value={item.value}>
-              <Select.ItemLabel>{item.label}</Select.ItemLabel>
-              <Select.ItemIndicator selected={<HugeiconsIcon icon={Tick01Icon} size={16} />} />
-            </Select.Item>
-          ))}
-        </Select.ScrollArea>
-      </Select.Content>
-    </Select.Positioner>
-  </Select.Root>;
+  return <SelectRoot value={[props.value]} onValueChange={value => { if (value[0]) props.onChange(value[0]); }} label={props.label} size="medium">
+    <SelectTrigger aria-label={props.label} />
+    <SelectContent><SelectGroup>{props.items.map(item => <SelectItem key={item.value} value={item.value} label={item.label} />)}</SelectGroup></SelectContent>
+  </SelectRoot>;
 }
