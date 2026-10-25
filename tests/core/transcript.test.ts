@@ -8,7 +8,7 @@ import type { Measurer } from "../../src/core/measure";
 const fixture = JSON.parse(readFileSync(new URL("../fixtures/whisper-output.json", import.meta.url), "utf8")) as unknown;
 const measurer: Measurer = { width: (text) => [...text].length, rawWidth: (text) => [...text].length, margin: 0 };
 const options = { style: CAPTION_STYLE, maxWidth: CAPTION_MAX_LINE_WIDTH, maxLines: CAPTION_MAX_LINES } as const;
-const blank = (): Timeline => ({ video: [], overlay: [], captions: [], voice: [], sfx: [], audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } } });
+const blank = (): Timeline => ({ video: [], overlays: [], captions: [], voice: [], sfx: [], audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } } });
 
 describe("whisper transcript", () => {
   it("실제 whisper JSON fixture에서 입력 기준 단어 시각을 읽는다", () => {

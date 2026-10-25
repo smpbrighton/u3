@@ -9,7 +9,7 @@ const project = (overrides: Partial<Project> = {}): Project => ({
     { id: "video-1", kind: "video", file: "input/video.mov" },
     { id: "photo-1", kind: "photo", file: "input/photo.jpg" },
   ],
-  timeline: { video: [], overlay: [], captions: [], voice: [], sfx: [], audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } } },
+  timeline: { video: [], overlays: [], captions: [], voice: [], sfx: [], audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } } },
   savedAt: "2026-10-25T00:00:00.000Z",
   ...overrides,
 });

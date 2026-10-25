@@ -4,7 +4,7 @@ import { replaceMemeClip } from "../../src/ui/studio/replace-meme-clip";
 
 function createTimeline(): Timeline {
   return {
-    overlay: [],
+    overlays: [],
     video: [
       { id: "main-1", kind: "main", inputId: "input-1", inStartSec: 0, inEndSec: 2 },
       { id: "meme-1", kind: "meme", memeId: "meme-old", durationSec: 1.5 },
