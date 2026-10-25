@@ -18,6 +18,8 @@ import { timelineToStudioRows } from "../studio/timeline-adapter";
 import { TIMELINE_RULER_HEIGHT, TRACK_ROW_HEIGHT } from "../studio/timeline-layout";
 import { findOverlayInLayers, placeOverlayAtLayer, placeOverlayInLowestLayer } from "../../core/timeline/overlay-layers";
 import { canGroupVideoClips, groupVideoClips, selectVideoRange, ungroupVideoClips, type VideoClipRef } from "../../core/timeline/video-groups";
+import { timelineToRender } from "../../core/timeline/to-render";
+import { clampTimeToLastFrame } from "../studio/preview-seek";
 
 interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
 interface SfxItem { id: string; category: string; title: string; file: string; ref: string; url: string; durationSec: number }
@@ -41,7 +43,12 @@ export function Studio(props: {
   const [exportOpen, setExportOpen] = useState(false);
   const timeline = history.present;
   const duration = useMemo(() => Math.max(0.1, videoDuration(timeline)), [timeline]);
+  const render = useMemo(() => timelineToRender(timeline), [timeline]);
   const starts = useMemo(() => videoStartTimes(timeline), [timeline]);
+
+  useEffect(() => {
+    setPlayhead((current) => clampTimeToLastFrame(current, render.durationInFrames, render.fps));
+  }, [render.durationInFrames, render.fps]);
 
   useEffect(() => {
     setHistory(createHistory(props.project.timeline));

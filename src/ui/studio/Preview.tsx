@@ -6,6 +6,7 @@ import { U3Short } from "../../remotion/U3Short";
 import type { U3ShortProps } from "../../remotion/types";
 import { api, libraryMediaUrl, mediaUrl } from "../api";
 import { libraryReferencePath } from "../../core/library-reference";
+import { frameForTime, frameToSeekAfterPlayerReady } from "./preview-seek";
 
 export function Preview(props: {
   project: Project;
@@ -21,7 +22,6 @@ export function Preview(props: {
   const render = useMemo(() => timelineToRender(props.project.timeline), [props.project.timeline]);
   useEffect(() => {
     let active = true;
-    setSourcesReady(false);
     void (async () => {
       const [inputEntries, memeItems, fileEntries] = await Promise.all([
         Promise.all(props.project.inputs.map(async (input) => [input.id, await mediaUrl(props.project.id, input.file)] as const)),
@@ -85,10 +85,10 @@ export function Preview(props: {
 
   useEffect(() => {
     const player = playerRef.current;
-    if (!player) return;
-    const frame = Math.max(0, Math.min(render.durationInFrames - 1, Math.round(props.time * render.fps)));
+    const frame = frameToSeekAfterPlayerReady(sourcesReady, props.time, render.durationInFrames, render.fps);
+    if (!player || frame === null) return;
     if (Math.abs(player.getCurrentFrame() - frame) > 1) player.seekTo(frame);
-  }, [props.time, render.durationInFrames, render.fps]);
+  }, [props.time, render.durationInFrames, render.fps, sourcesReady]);
 
   return <div className="studio-preview-player">
     {render.durationInFrames > 0 && sourcesReady ? <Player
@@ -96,6 +96,7 @@ export function Preview(props: {
       component={U3Short}
       inputProps={propsForPlayer}
       durationInFrames={render.durationInFrames}
+      initialFrame={frameForTime(props.time, render.durationInFrames, render.fps)}
       compositionWidth={1080}
       compositionHeight={1920}
       fps={render.fps}
