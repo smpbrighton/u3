@@ -318,9 +318,9 @@ export function LibraryPanel(props: {
         <AttachmentField label="미디어 넣기" description="영상·사진을 영상 트랙에 끌어 놓으세요." accept={["video/mp4", "video/quicktime", "image/*"]}>
           <div className="studio-attachment" onClick={() => void chooseMedia()}><ActionButton variant="neutralWeak" loading={busy}>미디어 넣기</ActionButton><span>영상·사진 파일을 선택해요.</span></div>
         </AttachmentField>
-        <ul className="studio-library-list">{props.project.inputs.filter((input) => input.id !== "placeholder").map((input) => <li key={input.id}>
+        <ul className="studio-library-list">{props.project.inputs.filter((input) => input.id !== "placeholder").map((input) => <li key={input.id} onDragStart={(event) => event.preventDefault()}>
           <button type="button" className="studio-media-item" onPointerDown={(event) => beginPointerDrag(event, { type: "video", id: input.id, label: inputDisplayName(input), image: mediaUrls[input.id] })} onClick={(event) => clickUnlessDragging(event, () => props.onAddVideo(input.id))}>
-            <span className="studio-media-thumb"><img src={mediaUrls[input.id]} alt="" /></span>
+            <span className="studio-media-thumb"><img src={mediaUrls[input.id]} alt="" draggable={false} /></span>
             <span><b>{inputDisplayName(input)}</b><small>{input.kind === "video" ? "영상" : "사진"}{input.durationSec ? ` · ${input.durationSec.toFixed(1)}초` : ""}</small></span>
           </button>
         </li>)}</ul>
@@ -329,7 +329,7 @@ export function LibraryPanel(props: {
         <input className="studio-search" aria-label="짤 검색" placeholder="짤 검색" value={memeQuery} onChange={(event) => searchMemes(event.currentTarget.value)} />
         {memeSearchStatus === "judging" ? <span role="status">Jev가 고르는 중…</span> : null}
         {memeSearchStatus === "fallback" ? <span role="status">Jev 추천을 쓸 수 없어 검색 순서로 보여요</span> : null}
-        <div className="studio-library-grid">{memes.map((meme) => <button key={meme.id} type="button" onPointerDown={(event) => beginPointerDrag(event, { type: "meme", id: meme.id, label: meme.description ?? meme.emotion, image: meme.url, meme })} className={props.selectedId === meme.id ? "is-selected" : ""} onMouseEnter={() => setHoveredMemeId(meme.id)} onMouseLeave={() => setHoveredMemeId((id) => id === meme.id ? null : id)} onClick={(event) => clickUnlessDragging(event, () => props.onSelectMeme(meme))} title={meme.description ?? meme.id}>
+        <div className="studio-library-grid">{memes.map((meme) => <button key={meme.id} type="button" onDragStart={(event) => event.preventDefault()} onPointerDown={(event) => beginPointerDrag(event, { type: "meme", id: meme.id, label: meme.description ?? meme.emotion, image: meme.url, meme })} className={props.selectedId === meme.id ? "is-selected" : ""} onMouseEnter={() => setHoveredMemeId(meme.id)} onMouseLeave={() => setHoveredMemeId((id) => id === meme.id ? null : id)} onClick={(event) => clickUnlessDragging(event, () => props.onSelectMeme(meme))} title={meme.description ?? meme.id}>
           <MemePreview url={meme.url} id={meme.id} hoveredId={hoveredMemeId} /><span>{meme.description ?? meme.emotion}</span>
         </button>)}</div>
         <div ref={memeEndRef} className="studio-library-end" aria-hidden="true" />
@@ -341,7 +341,7 @@ export function LibraryPanel(props: {
         <input className="studio-search" aria-label="효과음 검색" placeholder="효과음 검색" value={sfxQuery} onChange={(event) => searchSfx(event.currentTarget.value)} />
         {sfxSearchStatus === "judging" ? <span role="status">Jev가 고르는 중…</span> : null}
         {sfxSearchStatus === "fallback" ? <span role="status">Jev 추천을 쓸 수 없어 검색 순서로 보여요</span> : null}
-        <ul className="studio-library-list">{sfxItems.map((item) => <li key={item.id}><button type="button" className="studio-library-choice" onPointerDown={(event) => beginPointerDrag(event, { type: "sfx", id: item.id, label: item.title, sfx: item })} onClick={(event) => clickUnlessDragging(event, () => props.onAddSfx(item))}><span>♫</span><span><b>{item.title}</b><small>{item.category} · {item.durationSec.toFixed(1)}초</small></span></button></li>)}</ul>
+        <ul className="studio-library-list">{sfxItems.map((item) => <li key={item.id} onDragStart={(event) => event.preventDefault()}><button type="button" className="studio-library-choice" onPointerDown={(event) => beginPointerDrag(event, { type: "sfx", id: item.id, label: item.title, sfx: item })} onClick={(event) => clickUnlessDragging(event, () => props.onAddSfx(item))}><span>♫</span><span><b>{item.title}</b><small>{item.category} · {item.durationSec.toFixed(1)}초</small></span></button></li>)}</ul>
         {sfxSearchStatus === "jev" ? <span role="status">Jev 추천</span> : null}
         {sfxQuery.trim() && !["searching", "judging", "search-error"].includes(sfxSearchStatus) && !sfxItems.length ? <span role="status">맞는 효과음이 없어요</span> : null}
       </> : null}
