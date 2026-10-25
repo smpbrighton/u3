@@ -1,0 +1,104 @@
+{
+  "scenes": [
+    {
+      "caption": "적진 한가운데서 벌어진 아슬아슬한 대치",
+      "inputIndex": 1,
+      "reaction": "목표물 현상금이 줄어든다는데, 지금은 내 체력부터 줄어드는 중",
+      "memeBefore": false,
+      "memeAfter": true,
+      "sfxCategory": "alarm",
+      "startSec": null,
+      "endSec": null
+    },
+    {
+      "caption": "아군 미니언과 함께 적 넥서스를 압박",
+      "inputIndex": 2,
+      "reaction": "한타보다 넥서스가 먼저다. 일단 밀어!",
+      "memeBefore": false,
+      "memeAfter": false,
+      "sfxCategory": null,
+      "startSec": null,
+      "endSec": null
+    },
+    {
+      "caption": "적 넥서스 앞에서 교전이 시작된다",
+      "inputIndex": 3,
+      "reaction": "넥서스 체력도 아슬아슬, 우리 팀 체력도 아슬아슬",
+      "memeBefore": false,
+      "memeAfter": true,
+      "sfxCategory": "impact",
+      "startSec": null,
+      "endSec": null
+    },
+    {
+      "caption": "목표물 현상금을 챙기고 적을 몰아붙인다",
+      "inputIndex": 4,
+      "reaction": "보너스는 챙겼고, 이제 퇴로는 없다",
+      "memeBefore": false,
+      "memeAfter": false,
+      "sfxCategory": "reveal",
+      "startSec": null,
+      "endSec": null
+    },
+    {
+      "caption": "포탑이 무너지며 적진이 열린다",
+      "inputIndex": 5,
+      "reaction": "방어선 하나 제거. 이제부터 진짜 시작",
+      "memeBefore": false,
+      "memeAfter": false,
+      "sfxCategory": "impact",
+      "startSec": null,
+      "endSec": null
+    },
+    {
+      "caption": "포탑 파괴 직후 적들이 반격한다",
+      "inputIndex": 6,
+      "reaction": "포탑은 깼는데, 적은 아직 다섯 명이다",
+      "memeBefore": false,
+      "memeAfter": true,
+      "sfxCategory": "shock",
+      "startSec": null,
+      "endSec": null
+    },
+    {
+      "caption": "넥서스 앞에서 적의 집중 공격을 버틴다",
+      "inputIndex": 7,
+      "reaction": "체력바는 거의 없지만 의지는 가득하다",
+      "memeBefore": false,
+      "memeAfter": true,
+      "sfxCategory": "alarm",
+      "startSec": null,
+      "endSec": null
+    },
+    {
+      "caption": "아군이 다시 합류하며 교전이 이어진다",
+      "inputIndex": 8,
+      "reaction": "부활 타이머 끝나자마자 다시 출근",
+      "memeBefore": true,
+      "memeAfter": false,
+      "sfxCategory": "pop",
+      "startSec": null,
+      "endSec": null
+    },
+    {
+      "caption": "적의 반격 속에서 넥서스 앞 최종 난전",
+      "inputIndex": 9,
+      "reaction": "마지막 한타다. 살아남는 쪽이 이긴다",
+      "memeBefore": false,
+      "memeAfter": true,
+      "sfxCategory": "shock",
+      "startSec": null,
+      "endSec": null
+    },
+    {
+      "caption": "상점에서 장비를 챙기고 다시 출발",
+      "inputIndex": 10,
+      "reaction": "방금 난전은 잊고, 다음 판 준비 완료",
+      "memeBefore": false,
+      "memeAfter": false,
+      "sfxCategory": "notify",
+      "startSec": null,
+      "endSec": null
+    }
+  ]
+}
