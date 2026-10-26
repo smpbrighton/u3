@@ -76,7 +76,7 @@ export function timelineFromScript(script: CodexScript, inputs: readonly Input[]
     ) {
       video[video.length - 1] = {
         ...previousVideo,
-        inEndSec: nextVideo.inEndSec,
+        inEndSec: previousVideo.inEndSec + (nextVideo.inEndSec - nextVideo.inStartSec),
         endTransition: nextVideo.endTransition,
       };
     } else {
