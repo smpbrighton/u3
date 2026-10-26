@@ -90,7 +90,7 @@ describe("chooseMissingInputMemes", () => {
     expect(Object.values(result.memes).map(({ id }) => id)).toEqual(["meme-1", "meme-2"]);
   });
 
-  it("reaction null 장면만 있는 입력마다 적합도가 높은 장면 한 곳에 짤을 고른다", () => {
+  it("reaction null 장면만 있는 입력마다 적합도가 높은 장면 한 곳을 고르고 프로젝트 전체 중복을 피한다", () => {
     const script: CodexScript = { scenes: [
       scene({ reaction: null, startSec: 0.3, endSec: 2.4 }),
       scene({ reaction: null, startSec: 2.4, endSec: 5.2 }),
@@ -105,13 +105,13 @@ describe("chooseMissingInputMemes", () => {
     ]);
 
     expect(result.script.scenes.map(({ memeBefore, memeAfter }) => [memeBefore, memeAfter])).toEqual([
-      [false, false], [false, true], [false, false], [false, true],
+      [false, false], [false, true], [false, true], [false, false],
     ]);
-    expect(result.memes).toEqual({ 1: secondMeme, 3: secondMeme });
+    expect(result.memes).toEqual({ 1: secondMeme, 2: meme });
     expect(result.missingCount).toBe(0);
   });
 
-  it("Jev 실패 시 입력의 마지막 장면에 후보 첫 짤을 두고 입력 안에서 중복을 막는다", () => {
+  it("Jev 실패 시 입력의 마지막 장면에 후보를 두고 프로젝트 전체 중복을 막는다", () => {
     const script: CodexScript = { scenes: [
       scene({ reaction: null, startSec: 0.3, endSec: 2.4 }),
       scene({ reaction: null, startSec: 2.4, endSec: 5.2 }),
@@ -119,12 +119,12 @@ describe("chooseMissingInputMemes", () => {
       scene({ reaction: null, inputIndex: 2, startSec: 2.4, endSec: 6.6 }),
     ] };
     const result = chooseMissingInputMemes(script, [
-      { by: "rule", items: [meme] }, { by: "rule", items: [meme] },
-      { by: "rule", items: [meme] }, { by: "rule", items: [meme] },
+      { by: "rule", items: [meme, secondMeme] }, { by: "rule", items: [meme, secondMeme] },
+      { by: "rule", items: [meme, secondMeme] }, { by: "rule", items: [meme, secondMeme] },
     ]);
 
     expect(result.script.scenes.map(({ memeAfter }) => memeAfter)).toEqual([false, true, false, true]);
-    expect(Object.values(result.memes).map(({ id }) => id)).toEqual(["meme-1", "meme-1"]);
+    expect(Object.values(result.memes).map(({ id }) => id)).toEqual(["meme-1", "meme-2"]);
     expect(result.missingCount).toBe(0);
   });
 
