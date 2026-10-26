@@ -5,12 +5,14 @@ import { PageBanner } from "../../../seed-design/ui/page-banner";
 import { ProgressCircle } from "../../../seed-design/ui/progress-circle";
 import { SelectRoot, SelectTrigger, SelectContent, SelectGroup, SelectItem } from "../../../seed-design/ui/select";
 import { Slider } from "../../../seed-design/ui/slider";
+import { Switch } from "../../../seed-design/ui/switch";
 import { TextField, TextFieldInput, TextFieldTextarea } from "../../../seed-design/ui/text-field";
 import { api, brandMediaUrl, watchJob, watchJobs, type EngineJob } from "../api";
 import type { SystemStatus } from "../types";
 import { DEFAULT_SCRIPT_PROMPT } from "../../core/script-prompt";
 import { DEFAULT_SCRIPT_REVIEW_PROMPT } from "../../core/script-review";
 import { DEFAULT_BRAND_SETTINGS, type BrandSettings } from "../../core/schema";
+import { BrandPreview } from "../settings/BrandPreview";
 
 type ModelStatus = {
   bgeM3: { available: boolean; ranking: "embedding" | "rules" };
@@ -24,7 +26,7 @@ type ScriptVoiceField = "speaker" | "tone" | "persona" | "review";
 type ScriptVoiceSettings = Record<ScriptVoiceField, string>;
 type IntroSfxSetting = { enabled: boolean; ref: string; atSec: number; title: string; durationSec: number };
 const DEFAULT_SCRIPT_VOICE: ScriptVoiceSettings = { speaker: "", tone: "", persona: "", review: DEFAULT_SCRIPT_REVIEW_PROMPT };
-type ImageOptions = { model: "flare" | "sunburst"; quality: "low" | "medium" | "high" | "auto"; aspect: "4:5" | "1:1"; concurrency: number };
+type ImageOptions = { model: "flare" | "sunburst"; quality: "low" | "medium" | "high" | "auto"; aspect: "4:5" | "1:1" | "9:16" | "16:9"; concurrency: number };
 
 export function Settings(props: { onSnackbar: (message: string) => void; onError: (message: string) => void }) {
   const [status, setStatus] = useState<SystemStatus | null>(null);
@@ -243,28 +245,30 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
     <section className="screen" aria-labelledby="settings-title">
       <header className="screen-header"><div><h1 id="settings-title" className="screen-title">설정</h1></div></header>
       {error ? <div className="page-banner-wrap"><PageBanner tone="warning" variant="weak" description={error} /></div> : null}
+      <div className="settings-grid">
       <section className="section-card settings-card" aria-labelledby="image-options-title">
         <h2 id="image-options-title" className="settings-section-title">이미지 생성</h2>
         <div className="settings-model-fields">
           <ModelSelect label="이미지 모델" value={imageOptions.model} items={[{ value: "flare", label: "Flare · 빠름" }, { value: "sunburst", label: "Sunburst · 고품질" }]} onChange={model => void updateImageOptions({ ...imageOptions, model: model as ImageOptions["model"] })} />
           <ModelSelect label="퀄리티" value={imageOptions.quality} items={["low", "medium", "high", "auto"].map(value => ({ value, label: value }))} onChange={quality => void updateImageOptions({ ...imageOptions, quality: quality as ImageOptions["quality"] })} />
-          <ModelSelect label="비율" value={imageOptions.aspect} items={[{ value: "4:5", label: "4:5" }, { value: "1:1", label: "1:1" }]} onChange={aspect => void updateImageOptions({ ...imageOptions, aspect: aspect as ImageOptions["aspect"] })} />
+          <ModelSelect label="비율" value={imageOptions.aspect} items={[{ value: "4:5", label: "4:5" }, { value: "1:1", label: "1:1" }, { value: "9:16", label: "9:16" }, { value: "16:9", label: "16:9" }]} onChange={aspect => void updateImageOptions({ ...imageOptions, aspect: aspect as ImageOptions["aspect"] })} />
         </div>
         <div className="image-concurrency"><Slider label={`동시 실행 수 · ${imageOptions.concurrency}`} min={1} max={10} step={1} values={[imageOptions.concurrency]} onValuesChange={values => { const concurrency = values[0]; if (typeof concurrency === "number") void updateImageOptions({ ...imageOptions, concurrency }); }} /></div>
       </section>
       <section className="section-card settings-card" aria-labelledby="brand-title">
         <h2 id="brand-title" className="settings-section-title">브랜드</h2>
+        <BrandPreview brand={brand} watermarkUrl={watermarkUrl} />
         <div className="brand-settings-watermark">
           <div className="brand-watermark-preview">{watermarkUrl ? <img src={watermarkUrl} alt="워터마크 미리보기" /> : <span>워터마크 없음</span>}</div>
           <div className="brand-watermark-actions"><ActionButton variant="neutralWeak" disabled={brandLoading} onClick={() => void chooseWatermark()}>이미지 선택</ActionButton>{brand.watermark?.file ? <ActionButton variant="ghost" onClick={() => void deleteWatermark()}>지우기</ActionButton> : null}</div>
         </div>
-        <div className="settings-model-fields">
+        <div className="settings-model-fields brand-fields">
           <BrandNumber label="기본 가로 위치" min={0} max={100} step={1} value={Math.round((brand.watermark?.x ?? 0.5) * 100)} suffix="%" onChange={value => setBrandField("watermark", { x: value / 100, y: brand.watermark?.y ?? 0.08, width: brand.watermark?.width ?? 0.2, opacity: brand.watermark?.opacity ?? 1, ...(brand.watermark?.file ? { file: brand.watermark.file } : {}) })} />
           <BrandNumber label="기본 세로 위치" min={0} max={100} step={1} value={Math.round((brand.watermark?.y ?? 0.08) * 100)} suffix="%" onChange={value => setBrandField("watermark", { x: brand.watermark?.x ?? 0.5, y: value / 100, width: brand.watermark?.width ?? 0.2, opacity: brand.watermark?.opacity ?? 1, ...(brand.watermark?.file ? { file: brand.watermark.file } : {}) })} />
           <BrandNumber label="기본 폭" min={1} max={100} step={1} value={Math.round((brand.watermark?.width ?? 0.2) * 100)} suffix="%" onChange={value => setBrandField("watermark", { x: brand.watermark?.x ?? 0.5, y: brand.watermark?.y ?? 0.08, width: value / 100, opacity: brand.watermark?.opacity ?? 1, ...(brand.watermark?.file ? { file: brand.watermark.file } : {}) })} />
           <BrandNumber label="기본 투명도" min={0} max={100} step={1} value={Math.round((brand.watermark?.opacity ?? 1) * 100)} suffix="%" onChange={value => setBrandField("watermark", { x: brand.watermark?.x ?? 0.5, y: brand.watermark?.y ?? 0.08, width: brand.watermark?.width ?? 0.2, opacity: value / 100, ...(brand.watermark?.file ? { file: brand.watermark.file } : {}) })} />
         </div>
-        <div className="settings-model-fields">
+        <div className="settings-model-fields brand-fields">
           <BrandNumber label="타이틀 바 높이" min={40} max={600} step={1} value={brand.titleBar.height} suffix="px" onChange={value => setBrandField("titleBar", { ...brand.titleBar, height: value })} />
           <BrandColor label="배경 색" value={brand.titleBar.bgColor} onChange={bgColor => setBrandField("titleBar", { ...brand.titleBar, bgColor })} />
           <BrandNumber label="배경 투명도" min={0} max={100} step={1} value={Math.round(brand.titleBar.bgOpacity * 100)} suffix="%" onChange={value => setBrandField("titleBar", { ...brand.titleBar, bgOpacity: value / 100 })} />
@@ -339,12 +343,12 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
           </div>)}
         </div>
       </section>
-      <section className="section-card settings-card" aria-labelledby="intro-sfx-title">
+      <section className="section-card settings-card intro-sfx-card" aria-labelledby="intro-sfx-title">
         <h2 id="intro-sfx-title" className="settings-section-title">자동 알림음</h2>
-        <label><input type="checkbox" checked={introSfx.enabled} onChange={event => void saveIntroSfx({ ...introSfx, enabled: event.target.checked })} /> 켜기</label>
-        <label>알림음 <select value={introSfx.ref} onChange={event => { const item = notifyItems.find(candidate => candidate.ref === event.target.value); if (item) void saveIntroSfx({ ...introSfx, ref: item.ref, title: item.title }); }}>{notifyItems.map(item => <option key={item.ref} value={item.ref}>{item.title}</option>)}</select></label>
-        <ActionButton variant="neutralWeak" disabled={!notifyItems.find(item => item.ref === introSfx.ref)} onClick={() => { const item = notifyItems.find(candidate => candidate.ref === introSfx.ref); if (item) new Audio(item.url).play().catch(() => undefined); }}>미리 듣기</ActionButton>
-        <label>시각 {introSfx.atSec.toFixed(1)}초 <input type="range" min="0" max="10" step="0.1" value={introSfx.atSec} onChange={event => setIntroSfx(value => ({ ...value, atSec: Number(event.target.value) }))} onMouseUp={() => void saveIntroSfx(introSfx)} onTouchEnd={() => void saveIntroSfx(introSfx)} /></label>
+        <Switch label="자동 알림음 켜기" checked={introSfx.enabled} onCheckedChange={enabled => void saveIntroSfx({ ...introSfx, enabled })} />
+        <ModelSelect label="알림음" value={introSfx.ref} items={notifyItems.map(item => ({ value: item.ref, label: item.title }))} onChange={ref => { const item = notifyItems.find(candidate => candidate.ref === ref); if (item) void saveIntroSfx({ ...introSfx, ref: item.ref, title: item.title }); }} />
+        <div className="intro-sfx-actions"><ActionButton variant="neutralWeak" disabled={!notifyItems.find(item => item.ref === introSfx.ref)} onClick={() => { const item = notifyItems.find(candidate => candidate.ref === introSfx.ref); if (item) new Audio(item.url).play().catch(() => undefined); }}>미리 듣기</ActionButton></div>
+        <div className="intro-sfx-slider"><Slider label="알림음 시각" indicator={`${introSfx.atSec.toFixed(1)}초`} min={0} max={10} step={0.1} values={[introSfx.atSec]} onValuesChange={values => { const atSec = values[0]; if (typeof atSec === "number") setIntroSfx(value => ({ ...value, atSec })); }} onValuesCommit={values => { const atSec = values[0]; if (typeof atSec === "number") void saveIntroSfx({ ...introSfx, atSec }); }} /></div>
       </section>
       <section className="section-card settings-row" aria-labelledby="jev-title"><h2 id="jev-title">Jev 짤 판정</h2><span className={`status-label ${status?.jev.available ? "is-ready" : "is-warning"}`}>{status?.jev.available ? "연결됨" : "연결 안 됨"}</span></section>
       <section className="section-card" aria-labelledby="models-title">
@@ -356,6 +360,7 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
           {whisperJob ? <div className="model-progress"><ProgressCircle size="24" tone="brand" value={whisperJob.progress === null ? undefined : whisperJob.progress * 100} /><span>{whisperJob.message ?? "받는 중"}{whisperJob.progress === null ? "" : ` · ${Math.round(whisperJob.progress * 100)}%`}</span><ActionButton variant="neutralWeak" size="small" onClick={() => void cancel(whisperJob.id)}>취소</ActionButton></div> : <ActionButton variant="neutralWeak" disabled={models?.whisper.available} onClick={() => void download("whisper")}>{models?.whisper.available ? "받음" : "받기"}</ActionButton>}
         </div>
       </section>
+      </div>
     </section>
   );
 }
@@ -372,10 +377,7 @@ function ModelSelect(props: { label: string; value: string; items: Array<{ value
 }
 
 function BrandNumber(props: { label: string; value: number; min: number; max: number; step: number; suffix: string; onChange: (value: number) => void }) {
-  return <TextField label={props.label} value={String(props.value)} onValueChange={({ value }) => {
-    const parsed = Number(value);
-    if (Number.isFinite(parsed) && parsed >= props.min && parsed <= props.max) props.onChange(parsed);
-  }}><TextFieldInput type="number" min={props.min} max={props.max} step={props.step} />{props.suffix}</TextField>;
+  return <div className="brand-number"><Slider label={props.label} indicator={`${props.value}${props.suffix}`} min={props.min} max={props.max} step={props.step} values={[props.value]} getAriaLabel={() => props.label} onValuesChange={values => { const value = values[0]; if (typeof value === "number") props.onChange(value); }} /></div>;
 }
 
 function BrandColor(props: { label: string; value: string; onChange: (value: string) => void }) {

@@ -5,7 +5,7 @@ import path from "node:path";
 import { parseCodexEvents, codexFailureReason } from "./codex";
 import { ffprobe, runFfmpeg } from "./ffmpeg";
 
-export type ImageAspect = "4:5" | "1:1";
+export type ImageAspect = "4:5" | "1:1" | "9:16" | "16:9";
 export type ImageModel = "flare" | "sunburst";
 export type ImageQuality = "low" | "medium" | "high" | "auto";
 
@@ -21,7 +21,17 @@ export function parseImageEvents(stdout: string): { sessionId: string | null; us
 }
 
 export function requestedImageSize(aspect: ImageAspect): { width: number; height: number } {
-  return aspect === "4:5" ? { width: 1024, height: 1280 } : { width: 1024, height: 1024 };
+  if (aspect === "4:5") return { width: 1024, height: 1280 };
+  if (aspect === "1:1") return { width: 1024, height: 1024 };
+  if (aspect === "9:16") return { width: 1008, height: 1792 };
+  return { width: 1792, height: 1008 };
+}
+
+export function normalizedImageSize(aspect: ImageAspect): { width: number; height: number } {
+  if (aspect === "4:5") return { width: 1080, height: 1350 };
+  if (aspect === "1:1") return { width: 1080, height: 1080 };
+  if (aspect === "9:16") return { width: 1080, height: 1920 };
+  return { width: 1920, height: 1080 };
 }
 
 export function imagePrompt(input: { prompt: string; style: string; model: ImageModel; quality: ImageQuality; aspect: ImageAspect; output: string }): string {
@@ -42,7 +52,7 @@ export function validatePng(data: Buffer, aspect: ImageAspect): { width: number;
   if (data.length < 24 || !data.subarray(0, 8).equals(signature)) throw new Error("Codex 결과가 PNG 파일이 아닙니다");
   const width = data.readUInt32BE(16); const height = data.readUInt32BE(20);
   if (width < 1 || height < 1 || width > 16384 || height > 16384) throw new Error("PNG 크기가 올바르지 않습니다");
-  const ratio = width / height; const target = aspect === "4:5" ? 4 / 5 : 1;
+  const ratio = width / height; const target = aspect === "4:5" ? 4 / 5 : aspect === "1:1" ? 1 : aspect === "9:16" ? 9 / 16 : 16 / 9;
   if (Math.abs(ratio - target) / target > 0.02) throw new Error(`PNG 크기 비율이 ${aspect}와 맞지 않습니다`);
   return { width, height };
 }
@@ -122,7 +132,8 @@ export async function runCodexImage(options: CodexImageOptions): Promise<{ outpu
     const probe = await ffprobe(source);
     const stream = probe.streams.find(item => item.codec_type === "video");
     if (stream?.width !== dimensions.width || stream?.height !== dimensions.height) throw new Error("Codex 이미지 크기를 확인할 수 없습니다");
-    await runFfmpeg(["-i", source, "-vf", `scale=1080:${options.aspect === "4:5" ? 1350 : 1080}:force_original_aspect_ratio=increase,crop=1080:${options.aspect === "4:5" ? 1350 : 1080}`, "-frames:v", "1", "-y", options.output], options.signal);
+    const outputSize = normalizedImageSize(options.aspect);
+    await runFfmpeg(["-i", source, "-vf", `scale=${outputSize.width}:${outputSize.height}:force_original_aspect_ratio=increase,crop=${outputSize.width}:${outputSize.height}`, "-frames:v", "1", "-y", options.output], options.signal);
     return { output: options.output, usage: events.usage };
   } catch (error) {
     await rm(options.output, { force: true }).catch(() => undefined);

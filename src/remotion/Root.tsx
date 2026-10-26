@@ -20,8 +20,8 @@ export const RemotionRoot: React.FC = () => (
     id="CarouselSlide"
     component={CarouselSlide}
     defaultProps={{ imageUrl: "", title: "", body: "", textPlacement: "bottom", aspect: "4:5" } satisfies CarouselSlideProps}
-    width={1080}
-    height={1350}
+    width={carouselCanvasSize("4:5").width}
+    height={carouselCanvasSize("4:5").height}
     fps={30}
     durationInFrames={1}
     calculateMetadata={({ props }) => ({ ...carouselCanvasSize(props.aspect ?? "4:5"), durationInFrames: 1 })}

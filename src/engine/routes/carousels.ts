@@ -18,7 +18,7 @@ import { askJevBox } from "../pipeline/jev-box";
 const RefineSchema = z.object({ candidates: z.array(z.object({ topic: z.string().min(1), angle: z.string().min(1) })).length(3) });
 const PlanSchema = z.object({ style: z.string().min(1), slides: z.array(z.object({ title: z.string(), body: z.string(), imagePrompt: z.string().min(1) })) });
 const DerivedPlanSchema = z.object({ slides: z.array(z.object({ sceneNumber: z.number().int().positive(), title: z.string(), body: z.string(), target: z.string().min(1) })) });
-const ImageOptions = z.object({ model: z.enum(["flare", "sunburst"]), quality: z.enum(["low", "medium", "high", "auto"]), aspect: z.enum(["4:5", "1:1"]), concurrency: z.number().int().min(1).max(10) });
+const ImageOptions = z.object({ model: z.enum(["flare", "sunburst"]), quality: z.enum(["low", "medium", "high", "auto"]), aspect: z.enum(["4:5", "1:1", "9:16", "16:9"]), concurrency: z.number().int().min(1).max(10) });
 const DEFAULT_IMAGE_OPTIONS = { model: "flare" as const, quality: "auto" as const, aspect: "4:5" as const, concurrency: 3 };
 
 function carouselStore(context: AppContext): CarouselStore {
@@ -80,7 +80,7 @@ export function registerCarouselRoutes(app: Hono, context: AppContext): void {
   });
 
   app.post("/api/projects/:id/carousel", async c => {
-    const input = await parseJson(c, z.object({ count: z.number().int().min(2).max(10).default(5), aspect: z.enum(["4:5", "1:1"]).optional() }));
+    const input = await parseJson(c, z.object({ count: z.number().int().min(2).max(10).default(5), aspect: z.enum(["4:5", "1:1", "9:16", "16:9"]).optional() }));
     const project = await context.store.requireProject(c.req.param("id"));
     const rawScript = JSON.parse(await readFile(path.join(context.store.projectDir(project.id), "script.json"), "utf8"));
     const script = CodexScript.parse(rawScript);

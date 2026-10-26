@@ -38,7 +38,7 @@ export type CarouselSlide = z.infer<typeof CarouselSlide>;
 
 const CarouselBase = z.object({
   id: z.string().min(1), name: z.string().min(1), source: CarouselSource,
-  topic: z.string().optional(), refinedTopic: z.string().optional(), aspect: z.enum(["4:5", "1:1"]), style: z.string().optional(),
+  topic: z.string().optional(), refinedTopic: z.string().optional(), aspect: z.enum(["4:5", "1:1", "9:16", "16:9"]), style: z.string().optional(),
   slides: z.array(CarouselSlide), createdAt: z.string().datetime(), savedAt: z.string().datetime(),
 });
 export const Carousel = z.preprocess((raw) => {

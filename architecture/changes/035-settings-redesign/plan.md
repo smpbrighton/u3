@@ -18,6 +18,7 @@ Track: lite.
 ## 바꿀 파일
 - `architecture/decisions/0019-carousel-image-aspects.md` (new), `0015-…`(superseded-by 0019), `architecture/INTENT.md`(0015 줄 교체).
 - `src/core/carousel.ts`, `src/engine/pipeline/codex-image.ts`, `src/engine/routes/system.ts`(image-options 검증), `src/remotion/carousel-layout.ts`, `src/remotion/CarouselSlide.tsx`, `src/remotion/Root.tsx`(Composition 크기): 비율 넷.
+- `src/engine/routes/carousels.ts`, `src/engine/carousel-store.ts`: 파생 캐러셀 비율 검증과 저장 타입을 비율 넷으로 확장.
 - `src/ui/screens/Settings.tsx`, `src/ui/styles.css`: grid 배치, 프롬프트 1열 묶음과 고정 높이 스크롤, 브랜드 카드 SEED 정리(숫자 입력을 Slider+값 표시로, 2열 묶음)와 미리보기, 자동 알림음 카드를 SEED Switch·Select·Slider·ActionButton 으로.
 - `src/ui/settings/BrandPreview.tsx` (new): 미리보기 컴포넌트(@remotion/player, 브랜드 층만).
 - `src/ui/screens/Carousels.tsx`: 비율 넷의 썸네일·미리보기 크기.

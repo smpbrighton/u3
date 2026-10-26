@@ -18,7 +18,7 @@ async function writeAtomic(file: string, data: string | Buffer): Promise<void> {
 }
 
 type NewSlide = Omit<CarouselSlide, "error" | "status" | "background" | "imagePrompt"> & { status?: CarouselSlide["status"]; background?: CarouselSlide["background"]; imagePrompt?: string };
-type NewCarousel = { id?: string; name: string; source?: CarouselData["source"]; topic?: string; refinedTopic?: string; aspect: "4:5" | "1:1"; style?: string; slides: NewSlide[] };
+type NewCarousel = { id?: string; name: string; source?: CarouselData["source"]; topic?: string; refinedTopic?: string; aspect: "4:5" | "1:1" | "9:16" | "16:9"; style?: string; slides: NewSlide[] };
 type UserHighlightFields = Partial<NonNullable<Extract<CarouselSlide["background"], { kind: "frame" }>["highlight"]>>;
 type UserSlideFields = Partial<Pick<CarouselSlide, "title" | "body" | "textPlacement" | "imagePrompt">> & { background?: { kind?: "frame"; sec?: number; cropY?: number; highlight?: UserHighlightFields } };
 type EngineSlideFields = Partial<Pick<CarouselSlide, "image" | "status" | "error">> & { background?: { frame?: Extract<CarouselSlide["background"], { kind: "frame" }>["frame"]; status?: "queued" | "running" | "done" | "failed" | "idle"; error?: string; highlight?: UserHighlightFields } };

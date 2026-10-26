@@ -23,7 +23,7 @@ const pathRelativeLibrary = (file: string, root: string) => path.relative(path.b
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_CODEX_MODELS = [{ slug: "gpt-6-luna", displayName: "GPT-6-Luna", efforts: ["low", "medium", "high"] }];
-const ImageOptions = z.object({ model: z.enum(["flare", "sunburst"]), quality: z.enum(["low", "medium", "high", "auto"]), aspect: z.enum(["4:5", "1:1"]), concurrency: z.number().int().min(1).max(10) });
+const ImageOptions = z.object({ model: z.enum(["flare", "sunburst"]), quality: z.enum(["low", "medium", "high", "auto"]), aspect: z.enum(["4:5", "1:1", "9:16", "16:9"]), concurrency: z.number().int().min(1).max(10) });
 const DEFAULT_IMAGE_OPTIONS = { model: "flare" as const, quality: "auto" as const, aspect: "4:5" as const, concurrency: 3 };
 
 async function readCodexModels(bin: string | null) {

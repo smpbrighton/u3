@@ -17,7 +17,7 @@ export type CarouselSlideProps = {
 const fill: React.CSSProperties = { width: "100%", height: "100%" };
 ensureFonts();
 
-export const CarouselSlide: React.FC<CarouselSlideProps> = ({ imageUrl, title, body, textPlacement, frameCropY, highlight }) => (
+export const CarouselSlide: React.FC<CarouselSlideProps> = ({ imageUrl, title, body, textPlacement, aspect = "4:5", frameCropY, highlight }) => (
   <AbsoluteFill style={{ backgroundColor: "#202020" }}>
     <Img src={imageUrl} style={{ ...fill, objectFit: "cover", objectPosition: frameCropY === undefined ? "50% 50%" : frameCropPosition(frameCropY) }} />
     {highlight?.box && highlight.style !== "border" ? <Img src={imageUrl} style={{
@@ -38,7 +38,7 @@ export const CarouselSlide: React.FC<CarouselSlideProps> = ({ imageUrl, title, b
     <AbsoluteFill style={{ ...textPlacementStyle(textPlacement), padding: "9% 8%", color: "#fff", fontFamily: FONT_FAMILY.body, textShadow: "0 2px 12px rgba(0,0,0,.55)" }}>
       <div style={{ display: "flex", flexDirection: "column", gap: 24, maxHeight: "82%", overflow: "hidden" }}>
         <h1 style={{ margin: 0, fontSize: 76, lineHeight: 1.18, fontWeight: 700, wordBreak: "keep-all" }}>{title}</h1>
-        <p style={{ margin: 0, fontSize: 40, lineHeight: 1.5, fontWeight: 400, whiteSpace: "pre-wrap", wordBreak: "keep-all" }}>{body}</p>
+        <p style={{ width: aspect === "16:9" ? "60%" : "100%", alignSelf: "center", margin: 0, fontSize: 40, lineHeight: 1.5, fontWeight: 400, whiteSpace: "pre-wrap", wordBreak: "keep-all" }}>{body}</p>
       </div>
     </AbsoluteFill>
   </AbsoluteFill>
