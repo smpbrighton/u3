@@ -119,8 +119,7 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
         {codexMessage ? <div className="page-banner-wrap settings-warning"><PageBanner tone="warning" variant="weak" description={codexMessage} /></div> : null}
         {status && !status.codex.installed ? <div className="action-row"><ActionButton variant="neutralWeak" onClick={() => void chooseCodexPath()}>직접 지정</ActionButton></div> : null}
         <div className="settings-model-fields">
-          <label>
-            모델
+          <div>
             <ModelSelect
               label="모델"
               value={codexSettings.model}
@@ -131,16 +130,15 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
                 void updateCodexSettings({ model, effort });
               }}
             />
-          </label>
-          <label>
-            추론 강도
+          </div>
+          <div>
             <ModelSelect
               label="추론 강도"
               value={codexSettings.effort}
               items={effortOptions.map(effort => ({ value: effort, label: effort }))}
               onChange={effort => void updateCodexSettings({ ...codexSettings, effort })}
             />
-          </label>
+          </div>
         </div>
         <div className="action-row settings-actions"><ActionButton className="settings-refresh-button" variant="neutralWeak" disabled={checking} loading={checking} aria-label={checking ? "다시 확인 중" : "다시 확인"} onClick={() => void refresh()}>{checking ? "다시 확인 중" : "다시 확인"}</ActionButton></div>
       </section>
