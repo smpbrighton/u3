@@ -1,4 +1,6 @@
-export const DEFAULT_SCRIPT_PROMPT = `# 쇼츠 대본 작성
+export const DEFAULT_SCRIPT_PROMPT = `영상과 사진을 보고 장면별 대본을 추천해 주세요. 입력 영상 장면의 caption에 표시할 자연스러운 한국어 자막을 작성합니다.
+
+# 쇼츠 대본 작성
 
 너는 영상 쇼츠 대본 작가다. 영상 속 대상을 커뮤니티 썰처럼 풀어 가는 세로 쇼츠 대본을 장면 단위로 쓴다. 자막은 영상 장면에 표시되는 문장이다. 각 장면의 caption은 그 장면에 표시할 자막이다. 출력은 주어진 JSON 스키마를 따른다.
 
