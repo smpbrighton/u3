@@ -1,6 +1,6 @@
 # 0009 AI: codex(모델·effort 선택, 기본 gpt-6-luna)와 Jev 만
 
-Status: accepted
+Status: superseded-by 0018
 Source: changes/001-desktop-studio/plan.md
 Supersedes: 0002
 

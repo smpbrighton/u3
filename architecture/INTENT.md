@@ -18,7 +18,7 @@
 유효한 결정만, 한 줄 + `decisions/NNNN-slug.md` 링크. 대체된 결정은 여기서 지운다.
 
 - 앱 구조: Tauri 2 셸 + React UI + Node sidecar 엔진(127.0.0.1·일회용 토큰), macOS Apple Silicon 만 → [0001](decisions/0001-tauri-node-sidecar.md)
-- AI: codex CLI(모델·effort 선택, 기본 `gpt-6-luna`)와 Jev(개발자 등록 키를 빌드 때 넣음)만, Claude 없음 → [0009](decisions/0009-codex-model-select-jev.md)
+- AI: codex CLI(모델·effort 선택, 기본 `gpt-6-luna`)와 Jev(짤 적합도 `jev-1.13.0`, 캐러셀 강조 상자 Box `jev-1.14.0`, 개발자 등록 키를 빌드 때 넣음)만, Claude 없음 → [0018](decisions/0018-codex-jev-box.md)
 - 범위: 입력(영상·사진 섞어 1~20개)·대본·짤·효과음·녹음·음성 분리·mp4 내보내기·캐러셀(단독: 주제→그림 / 영상 파생: 장면 프레임+강조, 2~10장, PNG 한 번에 받기), TTS·업로드·채널·허브·움직이는 장 없음 → [0017](decisions/0017-scope-carousel-two-modes.md)
 - 캐러셀 이미지: codex 내장 image_gen(설정에서 모델·퀄리티·비율·동시 수), 글자는 앱이 위에 얹음 → [0015](decisions/0015-carousel-codex-image-gen.md)
 - 라이브러리: 짤·효과음과 짤 색인은 앱에 넣고 bge-m3 는 처음 실행 때 받음, 그 전에는 규칙 점수 → [0004](decisions/0004-bundled-library-lazy-model.md)
