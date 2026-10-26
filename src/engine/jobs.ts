@@ -4,7 +4,7 @@
 import { randomBytes } from "node:crypto";
 import PQueue from "p-queue";
 
-export type JobKind = "script" | "meme-rank" | "frames" | "render" | "separate" | "transcribe" | "models";
+export type JobKind = "script" | "meme-rank" | "frames" | "render" | "separate" | "transcribe" | "models" | "image";
 export type JobStatus = "queued" | "running" | "done" | "failed" | "discarded";
 
 export interface Job {
@@ -162,6 +162,15 @@ export class JobRegistry {
   }
 
   start(spec: JobSpec, fn: (ctx: JobContext) => Promise<JobOutcome>): Job {
+    return this.register(spec, fn, this.queue);
+  }
+
+  /** 이미지 전용 큐에서 실행하되 같은 Job·이벤트 형식으로 등록한다. */
+  startImage(spec: Omit<JobSpec, "kind">, fn: (ctx: JobContext) => Promise<JobOutcome>, queue: PQueue): Job {
+    return this.register({ ...spec, kind: "image" }, fn, queue);
+  }
+
+  private register(spec: JobSpec, fn: (ctx: JobContext) => Promise<JobOutcome>, queue: PQueue): Job {
     const execute = this.execution.bind ? this.execution.bind(fn) : fn;
     const id = `${spec.kind}-${Date.now().toString(36)}-${randomBytes(3).toString("hex")}`;
     const job: Job = {
@@ -237,7 +246,7 @@ export class JobRegistry {
       });
     }
 
-    const run = this.queue.add(async () => {
+    const run = queue.add(async () => {
       // 작업 함수는 다음 틱에 부른다. 부른 쪽이 먼저 응답(202)을 돌려줄 수 있게.
       await Promise.resolve();
       if (job.status === "queued") ctx.start();
