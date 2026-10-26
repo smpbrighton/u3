@@ -46,6 +46,14 @@ describe("resolveScriptMemes", () => {
     expect(result.alternateMemes[1]).toBe(secondMeme);
   });
 
+  it("같은 입력의 여러 장면에는 같은 짤 ID를 두 번 할당하지 않는다", () => {
+    const script: CodexScript = { scenes: [scene({ memeAfter: true }), scene({ memeAfter: true })] };
+
+    const result = resolveScriptMemes(script, [[meme], [meme, secondMeme]]);
+
+    expect(Object.values(result.memes).map(({ id }) => id)).toEqual(["meme-1", "meme-2"]);
+  });
+
   it("앞뒤를 모두 골라도 2순위가 없으면 1순위 하나만 뒤에 둔다", () => {
     const script: CodexScript = { scenes: [scene({ memeBefore: true, memeAfter: true })] };
 
