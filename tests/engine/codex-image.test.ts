@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { imagePrompt, outlinePrompt, parseImageEvents, requestedImageSize, resolveImageResult, validatePng, normalizedImageSize } from "../../src/engine/pipeline/codex-image";
+import { codexImageFailureMessage, imagePrompt, outlinePrompt, parseImageEvents, requestedImageSize, resolveImageResult, validatePng, normalizedImageSize } from "../../src/engine/pipeline/codex-image";
 
 const roots: string[] = [];
 afterEach(async () => Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))));
@@ -10,6 +10,19 @@ afterEach(async () => Promise.all(roots.splice(0).map(root => rm(root, { recursi
 describe("Codex image helpers", () => {
   it("reads the session id from the thread.started JSON event", () => {
     expect(parseImageEvents('{"type":"thread.started","thread_id":"session-1"}\n{"type":"turn.completed","usage":{"input_tokens":8}}')).toMatchObject({ sessionId: "session-1", usage: { input_tokens: 8 } });
+  });
+
+  it("keeps the Codex failure reason, limits detail length, and includes the exit code", () => {
+    const events = parseImageEvents(`${JSON.stringify({ type: "turn.failed", error: { message: "render backend rejected request" } })}`);
+    expect(codexImageFailureMessage(events, 17)).toBe(`Codex 요청 실패: Codex CLI 요청이 실패했습니다 (render backend rejected request) (종료 코드 17)`);
+    expect(codexImageFailureMessage({ ...events, detail: "x".repeat(130) }, 4)).toBe(`Codex 요청 실패: Codex CLI 요청이 실패했습니다 (${"x".repeat(120)}) (종료 코드 4)`);
+  });
+
+  it("keeps quota and login failures as readable messages", () => {
+    const quota = parseImageEvents(`${JSON.stringify({ type: "turn.failed", error: { message: "usage limit reached" } })}`);
+    const login = parseImageEvents(`${JSON.stringify({ type: "error", message: "authentication token expired" })}`);
+    expect(codexImageFailureMessage(quota, 1)).toContain("사용 한도에 도달했습니다");
+    expect(codexImageFailureMessage(login, 1)).toContain("Codex 로그인이 필요합니다");
   });
 
   it("fails when the JSON events do not include a session id", async () => {
