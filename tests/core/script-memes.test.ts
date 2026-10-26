@@ -27,7 +27,7 @@ const scene = (overrides: Partial<RangedScene> = {}): RangedScene => ({
 
 describe("resolveScriptMemes", () => {
   it("reaction이 있는 장면은 Codex가 고른 위치에 랭크 1순위 짤을 둔다", () => {
-    const script: CodexScript = { scenes: [scene({ memeBefore: true }), scene({ memeAfter: true })] };
+    const script: CodexScript = { scenes: [scene({ memeBefore: true }), scene({ inputIndex: 2, memeAfter: true })] };
 
     const result = resolveScriptMemes(script, [[meme], [meme]]);
 
@@ -37,7 +37,7 @@ describe("resolveScriptMemes", () => {
   });
 
   it("reaction이 있는데 위치가 없으면 뒤에 두고 앞뒤가 모두 true면 순위 1·2를 쓴다", () => {
-    const script: CodexScript = { scenes: [scene(), scene({ memeBefore: true, memeAfter: true })] };
+    const script: CodexScript = { scenes: [scene(), scene({ inputIndex: 2, memeBefore: true, memeAfter: true })] };
 
     const result = resolveScriptMemes(script, [[meme], [meme, secondMeme]]);
 
