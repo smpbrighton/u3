@@ -287,12 +287,14 @@ export function Inspector(props: {
     {job && ["queued", "running"].includes(job.status) ? <div className="studio-job"><ProgressCircle size="24" tone="brand" value={job.progress === null ? undefined : job.progress * 100} /><span>{job.message ?? "작업 중이에요."}</span><ActionButton variant="ghost" size="small" onClick={() => void cancelJob()}>취소</ActionButton></div> : null}
   </InspectorShell>;
 
-  if (!props.selectedId && props.selectedIds.length === 0) return <BrandInspector timeline={props.timeline} onChange={props.onChange} />;
+  if (!props.selectedId && props.selectedIds.length === 0) return <BrandInspector project={props.project} timeline={props.timeline} onChange={props.onChange} onProject={props.onProject} onSnackbar={props.onSnackbar} />;
   return <InspectorShell title="속성" {...dialogProps}><p className="studio-help">클립을 선택하면 속성을 편집할 수 있어요.</p></InspectorShell>;
 }
 
-function BrandInspector(props: { timeline: TimelineData; onChange: (timeline: TimelineData) => void }) {
+function BrandInspector(props: { project: Project; timeline: TimelineData; onChange: (timeline: TimelineData) => void; onProject: (project: Project) => void; onSnackbar: (message: string) => void }) {
   const [defaults, setDefaults] = useState<BrandSettings>(DEFAULT_BRAND_SETTINGS);
+  const [titleGenerating, setTitleGenerating] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   useEffect(() => { void api<typeof DEFAULT_BRAND_SETTINGS>("GET", "/api/system/brand").then(setDefaults).catch(() => undefined); }, []);
   const brand = props.timeline.brand ?? {};
   const watermark = brand.watermark ?? {};
@@ -301,7 +303,27 @@ function BrandInspector(props: { timeline: TimelineData; onChange: (timeline: Ti
   const updateTitle = (changes: Partial<NonNullable<TimelineData["brand"]>["titleBar"]>) => props.onChange({ ...props.timeline, brand: { ...brand, titleBar: { ...titleBar, ...changes } } });
   const watermarkEnabled = watermark.enabled ?? Boolean(defaults.watermark?.file);
   const titleEnabled = titleBar.enabled ?? Boolean(titleBar.text);
-  return <InspectorShell title="브랜드">
+  async function regenerateTitle() {
+    setTitleGenerating(true);
+    setError(null);
+    try {
+      const saved = await api<Project>("PUT", `/api/projects/${props.project.id}`, { ...props.project, timeline: props.timeline, savedAt: new Date().toISOString() });
+      props.onProject(saved);
+      const scenes = captionLayersOf(saved.timeline).flatMap(layer => layer.main.map(main => {
+        const sub = layer.sub.find(item => item.startSec === main.startSec && item.endSec === main.endSec);
+        return { caption: main.text, ...(sub ? { subCaption: sub.text } : {}) };
+      }));
+      if (!scenes.length) throw new Error("제목을 만들 자막이 없습니다.");
+      const result = await api<{ project: Project; title: string }>("POST", `/api/projects/${props.project.id}/title`, { scenes });
+      const timeline = { ...saved.timeline, brand: { ...saved.timeline.brand, titleBar: { ...saved.timeline.brand?.titleBar, text: result.title } } };
+      props.onChange(timeline);
+      props.onProject({ ...result.project, timeline });
+      props.onSnackbar("타이틀을 다시 만들었어요.");
+    } catch (reason) { setError(reason instanceof Error ? reason.message : String(reason)); }
+    finally { setTitleGenerating(false); }
+  }
+
+  return <InspectorShell title="브랜드" error={error}>
     <h3 className="brand-inspector-heading">워터마크</h3>
     <StudioSwitch label="워터마크 켜기" checked={watermarkEnabled} onChange={enabled => updateWatermark({ enabled })} />
     {!defaults.watermark?.file ? <p className="studio-help">설정에서 워터마크 이미지를 선택해 주세요.</p> : null}
@@ -312,6 +334,7 @@ function BrandInspector(props: { timeline: TimelineData; onChange: (timeline: Ti
     <h3 className="brand-inspector-heading">상단 타이틀 바</h3>
     <StudioSwitch label="타이틀 바 켜기" checked={titleEnabled} onChange={enabled => updateTitle({ enabled })} />
     <StudioTextInput label="타이틀 글" maxLength={30} value={titleBar.text} onChange={text => updateTitle({ text: text.slice(0, 30) })} />
+    <ActionButton variant="neutralWeak" disabled={titleGenerating || !captionLayersOf(props.timeline).some(layer => layer.main.length)} loading={titleGenerating} onClick={() => void regenerateTitle()}>다시 만들기</ActionButton>
     <label className="studio-range-label">높이 <b>{titleBar.height ?? defaults.titleBar.height}px</b><StudioSlider label="타이틀 바 높이" min={40} max={600} step={1} value={titleBar.height ?? defaults.titleBar.height} onChange={height => updateTitle({ height })} /></label>
     <label className="studio-range-label">글자 크기 <b>{titleBar.fontSize ?? defaults.titleBar.fontSize}px</b><StudioSlider label="타이틀 글자 크기" min={12} max={200} step={1} value={titleBar.fontSize ?? defaults.titleBar.fontSize} onChange={fontSize => updateTitle({ fontSize })} /></label>
     <label className="studio-range-label">투명도 <b>{Math.round((titleBar.opacity ?? 1) * 100)}%</b><StudioSlider label="타이틀 바 투명도" min={0} max={1} step={0.01} value={titleBar.opacity ?? 1} onChange={opacity => updateTitle({ opacity })} /></label>
