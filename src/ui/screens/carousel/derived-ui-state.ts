@@ -4,7 +4,7 @@ export function showsBackgroundSection(slide: CarouselSlide | undefined): boolea
   return slide?.background.kind === "frame";
 }
 
-export function canReextractFrame(background: CarouselSlide["background"], sourceProjectExists: boolean): boolean {
+export function canReextractFrame(background: { kind: "generated" | "frame" }, sourceProjectExists: boolean): boolean {
   return background.kind === "frame" && sourceProjectExists;
 }
 

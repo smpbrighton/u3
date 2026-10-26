@@ -19,6 +19,8 @@ import { decideOverlayDrop } from "../studio/overlay-drop";
 import { VIDEO_TRACK_EDIT_GRID_SELECTOR } from "../studio/video-track-drop";
 import { timelineToStudioRows } from "../studio/timeline-adapter";
 import { TRACK_ROW_HEIGHT } from "../studio/timeline-layout";
+import { DerivedCarouselDialog } from "./carousel/DerivedCarouselDialog";
+import type { Carousel } from "../../core/carousel";
 import { findOverlayInLayers, placeOverlayAtLayer, placeOverlayInLowestLayer, updateOverlayInLayers } from "../../core/timeline/overlay-layers";
 import { canGroupVideoClips, groupVideoClips, selectVideoRange, ungroupVideoClips, type VideoClipRef } from "../../core/timeline/video-groups";
 import { timelineToRender } from "../../core/timeline/to-render";
@@ -38,6 +40,7 @@ export function Studio(props: {
   onBack: () => void;
   onSnackbar: (message: string) => void;
   onError: (message: string) => void;
+  onCarouselCreated: (carousel: Carousel) => void;
 }) {
   const [history, setHistory] = useState<TimelineHistory>(() => createHistory(props.project.timeline));
   const [playhead, setPlayhead] = useState(0);
@@ -50,6 +53,7 @@ export function Studio(props: {
   const [playing, setPlaying] = useState(false);
   const [recording, setRecording] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
+  const [createCarouselOpen, setCreateCarouselOpen] = useState(false);
   const [libraryDropGuide, setLibraryDropGuide] = useState<{ x: number; top: number; height: number } | null>(null);
   const timeline = history.present;
   const duration = useMemo(() => Math.max(0.1, videoDuration(timeline)), [timeline]);
@@ -261,6 +265,7 @@ export function Studio(props: {
     <header className="studio-header">
       <ActionButton className="studio-back-button" variant="ghost" aria-label="대본으로 돌아가기" onClick={props.onBack}><HugeiconsIcon icon={ArrowLeft01Icon} size={18} /></ActionButton>
       <strong className="studio-project-name">{props.project.name}</strong>
+      <ActionButton variant="neutralWeak" onClick={() => setCreateCarouselOpen(true)}>캐러셀 만들기</ActionButton>
       <ActionButton variant="neutralWeak" loading={saving} onClick={() => void save()}>저장</ActionButton>
       <ActionButton variant="brandSolid" onClick={() => void save().then(saved => { if (saved) setExportOpen(true); })}>mp4 내보내기</ActionButton>
     </header>
@@ -320,6 +325,7 @@ export function Studio(props: {
       }} onPlayhead={setPlayhead} onEdit={edit} onError={props.onError} onBlocked={props.onSnackbar} onZoomChange={setZoom} onMute={toggleMute} inputDurations={Object.fromEntries(props.project.inputs.map((input) => [input.id, input.durationSec ?? 1]))} />
     </div>
     {exportOpen ? <ExportDialog projectId={props.project.id} projectName={props.project.name} timelineLength={Math.max(duration, ...timeline.voice.map(clip => clip.startSec + clip.inEndSec - clip.inStartSec), ...timeline.sfx.map(clip => clip.startSec + clip.inEndSec - clip.inStartSec))} onClose={() => setExportOpen(false)} onSnackbar={props.onSnackbar} /> : null}
+    <DerivedCarouselDialog open={createCarouselOpen} projectId={props.project.id} onClose={() => setCreateCarouselOpen(false)} onCreated={props.onCarouselCreated} onError={props.onError} />
   </section>;
 }
 

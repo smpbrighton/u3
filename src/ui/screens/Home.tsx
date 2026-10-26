@@ -11,6 +11,8 @@ import { DialogRoot, DialogContent, DialogBody, DialogFooter } from "../../../se
 import { TextField, TextFieldInput } from "../../../seed-design/ui/text-field";
 import { projectThumbnailInput } from "./home-thumbnail";
 import { Icon } from "@seed-design/react";
+import { DerivedCarouselDialog } from "./carousel/DerivedCarouselDialog";
+import type { Carousel } from "../../core/carousel";
 
 const AlertDialog = { Root: AlertDialogRoot, Content: AlertDialogContent, Header: AlertDialogHeader, Title: AlertDialogTitle, Description: AlertDialogDescription, Footer: AlertDialogFooter, Action: AlertDialogAction };
 
@@ -46,6 +48,7 @@ export function Home(props: {
   onNew: (project: Project) => void;
   onOpen: (project: Project) => void;
   onSettings: () => void;
+  onCarouselCreated: (carousel: Carousel) => void;
 }) {
   const [projects, setProjects] = useState<Project[]>([]);
   const [thumbnails, setThumbnails] = useState<Record<string, string>>({});
@@ -54,6 +57,7 @@ export function Home(props: {
   const [editing, setEditing] = useState<Project | null>(null);
   const [name, setName] = useState("");
   const [openMenu, setOpenMenu] = useState<string | null>(null);
+  const [carouselProject, setCarouselProject] = useState<Project | null>(null);
 
   useEffect(() => {
     void api<Project[]>("GET", "/api/projects").then(async data => {
@@ -153,6 +157,7 @@ export function Home(props: {
                   <MenuTrigger asChild><ActionButton layout="iconOnly" variant="neutralWeak" aria-label={`${project.name} 메뉴`}><Icon svg={<HugeiconsIcon icon={MoreHorizontalIcon} size={20} />} /></ActionButton></MenuTrigger>
                   <MenuContent>
                     <MenuItem label="이름 바꾸기" onClick={() => { setEditing(project); setName(project.name); setOpenMenu(null); }} />
+                    {project.timeline.video.length > 0 && project.inputs.some(input => input.kind === "video") ? <MenuItem label="캐러셀 만들기" onClick={() => { setCarouselProject(project); setOpenMenu(null); }} /> : null}
                     <MenuItem label="삭제" onClick={() => { setDeleting(project); setOpenMenu(null); }} />
                   </MenuContent>
                 </MenuRoot>
@@ -182,6 +187,7 @@ export function Home(props: {
           <DialogFooter><ActionButton variant="neutralWeak" onClick={() => setEditing(null)}>취소</ActionButton><ActionButton variant="brandSolid" disabled={!name.trim()} onClick={() => void renameProject()}>저장</ActionButton></DialogFooter>
         </DialogContent>
       </DialogRoot>
+      {carouselProject ? <DerivedCarouselDialog open projectId={carouselProject.id} onClose={() => setCarouselProject(null)} onCreated={props.onCarouselCreated} onError={setError} /> : null}
     </section>
   );
 }

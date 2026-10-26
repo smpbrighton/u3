@@ -15,6 +15,7 @@ import { ActionButton } from "../../seed-design/ui/action-button";
 import { SideNavigationProvider, SideNavigationRoot, SideNavigationHeader, SideNavigationContent, SideNavigationGroup } from "../../seed-design/ui/side-navigation";
 import { SnackbarProvider, Snackbar, useSnackbarAdapter } from "../../seed-design/ui/snackbar";
 import { Carousels } from "./screens/Carousels";
+import type { Carousel } from "../core/carousel";
 
 type Screen = "home" | "input" | "script" | "studio" | "settings" | "carousel";
 type Connection = { port: number; token: string };
@@ -28,6 +29,8 @@ const NAVIGATION = [
 export function App() {
   const [screen, setScreen] = useState<Screen>("home");
   const [project, setProject] = useState<Project | null>(null);
+  const [carouselToOpen, setCarouselToOpen] = useState<Carousel | null>(null);
+  const openCarousel = useCallback((carousel: Carousel) => { setCarouselToOpen(carousel); setScreen("carousel"); }, []);
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [connection, setConnection] = useState<Connection | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -64,20 +67,21 @@ export function App() {
       setSnackbar("먼저 영상을 열어 주세요.");
       return;
     }
+    setCarouselToOpen(null);
     setScreen(target);
     setError(null);
   };
 
   const page = screen === "home" ? (
-    <Home status={status} onNew={openProject} onOpen={openProject} onSettings={() => go("settings")} />
+    <Home status={status} onNew={openProject} onOpen={openProject} onSettings={() => go("settings")} onCarouselCreated={openCarousel} />
   ) : screen === "input" && project ? (
     <Input project={project} onProject={setProject} onBack={() => go("home")} onNext={() => go("script")} onScript={() => go("script")} onStudio={() => go("studio")} onError={setSnackbar} />
   ) : screen === "script" && project ? (
     <Script project={project} status={status} onProject={setProject} onStudio={() => go("studio")} onBack={() => go("input")} onSnackbar={setSnackbar} onError={setSnackbar} />
   ) : screen === "studio" && project ? (
-    <Studio project={project} onProject={setProject} onBack={() => go("script")} onSnackbar={setSnackbar} onError={setSnackbar} />
+    <Studio project={project} onProject={setProject} onBack={() => go("script")} onSnackbar={setSnackbar} onError={setSnackbar} onCarouselCreated={openCarousel} />
   ) : screen === "carousel" ? (
-    <Carousels onSnackbar={setSnackbar} onError={setSnackbar} />
+    <Carousels initialCarousel={carouselToOpen} onSnackbar={setSnackbar} onError={setSnackbar} />
   ) : <Settings onSnackbar={setSnackbar} onError={setSnackbar} />;
 
   return (

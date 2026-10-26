@@ -1,8 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { CANVAS, type Box } from "../../core/geometry";
-import { limitBoxBelowTitleBar, moveNormalizedBox, resizeNormalizedBox, screenToNormalized, snapBoxToSafeZone, type NormalizedBox, type PreviewTarget, type ScreenRect } from "../../core/preview-geometry";
+import { limitBoxBelowTitleBar, moveNormalizedBox, screenToNormalized, snapBoxToSafeZone, type NormalizedBox, type PreviewTarget, type ScreenRect } from "../../core/preview-geometry";
 
-export type PreviewEditTarget = PreviewTarget & { kind: "overlay" | "caption-layer" | "watermark"; canResize: boolean };
+export type PreviewEditTarget = PreviewTarget & { kind: "overlay" | "caption-layer" | "watermark"; canResize: boolean; resizeProportionally?: boolean };
 
 export function PreviewEditLayer(props: {
   targets: readonly PreviewEditTarget[];
@@ -15,7 +15,7 @@ export function PreviewEditLayer(props: {
   onDragStart: () => void;
 }) {
   const layerRef = useRef<HTMLDivElement>(null);
-  const drag = useRef<{ id: string; kind: PreviewEditTarget["kind"]; start: { x: number; y: number }; box: NormalizedBox; resize: boolean; paused: boolean } | null>(null);
+  const drag = useRef<{ id: string; kind: PreviewEditTarget["kind"]; start: { x: number; y: number }; box: NormalizedBox; resize: boolean; resizeProportionally: boolean; paused: boolean } | null>(null);
   const [dragBox, setDragBox] = useState<{ id: string; box: NormalizedBox } | null>(null);
   const targets = props.targets;
   const activeBox = dragBox ? [dragBox] : [];
@@ -31,8 +31,12 @@ export function PreviewEditLayer(props: {
     if (!current || !rect) return;
     const point = screenToNormalized({ x: event.clientX, y: event.clientY }, rect);
     let box = current.resize
-      ? resizeNormalizedBox(current.box, event.clientX - current.start.x, rect.width)
+      ? (() => {
+        const maxWidth = current.resizeProportionally ? Math.min(1, current.box.width / current.box.height) : 1;
+        return { ...current.box, width: Math.max(0.05, Math.min(maxWidth, current.box.width + (event.clientX - current.start.x) / rect.width)) };
+      })()
       : moveNormalizedBox(current.box, point.x - screenToNormalized(current.start, rect).x, point.y - screenToNormalized(current.start, rect).y);
+    if (current.resize && current.resizeProportionally) box = { ...box, height: current.box.height * (box.width / current.box.width) };
     if (props.safeZone) {
       const pixelBox: Box = { x: box.x * CANVAS.width, y: box.y * CANVAS.height, width: box.width * CANVAS.width, height: box.height * CANVAS.height };
       const snapped = snapBoxToSafeZone(pixelBox);
@@ -57,7 +61,7 @@ export function PreviewEditLayer(props: {
     event.preventDefault();
     event.stopPropagation();
     props.onSelect(target.id, target.kind);
-    drag.current = { id: target.id, kind: target.kind, start: { x: event.clientX, y: event.clientY }, box: target.box, resize, paused: false };
+    drag.current = { id: target.id, kind: target.kind, start: { x: event.clientX, y: event.clientY }, box: target.box, resize, resizeProportionally: Boolean(target.resizeProportionally), paused: false };
     event.currentTarget.setPointerCapture(event.pointerId);
   }
 

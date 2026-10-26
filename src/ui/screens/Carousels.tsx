@@ -15,13 +15,16 @@ import { MoreHorizontalIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { Icon } from "@seed-design/react";
 import { api, carouselFileUrl, watchJobs } from "../api";
+import { PreviewEditLayer, type PreviewEditTarget } from "../studio/PreviewEditLayer";
+import { canReextractFrame, defaultHighlightBox, highlightRequestBody, showsBackgroundSection } from "./carousel/derived-ui-state";
+import { BackgroundSection } from "./carousel/BackgroundSection";
 
 type Candidate = { topic: string; angle: string };
 type Job = { projectId: string | null; kind: string; sceneIndex?: number | null; status: string };
 
-export function Carousels(props: { onSnackbar: (message: string) => void; onError: (message: string) => void }) {
+export function Carousels(props: { initialCarousel?: Carousel | null; onSnackbar: (message: string) => void; onError: (message: string) => void }) {
   const [items, setItems] = useState<Carousel[]>([]);
-  const [active, setActive] = useState<Carousel | null>(null);
+  const [active, setActive] = useState<Carousel | null>(props.initialCarousel ?? null);
   const [creating, setCreating] = useState(false);
   const [topic, setTopic] = useState("");
   const [count, setCount] = useState(5);
@@ -36,6 +39,7 @@ export function Carousels(props: { onSnackbar: (message: string) => void; onErro
 
   const reload = async () => setItems(await api<Carousel[]>("GET", "/api/carousels"));
   useEffect(() => { void reload().catch(error => props.onError(message(error))); }, []);
+  useEffect(() => { setActive(props.initialCarousel ?? null); }, [props.initialCarousel?.id]);
   useEffect(() => {
     const controller = new AbortController();
     void watchJobs(received => {
@@ -90,8 +94,8 @@ export function Carousels(props: { onSnackbar: (message: string) => void; onErro
     <header className="screen-header"><div><h1 id="carousel-title" className="screen-title">캐러셀</h1><p className="screen-subtitle">사진과 글로 넘겨 보는 게시물을 만들어요.</p></div><ActionButton variant="brandSolid" onClick={() => { setCreating(true); setTopic(""); setCount(5); }}>새 캐러셀</ActionButton></header>
     {items.length ? <div className="project-grid" aria-label="캐러셀 목록">{items.map(item => <div className="project-card" key={item.id}>
       <button type="button" className="project-card-open" aria-label={`${item.name} 열기`} onClick={() => void refreshActive(item.id)}>
-        <span className="project-thumb carousel-card-thumb" style={{ aspectRatio: `${carouselCanvasSize(item.aspect).width} / ${carouselCanvasSize(item.aspect).height}` }}>{item.slides.find(slide => slide.image)?.image ? <CarouselImage carouselId={item.id} file={item.slides.find(slide => slide.image)!.image!.file} /> : <span>{item.slides.length}장</span>}</span>
-        <span className="project-card-body"><span className="project-name">{item.name}</span><span className="project-meta">{item.slides.length}장 · {item.slides.filter(slide => slide.status === "done").length}장 완료</span></span>
+        <span className="project-thumb carousel-card-thumb" style={{ aspectRatio: `${carouselCanvasSize(item.aspect).width} / ${carouselCanvasSize(item.aspect).height}` }}>{item.slides.find(slide => slideImage(slide)) ? <CarouselImage carouselId={item.id} file={slideImage(item.slides.find(slide => slideImage(slide))!)!.file} /> : <span>{item.slides.length}장</span>}</span>
+        <span className="project-card-body"><span className="project-name">{item.name}{item.source.kind === "project" ? <span className="carousel-source-badge">영상에서</span> : null}</span><span className="project-meta">{item.slides.length}장 · {item.slides.filter(slide => slideStatus(slide) === "done").length}장 완료</span></span>
       </button>
       <div className="project-menu-wrap"><MenuRoot><MenuTrigger asChild><ActionButton layout="iconOnly" variant="neutralWeak" aria-label={`${item.name} 메뉴`}><Icon svg={<HugeiconsIcon icon={MoreHorizontalIcon} size={20} />} /></ActionButton></MenuTrigger><MenuContent>
         <MenuItem label="이름 바꾸기" onClick={() => { setRename(item); setName(item.name); }} /><MenuItem label="삭제" onClick={() => setDeleting(item)} />
@@ -117,20 +121,56 @@ function CarouselWorkspace(props: { carousel: Carousel; jobs: Job[]; onBack: () 
   const slide = props.carousel.slides.find(item => item.id === selectedId) ?? props.carousel.slides[0];
   const current = edited?.id === slide?.id ? edited : slide;
   const [imageUrl, setImageUrl] = useState("");
+  const [sourceAvailable, setSourceAvailable] = useState(props.carousel.source.kind !== "project");
+  const [sourceDuration, setSourceDuration] = useState(0);
+  const [boxSelected, setBoxSelected] = useState(true);
+  const [highlightChoice, setHighlightChoice] = useState<"none" | "border" | "dim" | "zoom" | "ai-outline">("border");
   const size = carouselCanvasSize(props.carousel.aspect);
-  const unfinished = props.carousel.slides.some(item => item.status !== "done" || !item.image);
+  const unfinished = props.carousel.slides.some(item => slideStatus(item) !== "done" || !slideImage(item));
   const selectedJob = props.jobs.find(job => job.projectId === props.carousel.id && job.sceneIndex === props.carousel.slides.findIndex(item => item.id === slide?.id));
 
-  useEffect(() => { setEdited(null); }, [slide?.id, slide?.title, slide?.body, slide?.textPlacement, slide?.imagePrompt]);
+  useEffect(() => { setEdited(null); }, [slide?.id, slide?.title, slide?.body, slide?.textPlacement, slide?.imagePrompt, slide?.background]);
+  useEffect(() => { setHighlightChoice(slide?.background.kind === "frame" ? slide.background.highlight?.style ?? "border" : "border"); }, [slide?.id, slide?.background]);
+  useEffect(() => {
+    let live = true;
+    if (props.carousel.source.kind !== "project") { setSourceAvailable(false); return; }
+    void api<{ timeline: { video: Array<{ durationSec?: number; inStartSec?: number; inEndSec?: number }> } }>("GET", `/api/projects/${encodeURIComponent(props.carousel.source.projectId)}`)
+      .then(project => { if (!live) return; setSourceAvailable(true); setSourceDuration(project.timeline.video.reduce((sum, clip) => sum + (clip.durationSec ?? Math.max(0, (clip.inEndSec ?? 0) - (clip.inStartSec ?? 0))), 0)); })
+      .catch(() => { if (live) { setSourceAvailable(false); setSourceDuration(0); } });
+    return () => { live = false; };
+  }, [props.carousel.source]);
   useEffect(() => {
     let active = true;
-    if (slide?.image) void carouselFileUrl(props.carousel.id, slide.image.file).then(url => { if (active) setImageUrl(url); });
+    const image = slide?.background.kind === "frame" ? (slide.background.highlight?.style === "ai-outline" ? slide.background.highlight.image : slide.background.frame) : slide?.background.image ?? slide?.image;
+    if (image) void carouselFileUrl(props.carousel.id, image.file).then(url => { if (active) setImageUrl(url); });
     else setImageUrl("");
     return () => { active = false; };
-  }, [props.carousel.id, slide?.image?.file]);
+  }, [props.carousel.id, slide?.image?.file, slide?.background]);
   async function persist(fields: Partial<Pick<Slide, "title" | "body" | "textPlacement" | "imagePrompt">>) {
     if (!slide) return;
     try { const updated = await api<Carousel>("PATCH", `/api/carousels/${props.carousel.id}/slides/${slide.id}`, fields); props.onUpdate(updated); setEdited(updated.slides.find(item => item.id === slide.id) ?? null); }
+    catch (error) { props.onError(message(error)); }
+  }
+  async function persistFrame(fields: { sec?: number; cropY?: number }) {
+    if (!slide || slide.background.kind !== "frame") return;
+    try {
+      const updated = await api<Carousel>("PATCH", `/api/carousels/${props.carousel.id}/slides/${slide.id}`, { background: fields });
+      props.onUpdate(updated);
+      setEdited(updated.slides.find(item => item.id === slide.id) ?? null);
+    } catch (error) { props.onError(message(error)); }
+  }
+  async function saveHighlight(patch: { style?: "border" | "dim" | "zoom" | "ai-outline"; target?: string; box?: import("../../core/carousel").CarouselBox; color?: string; width?: number }) {
+    if (!slide || slide.background.kind !== "frame") return;
+    const highlight = { ...slide.background.highlight, ...patch, style: patch.style ?? slide.background.highlight?.style ?? "border", target: patch.target ?? slide.background.highlight?.target ?? "" };
+    try {
+      const result = await api<Carousel | { job: unknown }>("POST", `/api/carousels/${props.carousel.id}/slides/${slide.id}/highlight`, highlightRequestBody(highlight));
+      if ("slides" in result) props.onUpdate(result);
+      else props.onSnackbar("AI 윤곽을 만들기 시작했어요.");
+    } catch (error) { props.onError(message(error)); }
+  }
+  async function reextractFrame() {
+    if (!slide || slide.background.kind !== "frame" || !canReextractFrame(slide.background, sourceAvailable)) return;
+    try { props.onUpdate(await api<Carousel>("POST", `/api/carousels/${props.carousel.id}/slides/${slide.id}/frame`, { sec: current?.background.kind === "frame" ? current.background.sec : slide.background.sec, cropY: slide.background.cropY })); }
     catch (error) { props.onError(message(error)); }
   }
   async function regenerate() {
@@ -158,19 +198,39 @@ function CarouselWorkspace(props: { carousel: Carousel; jobs: Job[]; onBack: () 
     await download(false);
   }
 
+  const currentFrame = current?.background.kind === "frame" ? current.background : null;
+  const savedFrame = slide?.background.kind === "frame" ? slide.background : null;
+  const box = savedFrame?.highlight?.box;
+  const editTargets: PreviewEditTarget[] = box ? [{ id: slide!.id, kind: "overlay", canResize: true, resizeProportionally: true, box: { x: box.left, y: box.top, width: box.right - box.left, height: box.bottom - box.top } }] : [];
+  const activeHighlightStyle = savedFrame?.highlight?.style ?? "border";
+
   return <section className="screen carousel-workspace" aria-label={`${props.carousel.name} 작업 화면`}>
     <header className="carousel-workspace-header"><div><ActionButton variant="neutralWeak" onClick={props.onBack}>캐러셀 목록</ActionButton><h1 className="screen-title">{props.carousel.name}</h1></div><div className="carousel-workspace-actions"><ActionButton variant="brandSolid" disabled={downloading} loading={downloading} onClick={() => void handleDownload()}>모두 받기</ActionButton>{props.jobs.some(job => job.projectId === props.carousel.id) ? <ActionButton variant="neutralWeak" onClick={() => void cancelAll()}>전체 취소</ActionButton> : null}</div></header>
     <div className="carousel-editor">
-      <aside className="carousel-slides" aria-label="캐러셀 장 목록">{props.carousel.slides.map((item, index) => <button type="button" key={item.id} aria-pressed={item.id === slide?.id} className="carousel-slide-choice" onClick={() => setSelectedId(item.id)}><span className="carousel-slide-thumb" style={{ aspectRatio: `${size.width} / ${size.height}` }}>{item.image ? <CarouselImage carouselId={props.carousel.id} file={item.image.file} /> : <span>{index + 1}</span>}</span><span className="carousel-slide-label">{index + 1}장 <small>{item.status === "idle" ? "대기" : item.status === "queued" ? "대기" : item.status === "running" ? "생성 중" : item.status === "done" ? "완료" : "실패"}</small></span></button>)}</aside>
-      <main className="carousel-preview-area"><div className="carousel-player" style={{ aspectRatio: `${size.width} / ${size.height}` }}>{slide && current ? <Player component={CarouselSlide} inputProps={{ imageUrl, title: current.title, body: current.body, textPlacement: current.textPlacement, aspect: props.carousel.aspect }} durationInFrames={1} fps={30} compositionWidth={size.width} compositionHeight={size.height} controls={false} style={{ width: "100%", height: "100%" }} /> : <p>장을 선택해 주세요.</p>}</div><p className="carousel-preview-caption">{slide ? `${props.carousel.aspect} · ${props.carousel.slides.findIndex(item => item.id === slide.id) + 1} / ${props.carousel.slides.length}장` : ""}</p></main>
+      <aside className="carousel-slides" aria-label="캐러셀 장 목록">{props.carousel.slides.map((item, index) => <button type="button" key={item.id} aria-pressed={item.id === slide?.id} className="carousel-slide-choice" onClick={() => setSelectedId(item.id)}><span className="carousel-slide-thumb" style={{ aspectRatio: `${size.width} / ${size.height}` }}>{slideImage(item) ? <CarouselImage carouselId={props.carousel.id} file={slideImage(item)!.file} /> : <span>{index + 1}</span>}</span><span className="carousel-slide-label">{index + 1}장 <small>{slideStatus(item) === "idle" || slideStatus(item) === "queued" ? "대기" : slideStatus(item) === "running" ? "생성 중" : slideStatus(item) === "done" ? "완료" : "실패"}</small></span></button>)}</aside>
+      <main className="carousel-preview-area"><div className="carousel-player" style={{ aspectRatio: `${size.width} / ${size.height}` }}>{slide && current ? <>
+        <Player component={CarouselSlide} inputProps={{ imageUrl, title: current.title, body: current.body, textPlacement: current.textPlacement, aspect: props.carousel.aspect, frameCropY: currentFrame?.cropY, highlight: highlightChoice === "none" || currentFrame?.highlight?.style === "ai-outline" ? undefined : currentFrame?.highlight as { style: "border" | "dim" | "zoom"; box?: import("../../core/carousel").CarouselBox; color?: string; width?: number } }} durationInFrames={1} fps={30} compositionWidth={size.width} compositionHeight={size.height} controls={false} style={{ width: "100%", height: "100%" }} />
+        {currentFrame && box && highlightChoice !== "none" ? <PreviewEditLayer targets={editTargets} selectedId={boxSelected ? slide.id : null} safeZone={false} onSelect={() => setBoxSelected(true)} onDragStart={() => undefined} onPreview={() => undefined} onCommit={(_id, next) => { const nextBox = { left: next.x, top: next.y, right: next.x + next.width, bottom: next.y + next.height }; void saveHighlight({ box: nextBox }); }} /> : null}
+        </> : <p>장을 선택해 주세요.</p>}</div><p className="carousel-preview-caption">{slide ? `${props.carousel.aspect} · ${props.carousel.slides.findIndex(item => item.id === slide.id) + 1} / ${props.carousel.slides.length}장` : ""}</p>
+        {currentFrame && !box && highlightChoice !== "none" ? <div className="carousel-box-empty"><p>{sourceAvailable ? "자동 상자를 찾지 못했어요. Jev가 꺼져 있거나 신뢰도가 낮아요." : "자동 상자를 찾지 못했어요. 상자를 직접 그려 주세요."}</p><ActionButton variant="neutralWeak" onClick={() => void saveHighlight({ box: defaultHighlightBox() })}>상자 그리기</ActionButton></div> : null}
+      </main>
       <aside className="carousel-inspector" aria-label="장 편집">{current ? <>
         <TextField label="제목" value={current.title} maxGraphemeCount={500} onValueChange={({ value }) => setEdited({ ...current, title: value })}><TextFieldInput maxLength={500} onBlur={() => void persist({ title: current.title })} /></TextField>
         <TextField label="본문" value={current.body} maxGraphemeCount={5000} onValueChange={({ value }) => setEdited({ ...current, body: value })}><TextFieldTextarea maxLength={5000} onBlur={() => void persist({ body: current.body })} /></TextField>
         <div className="carousel-placement"><span>텍스트 위치</span><SegmentedControl aria-label="텍스트 위치" value={current.textPlacement} onValueChange={value => { const textPlacement = value as Slide["textPlacement"]; setEdited({ ...current, textPlacement }); void persist({ textPlacement }); }}><SegmentedControlItem value="top">위</SegmentedControlItem><SegmentedControlItem value="center">가운데</SegmentedControlItem><SegmentedControlItem value="bottom">아래</SegmentedControlItem></SegmentedControl></div>
-        <TextField label="이미지 지시문" value={current.imagePrompt} maxGraphemeCount={4000} onValueChange={({ value }) => setEdited({ ...current, imagePrompt: value })}><TextFieldTextarea maxLength={4000} onBlur={() => void persist({ imagePrompt: current.imagePrompt })} /></TextField>
-        {current.status === "failed" ? <p className="carousel-error-reason">실패: {current.error ?? "이미지를 만들지 못했어요."}</p> : null}
+        {current.background.kind === "generated" ? <TextField label="이미지 지시문" value={current.imagePrompt} maxGraphemeCount={4000} onValueChange={({ value }) => setEdited({ ...current, imagePrompt: value })}><TextFieldTextarea maxLength={4000} onBlur={() => void persist({ imagePrompt: current.imagePrompt })} /></TextField> : null}
+        {showsBackgroundSection(current) && currentFrame ? <BackgroundSection
+          sec={currentFrame.sec} cropY={currentFrame.cropY} duration={sourceDuration} sourceAvailable={sourceAvailable} canReextract={canReextractFrame(currentFrame, sourceAvailable)}
+          style={activeHighlightStyle} target={currentFrame.highlight?.target ?? ""} color={currentFrame.highlight?.color ?? "#ffffff"} width={currentFrame.highlight?.width ?? 6} choice={highlightChoice}
+          onTime={sec => setEdited({ ...current, background: { ...currentFrame, sec } })}
+          onReextract={() => void reextractFrame()} onCropY={cropY => { setEdited({ ...current, background: { ...currentFrame, cropY } }); void persistFrame({ cropY }); }}
+          onStyle={style => { setHighlightChoice(style); if (style !== "none") void saveHighlight({ style }); }}
+          onTarget={target => { setEdited({ ...current, background: { ...currentFrame, highlight: { ...currentFrame.highlight, style: activeHighlightStyle, target } } }); }}
+          onTargetSave={target => void saveHighlight({ target })} onColor={color => void saveHighlight({ color })} onWidth={value => void saveHighlight({ width: value })} onAiCreate={() => void saveHighlight({ style: "ai-outline" })}
+        /> : null}
+        {current.status === "failed" && current.background.kind === "generated" ? <p className="carousel-error-reason">실패: {current.error ?? "이미지를 만들지 못했어요."}</p> : null}
         {selectedJob ? <p className="carousel-job-status">{selectedJob.status === "queued" ? "대기 중" : "이미지 생성 중"}</p> : null}
-        <ActionButton variant="neutralSolid" disabled={!current.imagePrompt.trim() || Boolean(selectedJob)} onClick={() => void regenerate()}>다시 만들기</ActionButton>
+        {current.background.kind === "generated" ? <ActionButton variant="neutralSolid" disabled={!current.imagePrompt.trim() || Boolean(selectedJob)} onClick={() => void regenerate()}>다시 만들기</ActionButton> : null}
       </> : null}</aside>
     </div>
     <AlertDialogRoot open={confirmIncomplete} onOpenChange={open => { if (!open) setConfirmIncomplete(false); }}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>완료한 장만 받을까요?</AlertDialogTitle><AlertDialogDescription>완료되지 않은 장은 빼고, 완료한 장부터 01번으로 저장합니다.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><ActionButton variant="neutralWeak" onClick={() => setConfirmIncomplete(false)}>취소</ActionButton><AlertDialogAction asChild><ActionButton variant="brandSolid" onClick={() => void download(true)}>완료한 장 받기</ActionButton></AlertDialogAction></AlertDialogFooter></AlertDialogContent></AlertDialogRoot>
@@ -178,6 +238,16 @@ function CarouselWorkspace(props: { carousel: Carousel; jobs: Job[]; onBack: () 
 }
 
 function message(error: unknown) { return error instanceof Error ? error.message : String(error); }
+
+function slideStatus(slide: Slide): Slide["status"] {
+  return slide.background.kind === "frame" ? slide.background.status : slide.status;
+}
+
+function slideImage(slide: Slide) {
+  return slide.background.kind === "frame"
+    ? (slide.background.highlight?.style === "ai-outline" ? slide.background.highlight.image : slide.background.frame)
+    : slide.background.image ?? slide.image;
+}
 
 function CarouselImage(props: { carouselId: string; file: string }) {
   const [url, setUrl] = useState("");
