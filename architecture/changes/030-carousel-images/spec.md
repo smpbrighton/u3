@@ -7,8 +7,8 @@ Source: intent.md (accepted). Status: accepted.
 - 장 수: 2~10장, 기본 5장. 이유: 사용자가 최대 10장을 말했고, 1장은 캐러셀이 아니다.
 - 비율: 설정의 이미지 옵션에서 4:5(1080×1350, 기본)와 1:1(1080×1080) 중 고른다. 캐러셀마다 만들 때의 값을 저장한다.
 - 텍스트: 이미지에 그려 넣지 않는다. 이미지는 글자 없는 배경으로 만들고, 제목·본문을 그 위에 얹는다. 이유: 텍스트를 고칠 때 이미지를 다시 만들지 않는다. 한글이 깨지지 않는다.
-- 동시 실행 수: 설정에서 1~10, 기본 3. 실패한 장은 그 장만 「다시 만들기」로 재시도한다. 이유: 이미지 한 장에 1~5분이 걸리고 구독 메시지 한도를 쓴다. 10개 동시 실행은 한도와 메모리 부담이 크다. 최종 값은 실제 시험으로 다음 단계에서 정한다.
-- 받기 형식: 사용자가 고른 폴더에 `<캐러셀 이름>/01.png … NN.png` 를 쓴다(텍스트를 합성한 최종 이미지). 이유: 게시 앱에 바로 올릴 수 있고 압축을 풀 필요가 없다.
+- 동시 실행 수: 설정에서 1~10, 기본 3(0015). 실패한 장은 그 장만 「다시 만들기」로 재시도한다. 이유: 이미지 한 장에 1~5분이 걸리고 구독 메시지 한도를 쓴다. 10개 동시 실행은 한도와 메모리 부담이 크다. 시험 결과로 기본값을 바꾸려면 0015 를 대체한다.
+- 받기 형식: 사용자가 고른 폴더에 `<캐러셀 이름>/01.png … NN.png` 를 쓴다(텍스트를 합성한 최종 이미지). 번호는 받는 장만 01 부터 다시 매긴다. 폴더 이름은 캐러셀 이름에서 `/ \ :` 와 제어 문자를 `-` 로 바꾸고 앞뒤 공백을 지운다. 비면 「캐러셀」을 쓴다. 이유: 게시 앱에 바로 올릴 수 있고 압축을 풀 필요가 없다.
 - 목록: 캐러셀을 저장하고 캐러셀 화면에 목록으로 보인다. 이름 바꾸기·삭제는 홈 영상 카드와 같은 Menu 를 쓴다.
 
 ## 요구사항
@@ -25,16 +25,18 @@ Source: intent.md (accepted). Status: accepted.
 11. codex 를 쓸 수 없거나(설치·로그인) 이미지 생성이 실패하면 이유를 장마다 보인다.
 
 ## 설계
-- 데이터(core): `Carousel { id, name, topic, refinedTopic?, aspect: "4:5" | "1:1", style, slides: Slide[], createdAt, savedAt }`, `Slide { id, title, body, textPlacement, imagePrompt, image?: { file, version }, status, error? }`. 저장은 `<data>/carousels/<id>/carousel.json` 과 `images/<slideId>-<version>.png`. 프로젝트 저장소(store)와 같은 방식으로 원자적 쓰기를 한다.
-- 이미지 생성(engine): codex 의 내장 image_gen 을 `codex exec`(작업 폴더 격리, `-i` 참고 이미지 없음)로 부른다. 프롬프트에 이미지 모델·퀄리티·크기·「글자 없음」과 저장 경로를 넣고, 결과 PNG 가 없으면 codex 세션의 generated_images 폴더에서 찾는다(/smp:gpt-image 래퍼와 같은 방식, 코드는 U3 엔진 안에 둔다). 결과는 sharp 로 비율에 맞게 잘라 저장한다. 동시 실행은 엔진 큐(동시 수 = 설정 값)가 맡는다. 취소하면 프로세스 그룹을 끝내고 부분 파일을 지운다.
-- 기획·다듬기(engine): 대본 생성과 같은 codex 실행기와 모델·effort 설정(0009)을 쓴다. 출력 스키마(zod → JSON schema)로 받는다.
-- 합성: 미리보기와 받기는 같은 Remotion 컴포넌트(`CarouselSlide`, Pretendard)를 쓴다. 받기는 renderStill 로 장마다 PNG 를 만든다.
-- API: `GET/POST /api/carousels`, `GET/PUT/DELETE /api/carousels/:id`, `POST /api/carousels/refine`, `POST /api/carousels/:id/plan`, `POST /api/carousels/:id/generate`(전체·장 지정), `POST /api/carousels/:id/cancel`, `POST /api/carousels/:id/download {dir}`, `GET /api/carousels/:id/files/*`. 진행은 기존 jobs·events 를 쓴다. 사용량 기록에 codex 호출을 남긴다.
+- 데이터(core): `Carousel { id, name, topic, refinedTopic?, aspect: "4:5" | "1:1", style, slides: Slide[], createdAt, savedAt }`, `Slide { id, title, body, textPlacement, imagePrompt, image?: { file, version }, status, error? }`. 저장은 `<data>/carousels/<id>/carousel.json` 과 `images/<slideId>-<version>.png`. 프로젝트 저장소(store)와 같은 방식으로 키 잠금과 원자적 쓰기를 한다. 엔진만 `image`·`status`·`error` 를 쓴다. 화면의 저장 요청은 이 세 필드를 받지 않고, 엔진이 잠금 안에서 최신 파일에 병합한다. 새 버전 이미지가 성공하면 이전 버전 파일을 지운다.
+- 작업 상태 복구: 캐러셀을 읽을 때 활성 작업이 없는 「대기」·「생성 중」 장을 「실패(앱이 닫혀 중단됨)」로 바꾼다. 생성 중인 캐러셀의 삭제는 거부한다(프로젝트의 `hasActiveForProject` 와 같은 방식).
+- 이미지 생성(engine): codex 의 내장 image_gen 을 `codex exec`(장마다 격리한 임시 작업 폴더, `-i` 참고 이미지 없음)로 부른다. 대본 실행 인자와 다른 묶음을 쓴다: 작업 폴더 한정 쓰기 샌드박스, 셸 허용, 이미지 생성 켬. codex 모델·effort 는 대본 설정을 쓴다. 프롬프트에 이미지 모델·퀄리티·요청 크기(4:5 는 1024×1280, 1:1 은 1024×1024)·「글자 없음」과 저장 경로를 넣는다. 결과 PNG 가 작업 폴더에 없으면 `--json` 이벤트에서 읽은 그 실행의 session id 로 `$CODEX_HOME/generated_images/<session id>/` 에서만 찾는다. session id 를 못 읽으면 실패로 처리하고 전체 폴더를 뒤지지 않는다. `--ephemeral` 에서 그림 폴더가 남는지는 첫 구현 단위에서 실제로 확인하고, 남지 않으면 이미지 작업에는 `--ephemeral` 을 쓰지 않는다. 결과는 PNG 시그니처와 크기를 검사하고, 엔진의 ffmpeg 로 비율에 맞게 가운데를 잘라 1080 폭으로 맞춰 저장한다(새 네이티브 의존성을 넣지 않는다). 동시 실행은 이미지 전용 큐(동시 수 = 설정 값)가 맡는다. 기존 작업 큐(대본·렌더·음성 분리)의 동시 수는 바꾸지 않는다. 취소하면 프로세스 그룹을 끝내고 부분 파일을 지운다. codex 의 `generated_images` 는 사용자 codex 데이터이므로 지우지 않는다. intent 의 쓰기 제약은 앱 자신의 쓰기를 뜻한다.
+- 기획·다듬기(engine): 대본 생성의 codex 실행기를 출력 스키마를 인자로 받게 일반화해서 쓴다. 모델·effort 는 대본 설정(0009)을 쓴다. 설정의 대본 프롬프트(031)는 넣지 않고 기획·다듬기는 각자 고정 지시문을 쓴다. 출력 스키마(zod → JSON schema)로 받는다.
+- 합성: 미리보기와 받기는 같은 Remotion 컴포넌트(`CarouselSlide`, Pretendard)를 쓴다. `src/remotion/Root.tsx` 에 Composition 으로 등록한다. 받기는 renderStill 로 장마다 PNG 를 만든다. 미디어 서버에 `carousels` 루트를 더해 미리보기와 renderStill 이 이미지를 URL 로 읽는다.
+- 구현 시작 전에 이 워크트리를 main(031 포함)에 rebase 한다.
+- API: `GET/POST /api/carousels`, `GET/PUT/DELETE /api/carousels/:id`(PUT 은 이름·주제만), `PATCH /api/carousels/:id/slides/:slideId`(제목·본문·텍스트 위치·이미지 지시문), `GET/PUT /api/system/image-options`, `POST /api/carousels/refine`, `POST /api/carousels/:id/plan`, `POST /api/carousels/:id/generate`(전체·장 지정), `POST /api/carousels/:id/cancel`, `POST /api/carousels/:id/download {dir}`, `GET /api/carousels/:id/files/*`. 진행은 기존 jobs·events 를 쓴다. 사용량 기록에 codex 호출을 남긴다.
 - 화면(SEED): 캐러셀 목록(카드 격자, 홈과 같은 카드), 작업 화면(왼쪽 장 목록 썸네일, 가운데 미리보기, 오른쪽 장 편집: 제목·본문 TextField, 위치 Segmented 또는 RadioGroup, 이미지 지시문, 「다시 만들기」). 위쪽에 「모두 받기」(화면의 brandSolid 하나). 설정에 「이미지 생성」 카드(Select·Slider).
 
 ## 결정
 - 범위에 캐러셀을 넣는다. 0003 을 대체한다 → [0014](../../decisions/0014-core-scope-carousel.md)
-- 캐러셀 이미지는 codex 내장 image_gen 으로 만들고, 글자는 이미지 위에 얹으며, 옵션은 설정에서 고른다 → [0015](../../decisions/0015-carousel-codex-image-gen.md)
+- 캐러셀 이미지는 codex 내장 image_gen 으로 만들고, 글자는 이미지 위에 얹으며, 옵션은 설정에서 고른다 → [0015](../../decisions/0015-carousel-codex-image-gen.md). 0009(원격 AI 는 codex·Jev)의 범위 안에서 codex 쓰임을 더한다.
 
 ## 우려 사항
 - codex 내장 image_gen 은 codex CLI 의 문서화된 공개 인터페이스가 아니다. 프롬프트로 도구 사용을 요구하고 결과 파일을 찾는 방식이라 codex 업데이트로 깨질 수 있다. 정책 소유자: 개발자(sumin.p). 추천: 이 방식으로 가되 실행 전 `codex login status` 확인, 결과 파일 검사(PNG 시그니처·크기), 실패 이유 표시를 넣는다. 이유: API 키를 쓰지 않는 다른 길이 없다(0009).
@@ -43,5 +45,5 @@ Source: intent.md (accepted). Status: accepted.
 
 ## 검증 기준
 - `pnpm verify` 가 종료 코드 0 이고 마지막 줄이 `✓ verify passed` 다.
-- 테스트(vitest, 가짜 codex): 캐러셀 스키마·저장소 왕복, 기획 결과 검증, 동시 실행 큐가 설정 값을 넘지 않음, 장별 재생성이 다른 장을 바꾸지 않음, 텍스트 수정이 이미지 버전을 바꾸지 않음, 받기 파일 이름·폴더 충돌 처리, 이미지 옵션 설정의 저장·검증.
+- 테스트(vitest, 가짜 codex): 캐러셀 스키마·저장소 왕복, 기획 결과 검증, 동시 실행 큐가 설정 값을 넘지 않음, 장별 재생성이 다른 장을 바꾸지 않음, 텍스트 수정이 이미지 버전을 바꾸지 않음, 받기 파일 이름·폴더 충돌 처리·번호 다시 매기기, 이미지 옵션 설정의 저장·검증, 화면 저장이 엔진의 이미지 결과를 되돌리지 않음, 다시 열 때 중단된 장이 실패로 바뀜, session id 없는 결과 되찾기가 실패함.
 - 실제 확인(개발자 1회): 실제 codex 로 3장 캐러셀을 만들고, 1장을 다시 만들고, 텍스트를 고치고, 모두 받기로 PNG 3장이 생긴 것을 캡처로 남긴다.
