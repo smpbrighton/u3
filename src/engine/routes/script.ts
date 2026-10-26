@@ -137,8 +137,10 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
         voice,
       });
       let reviewed: ReturnType<typeof reviewScriptResult>;
+      let reviewResult: CodexScript | null = null;
       try {
         const review = await runAndRecord(reviewPrompt, preparedImages.length ? preparedImages : request.images);
+        reviewResult = review.output;
         reviewed = reviewScriptResult(draft, review.output);
       } catch (error) {
         reviewed = reviewScriptResult(draft, null, error instanceof Error ? `자막 검수에 실패해 초안을 사용했습니다: ${error.message}` : "자막 검수에 실패해 초안을 사용했습니다.");
@@ -147,7 +149,7 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
       await mkdir(context.store.projectDir(project.id), { recursive: true });
       await writeFile(path.join(context.store.projectDir(project.id), "script.json"), `${JSON.stringify(script, null, 2)}\n`);
       progress(1, "대본 추천 완료");
-      return { script, draft, reviewWarning: reviewed.warning, transcriptWarnings: result.transcriptWarnings };
+      return { script, draft, reviewResult, reviewWarning: reviewed.warning, transcriptWarnings: result.transcriptWarnings };
     });
     return c.json(job, 202);
   });
