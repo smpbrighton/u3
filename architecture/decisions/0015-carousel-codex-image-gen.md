@@ -1,6 +1,6 @@
 # 0015 캐러셀 이미지: codex 내장 image_gen, 글자는 위에 얹음, 옵션은 설정
 
-Status: accepted
+Status: superseded-by 0019
 Source: changes/030-carousel-images/spec.md
 
 ## 맥락
