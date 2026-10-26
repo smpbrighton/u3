@@ -73,7 +73,9 @@ describe("timelineFromScript", () => {
     expect(timeline.video).toHaveLength(1);
     expect(timeline.video[0] && "inStartSec" in timeline.video[0] && "inEndSec" in timeline.video[0]
       ? timeline.video[0].inEndSec - timeline.video[0].inStartSec : null).toBeCloseTo(4.88);
-    expect(timeline.captions.map(({ startSec, endSec }) => [startSec, endSec])).toEqual([[0, 2.1], [2.1, 4.88]]);
+    expect(timeline.captions[0]).toMatchObject({ startSec: 0, endSec: 2.1 });
+    expect(timeline.captions[1]?.startSec).toBeCloseTo(2.1);
+    expect(timeline.captions[1]?.endSec).toBeCloseTo(4.88);
   });
 
   it("reaction null 장면에 연결한 짤은 overlays에 두고 영상 길이를 늘리지 않는다", () => {
