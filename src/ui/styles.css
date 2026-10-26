@@ -197,9 +197,9 @@ input::placeholder, textarea::placeholder { color: var(--seed-color-palette-gray
 .settings-actions { margin-top: var(--seed-dimension-x4); }
 .script-prompt-card .settings-section-title { margin-bottom: var(--seed-dimension-x4); }
 .script-prompt-input { min-height: 180px; }
-.script-prompt-rules { margin-top: var(--seed-dimension-x5); padding-top: var(--seed-dimension-x4); border-top: 1px solid var(--seed-color-palette-gray-200); }
-.script-prompt-rules h3 { margin: 0; font-size: 14px; }
-.script-prompt-rules ul { display: grid; gap: var(--seed-dimension-x2); margin: var(--seed-dimension-x3) 0 0; padding-left: 20px; color: var(--seed-color-palette-gray-700); font-size: 12px; line-height: 1.5; }
+.script-voice-fields { display: grid; gap: var(--seed-dimension-x5); margin-top: var(--seed-dimension-x6); }
+.script-voice-field { display: grid; gap: var(--seed-dimension-x2); }
+.script-voice-input { min-height: 120px; }
 .settings-section-title { margin-bottom: var(--seed-dimension-x4); }
 .model-row { display: flex; align-items: center; justify-content: space-between; gap: 18px; padding: var(--seed-dimension-x4) 0; border-top: 1px solid var(--seed-color-palette-gray-200); }
 .model-row h3 { margin: 0; font-size: 14px; }

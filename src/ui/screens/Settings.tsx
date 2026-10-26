@@ -8,6 +8,7 @@ import { TextField, TextFieldTextarea } from "../../../seed-design/ui/text-field
 import { api, watchJob, watchJobs, type EngineJob } from "../api";
 import type { SystemStatus } from "../types";
 import { DEFAULT_SCRIPT_PROMPT } from "../../core/script-prompt";
+import { DEFAULT_SCRIPT_REVIEW_PROMPT } from "../../core/script-review";
 
 type ModelStatus = {
   bgeM3: { available: boolean; ranking: "embedding" | "rules" };
@@ -17,6 +18,9 @@ type ModelStatus = {
 type CodexModel = { slug: string; displayName: string; efforts: string[] };
 type CodexModelCatalog = { source: "codex-cli" | "fallback"; models: CodexModel[] };
 type ScriptPromptSettings = { prompt: string; isDefault: boolean; rulesPreview: string };
+type ScriptVoiceField = "speaker" | "tone" | "persona" | "review";
+type ScriptVoiceSettings = Record<ScriptVoiceField, string>;
+const DEFAULT_SCRIPT_VOICE: ScriptVoiceSettings = { speaker: "", tone: "", persona: "", review: DEFAULT_SCRIPT_REVIEW_PROMPT };
 
 export function Settings(props: { onSnackbar: (message: string) => void; onError: (message: string) => void }) {
   const [status, setStatus] = useState<SystemStatus | null>(null);
@@ -28,9 +32,12 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
   const [codexSettings, setCodexSettings] = useState({ model: "gpt-6-luna", effort: "medium" });
   const [scriptPrompt, setScriptPrompt] = useState(DEFAULT_SCRIPT_PROMPT);
   const [savedScriptPrompt, setSavedScriptPrompt] = useState(DEFAULT_SCRIPT_PROMPT);
-  const [scriptPromptRules, setScriptPromptRules] = useState<string[]>([]);
   const [scriptPromptLoading, setScriptPromptLoading] = useState(true);
   const [scriptPromptSaving, setScriptPromptSaving] = useState(false);
+  const [scriptVoice, setScriptVoice] = useState<ScriptVoiceSettings>(DEFAULT_SCRIPT_VOICE);
+  const [savedScriptVoice, setSavedScriptVoice] = useState<ScriptVoiceSettings>(DEFAULT_SCRIPT_VOICE);
+  const [scriptVoiceLoading, setScriptVoiceLoading] = useState(true);
+  const [scriptVoiceSaving, setScriptVoiceSaving] = useState<Partial<Record<ScriptVoiceField, boolean>>>({});
 
   const refresh = useCallback(async () => {
     setChecking(true);
@@ -44,7 +51,10 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
         api<ScriptPromptSettings>("GET", "/api/system/script-prompt").then(value => {
           setScriptPrompt(value.prompt);
           setSavedScriptPrompt(value.prompt);
-          setScriptPromptRules(value.rulesPreview.split("\n"));
+        }),
+        api<ScriptVoiceSettings>("GET", "/api/system/script-voice").then(value => {
+          setScriptVoice(value);
+          setSavedScriptVoice(value);
         }),
       ]);
       const failed = results.find(result => result.status === "rejected");
@@ -54,6 +64,7 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
     } finally {
       setChecking(false);
       setScriptPromptLoading(false);
+      setScriptVoiceLoading(false);
     }
   }, []);
 
@@ -130,13 +141,33 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
       const saved = await api<ScriptPromptSettings>("PUT", "/api/system/script-prompt", { prompt: scriptPrompt });
       setScriptPrompt(saved.prompt);
       setSavedScriptPrompt(saved.prompt);
-      setScriptPromptRules(saved.rulesPreview.split("\n"));
       props.onSnackbar("대본 프롬프트를 저장했어요");
     } catch (reason) {
       props.onError(reason instanceof Error ? reason.message : String(reason));
     } finally {
       setScriptPromptSaving(false);
     }
+  }
+
+  async function saveScriptVoiceField(field: ScriptVoiceField, value = scriptVoice[field]) {
+    const next = { ...scriptVoice, [field]: value };
+    setScriptVoiceSaving(current => ({ ...current, [field]: true }));
+    try {
+      const saved = await api<ScriptVoiceSettings>("PUT", "/api/system/script-voice", next);
+      setScriptVoice(saved);
+      setSavedScriptVoice(saved);
+      props.onSnackbar(`${scriptVoiceLabel(field)} 설정을 저장했어요`);
+    } catch (reason) {
+      props.onError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setScriptVoiceSaving(current => ({ ...current, [field]: false }));
+    }
+  }
+
+  function resetScriptVoiceField(field: ScriptVoiceField) {
+    const value = field === "review" ? DEFAULT_SCRIPT_REVIEW_PROMPT : "";
+    setScriptVoice(current => ({ ...current, [field]: value }));
+    void saveScriptVoiceField(field, value);
   }
 
   return (
@@ -190,9 +221,22 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
           <ActionButton variant="neutralWeak" disabled={scriptPromptLoading || scriptPromptSaving || scriptPrompt === DEFAULT_SCRIPT_PROMPT} onClick={() => setScriptPrompt(DEFAULT_SCRIPT_PROMPT)}>기본값으로 되돌리기</ActionButton>
           <ActionButton variant="brandSolid" disabled={scriptPromptLoading || scriptPromptSaving || scriptPrompt === savedScriptPrompt} loading={scriptPromptSaving} onClick={() => void saveScriptPrompt()}>저장</ActionButton>
         </div>
-        <div className="script-prompt-rules" aria-labelledby="script-prompt-rules-title">
-          <h3 id="script-prompt-rules-title">앱이 항상 덧붙이는 규칙</h3>
-          <ul>{scriptPromptRules.map((rule, index) => <li key={index}>{rule}</li>)}</ul>
+        <div className="script-voice-fields">
+          {(["speaker", "tone", "persona", "review"] as const).map(field => <div className="script-voice-field" key={field}>
+            <TextField
+              label={scriptVoiceLabel(field)}
+              description={field === "review" ? "대본을 검수할 때 적용할 지시문이에요." : "비워 두면 언어집에서 AI가 선택해요."}
+              maxGraphemeCount={4000}
+              value={scriptVoice[field]}
+              onValueChange={({ value }) => setScriptVoice(current => ({ ...current, [field]: value }))}
+            >
+              <TextFieldTextarea className="script-voice-input" maxLength={4000} disabled={scriptVoiceLoading || Boolean(scriptVoiceSaving[field])} />
+            </TextField>
+            <div className="action-row settings-actions">
+              <ActionButton variant="neutralWeak" disabled={scriptVoiceLoading || Boolean(scriptVoiceSaving[field]) || scriptVoice[field] === (field === "review" ? DEFAULT_SCRIPT_REVIEW_PROMPT : "")} onClick={() => resetScriptVoiceField(field)}>기본값으로 되돌리기</ActionButton>
+              <ActionButton variant="brandSolid" disabled={scriptVoiceLoading || Boolean(scriptVoiceSaving[field]) || scriptVoice[field] === savedScriptVoice[field]} loading={Boolean(scriptVoiceSaving[field])} onClick={() => void saveScriptVoiceField(field)}>저장</ActionButton>
+            </div>
+          </div>)}
         </div>
       </section>
       <section className="section-card settings-row" aria-labelledby="jev-title"><h2 id="jev-title">Jev 짤 판정</h2><span className={`status-label ${status?.jev.available ? "is-ready" : "is-warning"}`}>{status?.jev.available ? "연결됨" : "연결 안 됨"}</span></section>
@@ -207,6 +251,10 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
       </section>
     </section>
   );
+}
+
+function scriptVoiceLabel(field: ScriptVoiceField): string {
+  return ({ speaker: "화자", tone: "말투", persona: "성격", review: "자막 검수" })[field];
 }
 
 function ModelSelect(props: { label: string; value: string; items: Array<{ value: string; label: string }>; onChange: (value: string) => void }) {

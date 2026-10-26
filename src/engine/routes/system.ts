@@ -7,6 +7,7 @@ import { parseJson } from "../http";
 import { codexLoginStatus } from "../pipeline/codex-path";
 import { readUsage } from "../pipeline/usage";
 import { DEFAULT_SCRIPT_PROMPT } from "../../core/script-prompt";
+import { DEFAULT_SCRIPT_REVIEW_PROMPT } from "../../core/script-review";
 import { formatScriptInputGuidePreview } from "../pipeline/script-validation";
 import { ImageQueue } from "../image-queue";
 
@@ -79,6 +80,32 @@ export function registerSystemRoutes(app: Hono, context: AppContext): void {
     await context.store.saveSettings(settings);
     const savedPrompt = prompt || DEFAULT_SCRIPT_PROMPT;
     return c.json({ prompt: savedPrompt, isDefault: savedPrompt === DEFAULT_SCRIPT_PROMPT, rulesPreview: formatScriptInputGuidePreview() });
+  });
+
+  app.get("/api/system/script-voice", async c => {
+    const settings = await context.store.readSettings();
+    return c.json({
+      speaker: typeof settings.scriptSpeaker === "string" ? settings.scriptSpeaker : "",
+      tone: typeof settings.scriptTone === "string" ? settings.scriptTone : "",
+      persona: typeof settings.scriptPersona === "string" ? settings.scriptPersona : "",
+      review: typeof settings.scriptReview === "string" && settings.scriptReview.trim() ? settings.scriptReview : DEFAULT_SCRIPT_REVIEW_PROMPT,
+    });
+  });
+
+  app.put("/api/system/script-voice", async c => {
+    const value = await parseJson(c, z.object({
+      speaker: z.string().max(4000), tone: z.string().max(4000),
+      persona: z.string().max(4000), review: z.string().max(4000),
+    }));
+    const settings = await context.store.readSettings();
+    await context.store.saveSettings({
+      ...settings,
+      scriptSpeaker: value.speaker,
+      scriptTone: value.tone,
+      scriptPersona: value.persona,
+      scriptReview: value.review,
+    });
+    return c.json({ ...value, review: value.review.trim() ? value.review : DEFAULT_SCRIPT_REVIEW_PROMPT });
   });
 
   app.put("/api/system/codex-settings", async c => {
