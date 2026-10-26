@@ -10,7 +10,7 @@ const roots: string[] = [];
 afterEach(async () => Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))));
 const headers = { authorization: "Bearer test-token", "content-type": "application/json" };
 
-async function appAt() {
+async function appAt(composeCarouselSlide?: (carousel: import("../../src/core/carousel").Carousel, slide: import("../../src/core/carousel").CarouselSlide, destination: string) => Promise<void>) {
   const root = await mkdtemp(path.join(os.tmpdir(), "u3-carousels-api-")); roots.push(root);
   const store = new Store(root); await store.init();
   const jobs = new Jobs();
@@ -20,6 +20,7 @@ async function appAt() {
       plan: async ({ topic, count }: { topic: string; count: number }) => ({ style: "수채화", slides: Array.from({ length: count }, (_, i) => ({ title: `제목 ${i + 1}`, body: `본문 ${i + 1}`, imagePrompt: `이미지 ${i + 1}` })), topic, usage: {} }),
       generateImage: async () => Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
     },
+    composeCarouselSlide,
   });
   return { app, store, jobs };
 }
@@ -56,5 +57,22 @@ describe("carousels API", () => {
     const response = await app.request("http://127.0.0.1/api/carousels/refine", { method: "POST", headers, body: JSON.stringify({ topic: "바다" }) });
     expect(response.status).toBe(200);
     expect((await response.json() as { candidates: unknown[] }).candidates).toHaveLength(3);
+  });
+
+  it("downloads only completed slides in slide order through the composer", async () => {
+    const composed: string[] = [];
+    const { app, jobs } = await appAt(async (_carousel, slide, destination) => {
+      composed.push(`${slide.id}:${destination}`);
+    });
+    const createdResponse = await app.request("http://127.0.0.1/api/carousels", { method: "POST", headers, body: JSON.stringify({ name: "받기", topic: "바다", slideCount: 3 }) });
+    const created = await createdResponse.json() as { id: string };
+    await app.request(`http://127.0.0.1/api/carousels/${created.id}/plan`, { method: "POST", headers, body: "{}" });
+    const generation = await app.request(`http://127.0.0.1/api/carousels/${created.id}/generate`, { method: "POST", headers, body: JSON.stringify({ slideIds: ["slide-1", "slide-3"] }) });
+    const { jobs: started } = await generation.json() as { jobs: Array<{ id: string }> };
+    await Promise.all(started.map(job => jobs.wait(job.id)));
+    const download = await app.request(`http://127.0.0.1/api/carousels/${created.id}/download`, { method: "POST", headers, body: JSON.stringify({ dir: path.join(roots[0]!, "receive") }) });
+    expect(download.status).toBe(200);
+    expect(composed.map(item => item.split(":")[0])).toEqual(["slide-1", "slide-3"]);
+    expect(composed.map(item => path.basename(item))).toEqual(["01.png", "02.png"]);
   });
 });

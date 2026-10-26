@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { Carousel, carouselFolderName, nextCarouselFolderName, receivedSlideFileName } from "../../src/core/carousel";
+import { carouselCanvasSize, textPlacementStyle } from "../../src/remotion/carousel-layout";
 
 const example = {
   id: "carousel-1",
@@ -36,5 +37,18 @@ describe("carousel receive names", () => {
 
   it("numbers only received slides from 01", () => {
     expect([receivedSlideFileName(0), receivedSlideFileName(1)]).toEqual(["01.png", "02.png"]);
+  });
+});
+
+describe("carousel composition layout", () => {
+  it("maps the supported aspects to the export canvas dimensions", () => {
+    expect(carouselCanvasSize("4:5")).toEqual({ width: 1080, height: 1350 });
+    expect(carouselCanvasSize("1:1")).toEqual({ width: 1080, height: 1080 });
+  });
+
+  it("places text at the selected vertical position", () => {
+    expect(textPlacementStyle("top")).toMatchObject({ justifyContent: "flex-start" });
+    expect(textPlacementStyle("center")).toMatchObject({ justifyContent: "center" });
+    expect(textPlacementStyle("bottom")).toMatchObject({ justifyContent: "flex-end" });
   });
 });
