@@ -68,13 +68,17 @@ export function timelineFromScript(script: CodexScript, inputs: readonly Input[]
     if (
       input.kind === "video"
       && previousVideo?.kind === "main"
+      && "inEndSec" in previousVideo
       && previousVideo.inputId === input.id
-      && previousVideo.inEndSec !== undefined
       && nextVideo.kind === "main"
-      && nextVideo.inStartSec !== undefined
+      && "inStartSec" in nextVideo
       && Math.abs(previousVideo.inEndSec - nextVideo.inStartSec) <= VIDEO_JOIN_TOLERANCE_SEC
     ) {
-      video[video.length - 1] = { ...previousVideo, inEndSec: nextVideo.inEndSec };
+      video[video.length - 1] = {
+        ...previousVideo,
+        inEndSec: nextVideo.inEndSec,
+        endTransition: nextVideo.endTransition,
+      };
     } else {
       video.push(nextVideo);
     }

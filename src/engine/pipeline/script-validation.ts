@@ -18,6 +18,7 @@ export function formatScriptInputGuide(
     `reaction에는 아래 짤 감정 값만 쓰고, 맞는 값이 없으면 null을 씁니다: ${emotions.join(", ") || "null만 허용"}`,
     "reaction이 null이 아닌 장면에는 memeBefore 또는 memeAfter 중 정확히 하나만 true로 출력합니다. 반응을 먼저 보여주면 memeBefore를, 상황 뒤에 반응을 보여주면 memeAfter를 true로 합니다.",
     "reaction이 null인 장면은 memeBefore와 memeAfter를 모두 false로 출력합니다.",
+    "각 영상 입력 항목마다 reaction이 null이 아닌 장면을 하나 이상 만듭니다. 장면에 쓸 반응이 없으면 reaction은 null로 둡니다.",
     ...inputs.map((input, index) => {
       const item = `입력 항목 ${index + 1}: ${input.kind === "video" ? "영상" : "사진"}, 파일 ${JSON.stringify(inputDisplayName(input))}`;
       const times = timesByInput[index] ?? [];
