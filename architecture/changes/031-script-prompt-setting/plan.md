@@ -20,7 +20,7 @@ Track: lite.
 - `src/ui/screens/Settings.tsx`, `src/ui/styles.css`: 프롬프트 설정 카드와 읽기 전용 규칙 목록.
 - `src/ui/screens/Script.tsx`: AI/direct 모드 요청 형식 변경.
 - `tests/core/script-prompt.test.ts`, `tests/server/script-prompt.test.ts`: 기본값·규칙·조립과 설정 API를 검증.
-- `architecture/changes/030-script-prompt-setting/plan.md`: 이 계획.
+- `architecture/changes/031-script-prompt-setting/plan.md`: 이 계획.
 
 ## 순서
 
