@@ -34,6 +34,35 @@ describe("timelineFromScript", () => {
     expect(() => timelineFromScript(outside, inputs)).toThrow(/원본 길이/u);
   });
 
+  it("같은 입력의 맞닿은 장면은 영상 클립 하나로 합치고 장면 시각은 유지한다", () => {
+    const script: CodexScript = { scenes: [
+      { caption: "첫 장면", inputIndex: 1, reaction: null, memeBefore: false, memeAfter: false, sfxCategory: null, startSec: 0.3, endSec: 2.4 },
+      { caption: "둘째 장면", inputIndex: 1, reaction: null, memeBefore: false, memeAfter: false, sfxCategory: null, startSec: 2.4, endSec: 5.2 },
+      { caption: "셋째 장면", inputIndex: 2, reaction: null, memeBefore: false, memeAfter: false, sfxCategory: null, startSec: 0.3, endSec: 2.4 },
+      { caption: "넷째 장면", inputIndex: 2, reaction: null, memeBefore: false, memeAfter: false, sfxCategory: null, startSec: 2.4, endSec: 6.6 },
+    ] };
+    const timeline = timelineFromScript(script, [
+      { id: "video-a", kind: "video", file: "a.mp4", durationSec: 10 },
+      { id: "video-b", kind: "video", file: "b.mp4", durationSec: 10 },
+    ]);
+
+    expect(timeline.video).toHaveLength(2);
+    expect(timeline.video.map(({ inputId, inStartSec, inEndSec }) => [inputId, inStartSec, inEndSec])).toEqual([
+      ["video-a", 0.3, 5.2], ["video-b", 0.3, 6.6],
+    ]);
+    expect(timeline.captions.map(({ startSec, endSec }) => [startSec, endSec])).toEqual([[0, 2.1], [2.1, 4.9], [4.9, 7], [7, 11.2]]);
+  });
+
+  it("같은 입력이어도 원본 구간 사이에 빈틈이 있으면 영상 클립을 나눈다", () => {
+    const script: CodexScript = { scenes: [
+      { caption: "첫 장면", inputIndex: 1, reaction: null, memeBefore: false, memeAfter: false, sfxCategory: null, startSec: 0.3, endSec: 2.4 },
+      { caption: "둘째 장면", inputIndex: 1, reaction: null, memeBefore: false, memeAfter: false, sfxCategory: null, startSec: 3, endSec: 5 },
+    ] };
+    const timeline = timelineFromScript(script, [{ id: "video-a", kind: "video", file: "a.mp4", durationSec: 10 }]);
+
+    expect(timeline.video).toHaveLength(2);
+  });
+
   it("sfxCategory별 라이브러리 효과음을 자막과 같은 시각에 최대 1.5초 배치한다", () => {
     const script: CodexScript = { scenes: [
       { caption: "놀람", inputIndex: 1, reaction: null, memeBefore: false, memeAfter: false, sfxCategory: "shock", startSec: null, endSec: null },
