@@ -1,11 +1,12 @@
 import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
-import { renderMedia, selectComposition, type CancelSignal, type RenderMediaProgress } from "@remotion/renderer";
+import { renderMedia, renderStill, selectComposition, type CancelSignal, type RenderMediaProgress } from "@remotion/renderer";
 import type { Input, Timeline } from "../../core/schema";
 import { libraryReferencePath } from "../../core/library-reference";
 import { timelineToRender } from "../../core/timeline/to-render";
 import type { U3ShortProps } from "../../remotion/types";
+import type { Carousel, CarouselSlide } from "../../core/carousel";
 import { createMediaRunner, FFPROBE } from "./ffmpeg";
 import { listMemes } from "./library";
 
@@ -118,5 +119,29 @@ export async function renderShort(options: RenderShortOptions) {
     cancelSignal: abortSignal(options.signal),
     ...(executable ? { browserExecutable: executable } : {}),
   });
+  return composition;
+}
+
+/** 미리보기와 같은 CarouselSlide Composition으로 캐러셀의 최종 PNG를 만든다. */
+export async function renderCarouselSlide(options: {
+  carousel: Carousel;
+  slide: CarouselSlide;
+  imageUrl: string;
+  outputPath: string;
+  browserExecutable?: string;
+}) {
+  if (!options.slide.image) throw new Error("이미지가 생성되지 않은 장입니다");
+  const props = {
+    imageUrl: options.imageUrl,
+    title: options.slide.title,
+    body: options.slide.body,
+    textPlacement: options.slide.textPlacement,
+    aspect: options.carousel.aspect,
+  };
+  const serveUrl = await getBundle();
+  const executable = options.browserExecutable ?? process.env.U3_CHROME_EXECUTABLE;
+  const composition = await selectComposition({ serveUrl, id: "CarouselSlide", inputProps: props, ...(executable ? { browserExecutable: executable } : {}) });
+  await mkdir(path.dirname(options.outputPath), { recursive: true });
+  await renderStill({ serveUrl, composition, inputProps: props, output: options.outputPath, imageFormat: "png", licenseKey: "free-license", ...(executable ? { browserExecutable: executable } : {}) });
   return composition;
 }

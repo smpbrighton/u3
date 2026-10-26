@@ -4,6 +4,7 @@ import { ActionButton } from "../../../seed-design/ui/action-button";
 import { PageBanner } from "../../../seed-design/ui/page-banner";
 import { ProgressCircle } from "../../../seed-design/ui/progress-circle";
 import { SelectRoot, SelectTrigger, SelectContent, SelectGroup, SelectItem } from "../../../seed-design/ui/select";
+import { Slider } from "../../../seed-design/ui/slider";
 import { TextField, TextFieldTextarea } from "../../../seed-design/ui/text-field";
 import { api, watchJob, watchJobs, type EngineJob } from "../api";
 import type { SystemStatus } from "../types";
@@ -21,6 +22,7 @@ type ScriptPromptSettings = { prompt: string; isDefault: boolean; rulesPreview: 
 type ScriptVoiceField = "speaker" | "tone" | "persona" | "review";
 type ScriptVoiceSettings = Record<ScriptVoiceField, string>;
 const DEFAULT_SCRIPT_VOICE: ScriptVoiceSettings = { speaker: "", tone: "", persona: "", review: DEFAULT_SCRIPT_REVIEW_PROMPT };
+type ImageOptions = { model: "flare" | "sunburst"; quality: "low" | "medium" | "high" | "auto"; aspect: "4:5" | "1:1"; concurrency: number };
 
 export function Settings(props: { onSnackbar: (message: string) => void; onError: (message: string) => void }) {
   const [status, setStatus] = useState<SystemStatus | null>(null);
@@ -38,6 +40,7 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
   const [savedScriptVoice, setSavedScriptVoice] = useState<ScriptVoiceSettings>(DEFAULT_SCRIPT_VOICE);
   const [scriptVoiceLoading, setScriptVoiceLoading] = useState(true);
   const [scriptVoiceSaving, setScriptVoiceSaving] = useState<Partial<Record<ScriptVoiceField, boolean>>>({});
+  const [imageOptions, setImageOptions] = useState<ImageOptions>({ model: "flare", quality: "auto", aspect: "4:5", concurrency: 3 });
 
   const refresh = useCallback(async () => {
     setChecking(true);
@@ -47,6 +50,7 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
         api<SystemStatus>("GET", "/api/system").then(setStatus),
         api<ModelStatus>("GET", "/api/models").then(setModels),
         api<typeof codexSettings>("GET", "/api/system/codex-settings").then(setCodexSettings),
+        api<ImageOptions>("GET", "/api/system/image-options").then(setImageOptions),
         api<CodexModelCatalog>("GET", "/api/system/codex-models").then(setCodexCatalog),
         api<ScriptPromptSettings>("GET", "/api/system/script-prompt").then(value => {
           setScriptPrompt(value.prompt);
@@ -170,10 +174,25 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
     void saveScriptVoiceField(field, value);
   }
 
+  async function updateImageOptions(value: ImageOptions) {
+    setImageOptions(value);
+    try { const saved = await api<ImageOptions>("PUT", "/api/system/image-options", value); setImageOptions(saved); }
+    catch (reason) { props.onError(reason instanceof Error ? reason.message : String(reason)); }
+  }
+
   return (
     <section className="screen" aria-labelledby="settings-title">
       <header className="screen-header"><div><h1 id="settings-title" className="screen-title">설정</h1></div></header>
       {error ? <div className="page-banner-wrap"><PageBanner tone="warning" variant="weak" description={error} /></div> : null}
+      <section className="section-card settings-card" aria-labelledby="image-options-title">
+        <h2 id="image-options-title" className="settings-section-title">이미지 생성</h2>
+        <div className="settings-model-fields">
+          <ModelSelect label="이미지 모델" value={imageOptions.model} items={[{ value: "flare", label: "Flare · 빠름" }, { value: "sunburst", label: "Sunburst · 고품질" }]} onChange={model => void updateImageOptions({ ...imageOptions, model: model as ImageOptions["model"] })} />
+          <ModelSelect label="퀄리티" value={imageOptions.quality} items={["low", "medium", "high", "auto"].map(value => ({ value, label: value }))} onChange={quality => void updateImageOptions({ ...imageOptions, quality: quality as ImageOptions["quality"] })} />
+          <ModelSelect label="비율" value={imageOptions.aspect} items={[{ value: "4:5", label: "4:5" }, { value: "1:1", label: "1:1" }]} onChange={aspect => void updateImageOptions({ ...imageOptions, aspect: aspect as ImageOptions["aspect"] })} />
+        </div>
+        <div className="image-concurrency"><Slider label={`동시 실행 수 · ${imageOptions.concurrency}`} min={1} max={10} step={1} values={[imageOptions.concurrency]} onValuesChange={values => { const concurrency = values[0]; if (typeof concurrency === "number") void updateImageOptions({ ...imageOptions, concurrency }); }} /></div>
+      </section>
       <section className="section-card settings-card" aria-labelledby="codex-title">
         <div className="settings-card-heading"><h2 id="codex-title">codex</h2><span className={`status-label ${status?.codex.loggedIn ? "is-ready" : "is-warning"}`}>{codexState}</span></div>
         {codexMessage ? <div className="page-banner-wrap settings-warning"><PageBanner tone="warning" variant="weak" description={codexMessage} /></div> : null}

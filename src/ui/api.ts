@@ -2,7 +2,7 @@ import { invoke, isTauri } from "@tauri-apps/api/core";
 import { libraryReferencePath } from "../core/library-reference";
 
 type EngineConnection = { port: number; token: string };
-type Method = "GET" | "POST" | "PUT" | "DELETE";
+type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 let connectionPromise: Promise<EngineConnection> | null = null;
 
@@ -76,11 +76,18 @@ export async function libraryMediaUrl(reference: string): Promise<string> {
   return `${origin}/api/media/library/${encoded}?token=${encodeURIComponent(engine.token)}`;
 }
 
+export async function carouselFileUrl(carouselId: string, relativePath: string): Promise<string> {
+  const engine = await connection();
+  const encoded = relativePath.split("/").map(encodeURIComponent).join("/");
+  return `http://127.0.0.1:${engine.port}/carousels/${encodeURIComponent(carouselId)}/${encoded}?token=${encodeURIComponent(engine.token)}`;
+}
+
 export interface EngineJob {
   id: string;
   kind: string;
   label?: string;
   projectId: string | null;
+  sceneIndex?: number | null;
   status: "queued" | "running" | "done" | "failed" | "discarded";
   progress: number | null;
   message: string | null;

@@ -1,8 +1,11 @@
 import { Composition } from "remotion";
 import { U3Short } from "./U3Short";
 import type { U3ShortProps } from "./types";
+import { CarouselSlide, type CarouselSlideProps } from "./CarouselSlide";
+import { carouselCanvasSize } from "./carousel-layout";
 
 export const RemotionRoot: React.FC = () => (
+  <>
   <Composition
     id="U3Short"
     component={U3Short}
@@ -13,6 +16,17 @@ export const RemotionRoot: React.FC = () => (
     durationInFrames={1}
     calculateMetadata={({ props }) => ({ durationInFrames: Math.max(1, props.render.durationInFrames) })}
   />
+  <Composition
+    id="CarouselSlide"
+    component={CarouselSlide}
+    defaultProps={{ imageUrl: "", title: "", body: "", textPlacement: "bottom", aspect: "4:5" } satisfies CarouselSlideProps}
+    width={1080}
+    height={1350}
+    fps={30}
+    durationInFrames={1}
+    calculateMetadata={({ props }) => ({ ...carouselCanvasSize(props.aspect ?? "4:5"), durationInFrames: 1 })}
+  />
+  </>
 );
 
 export type { U3ShortProps };

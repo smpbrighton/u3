@@ -14,14 +14,14 @@ import { projectOpenScreen } from "./project-screen";
 import { ActionButton } from "../../seed-design/ui/action-button";
 import { SideNavigationProvider, SideNavigationRoot, SideNavigationHeader, SideNavigationContent, SideNavigationGroup } from "../../seed-design/ui/side-navigation";
 import { SnackbarProvider, Snackbar, useSnackbarAdapter } from "../../seed-design/ui/snackbar";
-import { Badge } from "../../seed-design/ui/badge";
+import { Carousels } from "./screens/Carousels";
 
 type Screen = "home" | "input" | "script" | "studio" | "settings" | "carousel";
 type Connection = { port: number; token: string };
 
 const NAVIGATION = [
   { screen: "home" as Screen, label: "영상", icon: Video01Icon },
-  { screen: "carousel" as Screen, label: "캐러셀", icon: CarouselHorizontalIcon, badge: "준비 중" },
+  { screen: "carousel" as Screen, label: "캐러셀", icon: CarouselHorizontalIcon },
   { screen: "settings" as Screen, label: "설정", icon: Settings02Icon },
 ];
 
@@ -77,15 +77,7 @@ export function App() {
   ) : screen === "studio" && project ? (
     <Studio project={project} onProject={setProject} onBack={() => go("script")} onSnackbar={setSnackbar} onError={setSnackbar} />
   ) : screen === "carousel" ? (
-    <section className="screen carousel-screen" aria-labelledby="carousel-title">
-      <h1 id="carousel-title" className="screen-title">캐러셀</h1>
-      <div className="carousel-empty-card">
-        <span className="carousel-placeholder-icon" aria-hidden="true"><HugeiconsIcon icon={CarouselHorizontalIcon} size={28} /></span>
-        <h2>캐러셀은 준비 중이에요</h2>
-        <p>사진 여러 장으로 넘겨 보는 게시물을 만드는 기능이에요. 다음 버전에서 열려요. 지금은 영상 메뉴에서 숏폼을 만들 수 있어요.</p>
-        <ActionButton className="carousel-go-button" variant="neutralWeak" onClick={() => go("home")}>영상으로 가기</ActionButton>
-      </div>
-    </section>
+    <Carousels onSnackbar={setSnackbar} onError={setSnackbar} />
   ) : <Settings onSnackbar={setSnackbar} onError={setSnackbar} />;
 
   return (
@@ -94,7 +86,7 @@ export function App() {
       <SideNavigationProvider>
         <SideNavigationRoot className="sidebar" aria-label="주 메뉴">
           <SideNavigationHeader><p className="brand">U3</p></SideNavigationHeader>
-          <SideNavigationContent><SideNavigationGroup items={NAVIGATION.map(item => ({ key: item.screen, label: <>{item.label}{"badge" in item ? <Badge tone="informative" variant="weak" size="medium">{item.badge}</Badge> : null}</>, prefixIcon: <HugeiconsIcon icon={item.icon} size={20} />, current: (item.screen === "home" ? screen === "home" : screen === item.screen), onClick: () => go(item.screen) }))} /></SideNavigationContent>
+          <SideNavigationContent><SideNavigationGroup items={NAVIGATION.map(item => ({ key: item.screen, label: item.label, prefixIcon: <HugeiconsIcon icon={item.icon} size={20} />, current: (item.screen === "home" ? screen === "home" : screen === item.screen), onClick: () => go(item.screen) }))} /></SideNavigationContent>
         </SideNavigationRoot>
       </SideNavigationProvider>
       <main className="main-column">

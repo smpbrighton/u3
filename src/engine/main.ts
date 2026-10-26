@@ -14,6 +14,7 @@ import { bgeM3Ready, downloadBgeM3 } from "./pipeline/models";
 import { done } from "./jobs";
 import { configuredModelPath } from "./pipeline/model-paths";
 import { installEngineShutdown } from "./shutdown";
+import { renderCarouselSlide } from "./pipeline/render";
 
 process.stdin.resume();
 process.on("unhandledRejection", reason => {
@@ -97,6 +98,15 @@ const app = createApp({
   whisperPath,
   sileroPath,
   mrxPath: process.env.U3_MRX_MODEL ?? path.join(resourceDir, "models/mrx.int8.onnx"),
+  composeCarouselSlide: async (carousel, slide, destination) => {
+    if (!slide.image) throw new Error("이미지가 생성되지 않은 장입니다");
+    await renderCarouselSlide({
+      carousel,
+      slide,
+      imageUrl: mediaServer.url("carousels", `${carousel.id}/${slide.image.file}`),
+      outputPath: destination,
+    });
+  },
 });
 const bgeCache = path.join(store.root, "cache/models");
 const bgeModel = path.join(bgeCache, "Xenova/bge-m3/onnx/model.onnx");
