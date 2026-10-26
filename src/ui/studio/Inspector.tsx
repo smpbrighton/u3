@@ -279,7 +279,6 @@ function TransitionControl(props: { label: string; value?: ClipTransitionInput; 
     props.onChange({ kind: nextKind, durationSec: nextDuration });
   };
   return <fieldset className="studio-transition-control">
-    <legend>{props.label}</legend>
     <StudioSelect label={props.label} value={kind.kind} items={types.map(item => ({ ...item, disabled: item.value !== "none" && maxDuration < 0.1 }))} onChange={value => setKind(value as TransitionKind["kind"])} />
     {kind.kind === "slide" || kind.kind === "wipe" ? <StudioSelect label={`${props.label} 방향`} value={kind.direction} items={[{ value: "left", label: "왼쪽" }, { value: "right", label: "오른쪽" }, { value: "up", label: "위" }, { value: "down", label: "아래" }]} onChange={value => props.onChange({ kind: { ...kind, direction: value as "left" | "right" | "up" | "down" }, durationSec: duration })} /> : null}
     {kind.kind !== "none" ? <>
