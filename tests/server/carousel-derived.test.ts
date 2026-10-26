@@ -81,4 +81,17 @@ describe("video derived carousel API", () => {
     await jobs.wait(result.job.id);
     expect(askBox).not.toHaveBeenCalled();
   });
+
+  it("saves the no-highlight choice without requesting a box", async () => {
+    const { app, jobs, project, askBox } = await setup();
+    const response = await app.request(`/api/projects/${project.id}/carousel`, { method: "POST", headers, body: JSON.stringify({ count: 2 }) });
+    const result = await response.json() as { carousel: { id: string; slides: Array<{ id: string }> }; job: { id: string } };
+    await jobs.wait(result.job.id);
+
+    const updated = await app.request(`/api/carousels/${result.carousel.id}/slides/${result.carousel.slides[0]!.id}/highlight`, { method: "POST", headers, body: JSON.stringify({ style: "none", target: "" }) });
+
+    expect(updated.status).toBe(200);
+    expect(await updated.json()).toMatchObject({ slides: [{ background: { highlight: { style: "none" } } }] });
+    expect(askBox).toHaveBeenCalledTimes(2);
+  });
 });

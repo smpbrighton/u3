@@ -15,4 +15,8 @@ describe("carousel highlight composition input", () => {
   it("uses the generated image instead of a box overlay for AI outline", () => {
     expect(carouselHighlightInput({ style: "ai-outline", target: "상품", box: { left: 0.1, top: 0.2, right: 0.8, bottom: 0.9 } })).toBeUndefined();
   });
+
+  it("omits all highlight layers for the none style", () => {
+    expect(carouselHighlightInput({ style: "none", target: "상품" })).toBeUndefined();
+  });
 });
