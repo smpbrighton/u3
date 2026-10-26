@@ -5,6 +5,7 @@ import path from "node:path";
 import { createApp } from "../../src/engine/app";
 import { Jobs } from "../../src/engine/jobs";
 import { Store } from "../../src/engine/store";
+import { DEFAULT_SCRIPT_PROMPT } from "../../src/core/script-prompt";
 
 const roots: string[] = [];
 afterEach(async () => Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))));
@@ -20,6 +21,10 @@ async function appAt() {
 const headers = { authorization: "Bearer test-token", "content-type": "application/json" };
 
 describe("script prompt settings API", () => {
+  it("기본 프롬프트 길이는 20000자 제한 안에 든다", () => {
+    expect(DEFAULT_SCRIPT_PROMPT.length).toBeLessThanOrEqual(20000);
+  });
+
   it("기본 프롬프트와 형식 규칙 미리보기를 반환한다", async () => {
     const { app } = await appAt();
     const response = await app.request("http://127.0.0.1/api/system/script-prompt", { headers });
@@ -41,10 +46,16 @@ describe("script prompt settings API", () => {
     expect(await store.readSettings()).toMatchObject({ scriptPrompt: "나만의 지시문" });
   });
 
-  it("4000자를 넘는 값을 거부한다", async () => {
-    const { app } = await appAt();
+  it("9000자를 저장하고 20001자는 거부한다", async () => {
+    const { app, store } = await appAt();
+    const accepted = await app.request("http://127.0.0.1/api/system/script-prompt", {
+      method: "PUT", headers, body: JSON.stringify({ prompt: "가".repeat(9000) }),
+    });
+    expect(accepted.status).toBe(200);
+    expect(await store.readSettings()).toMatchObject({ scriptPrompt: "가".repeat(9000) });
+
     const response = await app.request("http://127.0.0.1/api/system/script-prompt", {
-      method: "PUT", headers, body: JSON.stringify({ prompt: "가".repeat(4001) }),
+      method: "PUT", headers, body: JSON.stringify({ prompt: "가".repeat(20001) }),
     });
     expect(response.status).toBe(400);
   });
