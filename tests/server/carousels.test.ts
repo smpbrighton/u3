@@ -34,6 +34,13 @@ describe("carousels API", () => {
     const saved = await app.request("http://127.0.0.1/api/system/image-options", { method: "PUT", headers, body: JSON.stringify({ model: "sunburst", quality: "high", aspect: "1:1", concurrency: 4 }) });
     expect(saved.status).toBe(200);
     expect(await store.readSettings()).toMatchObject({ imageOptions: { model: "sunburst", quality: "high", aspect: "1:1", concurrency: 4 } });
+    for (const aspect of ["9:16", "16:9"] as const) {
+      const accepted = await app.request("http://127.0.0.1/api/system/image-options", { method: "PUT", headers, body: JSON.stringify({ model: "flare", quality: "low", aspect, concurrency: 3 }) });
+      expect(accepted.status).toBe(200);
+      expect(await accepted.json()).toMatchObject({ aspect });
+    }
+    const invalidAspect = await app.request("http://127.0.0.1/api/system/image-options", { method: "PUT", headers, body: JSON.stringify({ model: "flare", quality: "low", aspect: "3:2", concurrency: 3 }) });
+    expect(invalidAspect.status).toBe(400);
   });
 
   it("creates, plans, generates, and cancels carousel image work", async () => {

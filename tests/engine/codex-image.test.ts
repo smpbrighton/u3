@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { imagePrompt, outlinePrompt, parseImageEvents, requestedImageSize, resolveImageResult, validatePng } from "../../src/engine/pipeline/codex-image";
+import { imagePrompt, outlinePrompt, parseImageEvents, requestedImageSize, resolveImageResult, validatePng, normalizedImageSize } from "../../src/engine/pipeline/codex-image";
 
 const roots: string[] = [];
 afterEach(async () => Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))));
@@ -37,6 +37,12 @@ describe("Codex image helpers", () => {
   it("uses the requested aspect size and includes the text-free save instruction", () => {
     expect(requestedImageSize("4:5")).toEqual({ width: 1024, height: 1280 });
     expect(requestedImageSize("1:1")).toEqual({ width: 1024, height: 1024 });
+    expect(requestedImageSize("9:16")).toEqual({ width: 1008, height: 1792 });
+    expect(requestedImageSize("16:9")).toEqual({ width: 1792, height: 1008 });
+    expect(normalizedImageSize("4:5")).toEqual({ width: 1080, height: 1350 });
+    expect(normalizedImageSize("1:1")).toEqual({ width: 1080, height: 1080 });
+    expect(normalizedImageSize("9:16")).toEqual({ width: 1080, height: 1920 });
+    expect(normalizedImageSize("16:9")).toEqual({ width: 1920, height: 1080 });
     expect(imagePrompt({ prompt: "푸른 종이 질감", style: "콜라주", model: "flare", quality: "low", aspect: "1:1", output: "/tmp/slide.png" })).toContain("글자 없음");
     expect(imagePrompt({ prompt: "푸른 종이 질감", style: "콜라주", model: "flare", quality: "low", aspect: "1:1", output: "/tmp/slide.png" })).toContain("1024×1024");
   });

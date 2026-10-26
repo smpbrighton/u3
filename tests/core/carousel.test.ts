@@ -23,6 +23,12 @@ describe("Carousel schema", () => {
     expect(Carousel.parse(JSON.parse(JSON.stringify(parsed)))).toEqual(parsed);
   });
 
+  it("accepts all four carousel aspects", () => {
+    for (const aspect of ["4:5", "1:1", "9:16", "16:9"] as const) {
+      expect(Carousel.parse({ ...example, aspect }).aspect).toBe(aspect);
+    }
+  });
+
   it("reads legacy 030 carousels as topic sourced generated slides", () => {
     const parsed = Carousel.parse(example);
     expect(parsed.source).toEqual({ kind: "topic" });
@@ -51,6 +57,8 @@ describe("carousel composition layout", () => {
   it("maps the supported aspects to the export canvas dimensions", () => {
     expect(carouselCanvasSize("4:5")).toEqual({ width: 1080, height: 1350 });
     expect(carouselCanvasSize("1:1")).toEqual({ width: 1080, height: 1080 });
+    expect(carouselCanvasSize("9:16")).toEqual({ width: 1080, height: 1920 });
+    expect(carouselCanvasSize("16:9")).toEqual({ width: 1920, height: 1080 });
   });
 
   it("places text at the selected vertical position", () => {
