@@ -1,4 +1,4 @@
-import type { ClipTransitionInput, Input, Timeline } from "../../core/schema";
+import { captionLayersOf, type ClipTransitionInput, type Input, type Timeline } from "../../core/schema";
 import { inputDisplayName } from "../../core/input";
 import { clipDuration, videoStartTimes } from "../../core/timeline/ops";
 import { sfxLane, sfxRowId } from "../../core/timeline/sfx-lanes";
@@ -29,7 +29,7 @@ export interface SfxLabel { ref: string; title?: string; category?: string }
 export interface MemeLabel { id: string; description?: string }
 
 export function labelForAction(id: string, timeline: Timeline, inputs: readonly Input[] = [], sfxItems: readonly SfxLabel[] = [], memes: readonly MemeLabel[] = []): string {
-  const caption = timeline.captions.find(item => item.id === id);
+  const caption = captionLayersOf(timeline)[0]?.main.find(item => item.id === id);
   if (caption) return caption.text;
   const video = timeline.video.find(item => item.id === id);
   if (video) {
@@ -88,7 +88,7 @@ export function timelineToStudioRows(timeline: Timeline): StudioRow[] {
     return [action(`stem-bg:${clip.id}`, start, start + clipDuration(clip), "stem-bg", false)];
   });
   return [
-    row("captions", timeline.captions.map((clip) => action(clip.id, clip.startSec, clip.endSec, "caption"))),
+    row("captions", captionLayersOf(timeline)[0]?.main.map((clip) => action(clip.id, clip.startSec, clip.endSec, "caption")) ?? []),
     ...overlayRows,
     row("video", videoActions, TRACK_ROW_HEIGHT, "영상 1"),
     ...(sourceActions.length ? [row("source", sourceActions)] : []),

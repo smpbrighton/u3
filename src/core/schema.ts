@@ -11,6 +11,7 @@ export type Input = z.infer<typeof Input>;
 
 export const Gain = z.object({ gain: z.number().min(0).max(1.5), muted: z.boolean() });
 export type Gain = z.infer<typeof Gain>;
+export const TimelineAudio = z.object({ source: Gain, voice: Gain, sfx: Gain, stems: z.record(z.string(), z.object({ voice: Gain, bg: Gain })).optional() });
 
 export const TransitionKind = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("none") }),
@@ -34,6 +35,7 @@ const DefaultClipTransition = ClipTransition.optional().default({ kind: { kind: 
 
 const VideoClipProperties = {
   groupId: z.string().min(1).optional(),
+  opacity: z.number().min(0).max(1).optional(),
   startTransition: DefaultClipTransition,
   endTransition: DefaultClipTransition,
 };
@@ -60,7 +62,7 @@ type VideoClipMetadata = {
   startTransition?: ClipTransitionInput;
   endTransition?: ClipTransitionInput;
 };
-export type VideoClip = VideoClipMetadata & (
+export type VideoClip = VideoClipMetadata & { opacity?: number } & (
   | { id: string; kind: "main"; inputId: string; inStartSec: number; inEndSec: number }
   | { id: string; kind: "main"; inputId: string; durationSec: number }
   | { id: string; kind: "meme"; memeId: string; durationSec: number }
@@ -68,6 +70,7 @@ export type VideoClip = VideoClipMetadata & (
 
 const OverlayProperties = {
   groupId: z.string().min(1).optional(),
+  opacity: z.number().min(0).max(1).optional(),
   startTransition: ClipTransitionValue.optional(),
   endTransition: ClipTransitionValue.optional(),
 };
@@ -87,13 +90,13 @@ export const OverlayClip = z.union([
     }
   }
 });
-export type OverlayClip = VideoClipMetadata & (
+export type OverlayClip = VideoClipMetadata & { opacity?: number } & (
   | { id: string; startSec: number; x: number; y: number; width: number; memeId: string; durationSec: number }
   | { id: string; startSec: number; x: number; y: number; width: number; inputId: string; kind: "video"; inStartSec: number; inEndSec: number }
   | { id: string; startSec: number; x: number; y: number; width: number; inputId: string; kind: "photo"; durationSec: number }
 );
 
-export const TextClip = z.object({ id: z.string().min(1), startSec: z.number().min(0), endSec: z.number().positive(), text: z.string() })
+export const TextClip = z.object({ id: z.string().min(1), startSec: z.number().min(0), endSec: z.number().positive(), text: z.string(), opacity: z.number().min(0).max(1).optional() })
   .superRefine((clip, ctx) => {
     if (clip.endSec <= clip.startSec) ctx.addIssue({ code: "custom", path: ["endSec"], message: "endSec는 startSec보다 커야 합니다" });
   });
@@ -104,10 +107,27 @@ export const AudioClip = z.object({ id: z.string().min(1), startSec: z.number().
   });
 export type AudioClip = z.infer<typeof AudioClip>;
 
+export const CaptionStyle = z.object({
+  font: z.enum(["pretendard", "gmarket", "tmon"]), mainSize: z.number().positive().default(56), subSize: z.number().positive().default(40),
+  color: z.string().default("#FFFFFF"), textOpacity: z.number().min(0).max(1).default(1), bar: z.boolean().default(true),
+  barColor: z.string().default("#000000"), barOpacity: z.number().min(0).max(1).default(0.62),
+});
+export type CaptionStyle = z.output<typeof CaptionStyle>;
+export const CaptionLayer = z.object({ id: z.string().min(1), name: z.string().min(1), x: z.number().min(0).max(1), y: z.number().min(0).max(1), opacity: z.number().min(0).max(1).optional(), style: CaptionStyle, main: z.array(TextClip), sub: z.array(TextClip) });
+export type CaptionLayer = z.infer<typeof CaptionLayer>;
+export const TimelineBrand = z.object({
+  watermark: z.object({ enabled: z.boolean().optional(), x: z.number().min(0).max(1).optional(), y: z.number().min(0).max(1).optional(), width: z.number().positive().max(1).optional(), opacity: z.number().min(0).max(1).optional() }).optional(),
+  titleBar: z.object({ enabled: z.boolean().optional(), text: z.string(), height: z.number().positive().optional(), fontSize: z.number().positive().optional(), opacity: z.number().min(0).max(1).optional() }).optional(),
+});
+export type TimelineBrand = z.infer<typeof TimelineBrand>;
 export const Timeline = z.object({
   video: z.array(VideoClip),
   overlays: z.array(z.array(OverlayClip)).default([]),
-  captions: z.array(TextClip),
+  captions: z.array(TextClip).optional(),
+  captionLayers: z.array(CaptionLayer).optional(),
+  captionX: z.number().min(0).max(1).optional(),
+  captionY: z.number().optional(),
+  brand: TimelineBrand.optional(),
   voice: z.array(AudioClip),
   sfx: z.array(AudioClip),
   audio: z.object({
@@ -116,11 +136,52 @@ export const Timeline = z.object({
     sfx: Gain,
     stems: z.record(z.string(), z.object({ voice: Gain, bg: Gain })).optional(),
   }),
+}).transform(({ captions, captionLayers, captionX, captionY, ...timeline }) => {
+  const layers = captionLayers ?? [{ id: "caption-layer-1", name: "자막", x: captionX ?? 0.5, y: captionY === undefined ? 1555 / 1920 : Math.max(0, Math.min(1, (captionY + 105) / 1920)), style: { font: "pretendard" as const, mainSize: 56, subSize: 40, color: "#FFFFFF", textOpacity: 1, bar: true, barColor: "#000000", barOpacity: 0.62 }, main: captions ?? [], sub: [] }];
+  const normalized = { ...timeline, captionLayers: layers, captions: layers[0]?.main ?? [] };
+  Object.defineProperty(normalized, "toJSON", { enumerable: false, value() { const { captions: _legacyCaptions, ...canonical } = this as typeof normalized; return canonical; } });
+  return normalized;
 });
-export type Timeline = Omit<z.infer<typeof Timeline>, "video" | "overlays"> & {
+export type Timeline = {
+  voice: AudioClip[];
+  sfx: AudioClip[];
+  audio: z.infer<typeof TimelineAudio>;
   video: VideoClip[];
   overlays: OverlayClip[][];
+  captions: TextClip[];
+  captionLayers?: CaptionLayer[];
+  brand?: TimelineBrand;
 };
+
+export const DEFAULT_CAPTION_STYLE: CaptionStyle = { font: "pretendard", mainSize: 56, subSize: 40, color: "#FFFFFF", textOpacity: 1, bar: true, barColor: "#000000", barOpacity: 0.62 };
+export function captionLayersOf(timeline: Timeline): CaptionLayer[] {
+  return timeline.captionLayers ?? [{ id: "caption-layer-1", name: "자막", x: 0.5, y: 1555 / 1920, style: DEFAULT_CAPTION_STYLE, main: timeline.captions, sub: [] }];
+}
+export function withCaptionLayers(timeline: Timeline, captionLayers: CaptionLayer[]): Timeline {
+  return { ...timeline, captionLayers, captions: captionLayers[0]?.main ?? [] };
+}
+
+export type CanonicalTimeline = Timeline & { captionLayers: CaptionLayer[] };
+export class ProjectRecord {
+  id: string;
+  name: string;
+  inputs: Input[];
+  savedAt: string;
+  private timelineValue: CanonicalTimeline;
+
+  constructor(value: { id: string; name: string; inputs: Input[]; timeline: CanonicalTimeline; savedAt: string }) {
+    this.id = value.id;
+    this.name = value.name;
+    this.inputs = value.inputs;
+    this.savedAt = value.savedAt;
+    this.timelineValue = value.timeline;
+    Object.defineProperty(this, "timeline", { enumerable: true, configurable: false, get: () => this.timelineValue, set: (timeline: Timeline) => { this.timelineValue = Timeline.parse(timeline) as CanonicalTimeline; } });
+  }
+
+  get timeline(): CanonicalTimeline { return this.timelineValue; }
+  set timeline(value: Timeline) { this.timelineValue = Timeline.parse(value) as CanonicalTimeline; }
+  toJSON() { return { id: this.id, name: this.name, inputs: this.inputs, timeline: this.timelineValue, savedAt: this.savedAt }; }
+}
 
 export const Project = z.object({
   id: z.string().min(1),
@@ -128,8 +189,8 @@ export const Project = z.object({
   inputs: z.array(Input).min(1).max(20),
   timeline: Timeline,
   savedAt: z.string().datetime(),
-});
-export type Project = Omit<z.input<typeof Project>, "timeline"> & { timeline: Timeline };
+}).transform((project) => new ProjectRecord(project as { id: string; name: string; inputs: Input[]; timeline: CanonicalTimeline; savedAt: string }));
+export type Project = { id: string; name: string; inputs: Input[]; timeline: Timeline; savedAt: string };
 
 export const WordStamp = z.object({ text: z.string(), start: z.number().min(0), end: z.number().min(0) });
 export type WordStamp = z.infer<typeof WordStamp>;

@@ -21,7 +21,7 @@ function migrateProjectLibraryReferences(project: Project): Project {
   });
   return sfx.every((clip, index) => clip === project.timeline.sfx[index])
     ? project
-    : { ...project, timeline: { ...project.timeline, sfx } };
+    : Project.parse({ ...project, timeline: { ...project.timeline, sfx } });
 }
 
 const pad = (value: number) => String(value).padStart(2, "0");

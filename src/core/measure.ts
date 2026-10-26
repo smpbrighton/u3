@@ -1,12 +1,13 @@
 import opentype from "opentype.js";
-import type { FontRole } from "./fonts";
+import type { CaptionFontKey, FontRole } from "./fonts";
 
 export const MEASURE_MARGIN = 0.04;
 
 export interface TextStyle {
-  role: FontRole;
+  role?: FontRole;
   weight: 400 | 700;
   fontSize: number;
+  font?: CaptionFontKey;
   letterSpacing?: number;
 }
 
@@ -19,18 +20,23 @@ export interface Measurer {
 }
 
 export interface FontData {
-  role: FontRole;
+  role?: FontRole;
   weight: number;
+  key?: CaptionFontKey;
   data: ArrayBuffer;
 }
 
 export function createMeasurer(fonts: FontData[], margin = MEASURE_MARGIN): Measurer {
   const parsed = new Map<string, opentype.Font>();
-  for (const f of fonts) parsed.set(`${f.role}-${f.weight}`, opentype.parse(f.data));
+  for (const f of fonts) {
+    const font = opentype.parse(f.data);
+    parsed.set(`${f.role}-${f.weight}`, font);
+    if (f.key) parsed.set(f.key, font);
+  }
   const cache = new Map<string, number>();
 
   const rawWidth = (text: string, style: TextStyle): number => {
-    const key = `${style.role}-${style.weight}`;
+    const key = style.font ?? `${style.role}-${style.weight}`;
     const font = parsed.get(key);
     if (!font) throw new Error(`측정 폰트 없음: ${key}`);
     const ck = `${key}|${style.fontSize}|${style.letterSpacing ?? 0}|${text}`;

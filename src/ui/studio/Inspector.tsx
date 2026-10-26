@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import type { AudioClip, ClipTransitionInput, OverlayClip, Project, Timeline as TimelineData, TransitionKind } from "../../core/schema";
+import { captionLayersOf, withCaptionLayers } from "../../core/schema";
 import { deleteOverlayClip, moveVideoClip, overlayDuration, videoDuration, videoStartTimes } from "../../core/timeline/ops";
 import { findOverlayInLayers, updateOverlayInLayers } from "../../core/timeline/overlay-layers";
 import { ActionButton } from "../../../seed-design/ui/action-button";
@@ -43,7 +44,7 @@ export function Inspector(props: {
   const videoStarts = useMemo(() => videoStartTimes(props.timeline), [props.timeline]);
   const video = props.timeline.video.find((clip) => clip.id === props.selectedId);
   const overlay = props.selectedId ? findOverlayInLayers(props.timeline.overlays, props.selectedId)?.clip : undefined;
-  const caption = props.timeline.captions.find((clip) => clip.id === props.selectedId);
+  const caption = captionLayersOf(props.timeline)[0]?.main.find((clip) => clip.id === props.selectedId);
   const voiceClip = props.timeline.voice.find((clip) => clip.id === props.selectedId);
   const sfxClip = props.timeline.sfx.find((clip) => clip.id === props.selectedId);
   const sourceId = props.selectedId?.startsWith("source:") ? props.selectedId.slice("source:".length) : props.selectedId?.startsWith("stem-") ? props.selectedId.split(":")[1] : null;
@@ -212,7 +213,7 @@ export function Inspector(props: {
         <label className="studio-range-label">길이 <b>{duration.toFixed(1)}초</b><StudioSlider label="길이" min={0.5} max={4} step={0.1} value={duration} onChange={value => props.onChange({ ...props.timeline, video: props.timeline.video.map((item) => item.id === video.id ? { ...video, durationSec: value } : item) })} /></label>
         <div className="studio-inspector-actions"><ActionButton variant="neutralWeak" onClick={() => props.onChange(moveVideoClip(props.timeline, video.id, Math.max(0, props.timeline.video.findIndex((item) => item.id === video.id) - 1)))}>본 화면 앞</ActionButton><ActionButton variant="ghost" onClick={() => props.onChange(moveVideoClip(props.timeline, video.id, Math.min(props.timeline.video.length - 1, props.timeline.video.findIndex((item) => item.id === video.id) + 1)))}>본 화면 뒤</ActionButton></div>
         <p className="studio-help">왼쪽에서 다른 짤을 누르면 바꿔요.</p>
-      </> : <CaptionEditor caption={props.timeline.captions.find((item) => item.startSec <= start + duration && item.endSec >= start)} timeline={props.timeline} onChange={props.onChange} />}
+      </> : <CaptionEditor caption={captionLayersOf(props.timeline)[0]?.main.find((item) => item.startSec <= start + duration && item.endSec >= start)} timeline={props.timeline} onChange={props.onChange} />}
       <TransitionControl label="시작 효과" value={video.startTransition} durationSec={duration} onChange={(value) => updateVideoTransition(video.id, "startTransition", value, props.timeline, props.onChange)} />
       <TransitionControl label="끝 효과" value={video.endTransition} durationSec={duration} onChange={(value) => updateVideoTransition(video.id, "endTransition", value, props.timeline, props.onChange)} />
       <p className="studio-help">앞 클립의 끝 효과와 다르면 뒤 클립의 시작 효과를 씁니다.</p>
@@ -220,7 +221,7 @@ export function Inspector(props: {
     </InspectorShell>;
   }
 
-  if (caption) return <InspectorShell title="자막 속성" error={error} {...dialogProps}><StudioTextarea label="자막" rows={4} value={caption.text} onChange={value => props.onChange({ ...props.timeline, captions: props.timeline.captions.map((item) => item.id === caption.id ? { ...caption, text: value } : item) })} /></InspectorShell>;
+  if (caption) return <InspectorShell title="자막 속성" error={error} {...dialogProps}><StudioTextarea label="자막" rows={4} value={caption.text} onChange={value => updateCaptionText(props.timeline, caption.id, value, props.onChange)} /></InspectorShell>;
   if (voiceClip || sfxClip) {
     const clip = voiceClip ?? sfxClip!;
     const track = voiceClip ? "voice" : "sfx";
@@ -326,5 +327,10 @@ function GainControl(props: { label: string; gain: number; muted?: boolean; onCh
 
 function CaptionEditor(props: { caption?: TimelineData["captions"][number]; timeline: TimelineData; onChange: (timeline: TimelineData) => void }) {
   if (!props.caption) return null;
-  return <StudioTextarea label="자막" rows={3} value={props.caption.text} onChange={value => props.onChange({ ...props.timeline, captions: props.timeline.captions.map((item) => item.id === props.caption!.id ? { ...props.caption!, text: value } : item) })} />;
+  return <StudioTextarea label="자막" rows={3} value={props.caption.text} onChange={value => updateCaptionText(props.timeline, props.caption!.id, value, props.onChange)} />;
+}
+
+function updateCaptionText(timeline: TimelineData, id: string, text: string, onChange: (timeline: TimelineData) => void) {
+  const layers = captionLayersOf(timeline);
+  onChange(withCaptionLayers(timeline, layers.map((layer, index) => index === 0 ? { ...layer, main: layer.main.map((clip) => clip.id === id ? { ...clip, text } : clip) } : layer)));
 }

@@ -8,6 +8,7 @@ const overlayBox = { x: 0.5, y: 0.5, width: 0.6 };
 function videoClipToOverlay(clip: VideoClip, startSec: number, inputs: readonly Input[]): OverlayClip {
   const metadata = {
     ...(clip.groupId ? { groupId: clip.groupId } : {}),
+    ...(clip.opacity !== undefined ? { opacity: clip.opacity } : {}),
     ...(clip.startTransition ? { startTransition: clip.startTransition } : {}),
     ...(clip.endTransition ? { endTransition: clip.endTransition } : {}),
   };
@@ -43,10 +44,10 @@ export function moveOverlayClipToVideo1(timeline: Timeline, clipId: string, atSe
   const duration = overlayDuration(clip);
   const at = Math.max(0, atSec);
   const insert = (): VideoClip => "memeId" in clip
-    ? { id: clip.id, kind: "meme", memeId: clip.memeId, durationSec: duration, ...(clip.groupId ? { groupId: clip.groupId } : {}), ...(clip.startTransition ? { startTransition: clip.startTransition } : {}), ...(clip.endTransition ? { endTransition: clip.endTransition } : {}) }
+    ? { id: clip.id, kind: "meme", memeId: clip.memeId, durationSec: duration, ...(clip.groupId ? { groupId: clip.groupId } : {}), ...(clip.opacity !== undefined ? { opacity: clip.opacity } : {}), ...(clip.startTransition ? { startTransition: clip.startTransition } : {}), ...(clip.endTransition ? { endTransition: clip.endTransition } : {}) }
     : clip.kind === "video"
-      ? { id: clip.id, kind: "main", inputId: clip.inputId, inStartSec: clip.inStartSec, inEndSec: clip.inEndSec, ...(clip.groupId ? { groupId: clip.groupId } : {}), ...(clip.startTransition ? { startTransition: clip.startTransition } : {}), ...(clip.endTransition ? { endTransition: clip.endTransition } : {}) }
-      : { id: clip.id, kind: "main", inputId: clip.inputId, durationSec: duration, ...(clip.groupId ? { groupId: clip.groupId } : {}), ...(clip.startTransition ? { startTransition: clip.startTransition } : {}), ...(clip.endTransition ? { endTransition: clip.endTransition } : {}) };
+      ? { id: clip.id, kind: "main", inputId: clip.inputId, inStartSec: clip.inStartSec, inEndSec: clip.inEndSec, ...(clip.groupId ? { groupId: clip.groupId } : {}), ...(clip.opacity !== undefined ? { opacity: clip.opacity } : {}), ...(clip.startTransition ? { startTransition: clip.startTransition } : {}), ...(clip.endTransition ? { endTransition: clip.endTransition } : {}) }
+      : { id: clip.id, kind: "main", inputId: clip.inputId, durationSec: duration, ...(clip.groupId ? { groupId: clip.groupId } : {}), ...(clip.opacity !== undefined ? { opacity: clip.opacity } : {}), ...(clip.startTransition ? { startTransition: clip.startTransition } : {}), ...(clip.endTransition ? { endTransition: clip.endTransition } : {}) };
   const video: VideoClip[] = [];
   const starts = videoStartTimes(timeline);
   let inserted = false;

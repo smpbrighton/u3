@@ -16,6 +16,7 @@ export function loadMeasurer(fontDir = process.env.U3_FONT_DIR ?? defaultFontDir
     return {
       role: font.role,
       weight: Number(font.weight),
+      ...("key" in font ? { key: font.key } : {}),
       data: buffer.buffer.slice(buffer.byteOffset, buffer.byteOffset + buffer.byteLength) as ArrayBuffer,
     };
   });

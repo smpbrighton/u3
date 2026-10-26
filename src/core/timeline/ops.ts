@@ -1,4 +1,4 @@
-import type { AudioClip, OverlayClip, TextClip, Timeline, VideoClip } from "../schema";
+import { captionLayersOf, withCaptionLayers, type AudioClip, type OverlayClip, type TextClip, type Timeline, type VideoClip } from "../schema";
 import { findOverlayInLayers, removeOverlayFromLayers, updateOverlayInLayers } from "./overlay-layers";
 
 export const VIDEO_TRACK_REQUIRED_MESSAGE = "영상 1에는 클립이 하나 이상 있어야 합니다";
@@ -154,18 +154,22 @@ export function deleteVideoSelection(timeline: Timeline, selectedIds: readonly s
 }
 
 export function trimCaptionClip(timeline: Timeline, clipId: string, edge: "start" | "end", toSec: number): Timeline {
-  const clip = requireClip(timeline.captions, clipId, "caption");
+  const layer = captionLayersOf(timeline).find((item) => item.main.some((clip) => clip.id === clipId));
+  const clips = layer?.main ?? timeline.captions;
+  const clip = requireClip(clips, clipId, "caption");
   if (edge === "start" ? toSec <= clip.startSec : toSec >= clip.endSec) throw new RangeError("클립을 늘리는 트림은 지원하지 않습니다");
   const next = edge === "start" ? { ...clip, startSec: toSec } : { ...clip, endSec: toSec };
   if (next.startSec < 0 || next.endSec <= next.startSec) throw new RangeError("자막 구간이 올바르지 않습니다");
-  return { ...timeline, captions: timeline.captions.map((item) => item.id === clipId ? next : item) };
+  return layer ? withCaptionLayers(timeline, captionLayersOf(timeline).map((item) => item.id === layer.id ? { ...item, main: item.main.map((current) => current.id === clipId ? next : current) } : item)) : { ...timeline, captions: timeline.captions.map((item) => item.id === clipId ? next : item) };
 }
 
 export function moveCaptionClip(timeline: Timeline, clipId: string, startSec: number): Timeline {
-  const clip = requireClip(timeline.captions, clipId, "caption");
+  const layer = captionLayersOf(timeline).find((item) => item.main.some((clip) => clip.id === clipId));
+  const clips = layer?.main ?? timeline.captions;
+  const clip = requireClip(clips, clipId, "caption");
   if (startSec < 0) throw new RangeError("시작 시각은 0 이상이어야 합니다");
   const next = { ...clip, startSec, endSec: startSec + clip.endSec - clip.startSec };
-  return { ...timeline, captions: timeline.captions.map((item) => item.id === clipId ? next : item) };
+  return layer ? withCaptionLayers(timeline, captionLayersOf(timeline).map((item) => item.id === layer.id ? { ...item, main: item.main.map((current) => current.id === clipId ? next : current) } : item)) : { ...timeline, captions: timeline.captions.map((item) => item.id === clipId ? next : item) };
 }
 
 export function trimAudioClip(clips: readonly AudioClip[], clipId: string, edge: "start" | "end", toSec: number, fileDurationSec: number): AudioClip[] {

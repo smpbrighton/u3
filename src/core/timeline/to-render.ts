@@ -1,4 +1,4 @@
-import type { ClipTransition, ClipTransitionInput, OverlayClip, Timeline, TransitionKind } from "../schema";
+import type { CaptionStyle, ClipTransition, ClipTransitionInput, OverlayClip, Timeline, TransitionKind } from "../schema";
 import { clipDuration, overlayDuration } from "./ops";
 
 export const RENDER_FPS = 30;
@@ -11,6 +11,7 @@ export interface RenderVideoSequence {
   inputId?: string;
   memeId?: string;
   sourceStartFrame?: number;
+  opacity?: number;
   startTransition?: ClipTransition;
   endTransition?: ClipTransition;
 }
@@ -36,9 +37,20 @@ export interface RenderVolumeTransition {
 
 export interface RenderCaption {
   id: string;
+  layerId: string;
+  layer: number;
+  row: "main" | "sub";
   startFrame: number;
   durationInFrames: number;
   text: string;
+  x: number;
+  y: number;
+  opacity?: number;
+  layerOpacity: number;
+  clipOpacity: number;
+  textOpacity: number;
+  barOpacity: number;
+  style: CaptionStyle;
 }
 
 export interface RenderOverlay {
@@ -53,6 +65,7 @@ export interface RenderOverlay {
   x: number;
   y: number;
   width: number;
+  opacity?: number;
   startTransition?: ClipTransition;
   endTransition?: ClipTransition;
 }
@@ -76,6 +89,9 @@ export interface RenderTimeline {
   captions: RenderCaption[];
   audio: RenderAudioLayer[];
   transitions: RenderTransition[];
+  drawOrder?: ["video", "overlay", "captions", "titleBar", "watermark"];
+  titleBar?: { visible: boolean; text: string; height: number; font: string; fontSize: number; color: string; bgColor: string; bgOpacity: number; opacity: number };
+  watermark?: { visible: boolean; file: string; x: number; y: number; width: number; opacity: number };
   durationInFrames: number;
 }
 
@@ -105,7 +121,12 @@ function boundaryTransition(left: ClipTransition, right: ClipTransition): ClipTr
   return leftActive ? left : NO_TRANSITION;
 }
 
-export function timelineToRender(timeline: Timeline): RenderTimeline {
+export interface RenderBrandSettings {
+  watermark?: { file: string; x: number; y: number; width: number; opacity: number };
+  titleBar?: { height: number; bgColor: string; bgOpacity: number; font: string; fontSize: number; color: string };
+}
+
+export function timelineToRender(timeline: Timeline, brand?: RenderBrandSettings): RenderTimeline {
   let cursorSec = 0;
   const video: RenderVideoSequence[] = [];
   const audio: RenderAudioLayer[] = [];
@@ -119,14 +140,14 @@ export function timelineToRender(timeline: Timeline): RenderTimeline {
     const endFrame = frame(cursorSec + durationSec);
     const durationInFrames = endFrame - startFrame;
     if ("durationSec" in clip && clip.kind === "meme") {
-      video.push({ id: clip.id, kind: "meme", startFrame, durationInFrames, memeId: clip.memeId, ...transitionProps(clip, durationSec) });
+      video.push({ id: clip.id, kind: "meme", startFrame, durationInFrames, memeId: clip.memeId, ...(clip.opacity !== undefined ? { opacity: clip.opacity } : {}), ...transitionProps(clip, durationSec) });
       mainBounds.push({ id: clip.id, startFrame, endFrame, durationInFrames, kind: "meme" });
       audio.push({ id: `${clip.id}-audio`, track: "meme", startFrame, durationInFrames, sourceStartFrame: 0, volume: volume(timeline.audio.source), inputId: clip.memeId });
     } else if ("durationSec" in clip) {
-      video.push({ id: clip.id, kind: "main", startFrame, durationInFrames, inputId: clip.inputId, ...transitionProps(clip, durationSec) });
+      video.push({ id: clip.id, kind: "main", startFrame, durationInFrames, inputId: clip.inputId, ...(clip.opacity !== undefined ? { opacity: clip.opacity } : {}), ...transitionProps(clip, durationSec) });
       mainBounds.push({ id: clip.id, startFrame, endFrame, durationInFrames, kind: "main" });
     } else {
-      video.push({ id: clip.id, kind: "main", startFrame, durationInFrames, inputId: clip.inputId, sourceStartFrame: frame(clip.inStartSec), ...transitionProps(clip, durationSec) });
+      video.push({ id: clip.id, kind: "main", startFrame, durationInFrames, inputId: clip.inputId, sourceStartFrame: frame(clip.inStartSec), ...(clip.opacity !== undefined ? { opacity: clip.opacity } : {}), ...transitionProps(clip, durationSec) });
       mainBounds.push({ id: clip.id, startFrame, endFrame, durationInFrames, kind: "main" });
       const separated = stems[clip.inputId];
       if (separated) {
@@ -141,7 +162,11 @@ export function timelineToRender(timeline: Timeline): RenderTimeline {
     cursorSec += durationSec;
   }
 
-  const captions = timeline.captions.map((clip) => ({ id: clip.id, startFrame: frame(clip.startSec), durationInFrames: frame(clip.endSec) - frame(clip.startSec), text: clip.text }));
+  const layers = timeline.captionLayers ?? [{ id: "caption-layer-1", name: "자막", x: 0.5, y: 1555 / 1920, style: { font: "pretendard" as const, mainSize: 56, subSize: 40, color: "#FFFFFF", textOpacity: 1, bar: true, barColor: "#000000", barOpacity: 0.62 }, main: timeline.captions ?? [], sub: [] }];
+  const captions = layers.flatMap((layer, layerIndex) => [
+    ...layer.main.map((clip) => ({ id: clip.id, layerId: layer.id, layer: layerIndex, row: "main" as const, startFrame: frame(clip.startSec), durationInFrames: frame(clip.endSec) - frame(clip.startSec), text: clip.text, x: layer.x, y: layer.y, opacity: (clip.opacity ?? 1) * (layer.opacity ?? 1) * layer.style.textOpacity, clipOpacity: clip.opacity ?? 1, layerOpacity: layer.opacity ?? 1, textOpacity: layer.style.textOpacity, barOpacity: layer.style.barOpacity, style: layer.style })),
+    ...layer.sub.map((clip) => ({ id: clip.id, layerId: layer.id, layer: layerIndex, row: "sub" as const, startFrame: frame(clip.startSec), durationInFrames: frame(clip.endSec) - frame(clip.startSec), text: clip.text, x: layer.x, y: layer.y, opacity: (clip.opacity ?? 1) * (layer.opacity ?? 1) * layer.style.textOpacity, clipOpacity: clip.opacity ?? 1, layerOpacity: layer.opacity ?? 1, textOpacity: layer.style.textOpacity, barOpacity: layer.style.barOpacity, style: layer.style })),
+  ]);
   const overlay = timeline.overlays.flatMap((layer, layerIndex) => layer.map((clip: OverlayClip): RenderOverlay => ({
     id: clip.id,
     layer: layerIndex,
@@ -149,7 +174,7 @@ export function timelineToRender(timeline: Timeline): RenderTimeline {
     startFrame: frame(clip.startSec),
     durationInFrames: frame(overlayDuration(clip)),
     ...( "memeId" in clip ? { memeId: clip.memeId } : { inputId: clip.inputId, ...(clip.kind === "video" ? { sourceStartFrame: frame(clip.inStartSec) } : {}) }),
-    x: clip.x, y: clip.y, width: clip.width,
+    x: clip.x, y: clip.y, width: clip.width, ...(clip.opacity !== undefined ? { opacity: clip.opacity } : {}),
     ...transitionProps(clip, overlayDuration(clip)),
   })));
   for (const clip of timeline.overlays.flat().filter((item): item is Extract<OverlayClip, { kind: "video" }> => "kind" in item && item.kind === "video")) {
@@ -255,5 +280,17 @@ export function timelineToRender(timeline: Timeline): RenderTimeline {
     ...captions.map((clip) => clip.startFrame + clip.durationInFrames),
     ...audio.map((layer) => layer.startFrame + layer.durationInFrames),
   );
-  return { fps: RENDER_FPS, video, overlay, captions, audio, transitions, durationInFrames };
+  const titleConfig = brand?.titleBar;
+  const title = timeline.brand?.titleBar;
+  const titleText = title?.text ?? "";
+  const titleVisible = title?.enabled ?? Boolean(titleText);
+  const watermarkConfig = brand?.watermark;
+  const watermark = timeline.brand?.watermark;
+  const watermarkVisible = watermark?.enabled ?? Boolean(watermarkConfig?.file);
+  return {
+    fps: RENDER_FPS, video, overlay, captions, audio, transitions, durationInFrames,
+    drawOrder: ["video", "overlay", "captions", "titleBar", "watermark"],
+    ...(titleConfig ? { titleBar: { visible: titleVisible && Boolean(titleText), text: titleText, height: title?.height ?? titleConfig.height, font: titleConfig.font, fontSize: title?.fontSize ?? titleConfig.fontSize, color: titleConfig.color, bgColor: titleConfig.bgColor, bgOpacity: titleConfig.bgOpacity, opacity: title?.opacity ?? 1 } } : {}),
+    ...(watermarkConfig?.file ? { watermark: { visible: watermarkVisible, file: watermarkConfig.file, x: watermark?.x ?? watermarkConfig.x, y: watermark?.y ?? watermarkConfig.y, width: watermark?.width ?? watermarkConfig.width, opacity: watermark?.opacity ?? watermarkConfig.opacity } } : {}),
+  };
 }

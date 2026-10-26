@@ -1,4 +1,4 @@
-import type { AudioClip, CodexScript, Input, MemeMeta, SfxMeta, Timeline, VideoClip } from "../schema";
+import { DEFAULT_CAPTION_STYLE, type AudioClip, type CodexScript, type Input, type MemeMeta, type SfxMeta, type Timeline, type VideoClip } from "../schema";
 import { pickSfxFile, resolveSceneSfx, SCENE_SFX_MAX_SEC } from "../sfx";
 import { placeOverlayInLowestLayer } from "./overlay-layers";
 
@@ -106,7 +106,8 @@ export function timelineFromScript(script: CodexScript, inputs: readonly Input[]
   });
 
   return {
-    video, overlays, captions, voice: [], sfx,
+    video, overlays, captions,
+    captionLayers: [{ id: "caption-layer-1", name: "자막", x: 0.5, y: 1555 / 1920, style: DEFAULT_CAPTION_STYLE, main: captions, sub: [] }], voice: [], sfx,
     audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } },
   };
 }

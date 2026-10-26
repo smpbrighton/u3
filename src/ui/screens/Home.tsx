@@ -132,7 +132,7 @@ export function Home(props: {
         <div className="project-grid" aria-label="영상 목록">
           {projects.map(project => {
             const inputCount = project.inputs.filter(input => input.id !== "placeholder").length;
-            const scenes = project.timeline.captions.length;
+            const scenes = project.timeline.captionLayers?.[0]?.main.length ?? project.timeline.captions.length;
             const duration = timelineDuration(project);
             const complete = project.timeline.video.length > 0;
             return (

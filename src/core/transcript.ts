@@ -1,6 +1,6 @@
 import { buildCaptionChunks, type CaptionOptions } from "./captions";
 import type { Measurer } from "./measure";
-import type { AudioClip, TextClip, Timeline, WordStamp } from "./schema";
+import { captionLayersOf, withCaptionLayers, type AudioClip, type TextClip, type Timeline, type WordStamp } from "./schema";
 import { clipDuration } from "./timeline/ops";
 
 type JsonObject = Record<string, unknown>;
@@ -81,9 +81,12 @@ export function captionsFromTranscript(
     endSec: Math.max(chunk.startSec + 0.01, chunk.endSec),
     text: chunk.lines.map((line) => line.text).join("\n"),
   }));
-  const replaced = timeline.captions.filter((caption) => speechRanges.some((range) => caption.startSec < range.endSec && caption.endSec > range.startSec));
+  const layers = captionLayersOf(timeline);
+  const main = layers[0]?.main ?? [];
+  const replaced = main.filter((caption) => speechRanges.some((range) => caption.startSec < range.endSec && caption.endSec > range.startSec));
   const replacedIds = new Set(replaced.map((caption) => caption.id));
-  const nextTimeline: Timeline = { ...timeline, captions: [...timeline.captions.filter((caption) => !replacedIds.has(caption.id)), ...captions] };
+  const nextMain = [...main.filter((caption) => !replacedIds.has(caption.id)), ...captions];
+  const nextTimeline: Timeline = withCaptionLayers(timeline, layers.map((layer, index) => index === 0 ? { ...layer, main: nextMain } : layer));
   return { words: mapped, captions, replaced, timeline: nextTimeline };
 }
 

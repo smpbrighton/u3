@@ -80,10 +80,11 @@ export function fitCaptionText(
   maxWidth: number,
   widthAtSize: (line: string, fontSize: number) => number,
   minFontSize = 30,
+  maxFontSize = CAPTION_STYLE.fontSize,
 ): CaptionTextFit {
   const step = 2;
-  let lastSize = CAPTION_STYLE.fontSize;
-  for (let fontSize = CAPTION_STYLE.fontSize; fontSize >= minFontSize; fontSize -= step) {
+  let lastSize = maxFontSize;
+  for (let fontSize = maxFontSize; fontSize >= minFontSize; fontSize -= step) {
     lastSize = fontSize;
     const lines = wrapWords(text, maxWidth, 2, (line) => widthAtSize(line, fontSize));
     if (lines) return { lines, fontSize, overflow: false };
