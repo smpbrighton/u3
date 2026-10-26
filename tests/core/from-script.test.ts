@@ -63,6 +63,20 @@ describe("timelineFromScript", () => {
     expect(timeline.video).toHaveLength(2);
   });
 
+  it("reaction null 장면에 연결한 짤은 overlays에 두고 영상 길이를 늘리지 않는다", () => {
+    const script: CodexScript = { scenes: [
+      { caption: "첫 장면", inputIndex: 1, reaction: null, memeBefore: false, memeAfter: true, sfxCategory: null, startSec: 0.3, endSec: 2.4 },
+    ] };
+    const timeline = timelineFromScript(script, [{ id: "video-a", kind: "video", file: "a.mp4", durationSec: 10 }], { memes: { 0: meme } });
+
+    expect(timeline.video).toHaveLength(1);
+    expect(timeline.video[0]).not.toHaveProperty("memeId");
+    expect(timeline.overlays.flat().map(({ memeId }) => memeId)).toEqual(["m1"]);
+    expect(timeline.overlays.flat()[0]?.startSec).toBeCloseTo(0.1);
+    expect(timeline.overlays.flat()[0]?.durationSec).toBe(2);
+    expect(timeline.captions[0]).toMatchObject({ startSec: 0, endSec: 2.1 });
+  });
+
   it("sfxCategory별 라이브러리 효과음을 자막과 같은 시각에 최대 1.5초 배치한다", () => {
     const script: CodexScript = { scenes: [
       { caption: "놀람", inputIndex: 1, reaction: null, memeBefore: false, memeAfter: false, sfxCategory: "shock", startSec: null, endSec: null },

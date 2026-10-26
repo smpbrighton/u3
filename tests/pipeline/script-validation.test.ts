@@ -35,4 +35,13 @@ describe("Codex 대본 입력 검증", () => {
     expect(formatScriptInputGuide(inputs, ["0.5초", "18.5초"])).toContain("입력 항목 1");
     expect(formatScriptInputGuide(inputs, ["0.5초", "18.5초"])).toContain("프레임 시각: 0.5초, 18.5초");
   });
+
+  it("AI 프롬프트는 각 영상 입력에서 짤 반응을 하나 이상 정하도록 요구한다", () => {
+    const inputs: Input[] = [
+      { id: "video-a", kind: "video", file: "a.mp4", durationSec: 8 },
+      { id: "photo-a", kind: "photo", file: "p.jpg" },
+    ];
+
+    expect(formatScriptInputGuide(inputs, [[], []], ["웃음", "당황"])).toContain("각 영상 입력 항목마다 reaction이 null이 아닌 장면을 하나 이상 만듭니다");
+  });
 });
