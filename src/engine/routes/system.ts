@@ -8,7 +8,7 @@ import type { AppContext } from "../app";
 import { HttpError, parseJson } from "../http";
 import { codexLoginStatus } from "../pipeline/codex-path";
 import { readUsage } from "../pipeline/usage";
-import { DEFAULT_SCRIPT_PROMPT } from "../../core/script-prompt";
+import { DEFAULT_SCRIPT_PROMPT, SCRIPT_PROMPT_MAX_LENGTH } from "../../core/script-prompt";
 import { DEFAULT_SCRIPT_REVIEW_PROMPT } from "../../core/script-review";
 import { formatScriptInputGuidePreview } from "../pipeline/script-validation";
 import { ImageQueue } from "../image-queue";
@@ -153,7 +153,7 @@ export function registerSystemRoutes(app: Hono, context: AppContext): void {
   });
 
   app.put("/api/system/script-prompt", async c => {
-    const { prompt: rawPrompt } = await parseJson(c, z.object({ prompt: z.string().max(4000) }));
+    const { prompt: rawPrompt } = await parseJson(c, z.object({ prompt: z.string().max(SCRIPT_PROMPT_MAX_LENGTH) }));
     const prompt = rawPrompt.trim();
     const settings = await context.store.readSettings();
     if (!prompt || prompt === DEFAULT_SCRIPT_PROMPT) delete settings.scriptPrompt;
@@ -176,7 +176,7 @@ export function registerSystemRoutes(app: Hono, context: AppContext): void {
   app.put("/api/system/script-voice", async c => {
     const value = await parseJson(c, z.object({
       speaker: z.string().max(4000), tone: z.string().max(4000),
-      persona: z.string().max(4000), review: z.string().max(4000),
+      persona: z.string().max(4000), review: z.string().max(SCRIPT_PROMPT_MAX_LENGTH),
     }));
     const settings = await context.store.readSettings();
     await context.store.saveSettings({

@@ -9,7 +9,7 @@ import { Switch } from "../../../seed-design/ui/switch";
 import { TextField, TextFieldInput, TextFieldTextarea } from "../../../seed-design/ui/text-field";
 import { api, brandMediaUrl, watchJob, watchJobs, type EngineJob } from "../api";
 import type { SystemStatus } from "../types";
-import { DEFAULT_SCRIPT_PROMPT } from "../../core/script-prompt";
+import { DEFAULT_SCRIPT_PROMPT, SCRIPT_PROMPT_MAX_LENGTH } from "../../core/script-prompt";
 import { DEFAULT_SCRIPT_REVIEW_PROMPT } from "../../core/script-review";
 import { DEFAULT_BRAND_SETTINGS, type BrandSettings } from "../../core/schema";
 import { BrandPreview } from "../settings/BrandPreview";
@@ -311,13 +311,13 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
         <TextField
           label="기본 지시문"
           description="대본을 만들 때마다 적용할 지시문이에요."
-          maxGraphemeCount={4000}
+          maxGraphemeCount={SCRIPT_PROMPT_MAX_LENGTH}
           value={scriptPrompt}
           onValueChange={({ value }) => setScriptPrompt(value)}
         >
           <TextFieldTextarea
             className="script-prompt-input"
-            maxLength={4000}
+            maxLength={SCRIPT_PROMPT_MAX_LENGTH}
             disabled={scriptPromptLoading || scriptPromptSaving}
           />
         </TextField>
@@ -330,11 +330,11 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
             <TextField
               label={scriptVoiceLabel(field)}
               description={field === "review" ? "대본을 검수할 때 적용할 지시문이에요." : "비워 두면 언어집에서 AI가 선택해요."}
-              maxGraphemeCount={4000}
+              maxGraphemeCount={field === "review" ? SCRIPT_PROMPT_MAX_LENGTH : 4000}
               value={scriptVoice[field]}
               onValueChange={({ value }) => setScriptVoice(current => ({ ...current, [field]: value }))}
             >
-              <TextFieldTextarea className="script-voice-input" maxLength={4000} disabled={scriptVoiceLoading || Boolean(scriptVoiceSaving[field])} />
+              <TextFieldTextarea className="script-voice-input" maxLength={field === "review" ? SCRIPT_PROMPT_MAX_LENGTH : 4000} disabled={scriptVoiceLoading || Boolean(scriptVoiceSaving[field])} />
             </TextField>
             <div className="action-row settings-actions">
               <ActionButton variant="neutralWeak" disabled={scriptVoiceLoading || Boolean(scriptVoiceSaving[field]) || scriptVoice[field] === (field === "review" ? DEFAULT_SCRIPT_REVIEW_PROMPT : "")} onClick={() => resetScriptVoiceField(field)}>기본값으로 되돌리기</ActionButton>
