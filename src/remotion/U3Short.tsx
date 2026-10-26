@@ -153,6 +153,28 @@ export const SceneCaption: React.FC<{ caption: import("../core/timeline/to-rende
   );
 };
 
+const BrandTitleBar: React.FC<{ titleBar: NonNullable<U3ShortProps["render"]["titleBar"]> }> = ({ titleBar }) => {
+  const fontFamily = CAPTION_FONT_FAMILY[titleBar.font as keyof typeof CAPTION_FONT_FAMILY];
+  const fontWeight = captionWeight(titleBar.font as keyof typeof CAPTION_FONT_FAMILY);
+  const fontSize = useMemo(() => {
+    const context = document.createElement("canvas").getContext("2d");
+    if (!context) throw new Error("타이틀 바 글자 측정 canvas를 만들 수 없습니다");
+    const maxWidth = 1080 - 2 * CAPTION_PAD_X;
+    let size = titleBar.fontSize;
+    while (size > 12) {
+      context.font = `${fontWeight} ${size}px ${fontFamily}`;
+      if (context.measureText(titleBar.text).width * 1.04 <= maxWidth) break;
+      size = Math.max(12, size - 1);
+    }
+    return size;
+  }, [titleBar.text, titleBar.fontSize, fontFamily, fontWeight]);
+
+  return <AbsoluteFill style={{ pointerEvents: "none", alignItems: "center", justifyContent: "center", height: titleBar.height }}>
+    <div style={{ position: "absolute", inset: 0, backgroundColor: colorWithAlpha(titleBar.bgColor, titleBar.bgOpacity * titleBar.opacity) }} />
+    <div style={{ position: "relative", width: "100%", padding: `0 ${CAPTION_PAD_X}px`, boxSizing: "border-box", color: titleBar.color, fontFamily, fontSize, fontWeight, textAlign: "center", opacity: titleBar.opacity, whiteSpace: "nowrap" }}>{titleBar.text}</div>
+  </AbsoluteFill>;
+};
+
 export const U3Short: React.FC<U3ShortProps> = (props) => (
   <AbsoluteFill style={{ backgroundColor: "#000" }}>
     {props.render.video.map((item, index) => (
@@ -171,7 +193,7 @@ export const U3Short: React.FC<U3ShortProps> = (props) => (
         <SceneCaption caption={caption} paired={props.render.captions.some((other) => other.layerId === caption.layerId && other.row !== caption.row && other.startFrame < caption.startFrame + caption.durationInFrames && other.startFrame + other.durationInFrames > caption.startFrame)} />
       </Sequence>
     ))}
-    {props.render.titleBar?.visible ? <AbsoluteFill style={{ pointerEvents: "none", justifyContent: "flex-start", alignItems: "center", height: props.render.titleBar.height, backgroundColor: props.render.titleBar.bgColor, opacity: props.render.titleBar.opacity, color: props.render.titleBar.color, fontFamily: CAPTION_FONT_FAMILY[props.render.titleBar.font as keyof typeof CAPTION_FONT_FAMILY], fontSize: props.render.titleBar.fontSize, fontWeight: captionWeight(props.render.titleBar.font as keyof typeof CAPTION_FONT_FAMILY), textAlign: "center" }}>{props.render.titleBar.text}</AbsoluteFill> : null}
+    {props.render.titleBar?.visible ? <BrandTitleBar titleBar={props.render.titleBar} /> : null}
     {props.render.watermark?.visible ? <Img data-u3-target="watermark" src={props.render.watermark.file} style={{ position: "absolute", left: `${props.render.watermark.x * 100}%`, top: `${props.render.watermark.y * 100}%`, width: `${props.render.watermark.width * 100}%`, height: "auto", opacity: props.render.watermark.opacity }} /> : null}
     {props.render.audio.map((layer) => {
       const src = layer.track === "source" || layer.track === "stem-voice" || layer.track === "stem-bg"

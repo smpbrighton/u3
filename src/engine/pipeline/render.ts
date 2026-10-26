@@ -2,7 +2,7 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderMedia, renderStill, selectComposition, type CancelSignal, type RenderMediaProgress } from "@remotion/renderer";
-import type { Input, Timeline } from "../../core/schema";
+import type { BrandSettings, Input, Timeline } from "../../core/schema";
 import { libraryReferencePath } from "../../core/library-reference";
 import { timelineToRender } from "../../core/timeline/to-render";
 import type { U3ShortProps } from "../../remotion/types";
@@ -38,6 +38,7 @@ export interface RenderInput extends Input {
 
 export interface RenderShortOptions {
   timeline: Timeline;
+  brand?: BrandSettings;
   inputs: readonly RenderInput[];
   projectFolder: string;
   libraryFolder: string;
@@ -93,7 +94,11 @@ export async function resolveMemeFiles(ids: readonly string[], libraryFolder: st
 }
 
 export async function renderShort(options: RenderShortOptions) {
-  const render = timelineToRender(options.timeline);
+  const brandRoot = path.resolve(options.projectFolder, "../../brand");
+  const brand = options.brand?.watermark?.file
+    ? { ...options.brand, watermark: { ...options.brand.watermark, file: options.resolveMediaUrl?.(path.resolve(brandRoot, options.brand.watermark.file)) ?? path.resolve(brandRoot, options.brand.watermark.file) } }
+    : options.brand;
+  const render = timelineToRender(options.timeline, brand);
   const inputs = Object.fromEntries(options.inputs.map((input) => [input.id, input.url ?? asUrl(input.file, options.projectFolder, options.resolveMediaUrl)]));
   const inputKinds = Object.fromEntries(options.inputs.map((input) => [input.id, input.kind]));
   const memeIds = [...new Set([...render.video.filter((item) => item.kind === "meme").map((item) => item.memeId!), ...render.overlay.filter((item) => item.kind === "meme").map((item) => item.memeId!)])];

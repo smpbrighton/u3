@@ -57,7 +57,7 @@ try {
   }
 }
 const mediaServer = await startMediaServer({
-  roots: { projects: path.join(store.root, "projects"), library: libraryRoot, carousels: path.join(store.root, "carousels") },
+  roots: { projects: path.join(store.root, "projects"), library: libraryRoot, carousels: path.join(store.root, "carousels"), brand: path.join(store.root, "brand") },
   token,
   allowedOrigin: tauriOrigin,
 });

@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
-import type { AudioClip, ClipTransitionInput, OverlayClip, Project, Timeline as TimelineData, TransitionKind } from "../../core/schema";
+import { DEFAULT_BRAND_SETTINGS, type AudioClip, type BrandSettings, type ClipTransitionInput, type OverlayClip, type Project, type Timeline as TimelineData, type TransitionKind } from "../../core/schema";
 import { captionLayersOf, withCaptionLayers } from "../../core/schema";
 import { deleteOverlayClip, moveVideoClip, overlayDuration, videoDuration, videoStartTimes } from "../../core/timeline/ops";
 import { findOverlayInLayers, updateOverlayInLayers } from "../../core/timeline/overlay-layers";
@@ -287,7 +287,35 @@ export function Inspector(props: {
     {job && ["queued", "running"].includes(job.status) ? <div className="studio-job"><ProgressCircle size="24" tone="brand" value={job.progress === null ? undefined : job.progress * 100} /><span>{job.message ?? "작업 중이에요."}</span><ActionButton variant="ghost" size="small" onClick={() => void cancelJob()}>취소</ActionButton></div> : null}
   </InspectorShell>;
 
+  if (!props.selectedId && props.selectedIds.length === 0) return <BrandInspector timeline={props.timeline} onChange={props.onChange} />;
   return <InspectorShell title="속성" {...dialogProps}><p className="studio-help">클립을 선택하면 속성을 편집할 수 있어요.</p></InspectorShell>;
+}
+
+function BrandInspector(props: { timeline: TimelineData; onChange: (timeline: TimelineData) => void }) {
+  const [defaults, setDefaults] = useState<BrandSettings>(DEFAULT_BRAND_SETTINGS);
+  useEffect(() => { void api<typeof DEFAULT_BRAND_SETTINGS>("GET", "/api/system/brand").then(setDefaults).catch(() => undefined); }, []);
+  const brand = props.timeline.brand ?? {};
+  const watermark = brand.watermark ?? {};
+  const titleBar = brand.titleBar ?? { text: "" };
+  const updateWatermark = (changes: NonNullable<TimelineData["brand"]>["watermark"]) => props.onChange({ ...props.timeline, brand: { ...brand, watermark: { ...watermark, ...changes } } });
+  const updateTitle = (changes: Partial<NonNullable<TimelineData["brand"]>["titleBar"]>) => props.onChange({ ...props.timeline, brand: { ...brand, titleBar: { ...titleBar, ...changes } } });
+  const watermarkEnabled = watermark.enabled ?? Boolean(defaults.watermark?.file);
+  const titleEnabled = titleBar.enabled ?? Boolean(titleBar.text);
+  return <InspectorShell title="브랜드">
+    <h3 className="brand-inspector-heading">워터마크</h3>
+    <StudioSwitch label="워터마크 켜기" checked={watermarkEnabled} onChange={enabled => updateWatermark({ enabled })} />
+    {!defaults.watermark?.file ? <p className="studio-help">설정에서 워터마크 이미지를 선택해 주세요.</p> : null}
+    <label className="studio-range-label">가로 위치 <b>{Math.round((watermark.x ?? defaults.watermark?.x ?? 0.5) * 100)}%</b><StudioSlider label="워터마크 가로 위치" min={0} max={1} step={0.01} value={watermark.x ?? defaults.watermark?.x ?? 0.5} onChange={x => updateWatermark({ x })} /></label>
+    <label className="studio-range-label">세로 위치 <b>{Math.round((watermark.y ?? defaults.watermark?.y ?? 0.08) * 100)}%</b><StudioSlider label="워터마크 세로 위치" min={0} max={1} step={0.01} value={watermark.y ?? defaults.watermark?.y ?? 0.08} onChange={y => updateWatermark({ y })} /></label>
+    <label className="studio-range-label">폭 <b>{Math.round((watermark.width ?? defaults.watermark?.width ?? 0.2) * 100)}%</b><StudioSlider label="워터마크 폭" min={0.01} max={1} step={0.01} value={watermark.width ?? defaults.watermark?.width ?? 0.2} onChange={width => updateWatermark({ width })} /></label>
+    <label className="studio-range-label">투명도 <b>{Math.round((watermark.opacity ?? defaults.watermark?.opacity ?? 1) * 100)}%</b><StudioSlider label="워터마크 투명도" min={0} max={1} step={0.01} value={watermark.opacity ?? defaults.watermark?.opacity ?? 1} onChange={opacity => updateWatermark({ opacity })} /></label>
+    <h3 className="brand-inspector-heading">상단 타이틀 바</h3>
+    <StudioSwitch label="타이틀 바 켜기" checked={titleEnabled} onChange={enabled => updateTitle({ enabled })} />
+    <StudioTextInput label="타이틀 글" maxLength={30} value={titleBar.text} onChange={text => updateTitle({ text: text.slice(0, 30) })} />
+    <label className="studio-range-label">높이 <b>{titleBar.height ?? defaults.titleBar.height}px</b><StudioSlider label="타이틀 바 높이" min={40} max={600} step={1} value={titleBar.height ?? defaults.titleBar.height} onChange={height => updateTitle({ height })} /></label>
+    <label className="studio-range-label">글자 크기 <b>{titleBar.fontSize ?? defaults.titleBar.fontSize}px</b><StudioSlider label="타이틀 글자 크기" min={12} max={200} step={1} value={titleBar.fontSize ?? defaults.titleBar.fontSize} onChange={fontSize => updateTitle({ fontSize })} /></label>
+    <label className="studio-range-label">투명도 <b>{Math.round((titleBar.opacity ?? 1) * 100)}%</b><StudioSlider label="타이틀 바 투명도" min={0} max={1} step={0.01} value={titleBar.opacity ?? 1} onChange={opacity => updateTitle({ opacity })} /></label>
+  </InspectorShell>;
 }
 
 function updateVideoTransition(id: string, edge: "startTransition" | "endTransition", value: ClipTransitionInput, timeline: TimelineData, onChange: (timeline: TimelineData) => void) {

@@ -2,9 +2,10 @@ import type { Hono } from "hono";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
+import { copyFile, mkdir, rm } from "node:fs/promises";
 import { z } from "zod";
 import type { AppContext } from "../app";
-import { parseJson } from "../http";
+import { HttpError, parseJson } from "../http";
 import { codexLoginStatus } from "../pipeline/codex-path";
 import { readUsage } from "../pipeline/usage";
 import { DEFAULT_SCRIPT_PROMPT } from "../../core/script-prompt";
@@ -13,6 +14,8 @@ import { formatScriptInputGuidePreview } from "../pipeline/script-validation";
 import { ImageQueue } from "../image-queue";
 import { listSfx } from "../pipeline/library";
 import { createLibraryReference } from "../../core/library-reference";
+import { BrandSettings, DEFAULT_BRAND_SETTINGS } from "../../core/schema";
+import { validateBrandImage } from "../brand-image";
 
 const IntroSfx = z.object({ enabled: z.boolean(), ref: z.string().min(1), atSec: z.number().min(0).max(10) });
 const DEFAULT_INTRO_SFX = { enabled: true, ref: "u3-library:sfx/notify/sfx-mum36456-06c20f.mp3", atSec: 3 };
@@ -40,6 +43,47 @@ async function readCodexModels(bin: string | null) {
 }
 
 export function registerSystemRoutes(app: Hono, context: AppContext): void {
+  app.get("/api/system/brand", async c => {
+    const settings = await context.store.readSettings();
+    const parsed = BrandSettings.safeParse(settings.brand);
+    return c.json(parsed.success ? parsed.data : DEFAULT_BRAND_SETTINGS);
+  });
+
+  app.put("/api/system/brand", async c => {
+    const brand = await parseJson(c, BrandSettings);
+    const settings = await context.store.readSettings();
+    await context.store.saveSettings({ ...settings, brand });
+    return c.json(brand);
+  });
+
+  app.post("/api/system/brand/watermark", async c => {
+    const { path: source } = await parseJson(c, z.object({ path: z.string().trim().min(1) }));
+    let image: Awaited<ReturnType<typeof validateBrandImage>>;
+    try { image = await validateBrandImage(source); }
+    catch (error) { throw new HttpError(400, "invalid-watermark", error instanceof Error ? error.message : "워터마크 파일을 확인할 수 없습니다"); }
+    const root = path.join(context.store.root, "brand");
+    const filename = `watermark${image.extension}`;
+    await mkdir(root, { recursive: true });
+    await copyFile(source, path.join(root, filename));
+    const settings = await context.store.readSettings();
+    const existing = BrandSettings.safeParse(settings.brand);
+    const brand = { ...(existing.success ? existing.data : DEFAULT_BRAND_SETTINGS), watermark: { x: 0.5, y: 0.08, width: 0.2, opacity: 1, ...(existing.success ? existing.data.watermark : {}), file: filename } };
+    await context.store.saveSettings({ ...settings, brand });
+    return c.json({ ...brand, file: filename });
+  });
+
+  app.delete("/api/system/brand/watermark", async c => {
+    const settings = await context.store.readSettings();
+    const parsed = BrandSettings.safeParse(settings.brand);
+    const brand = parsed.success ? parsed.data : DEFAULT_BRAND_SETTINGS;
+    const file = brand.watermark?.file;
+    if (file && /^watermark\.(png|jpg|webp)$/.test(file)) await rm(path.join(context.store.root, "brand", file), { force: true });
+    const next = { ...brand, watermark: brand.watermark ? { ...brand.watermark, file: undefined } : undefined };
+    if (next.watermark) delete next.watermark.file;
+    await context.store.saveSettings({ ...settings, brand: next });
+    return c.json(next);
+  });
+
   app.get("/api/system/intro-sfx", async c => {
     const settings = await context.store.readSettings();
     const parsed = IntroSfx.safeParse(settings.introSfx);

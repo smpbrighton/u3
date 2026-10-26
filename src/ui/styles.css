@@ -189,6 +189,11 @@ input::placeholder, textarea::placeholder { color: var(--seed-color-palette-gray
 }
 
 .settings-card, .settings-row { margin-bottom: var(--seed-dimension-x4); }
+.brand-settings-watermark { display: flex; align-items: center; gap: var(--seed-dimension-x4); margin-top: var(--seed-dimension-x4); }
+.brand-watermark-preview { display: grid; width: 120px; height: 92px; place-items: center; overflow: hidden; border: 1px solid var(--seed-color-palette-gray-200); border-radius: 8px; color: var(--seed-color-palette-gray-600); background: var(--seed-color-bg-layer-default); font-size: 12px; }
+.brand-watermark-preview img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.brand-watermark-actions { display: flex; gap: var(--seed-dimension-x2); }
+.brand-inspector-heading { margin: 4px 0 0; font-size: 14px; }
 .settings-card-heading, .settings-row { display: flex; align-items: center; justify-content: space-between; gap: var(--seed-dimension-x4); }
 .settings-card-heading h2, .settings-row h2, .settings-section-title { margin: 0; font-size: 16px; }
 .status-label { display: inline-flex; align-items: center; gap: var(--seed-dimension-x2); font-size: 13px; font-weight: 700; }

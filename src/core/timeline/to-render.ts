@@ -122,7 +122,7 @@ function boundaryTransition(left: ClipTransition, right: ClipTransition): ClipTr
 }
 
 export interface RenderBrandSettings {
-  watermark?: { file: string; x: number; y: number; width: number; opacity: number };
+  watermark?: { file?: string; x: number; y: number; width: number; opacity: number };
   titleBar?: { height: number; bgColor: string; bgOpacity: number; font: string; fontSize: number; color: string };
 }
 

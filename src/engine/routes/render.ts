@@ -5,8 +5,9 @@ import type { AppContext } from "../app";
 import { done } from "../jobs";
 import { HttpError, parseJson } from "../http";
 import { renderShort } from "../pipeline/render";
+import { BrandSettings, DEFAULT_BRAND_SETTINGS } from "../../core/schema";
 
-export function registerRenderRoutes(app: Hono, context: AppContext, render = renderShort): void {
+export function registerRenderRoutes(app: Hono, context: AppContext, render: (options: Parameters<typeof renderShort>[0]) => Promise<unknown> = renderShort): void {
   app.post("/api/projects/:id/render", async c => {
     const project = await context.store.getProject(c.req.param("id"));
     if (!project) throw new HttpError(404, "not-found", "프로젝트가 없습니다");
@@ -15,10 +16,17 @@ export function registerRenderRoutes(app: Hono, context: AppContext, render = re
       throw new HttpError(400, "invalid-output", "내보낼 mp4의 절대 경로를 지정해야 합니다");
     }
     const projectFolder = path.resolve(context.store.projectDir(project.id));
+    const savedSettings = await context.store.readSettings();
+    const parsedBrand = BrandSettings.safeParse(savedSettings.brand);
+    const brand = parsedBrand.success ? parsedBrand.data : DEFAULT_BRAND_SETTINGS;
     const configuredLibrary = process.env.U3_LIBRARY_DIR ?? path.join(process.cwd(), "resources");
     const libraryFolder = path.resolve(path.basename(configuredLibrary) === "library" ? configuredLibrary : path.join(configuredLibrary, "library"));
     const job = context.jobs.start({ kind: "render", projectId: project.id, label: "영상 내보내기", cancellable: true }, async jobContext => {
       const resolveMediaUrl = (absolutePath: string) => {
+        const brandFolder = path.resolve(context.store.root, "brand");
+        if (absolutePath === brandFolder || absolutePath.startsWith(brandFolder + path.sep)) {
+          return context.mediaServer?.url("brand", path.relative(brandFolder, absolutePath)) ?? absolutePath;
+        }
         if (absolutePath === projectFolder || absolutePath.startsWith(projectFolder + path.sep)) {
           return context.mediaServer?.url("projects", `${project.id}/${path.relative(projectFolder, absolutePath)}`) ?? absolutePath;
         }
@@ -29,6 +37,7 @@ export function registerRenderRoutes(app: Hono, context: AppContext, render = re
       };
       await render({
         timeline: project.timeline,
+        brand,
         inputs: project.inputs,
         projectFolder,
         libraryFolder,

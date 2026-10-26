@@ -5,11 +5,12 @@ import { PageBanner } from "../../../seed-design/ui/page-banner";
 import { ProgressCircle } from "../../../seed-design/ui/progress-circle";
 import { SelectRoot, SelectTrigger, SelectContent, SelectGroup, SelectItem } from "../../../seed-design/ui/select";
 import { Slider } from "../../../seed-design/ui/slider";
-import { TextField, TextFieldTextarea } from "../../../seed-design/ui/text-field";
-import { api, watchJob, watchJobs, type EngineJob } from "../api";
+import { TextField, TextFieldInput, TextFieldTextarea } from "../../../seed-design/ui/text-field";
+import { api, brandMediaUrl, watchJob, watchJobs, type EngineJob } from "../api";
 import type { SystemStatus } from "../types";
 import { DEFAULT_SCRIPT_PROMPT } from "../../core/script-prompt";
 import { DEFAULT_SCRIPT_REVIEW_PROMPT } from "../../core/script-review";
+import { DEFAULT_BRAND_SETTINGS, type BrandSettings } from "../../core/schema";
 
 type ModelStatus = {
   bgeM3: { available: boolean; ranking: "embedding" | "rules" };
@@ -44,6 +45,11 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
   const [imageOptions, setImageOptions] = useState<ImageOptions>({ model: "flare", quality: "auto", aspect: "4:5", concurrency: 3 });
   const [introSfx, setIntroSfx] = useState<IntroSfxSetting>({ enabled: true, ref: "", atSec: 3, title: "띠링- 소리", durationSec: 1.5 });
   const [notifyItems, setNotifyItems] = useState<Array<{ ref: string; title: string; url: string }>>([]);
+  const [brand, setBrand] = useState<BrandSettings>(DEFAULT_BRAND_SETTINGS);
+  const [savedBrand, setSavedBrand] = useState<BrandSettings>(DEFAULT_BRAND_SETTINGS);
+  const [brandLoading, setBrandLoading] = useState(true);
+  const [brandSaving, setBrandSaving] = useState(false);
+  const [watermarkUrl, setWatermarkUrl] = useState<string | null>(null);
   useEffect(() => {
     void api<IntroSfxSetting>("GET", "/api/system/intro-sfx").then(setIntroSfx).catch(() => undefined);
     void api<Array<{ ref: string; title: string; url: string; category: string }>>("GET", "/api/library/sfx").then(items => setNotifyItems(items.filter(item => item.category === "notify"))).catch(() => undefined);
@@ -63,6 +69,11 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
         api<ModelStatus>("GET", "/api/models").then(setModels),
         api<typeof codexSettings>("GET", "/api/system/codex-settings").then(setCodexSettings),
         api<ImageOptions>("GET", "/api/system/image-options").then(setImageOptions),
+        api<BrandSettings>("GET", "/api/system/brand").then(async value => {
+          setBrand(value);
+          setSavedBrand(value);
+          setWatermarkUrl(value.watermark?.file ? await brandMediaUrl(value.watermark.file) : null);
+        }),
         api<CodexModelCatalog>("GET", "/api/system/codex-models").then(setCodexCatalog),
         api<ScriptPromptSettings>("GET", "/api/system/script-prompt").then(value => {
           setScriptPrompt(value.prompt);
@@ -81,6 +92,7 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
       setChecking(false);
       setScriptPromptLoading(false);
       setScriptVoiceLoading(false);
+      setBrandLoading(false);
     }
   }, []);
 
@@ -192,6 +204,41 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
     catch (reason) { props.onError(reason instanceof Error ? reason.message : String(reason)); }
   }
 
+  async function saveBrand(value = brand) {
+    setBrandSaving(true);
+    try {
+      const saved = await api<BrandSettings>("PUT", "/api/system/brand", value);
+      setBrand(saved);
+      setSavedBrand(saved);
+      props.onSnackbar("브랜드 설정을 저장했어요.");
+    } catch (reason) { props.onError(reason instanceof Error ? reason.message : String(reason)); }
+    finally { setBrandSaving(false); }
+  }
+
+  async function chooseWatermark() {
+    try {
+      const selected = await open({ multiple: false, directory: false, title: "워터마크 이미지 선택", filters: [{ name: "이미지", extensions: ["png", "jpg", "jpeg", "webp"] }] });
+      if (typeof selected !== "string") return;
+      const uploaded = await api<BrandSettings & { file: string }>("POST", "/api/system/brand/watermark", { path: selected });
+      const { file: _file, ...saved } = uploaded;
+      setBrand(saved);
+      setSavedBrand(saved);
+      setWatermarkUrl(saved.watermark?.file ? await brandMediaUrl(saved.watermark.file) : null);
+      props.onSnackbar("워터마크를 저장했어요.");
+    } catch (reason) { props.onError(reason instanceof Error ? reason.message : String(reason)); }
+  }
+
+  async function deleteWatermark() {
+    try {
+      const saved = await api<BrandSettings>("DELETE", "/api/system/brand/watermark");
+      setBrand(saved);
+      setSavedBrand(saved);
+      setWatermarkUrl(null);
+    } catch (reason) { props.onError(reason instanceof Error ? reason.message : String(reason)); }
+  }
+
+  const setBrandField = <K extends keyof BrandSettings>(key: K, value: BrandSettings[K]) => setBrand(current => ({ ...current, [key]: value }));
+
   return (
     <section className="screen" aria-labelledby="settings-title">
       <header className="screen-header"><div><h1 id="settings-title" className="screen-title">설정</h1></div></header>
@@ -204,6 +251,28 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
           <ModelSelect label="비율" value={imageOptions.aspect} items={[{ value: "4:5", label: "4:5" }, { value: "1:1", label: "1:1" }]} onChange={aspect => void updateImageOptions({ ...imageOptions, aspect: aspect as ImageOptions["aspect"] })} />
         </div>
         <div className="image-concurrency"><Slider label={`동시 실행 수 · ${imageOptions.concurrency}`} min={1} max={10} step={1} values={[imageOptions.concurrency]} onValuesChange={values => { const concurrency = values[0]; if (typeof concurrency === "number") void updateImageOptions({ ...imageOptions, concurrency }); }} /></div>
+      </section>
+      <section className="section-card settings-card" aria-labelledby="brand-title">
+        <h2 id="brand-title" className="settings-section-title">브랜드</h2>
+        <div className="brand-settings-watermark">
+          <div className="brand-watermark-preview">{watermarkUrl ? <img src={watermarkUrl} alt="워터마크 미리보기" /> : <span>워터마크 없음</span>}</div>
+          <div className="brand-watermark-actions"><ActionButton variant="neutralWeak" disabled={brandLoading} onClick={() => void chooseWatermark()}>이미지 선택</ActionButton>{brand.watermark?.file ? <ActionButton variant="ghost" onClick={() => void deleteWatermark()}>지우기</ActionButton> : null}</div>
+        </div>
+        <div className="settings-model-fields">
+          <BrandNumber label="기본 가로 위치" min={0} max={100} step={1} value={Math.round((brand.watermark?.x ?? 0.5) * 100)} suffix="%" onChange={value => setBrandField("watermark", { x: value / 100, y: brand.watermark?.y ?? 0.08, width: brand.watermark?.width ?? 0.2, opacity: brand.watermark?.opacity ?? 1, ...(brand.watermark?.file ? { file: brand.watermark.file } : {}) })} />
+          <BrandNumber label="기본 세로 위치" min={0} max={100} step={1} value={Math.round((brand.watermark?.y ?? 0.08) * 100)} suffix="%" onChange={value => setBrandField("watermark", { x: brand.watermark?.x ?? 0.5, y: value / 100, width: brand.watermark?.width ?? 0.2, opacity: brand.watermark?.opacity ?? 1, ...(brand.watermark?.file ? { file: brand.watermark.file } : {}) })} />
+          <BrandNumber label="기본 폭" min={1} max={100} step={1} value={Math.round((brand.watermark?.width ?? 0.2) * 100)} suffix="%" onChange={value => setBrandField("watermark", { x: brand.watermark?.x ?? 0.5, y: brand.watermark?.y ?? 0.08, width: value / 100, opacity: brand.watermark?.opacity ?? 1, ...(brand.watermark?.file ? { file: brand.watermark.file } : {}) })} />
+          <BrandNumber label="기본 투명도" min={0} max={100} step={1} value={Math.round((brand.watermark?.opacity ?? 1) * 100)} suffix="%" onChange={value => setBrandField("watermark", { x: brand.watermark?.x ?? 0.5, y: brand.watermark?.y ?? 0.08, width: brand.watermark?.width ?? 0.2, opacity: value / 100, ...(brand.watermark?.file ? { file: brand.watermark.file } : {}) })} />
+        </div>
+        <div className="settings-model-fields">
+          <BrandNumber label="타이틀 바 높이" min={40} max={600} step={1} value={brand.titleBar.height} suffix="px" onChange={value => setBrandField("titleBar", { ...brand.titleBar, height: value })} />
+          <BrandColor label="배경 색" value={brand.titleBar.bgColor} onChange={bgColor => setBrandField("titleBar", { ...brand.titleBar, bgColor })} />
+          <BrandNumber label="배경 투명도" min={0} max={100} step={1} value={Math.round(brand.titleBar.bgOpacity * 100)} suffix="%" onChange={value => setBrandField("titleBar", { ...brand.titleBar, bgOpacity: value / 100 })} />
+          <ModelSelect label="폰트" value={brand.titleBar.font} items={[{ value: "pretendard", label: "Pretendard" }, { value: "gmarket", label: "G마켓 산스" }, { value: "tmon", label: "티몬체" }]} onChange={font => setBrandField("titleBar", { ...brand.titleBar, font: font as BrandSettings["titleBar"]["font"] })} />
+          <BrandNumber label="글자 크기" min={12} max={200} step={1} value={brand.titleBar.fontSize} suffix="px" onChange={value => setBrandField("titleBar", { ...brand.titleBar, fontSize: value })} />
+          <BrandColor label="글자 색" value={brand.titleBar.color} onChange={color => setBrandField("titleBar", { ...brand.titleBar, color })} />
+        </div>
+        <div className="action-row settings-actions"><ActionButton variant="brandSolid" disabled={brandLoading || brandSaving || JSON.stringify(brand) === JSON.stringify(savedBrand)} loading={brandSaving} onClick={() => void saveBrand()}>브랜드 설정 저장</ActionButton></div>
       </section>
       <section className="section-card settings-card" aria-labelledby="codex-title">
         <div className="settings-card-heading"><h2 id="codex-title">codex</h2><span className={`status-label ${status?.codex.loggedIn ? "is-ready" : "is-warning"}`}>{codexState}</span></div>
@@ -300,4 +369,15 @@ function ModelSelect(props: { label: string; value: string; items: Array<{ value
     <SelectTrigger aria-label={props.label} />
     <SelectContent><SelectGroup>{props.items.map(item => <SelectItem key={item.value} value={item.value} label={item.label} />)}</SelectGroup></SelectContent>
   </SelectRoot>;
+}
+
+function BrandNumber(props: { label: string; value: number; min: number; max: number; step: number; suffix: string; onChange: (value: number) => void }) {
+  return <TextField label={props.label} value={String(props.value)} onValueChange={({ value }) => {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed) && parsed >= props.min && parsed <= props.max) props.onChange(parsed);
+  }}><TextFieldInput type="number" min={props.min} max={props.max} step={props.step} />{props.suffix}</TextField>;
+}
+
+function BrandColor(props: { label: string; value: string; onChange: (value: string) => void }) {
+  return <TextField label={props.label} value={props.value} onValueChange={({ value }) => props.onChange(value)}><TextFieldInput maxLength={7} placeholder="#RRGGBB" /></TextField>;
 }

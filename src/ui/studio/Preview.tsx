@@ -1,10 +1,10 @@
 import { Player, type PlayerRef } from "@remotion/player";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { captionLayersOf, withCaptionLayers, type Project, type Timeline } from "../../core/schema";
+import { captionLayersOf, DEFAULT_BRAND_SETTINGS, withCaptionLayers, type BrandSettings, type Project, type Timeline } from "../../core/schema";
 import { timelineToRender } from "../../core/timeline/to-render";
 import { U3Short } from "../../remotion/U3Short";
 import type { U3ShortProps } from "../../remotion/types";
-import { api, libraryMediaUrl, mediaUrl } from "../api";
+import { api, brandMediaUrl, libraryMediaUrl, mediaUrl } from "../api";
 import { libraryReferencePath } from "../../core/library-reference";
 import { frameForTime, frameToSeekAfterPlayerReady } from "./preview-seek";
 import { hasAllRenderSources } from "./preview-sources";
@@ -28,9 +28,10 @@ export function Preview(props: {
   const playerRef = useRef<PlayerRef>(null);
   const [previewTimeline, setPreviewTimeline] = useState(props.project.timeline);
   useEffect(() => setPreviewTimeline(props.project.timeline), [props.project.timeline]);
+  const [brand, setBrand] = useState<BrandSettings>(DEFAULT_BRAND_SETTINGS);
   const [sources, setSources] = useState<{ inputs: Record<string, string>; memes: Record<string, string>; files: Record<string, string> }>({ inputs: {}, memes: {}, files: {} });
-  const render = useMemo(() => timelineToRender(previewTimeline), [previewTimeline]);
-  const titleBarHeight = render.titleBar?.visible ? render.titleBar.height : (previewTimeline.brand?.titleBar?.enabled || previewTimeline.brand?.titleBar?.text) ? previewTimeline.brand.titleBar.height ?? 160 : undefined;
+  const render = useMemo(() => timelineToRender(previewTimeline, brand), [previewTimeline, brand]);
+  const titleBarHeight = render.titleBar?.visible ? render.titleBar.height : undefined;
   const targets = useMemo<PreviewEditTarget[]>(() => {
     const currentFrame = Math.round(props.time * render.fps);
     const overlayTargets = render.overlay.filter((clip) => clip.startFrame <= currentFrame && currentFrame < clip.startFrame + clip.durationInFrames).map((clip) => ({
@@ -60,6 +61,14 @@ export function Preview(props: {
     if (kind) props.onEditTimeline(changeTarget(previewTimeline, id, kind, box));
   }, [targets, changeTarget, previewTimeline, props.onEditTimeline]);
   const sourcesReady = hasAllRenderSources(render, { ...sources, overlayInputs: sources.inputs });
+  useEffect(() => {
+    let active = true;
+    void api<BrandSettings>("GET", "/api/system/brand").then(async value => {
+      const preview = value.watermark?.file ? { ...value, watermark: { ...value.watermark, file: await brandMediaUrl(value.watermark.file) } } : value;
+      if (active) setBrand(preview);
+    }).catch(() => undefined);
+    return () => { active = false; };
+  }, []);
   useEffect(() => {
     let active = true;
     void (async () => {

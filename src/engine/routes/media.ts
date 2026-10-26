@@ -47,4 +47,10 @@ export function registerMediaRoutes(app: Hono, context: AppContext): void {
     if (!context.mediaServer) throw new HttpError(503, "media-unavailable", "미디어 서버를 사용할 수 없습니다");
     return c.redirect(context.mediaServer.url("carousels", `${id}/${relative}`), 302);
   });
+
+  app.get("/api/media/brand/*", c => {
+    if (!context.mediaServer) throw new HttpError(503, "media-unavailable", "미디어 서버를 사용할 수 없습니다");
+    const relative = relativePath(c.req.path.slice("/api/media/brand/".length));
+    return c.redirect(context.mediaServer.url("brand", relative), 302);
+  });
 }
