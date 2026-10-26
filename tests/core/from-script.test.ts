@@ -47,7 +47,7 @@ describe("timelineFromScript", () => {
     ]);
 
     expect(timeline.video).toHaveLength(2);
-    expect(timeline.video.map(({ inputId, inStartSec, inEndSec }) => [inputId, inStartSec, inEndSec])).toEqual([
+    expect(timeline.video.map(clip => "inputId" in clip && "inStartSec" in clip && "inEndSec" in clip ? [clip.inputId, clip.inStartSec, clip.inEndSec] : null)).toEqual([
       ["video-a", 0.3, 5.2], ["video-b", 0.3, 6.6],
     ]);
     expect(timeline.captions.map(({ startSec, endSec }) => [startSec, endSec])).toEqual([[0, 2.1], [2.1, 4.9], [4.9, 7], [7, 11.2]]);
@@ -71,9 +71,10 @@ describe("timelineFromScript", () => {
 
     expect(timeline.video).toHaveLength(1);
     expect(timeline.video[0]).not.toHaveProperty("memeId");
-    expect(timeline.overlays.flat().map(({ memeId }) => memeId)).toEqual(["m1"]);
-    expect(timeline.overlays.flat()[0]?.startSec).toBeCloseTo(0.1);
-    expect(timeline.overlays.flat()[0]?.durationSec).toBe(2);
+    const overlay = timeline.overlays.flat()[0];
+    expect(overlay && "memeId" in overlay ? overlay.memeId : null).toBe("m1");
+    expect(overlay?.startSec).toBeCloseTo(0.1);
+    expect(overlay && "durationSec" in overlay ? overlay.durationSec : null).toBe(2);
     expect(timeline.captions[0]).toMatchObject({ startSec: 0, endSec: 2.1 });
   });
 
