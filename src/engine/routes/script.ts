@@ -134,6 +134,7 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
       const reviewPrompt = buildScriptReviewPrompt({
         reviewPrompt: typeof settings.scriptReview === "string" && settings.scriptReview.trim() ? settings.scriptReview : DEFAULT_SCRIPT_REVIEW_PROMPT,
         draft,
+        userPrompt,
         voice,
       });
       let reviewed: ReturnType<typeof reviewScriptResult>;
