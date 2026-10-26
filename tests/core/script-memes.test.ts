@@ -10,6 +10,7 @@ const meme: MemeMeta = {
   tagsConfirmed: true,
 };
 const secondMeme: MemeMeta = { ...meme, id: "meme-2" };
+const thirdMeme: MemeMeta = { ...meme, id: "meme-3" };
 
 type RangedScene = Extract<CodexScript["scenes"][number], { startSec: number }>;
 
@@ -29,21 +30,21 @@ describe("resolveScriptMemes", () => {
   it("reaction이 있는 장면은 Codex가 고른 위치에 랭크 1순위 짤을 둔다", () => {
     const script: CodexScript = { scenes: [scene({ memeBefore: true }), scene({ inputIndex: 2, memeAfter: true })] };
 
-    const result = resolveScriptMemes(script, [[meme], [meme]]);
+    const result = resolveScriptMemes(script, [[meme, secondMeme], [meme, secondMeme]]);
 
     expect(result.script.scenes.map(({ memeBefore, memeAfter }) => [memeBefore, memeAfter])).toEqual([[true, false], [false, true]]);
-    expect(result.memes).toEqual({ 0: meme, 1: meme });
+    expect(result.memes).toEqual({ 0: meme, 1: secondMeme });
     expect(result.missingCount).toBe(0);
   });
 
   it("reaction이 있는데 위치가 없으면 뒤에 두고 앞뒤가 모두 true면 순위 1·2를 쓴다", () => {
     const script: CodexScript = { scenes: [scene(), scene({ inputIndex: 2, memeBefore: true, memeAfter: true })] };
 
-    const result = resolveScriptMemes(script, [[meme], [meme, secondMeme]]);
+    const result = resolveScriptMemes(script, [[meme, secondMeme], [meme, secondMeme, thirdMeme]]);
 
     expect(result.script.scenes.map(({ memeBefore, memeAfter }) => [memeBefore, memeAfter])).toEqual([[false, true], [true, true]]);
-    expect(result.memes[1]).toBe(meme);
-    expect(result.alternateMemes[1]).toBe(secondMeme);
+    expect(result.memes[1]).toBe(secondMeme);
+    expect(result.alternateMemes[1]).toBe(thirdMeme);
   });
 
   it("같은 입력의 여러 장면에는 같은 짤 ID를 두 번 할당하지 않는다", () => {
