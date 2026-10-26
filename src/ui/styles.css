@@ -44,11 +44,7 @@ input::placeholder, textarea::placeholder { color: var(--seed-color-palette-gray
 .empty-state { display: grid; min-height: 300px; place-items: center; color: var(--seed-color-palette-gray-600); text-align: center; }
 .flow-top { display: flex; align-items: center; gap: 14px; margin-bottom: 26px; }
 .project-name-input { width: min(360px, 40vw); }
-.steps { display: flex; gap: var(--seed-dimension-x2); margin: 0 0 28px; padding: 0; list-style: none; }
-.step { padding: var(--seed-dimension-x2) 14px; border: 1px solid var(--seed-color-palette-gray-700); border-radius: var(--seed-radius-full); color: var(--seed-color-palette-gray-800); background: var(--seed-color-bg-layer-default); font-size: 14px; }
-.step[aria-current="step"] { color: var(--seed-color-bg-layer-default); background: var(--seed-color-fg-neutral); font-weight: 700; }
-.step button { padding: 0; border: 0; color: inherit; background: transparent; font: inherit; cursor: pointer; }
-.step button:disabled { opacity: 0.5; cursor: default; }
+.steps { min-width: 0; margin-left: auto; }
 .drop-area { display: grid; min-height: 200px; place-items: center; margin-bottom: var(--seed-dimension-x7); padding: 26px; border: 1px dashed var(--seed-color-palette-gray-400); border-radius: var(--seed-radius-r4); background: var(--seed-color-bg-layer-default); text-align: center; }
 .drop-area[data-dragging="true"] { outline: 3px solid var(--seed-color-palette-blue-300); }
 .media-list { display: grid; gap: 10px; margin: 0; padding: 0; list-style: none; }
@@ -81,7 +77,6 @@ input::placeholder, textarea::placeholder { color: var(--seed-color-palette-gray
 .script-mode-card h2 { margin: 0; font-size: 16px; }
 .media-list { padding: var(--seed-dimension-x4); border: 1px solid var(--seed-color-palette-gray-200); border-radius: var(--seed-radius-r3); background: var(--seed-color-bg-layer-default); }
 .flow-top { flex-wrap: wrap; }
-.steps { margin-left: auto; }
 .action-row { display: flex; justify-content: flex-end; gap: var(--seed-dimension-x3); margin-top: var(--seed-dimension-x6); }
 .progress-row { display: flex; align-items: center; gap: var(--seed-dimension-x3); margin-top: var(--seed-dimension-x4); }
 .app-shell--studio { width: 100%; height: 100vh; min-height: 0; overflow: hidden; }
@@ -244,18 +239,14 @@ input::placeholder, textarea::placeholder { color: var(--seed-color-palette-gray
 .flow-back-button { width: 44px; height: 44px; justify-content: center; padding: 0; }
 .project-name-input { min-width: 240px; max-width: 360px; flex: 1 1 240px; }
 .project-name-input input { width: 100%; padding: 6px 0; border: 0; outline-offset: 3px; color: var(--seed-color-fg-neutral); background: transparent; font-size: 17px; font-weight: 700; }
-.flow-top .steps { flex: 0 0 auto; margin: 0 0 0 auto; }
-.flow-top .step { padding: var(--seed-dimension-x2) 14px; border: 0; background: var(--seed-color-palette-gray-100); }
-.flow-top .step[aria-current="step"] { background: var(--seed-color-fg-neutral); }
+.flow-top .steps { flex: 0 0 auto; }
 .input-screen { display: flex; width: 100%; max-width: none; min-height: 100vh; flex-direction: column; margin: 0; padding: 0; }
 .input-header { display: flex; min-height: 64px; flex: 0 0 64px; align-items: center; gap: var(--seed-dimension-x4); padding: 0 24px; border-bottom: 1px solid var(--seed-color-palette-gray-200); background: var(--seed-color-bg-layer-default); }
 .script-screen { display: flex; width: 100%; max-width: none; min-height: 100vh; flex-direction: column; margin: 0; padding: 0; }
 .script-header { display: flex; min-height: 64px; flex: 0 0 64px; align-items: center; gap: var(--seed-dimension-x4); padding: 0 24px; border-bottom: 1px solid var(--seed-color-palette-gray-200); background: var(--seed-color-bg-layer-default); }
 .script-header .flow-back-button { width: 44px; height: 44px; flex: 0 0 44px; justify-content: center; padding: 0;  border-radius: var(--seed-radius-r2); background: transparent; }
 .script-header > strong { min-width: 0; flex: 1; overflow: hidden; font-size: 17px; text-overflow: ellipsis; white-space: nowrap; }
-.script-header .steps { flex: 0 0 auto; margin: 0 0 0 auto; }
-.script-header .step { padding: var(--seed-dimension-x2) 14px; border: 0; background: var(--seed-color-palette-gray-100); }
-.script-header .step[aria-current="step"] { background: var(--seed-color-fg-neutral); }
+.script-header .steps { flex: 0 0 auto; }
 .script-main { display: flex; width: 100%; max-width: 1040px; flex: 1 0 auto; flex-direction: column; gap: var(--seed-dimension-x6); margin: 0 auto; padding: var(--seed-dimension-x8) 24px; }
 .script-main .script-mode-card { margin-top: 0; }
 .script-mode-options { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: var(--seed-dimension-x3) 16px; margin: 0; padding: 0; border: 0; }
@@ -270,9 +261,7 @@ input::placeholder, textarea::placeholder { color: var(--seed-color-palette-gray
 .script-footer { position: sticky; z-index: 2; bottom: 0; display: flex; justify-content: flex-end; gap: var(--seed-dimension-x3); margin-top: auto; padding: var(--seed-dimension-x3) 24px; border-top: 1px solid var(--seed-color-palette-gray-200); background: var(--seed-color-bg-layer-default); }
 .input-header .flow-back-button { width: 44px; height: 44px; flex: 0 0 44px; justify-content: center; padding: 0;  border-radius: var(--seed-radius-r2); background: transparent; }
 .input-header .project-name-input { min-width: 0; max-width: 360px; flex: 1 1 240px; }
-.input-header .steps { flex: 0 0 auto; margin: 0 0 0 auto; }
-.input-header .step { padding: var(--seed-dimension-x2) 14px; border: 0; background: var(--seed-color-palette-gray-100); }
-.input-header .step[aria-current="step"] { background: var(--seed-color-fg-neutral); }
+.input-header .steps { flex: 0 0 auto; }
 .input-content { display: flex; width: 100%; max-width: 1040px; flex: 1 0 auto; flex-direction: column; gap: var(--seed-dimension-x6); margin: 0 auto; padding: var(--seed-dimension-x8) 24px; }
 .drop-area { display: flex; min-height: 180px; flex-direction: column; align-items: center; justify-content: center; gap: 10px; margin: 0; border: 2px dashed var(--seed-color-palette-gray-400); border-radius: var(--seed-radius-r4); color: var(--seed-color-fg-neutral); background: var(--seed-color-palette-gray-100); }
 .drop-area:disabled { opacity: 0.65; }

@@ -9,7 +9,7 @@ Track: lite.
 
 ## 결정
 - 단계 이동에는 SEED `Chip Tabs`를 사용한다. 문서는 카테고리나 필터를 선택해 콘텐츠를 전환하는 용도와 선택 상태를 설명한다. 이 흐름은 단계 선택으로 입력·대본·스튜디오 화면을 전환한다.
-- 두 단계 화면은 동일한 Chip Tabs 스니펫을 사용한다. SEED size prop 중 헤더에 맞는 작은 값을 사용하고, 갈 수 없는 단계는 disabled 상태로 둔다.
+- 두 단계 화면은 동일한 Chip Tabs 스니펫을 사용한다. React 문서에는 `medium`, `large`가 있고 `small`은 없다. 헤더에 맞는 가장 작은 문서 size인 `medium`을 사용한다. 갈 수 없는 단계는 disabled 상태로 둔다.
 - 설정의 Select 자체 label만 유지해 라벨 중복을 없앤다.
 - SEED 내부 클래스는 덮지 않는다. 레이아웃은 부모의 flex/grid와 gap으로 조정한다.
 - Script.tsx에서는 헤더 마크업만 바꾸고, 대본 생성 흐름과 W29 대상 파일은 수정하지 않는다.

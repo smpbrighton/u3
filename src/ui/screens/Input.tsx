@@ -3,6 +3,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
 import { ActionButton } from "../../../seed-design/ui/action-button";
+import { ChipTabsList, ChipTabsRoot, ChipTabsTrigger } from "../../../seed-design/ui/chip-tabs";
 import { TextField, TextFieldInput } from "../../../seed-design/ui/text-field";
 import { api, mediaUrl } from "../api";
 import type { Input as ProjectInput, Project } from "../types";
@@ -157,9 +158,16 @@ export function Input(props: {
         <div className="project-name-input">
           <TextField aria-label="영상 이름" value={name} onValueChange={values => setName(values.value)}><TextFieldInput maxLength={120} /></TextField>
         </div>
-        <ol className="steps" aria-label="단계">
-          <li className="step" aria-current="step">1 미디어</li><li className="step"><ActionButton variant="ghost" size="small" onClick={props.onScript} disabled={!inputs.length}>2 대본</ActionButton></li><li className="step"><ActionButton variant="ghost" size="small" onClick={props.onStudio} disabled={!props.project.timeline.video.length}>3 스튜디오</ActionButton></li>
-        </ol>
+        <ChipTabsRoot className="steps" value="media" size="medium" variant="neutralSolid" aria-label="단계" onValueChange={value => {
+          if (value === "script") props.onScript();
+          if (value === "studio") props.onStudio();
+        }}>
+          <ChipTabsList>
+            <ChipTabsTrigger value="media">1 미디어</ChipTabsTrigger>
+            <ChipTabsTrigger value="script" disabled={!inputs.length}>2 대본</ChipTabsTrigger>
+            <ChipTabsTrigger value="studio" disabled={!props.project.timeline.video.length}>3 스튜디오</ChipTabsTrigger>
+          </ChipTabsList>
+        </ChipTabsRoot>
       </header>
       <main className="input-content">
         <ActionButton
