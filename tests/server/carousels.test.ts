@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it } from "vitest";
-import { mkdtemp, rm } from "node:fs/promises";
+import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createApp } from "../../src/engine/app";
@@ -81,5 +81,19 @@ describe("carousels API", () => {
     expect(download.status).toBe(200);
     expect(composed.map(item => item.split(":")[0])).toEqual(["slide-1", "slide-3"]);
     expect(composed.map(item => path.basename(item))).toEqual(["01.png", "02.png"]);
+  });
+
+  it("rejects an empty download without creating a destination folder", async () => {
+    const { app } = await appAt();
+    const createdResponse = await app.request("http://127.0.0.1/api/carousels", { method: "POST", headers, body: JSON.stringify({ name: "빈 캐러셀", topic: "바다", slideCount: 2 }) });
+    const created = await createdResponse.json() as { id: string };
+    const receiveRoot = path.join(roots[0]!, "receive");
+    await mkdir(receiveRoot);
+
+    const download = await app.request(`http://127.0.0.1/api/carousels/${created.id}/download`, { method: "POST", headers, body: JSON.stringify({ dir: receiveRoot }) });
+
+    expect(download.status).toBe(409);
+    expect(await download.json()).toMatchObject({ message: "받을 수 있는 완료된 장이 없습니다" });
+    expect(await readdir(receiveRoot)).toEqual([]);
   });
 });
