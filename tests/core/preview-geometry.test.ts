@@ -4,6 +4,7 @@ import { createHistory } from "../../src/core/timeline/history";
 import type { Timeline } from "../../src/core/schema";
 import {
   limitBoxBelowTitleBar,
+  moveNormalizedBox,
   normalizedToScreen,
   pickTopTarget,
   recordPreviewDrag,
@@ -28,6 +29,29 @@ describe("미리보기 편집 좌표", () => {
     const box = { x: 0.2, y: 0.3, width: 0.4, height: 0.2 };
     expect(resizeNormalizedBox(box, 54, rect.width)).toEqual({ ...box, width: 0.5 });
     expect(resizeNormalizedBox({ ...box, width: 0.95 }, 100, rect.width).width).toBe(1);
+  });
+
+  it("여러 번 끌어도 선택 상자의 폭과 높이를 유지한다", () => {
+    const initial = { x: 0.2, y: 0.3, width: 0.4, height: 0.2 };
+    const moved = Array.from({ length: 8 }, (_, index) => index).reduce(
+      (box, index) => moveNormalizedBox(box, 0.01, -0.005),
+      initial,
+    );
+    expect(moved).toEqual({ ...initial, x: 0.28, y: 0.26 });
+  });
+
+  it("방향키 이동을 여러 번 적용해도 폭을 유지한다", () => {
+    const initial = { x: 0.2, y: 0.3, width: 0.4, height: 0.2 };
+    const moved = Array.from({ length: 12 }, () => 0).reduce(
+      (box) => moveNormalizedBox(box, 0.01, 0),
+      initial,
+    );
+    expect(moved).toEqual({ ...initial, x: 0.32 });
+  });
+
+  it("경계에서는 위치만 제한하고 폭과 높이를 유지한다", () => {
+    const initial = { x: 0.8, y: 0.9, width: 0.4, height: 0.2 };
+    expect(moveNormalizedBox(initial, 0.1, 0.1)).toEqual({ ...initial, x: 0.6, y: 0.8 });
   });
 
   it("세이프존의 실제 경계와 오른쪽 버튼 영역에 상자를 붙인다", () => {
