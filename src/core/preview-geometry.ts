@@ -21,13 +21,20 @@ export function resizeNormalizedBox(box: NormalizedBox, deltaX: number, containe
   return { ...box, width: clamp(box.width + deltaX / containerWidth, minWidth, 1) };
 }
 
+export function moveNormalizedBox(box: NormalizedBox, deltaX: number, deltaY: number): NormalizedBox {
+  const round = (value: number) => Math.round(value * 1e12) / 1e12;
+  return {
+    ...box,
+    x: clamp(round(box.x + deltaX), 0, Math.max(0, 1 - box.width)),
+    y: clamp(round(box.y + deltaY), 0, Math.max(0, 1 - box.height)),
+  };
+}
+
 export function snapBoxToSafeZone(box: Box): Box {
   const margin = sideMarginFor(box);
-  const maxWidth = CANVAS.width - margin * 2;
-  const width = Math.min(box.width, maxWidth);
-  const x = clamp(box.x, margin, CANVAS.width - margin - width);
+  const x = clamp(box.x, margin, Math.max(margin, CANVAS.width - margin - box.width));
   const y = clamp(box.y, SAFE_ZONE.top, Math.max(SAFE_ZONE.top, SAFE_ZONE.bottom - box.height));
-  return { ...box, x, y, width };
+  return { ...box, x, y };
 }
 
 export function limitBoxBelowTitleBar(box: NormalizedBox, titleBarHeight: number, canvasHeight = CANVAS.height): NormalizedBox {

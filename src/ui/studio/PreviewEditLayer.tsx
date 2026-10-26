@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { CANVAS, type Box } from "../../core/geometry";
-import { limitBoxBelowTitleBar, pickTopTarget, resizeNormalizedBox, screenToNormalized, snapBoxToSafeZone, type NormalizedBox, type PreviewTarget, type ScreenRect } from "../../core/preview-geometry";
+import { limitBoxBelowTitleBar, moveNormalizedBox, resizeNormalizedBox, screenToNormalized, snapBoxToSafeZone, type NormalizedBox, type PreviewTarget, type ScreenRect } from "../../core/preview-geometry";
 
 export type PreviewEditTarget = PreviewTarget & { kind: "overlay" | "caption-layer" | "watermark"; canResize: boolean };
 
@@ -17,23 +17,7 @@ export function PreviewEditLayer(props: {
   const layerRef = useRef<HTMLDivElement>(null);
   const drag = useRef<{ id: string; kind: PreviewEditTarget["kind"]; start: { x: number; y: number }; box: NormalizedBox; resize: boolean; paused: boolean } | null>(null);
   const [dragBox, setDragBox] = useState<{ id: string; box: NormalizedBox } | null>(null);
-  const [measured, setMeasured] = useState<Record<string, NormalizedBox>>({});
-
-  useEffect(() => {
-    const layer = layerRef.current;
-    if (!layer) return;
-    const bounds = layer.getBoundingClientRect();
-    const boxes: Record<string, NormalizedBox> = {};
-    for (const target of props.targets) {
-      const element = layer.parentElement?.querySelector<HTMLElement>(`[data-u3-target="${CSS.escape(target.id)}"]`);
-      if (!element) continue;
-      const rect = element.getBoundingClientRect();
-      if (rect.width && rect.height) boxes[target.id] = { x: (rect.left - bounds.left) / bounds.width, y: (rect.top - bounds.top) / bounds.height, width: rect.width / bounds.width, height: rect.height / bounds.height };
-    }
-    setMeasured(boxes);
-  }, [props.targets]);
-
-  const targets = useMemo(() => props.targets.map((target) => ({ ...target, box: measured[target.id] ?? target.box })), [props.targets, measured]);
+  const targets = props.targets;
   const activeBox = dragBox ? [dragBox] : [];
 
   function normalizedRect(): ScreenRect | null {
@@ -48,14 +32,16 @@ export function PreviewEditLayer(props: {
     const point = screenToNormalized({ x: event.clientX, y: event.clientY }, rect);
     let box = current.resize
       ? resizeNormalizedBox(current.box, event.clientX - current.start.x, rect.width)
-      : { ...current.box, x: current.box.x + point.x - screenToNormalized(current.start, rect).x, y: current.box.y + point.y - screenToNormalized(current.start, rect).y };
+      : moveNormalizedBox(current.box, point.x - screenToNormalized(current.start, rect).x, point.y - screenToNormalized(current.start, rect).y);
     if (props.safeZone) {
       const pixelBox: Box = { x: box.x * CANVAS.width, y: box.y * CANVAS.height, width: box.width * CANVAS.width, height: box.height * CANVAS.height };
       const snapped = snapBoxToSafeZone(pixelBox);
       box = { ...box, x: snapped.x / CANVAS.width, y: snapped.y / CANVAS.height, width: snapped.width / CANVAS.width };
     }
     if (current.kind === "caption-layer" && props.titleBarHeight) box = limitBoxBelowTitleBar(box, props.titleBarHeight);
-    box = { ...box, x: Math.max(0, Math.min(1 - box.width, box.x)), y: Math.max(0, Math.min(1 - box.height, box.y)), width: Math.max(0.05, Math.min(1, box.width)) };
+    box = current.resize
+      ? { ...box, x: Math.max(0, Math.min(1 - box.width, box.x)), y: Math.max(0, Math.min(1 - box.height, box.y)), width: Math.max(0.05, Math.min(1, box.width)) }
+      : moveNormalizedBox(box, 0, 0);
     const changed = Math.abs(box.x - current.box.x) > 1e-6 || Math.abs(box.y - current.box.y) > 1e-6 || Math.abs(box.width - current.box.width) > 1e-6;
     if (changed && !current.paused) { props.onDragStart(); current.paused = true; }
     setDragBox({ id: current.id, box });
@@ -82,7 +68,7 @@ export function PreviewEditLayer(props: {
       if (!target) return;
       event.preventDefault();
       const step = event.key === "ArrowLeft" ? { x: -0.01, y: 0 } : event.key === "ArrowRight" ? { x: 0.01, y: 0 } : event.key === "ArrowUp" ? { x: 0, y: -0.01 } : { x: 0, y: 0.01 };
-      let box = { ...target.box, x: Math.max(0, Math.min(1 - target.box.width, target.box.x + step.x)), y: Math.max(0, Math.min(1 - target.box.height, target.box.y + step.y)) };
+      let box = moveNormalizedBox(target.box, step.x, step.y);
       if (props.safeZone) {
         const snapped = snapBoxToSafeZone({ x: box.x * CANVAS.width, y: box.y * CANVAS.height, width: box.width * CANVAS.width, height: box.height * CANVAS.height });
         box = { ...box, x: snapped.x / CANVAS.width, y: snapped.y / CANVAS.height };

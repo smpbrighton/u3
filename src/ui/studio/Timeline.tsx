@@ -17,7 +17,7 @@ import { decideActionMove, isUnchangedTimeline, resolveVideoTrackAtPointer, shou
 import { timelinePointerSeconds } from "./timeline-zoom";
 import { studioShortcut } from "./shortcuts";
 import { audioGroupForRow, normalizeSfxLanes } from "../../core/timeline/sfx-lanes";
-import { timelineTrackLabels } from "./timeline-track-labels";
+import { timelineTrackLabels, withNewVideoTrackRow } from "./timeline-track-labels";
 import { ToggleButton } from "../../../seed-design/ui/toggle-button";
 import { Icon } from "@seed-design/react";
 
@@ -59,7 +59,7 @@ export function Timeline(props: {
   const [memeItems, setMemeItems] = useState<MemeLabel[]>([]);
   const [editorKey, setEditorKey] = useState(0);
   const rows = useMemo(() => timelineToStudioRows(props.timeline), [props.timeline]);
-  const displayRows = useMemo(() => [...rows.slice(0, 1), { id: "video-new", name: "새 영상 트랙", actions: [], rowHeight: TRACK_ROW_HEIGHT }, ...rows.slice(1)], [rows]);
+  const displayRows = useMemo(() => withNewVideoTrackRow(rows), [rows]);
   const tracks = timelineTrackLabels(displayRows);
   const starts = useMemo(() => videoStartTimes(props.timeline), [props.timeline]);
   const data = displayRows.map((item) => ({ ...item, actions: item.actions.map((action) => ({ ...action, selected: props.selectedIds.includes(action.id) })) }));
