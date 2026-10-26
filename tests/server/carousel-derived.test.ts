@@ -51,6 +51,16 @@ describe("video derived carousel API", () => {
     }
   });
 
+  it("stores the original timeline duration on newly derived carousels", async () => {
+    const { app, jobs, project } = await setup();
+    const response = await app.request(`/api/projects/${project.id}/carousel`, { method: "POST", headers, body: JSON.stringify({ count: 2 }) });
+    const result = await response.json() as { carousel: { id: string; source: { durationSec?: number } }; job: { id: string } };
+    await jobs.wait(result.job.id);
+    const expectedDuration = project.timeline.video.reduce((sum, clip) => sum + ("durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec), 0);
+
+    expect(result.carousel.source.durationSec).toBe(expectedDuration);
+  });
+
   it("plans without frame images, extracts one frame and box per slide, and isolates a re-extract to one slide", async () => {
     const { app, store, jobs, project, askBox } = await setup();
     const response = await app.request(`/api/projects/${project.id}/carousel`, { method: "POST", headers, body: JSON.stringify({ count: 2 }) });

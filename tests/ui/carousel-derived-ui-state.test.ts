@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { canDownloadSlides, canReextractFrame, defaultHighlightBox, frameTimeRange, highlightRequestBody, showsBackgroundSection } from "../../src/ui/screens/carousel/derived-ui-state";
+import { canDownloadSlides, canReextractFrame, defaultHighlightBox, derivedFrameDuration, frameTimeRange, highlightRequestBody, showsBackgroundSection } from "../../src/ui/screens/carousel/derived-ui-state";
 import type { CarouselSlide } from "../../src/core/carousel";
 
 const generated = { kind: "generated" as const };
@@ -22,6 +22,17 @@ describe("derived carousel UI state", () => {
   it("sets the frame time slider range inside the source duration", () => {
     expect(frameTimeRange(42.5)).toEqual({ min: 0, max: 42.5, step: 0.1 });
     expect(frameTimeRange(-1).max).toBe(0);
+  });
+
+  it("prefers a saved timeline duration and falls back for older derived carousels", () => {
+    const slides = [
+      { ...frame, sec: 4.5 },
+      { ...frame, sec: 8.2 },
+    ] as CarouselSlide[];
+    expect(derivedFrameDuration(42, 60, slides)).toBe(42);
+    expect(derivedFrameDuration(undefined, 60, slides)).toBe(60);
+    expect(derivedFrameDuration(undefined, undefined, slides)).toBe(8.2);
+    expect(frameTimeRange(derivedFrameDuration(undefined, undefined, slides))).toEqual({ min: 0, max: 8.2, step: 0.1 });
   });
 
   it("disables download when no slide is complete", () => {
