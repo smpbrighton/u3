@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { ActionButton } from "../../../seed-design/ui/action-button";
+import { ChipTabsList, ChipTabsRoot, ChipTabsTrigger } from "../../../seed-design/ui/chip-tabs";
 import { PageBanner } from "../../../seed-design/ui/page-banner";
 import { ProgressCircle } from "../../../seed-design/ui/progress-circle";
 import { TextField, TextFieldTextarea } from "../../../seed-design/ui/text-field";
@@ -170,11 +171,16 @@ export function Script(props: {
           <HugeiconsIcon icon={ArrowLeft01Icon} size={20} />
         </ActionButton>
         <strong>{props.project.name}</strong>
-        <ol className="steps" aria-label="단계">
-          <li className="step"><ActionButton variant="ghost" size="small" onClick={props.onBack}>1 미디어</ActionButton></li>
-          <li className="step" aria-current="step">2 대본</li>
-          <li className="step"><ActionButton variant="ghost" size="small" onClick={props.onStudio} disabled={!props.project.timeline.video.length}>3 스튜디오</ActionButton></li>
-        </ol>
+        <ChipTabsRoot className="steps" value="script" size="medium" variant="neutralSolid" aria-label="단계" onValueChange={value => {
+          if (value === "media") props.onBack();
+          if (value === "studio") props.onStudio();
+        }}>
+          <ChipTabsList>
+            <ChipTabsTrigger value="media">1 미디어</ChipTabsTrigger>
+            <ChipTabsTrigger value="script">2 대본</ChipTabsTrigger>
+            <ChipTabsTrigger value="studio" disabled={!props.project.timeline.video.length}>3 스튜디오</ChipTabsTrigger>
+          </ChipTabsList>
+        </ChipTabsRoot>
       </header>
       <main className="script-main">
         {codexMessage ? (
