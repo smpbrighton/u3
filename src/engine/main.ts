@@ -99,11 +99,14 @@ const app = createApp({
   sileroPath,
   mrxPath: process.env.U3_MRX_MODEL ?? path.join(resourceDir, "models/mrx.int8.onnx"),
   composeCarouselSlide: async (carousel, slide, destination) => {
-    if (!slide.image) throw new Error("이미지가 생성되지 않은 장입니다");
+    const asset = slide.background.kind === "generated"
+      ? slide.background.image ?? slide.image
+      : slide.background.highlight?.style === "ai-outline" ? slide.background.highlight.image : slide.background.frame;
+    if (!asset) throw new Error("프레임 또는 이미지가 준비되지 않은 장입니다");
     await renderCarouselSlide({
       carousel,
       slide,
-      imageUrl: mediaServer.url("carousels", `${carousel.id}/${slide.image.file}`),
+      imageUrl: mediaServer.url("carousels", `${carousel.id}/${asset.file}`),
       outputPath: destination,
     });
   },

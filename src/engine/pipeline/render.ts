@@ -7,6 +7,7 @@ import { libraryReferencePath } from "../../core/library-reference";
 import { timelineToRender } from "../../core/timeline/to-render";
 import type { U3ShortProps } from "../../remotion/types";
 import type { Carousel, CarouselSlide } from "../../core/carousel";
+import { carouselHighlightInput } from "../../remotion/carousel-layout";
 import { createMediaRunner, FFPROBE } from "./ffmpeg";
 import { listMemes } from "./library";
 
@@ -135,13 +136,19 @@ export async function renderCarouselSlide(options: {
   outputPath: string;
   browserExecutable?: string;
 }) {
-  if (!options.slide.image) throw new Error("이미지가 생성되지 않은 장입니다");
+  const background = options.slide.background;
+  const hasImage = background.kind === "generated" ? !!(background.image ?? options.slide.image) : !!(background.highlight?.style === "ai-outline" ? background.highlight.image : background.frame);
+  if (!hasImage) throw new Error("프레임 또는 이미지가 준비되지 않은 장입니다");
   const props = {
     imageUrl: options.imageUrl,
     title: options.slide.title,
     body: options.slide.body,
     textPlacement: options.slide.textPlacement,
     aspect: options.carousel.aspect,
+    ...(background.kind === "frame" ? {
+      frameCropY: background.cropY,
+      ...(carouselHighlightInput(background.highlight) ? { highlight: carouselHighlightInput(background.highlight) } : {}),
+    } : {}),
   };
   const serveUrl = await getBundle();
   const executable = options.browserExecutable ?? process.env.U3_CHROME_EXECUTABLE;

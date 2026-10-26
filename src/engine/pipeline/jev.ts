@@ -165,6 +165,7 @@ export function jevClientFromEnv(env: NodeJS.ProcessEnv = process.env, fetchImpl
 /** 질문 종류에 맞는 답 하나. noul은 p, choice·score는 고른 것에 p를 주고 나머지에 고르게 나눈다 */
 export function answerFor(q: JevQuestion, p: number, pick?: string): JevAnswer {
   if (q.type === "noul") return { type: "noul", noul: p };
+  if (q.type === "box") return { type: "box", box: { top: 0.1, bottom: 0.9, left: 0.1, right: 0.9 }, confidence: p };
   const keys = q.type === "choice" ? Object.keys(q.criteria) : q.criteria.map((_, i) => String(i));
   const chosen = pick ?? keys[0]!;
   const rest = keys.length > 1 ? (1 - p) / (keys.length - 1) : 0;

@@ -118,7 +118,7 @@ export class Store {
   }
 
   async deleteProject(id: string): Promise<void> {
-    if (!/^\d{8}-\d{6}-[a-f0-9]{4}$/.test(id)) throw new HttpError(400, "invalid-id", "프로젝트 id가 올바르지 않습니다");
+    if (!/^[A-Za-z0-9_-]{1,80}$/.test(id)) throw new HttpError(400, "invalid-id", "프로젝트 id가 올바르지 않습니다");
     await this.lock(`project:${id}`, async () => {
       const project = await this.readProject(id);
       if (!project) throw new HttpError(404, "not-found", `프로젝트가 없습니다: ${id}`);

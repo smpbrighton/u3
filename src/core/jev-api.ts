@@ -6,7 +6,13 @@ export type JevText = string | { [key: string]: unknown } | unknown[];
 export type JevQuestion =
   | { type: "noul"; instructions: JevText; criteria?: { true?: JevText; false?: JevText } }
   | { type: "choice"; instructions: JevText; criteria: Record<string, JevText | null> }
-  | { type: "score"; instructions: JevText; criteria: JevText[] };
+  | { type: "score"; instructions: JevText; criteria: JevText[] }
+  | { type: "box"; instructions: string };
+
+export type JevBoxQuestion = { type: "box"; instructions: string };
+const Prob = z.number().min(0).max(1);
+export const JevBox = z.object({ top: Prob, bottom: Prob, left: Prob, right: Prob })
+  .refine(box => box.left < box.right && box.top < box.bottom, "Box edges are not ordered");
 
 export interface JevRequest {
   /** 판단할 내용. 여러 부분이면 이름 붙인 JSON으로 준다 */
@@ -14,10 +20,9 @@ export interface JevRequest {
   questions: Record<string, JevQuestion>;
 }
 
-const Prob = z.number().min(0).max(1);
-
 export const JevAnswer = z.discriminatedUnion("type", [
   z.object({ type: z.literal("noul"), noul: Prob }),
+  z.object({ type: z.literal("box"), box: JevBox, confidence: Prob }),
   z.object({ type: z.literal("choice"), choice: z.string(), probabilities: z.record(z.string(), Prob), confidence: Prob }),
   z.object({
     type: z.literal("score"),

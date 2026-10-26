@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
+import { copyFile, mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { parseCodexEvents, codexFailureReason } from "./codex";
@@ -30,6 +30,13 @@ export function imagePrompt(input: { prompt: string; style: string; model: Image
   return `Use the built-in image_gen tool once. Create a ${model} image at ${input.quality} quality, requested size ${size.width}×${size.height} (${input.aspect}).\n\nVisual style: ${input.style}\nImage direction: ${input.prompt}\n\n글자 없음. 글자, 숫자, 로고, 워터마크를 넣지 마세요. 배경 이미지로 사용할 그림만 만드세요. Save the resulting PNG to exactly this path: ${input.output}`;
 }
 
+export function outlinePrompt(input: { instruction: string; referenceImage?: string; model: ImageModel; quality: ImageQuality; aspect: ImageAspect; output: string }): string {
+  const size = requestedImageSize(input.aspect);
+  const model = input.model === "flare" ? "Flare 빠른 모델" : "Sunburst 고품질 모델";
+  const reference = input.referenceImage ? `Reference image path: ${input.referenceImage}. Pass this exact file with referenced_image_paths. Do not request a prior conversation image. ` : "Edit the attached reference image. ";
+  return `Use the built-in image_gen tool once. ${reference}Use ${model} at ${input.quality} quality, requested size ${size.width}×${size.height} (${input.aspect}).\n\n${input.instruction}\n\nSave the resulting PNG to exactly this path: ${input.output}`;
+}
+
 export function validatePng(data: Buffer, aspect: ImageAspect): { width: number; height: number } {
   const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
   if (data.length < 24 || !data.subarray(0, 8).equals(signature)) throw new Error("Codex 결과가 PNG 파일이 아닙니다");
@@ -40,8 +47,8 @@ export function validatePng(data: Buffer, aspect: ImageAspect): { width: number;
   return { width, height };
 }
 
-export async function resolveImageResult(input: { workDir: string; codexHome: string; sessionId: string | null }): Promise<string> {
-  const inWork = await findPng(input.workDir);
+export async function resolveImageResult(input: { workDir: string; codexHome: string; sessionId: string | null; ignoredFiles?: readonly string[] }): Promise<string> {
+  const inWork = await findPng(input.workDir, new Set(input.ignoredFiles ?? []));
   if (inWork) return inWork;
   if (!input.sessionId) throw new Error("Codex JSON 이벤트에서 session id를 찾지 못했습니다");
   const result = await findPng(path.join(input.codexHome, "generated_images", input.sessionId));
@@ -49,13 +56,13 @@ export async function resolveImageResult(input: { workDir: string; codexHome: st
   return result;
 }
 
-async function findPng(directory: string): Promise<string | null> {
+async function findPng(directory: string, ignored = new Set<string>()): Promise<string | null> {
   let files: string[];
   try { files = await readdir(directory); } catch { return null; }
   for (const name of files.sort()) {
     const file = path.join(directory, name);
     const info = await stat(file).catch(() => null);
-    if (info?.isFile() && path.extname(name).toLowerCase() === ".png") return file;
+    if (info?.isFile() && path.extname(name).toLowerCase() === ".png" && !ignored.has(path.resolve(file))) return file;
   }
   return null;
 }
@@ -69,6 +76,8 @@ export interface CodexImageOptions {
   aspect: ImageAspect;
   prompt: string;
   style: string;
+  referenceImage?: string;
+  instruction?: string;
   output: string;
   env?: NodeJS.ProcessEnv;
   signal?: AbortSignal;
@@ -84,14 +93,29 @@ export async function runCodexImage(options: CodexImageOptions): Promise<{ outpu
   try {
     const login = await runProcess(options.bin, ["login", "status"], workDir, env, "", 15_000, options.signal);
     if (login.code !== 0 || !/^Logged in using ChatGPT\b/im.test(`${login.stdout}\n${login.stderr}`)) throw new Error("Codex ChatGPT 로그인이 필요합니다");
-    const args = ["exec", "--ephemeral", "--skip-git-repo-check", "--sandbox", "workspace-write", "--json", "--enable", "image_generation", "-C", workDir, "-m", options.model, "-c", `model_reasoning_effort=${JSON.stringify(options.effort)}`, "-"];
-    const prompt = imagePrompt({ prompt: options.prompt, style: options.style, model: options.imageModel, quality: options.quality, aspect: options.aspect, output: outputTemp });
+    const args = ["exec", "--ephemeral", "--skip-git-repo-check", "--sandbox", "workspace-write", "--json", "--enable", "image_generation", "-C", workDir, "-m", options.model, "-c", `model_reasoning_effort=${JSON.stringify(options.effort)}`];
+    let referenceImage = options.referenceImage;
+    if (referenceImage) {
+      const referenceCopy = path.join(workDir, "reference.png");
+      await copyFile(referenceImage, referenceCopy);
+      referenceImage = referenceCopy;
+      args.push(`--image=${referenceImage}`);
+    }
+    args.push("-");
+    const prompt = options.instruction && options.referenceImage
+      ? outlinePrompt({ instruction: options.instruction, referenceImage: referenceImage!, model: options.imageModel, quality: options.quality, aspect: options.aspect, output: outputTemp })
+      : imagePrompt({ prompt: options.prompt, style: options.style, model: options.imageModel, quality: options.quality, aspect: options.aspect, output: outputTemp });
     const result = await runProcess(options.bin, args, workDir, env, prompt, options.timeoutMs ?? 10 * 60_000, options.signal);
     const events = parseImageEvents(result.stdout);
     if (result.aborted || options.signal?.aborted) throw new Error("이미지 생성을 취소했습니다");
     if (result.timedOut) throw new Error("Codex 이미지 생성 시간이 초과되었습니다");
     if (result.code !== 0 || events.failed) throw new Error(`Codex ${events.reason ?? codexFailureReason(result.stderr)}${events.detail ? `: ${events.detail}` : ""}`);
-    const source = await resolveImageResult({ workDir, codexHome: env.CODEX_HOME ?? path.join(os.homedir(), ".codex"), sessionId: events.sessionId });
+    let source: string;
+    try {
+      source = await resolveImageResult({ workDir, codexHome: env.CODEX_HOME ?? path.join(os.homedir(), ".codex"), sessionId: events.sessionId, ignoredFiles: referenceImage ? [referenceImage] : [] });
+    } catch (error) {
+      throw new Error(`${error instanceof Error ? error.message : String(error)}${result.stderr.trim() ? `; Codex stderr: ${result.stderr.trim().slice(-1000)}` : ""}${result.stdout.trim() ? `; Codex output: ${result.stdout.trim().slice(-1000)}` : ""}`);
+    }
     const png = await readFile(source);
     const dimensions = validatePng(png, options.aspect);
     // ffprobe confirms that the IHDR dimensions decode as an image before ffmpeg transforms it.

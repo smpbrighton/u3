@@ -116,7 +116,11 @@ export async function startMediaServer(opts: MediaServerOptions): Promise<MediaS
       res.end(req.method === "HEAD" ? undefined : body);
     };
     try {
-      if (req.headers.origin && opts.allowedOrigin && req.headers.origin !== opts.allowedOrigin) return send(403, "forbidden origin");
+      if (req.headers.origin && opts.allowedOrigin && req.headers.origin !== opts.allowedOrigin) {
+        let rendererOrigin = false;
+        try { rendererOrigin = ["localhost", "127.0.0.1", "[::1]"].includes(new URL(req.headers.origin).hostname); } catch { /* malformed origin */ }
+        if (!rendererOrigin) return send(403, "forbidden origin");
+      }
       if (req.method === "OPTIONS") {
         res.writeHead(204, MEDIA_CORS_HEADERS);
         res.end();

@@ -123,10 +123,18 @@ export function registerSystemRoutes(app: Hono, context: AppContext): void {
   app.get("/api/system", async c => {
     const bin = await context.codexPath();
     const codex = bin ? await codexLoginStatus(bin) : { installed: false, loggedIn: false };
+    const settings = await context.store.readSettings();
     return c.json({
       codex,
-      jev: { available: context.jevAvailable, model: "jev-1.13.0" },
+      jev: { available: context.jevAvailable, enabled: settings.jevEnabled !== false, model: "jev-1.13.0", boxModel: "jev-1.14.0" },
     });
+  });
+
+  app.put("/api/system/jev", async c => {
+    const { enabled } = await parseJson(c, z.object({ enabled: z.boolean() }));
+    const settings = await context.store.readSettings();
+    await context.store.saveSettings({ ...settings, jevEnabled: enabled });
+    return c.json({ enabled, available: context.jevAvailable, model: "jev-1.13.0", boxModel: "jev-1.14.0" });
   });
 
   app.get("/api/system/codex-settings", async c => {
