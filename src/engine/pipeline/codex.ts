@@ -145,21 +145,23 @@ export interface CodexRunnerOptions {
   run?: CodexProcessRunner;
 }
 
+type CodexRunRequest<T extends z.ZodType> = {
+  schema: T;
+  prompt: string;
+  images?: readonly string[];
+  signal?: AbortSignal;
+  transcribe?: TranscribeInput;
+  transcriptInputs?: { file: string; inputId: string }[];
+  prepareImages?: () => Promise<string[]>;
+};
+
 export function codexCliRunner(options: CodexRunnerOptions) {
   const env = { ...process.env, ...options.env };
   const run = options.run ?? runCodexProcess;
   let capabilitiesChecked = false;
   let supportsOutputLastMessage = false;
 
-  return {
-    async runScript(request: {
-      prompt: string;
-      images?: readonly string[];
-      signal?: AbortSignal;
-      transcribe?: TranscribeInput;
-      transcriptInputs?: { file: string; inputId: string }[];
-      prepareImages?: () => Promise<string[]>;
-    }) {
+  const execute = async <T extends z.ZodType>(request: CodexRunRequest<T>, scriptCompatibility = false) => {
       const work = await mkdtemp(path.join(tmpdir(), "u3-codex-"));
       let usage: Record<string, number> = {};
       const execute = (args: string[], prompt = "", timeoutMs = 15_000) => run({
@@ -188,7 +190,7 @@ export function codexCliRunner(options: CodexRunnerOptions) {
         }
         const schemaFile = path.join(work, "schema.json");
         const outputFile = path.join(work, "result.json");
-        const compiled = compileCodexSchema(z.toJSONSchema(CodexScript) as Record<string, unknown>);
+        const compiled = compileCodexSchema(z.toJSONSchema(request.schema) as Record<string, unknown>);
         await writeFile(schemaFile, JSON.stringify(compiled.schema), { mode: 0o600 });
         const transcriptionTasks = request.transcribe && request.transcriptInputs
           ? request.transcriptInputs.map(input => {
@@ -247,15 +249,18 @@ export function codexCliRunner(options: CodexRunnerOptions) {
           }
         } else {
           const message = parseCodexMessage(result.stdout);
-          if (!message) throw new CodexError("Codex 응답에서 대본을 찾을 수 없습니다", usage);
+          if (!message) throw new CodexError(scriptCompatibility ? "Codex 응답에서 대본을 찾을 수 없습니다" : "Codex 응답에서 결과를 찾을 수 없습니다", usage);
           try {
             raw = JSON.parse(message);
           } catch {
             throw new CodexError("Codex 응답이 JSON이 아닙니다", usage);
           }
         }
-        const output = CodexScript.safeParse(compiled.restore(raw));
-        if (!output.success) throw new CodexError("Codex 결과가 대본 스키마와 맞지 않습니다", usage);
+        const output = request.schema.safeParse(compiled.restore(raw));
+        if (!output.success) {
+          const mismatch = scriptCompatibility ? "Codex 결과가 대본 스키마와 맞지 않습니다" : "Codex 결과가 요청한 스키마와 맞지 않습니다";
+          throw new CodexError(mismatch, usage);
+        }
         return { output: output.data, usage, transcriptWarnings };
       } catch (error) {
         if (error instanceof CodexError) throw error;
@@ -263,6 +268,14 @@ export function codexCliRunner(options: CodexRunnerOptions) {
       } finally {
         await rm(work, { recursive: true, force: true });
       }
+  };
+
+  return {
+    run<T extends z.ZodType>(request: CodexRunRequest<T>) {
+      return execute(request);
+    },
+    runScript(request: Omit<CodexRunRequest<typeof CodexScript>, "schema">) {
+      return execute({ ...request, schema: CodexScript }, true);
     },
   };
 }
