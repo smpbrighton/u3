@@ -44,7 +44,8 @@ describe("video derived carousel API", () => {
     expect(response.status).toBe(202);
     const result = await response.json() as { carousel: { id: string; slides: Array<{ id: string }> }; job: { id: string } };
     await jobs.wait(result.job.id);
-    const carousel = await app.request(`/api/carousels/${result.carousel.id}`, { headers }).then(response => response.json()) as { slides: Array<{ id: string; background: { frame: { file: string }; highlight: { box: unknown } } }> };
+    const carouselResponse = await app.request(`/api/carousels/${result.carousel.id}`, { headers });
+    const carousel = await carouselResponse.json() as { slides: Array<{ id: string; background: { frame: { file: string }; highlight: { box: unknown } } }> };
     expect(carousel.slides).toHaveLength(2);
     expect(carousel.slides.every(slide => slide.background.frame.file && slide.background.highlight.box)).toBe(true);
     expect(askBox).toHaveBeenCalledTimes(2);
