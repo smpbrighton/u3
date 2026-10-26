@@ -1,13 +1,16 @@
 import { Player, type PlayerRef } from "@remotion/player";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { captionLayersOf, withCaptionLayers, type Project, type Timeline } from "../../core/schema";
 import { timelineToRender } from "../../core/timeline/to-render";
-import type { Project } from "../../core/schema";
 import { U3Short } from "../../remotion/U3Short";
 import type { U3ShortProps } from "../../remotion/types";
 import { api, libraryMediaUrl, mediaUrl } from "../api";
 import { libraryReferencePath } from "../../core/library-reference";
 import { frameForTime, frameToSeekAfterPlayerReady } from "./preview-seek";
 import { hasAllRenderSources } from "./preview-sources";
+import { PreviewEditLayer, type PreviewEditTarget } from "./PreviewEditLayer";
+import type { NormalizedBox } from "../../core/preview-geometry";
+import { findOverlayInLayers, updateOverlayInLayers } from "../../core/timeline/overlay-layers";
 
 export function Preview(props: {
   project: Project;
@@ -16,10 +19,46 @@ export function Preview(props: {
   muteOriginal?: boolean;
   onTime: (time: number) => void;
   onPlaying: (playing: boolean) => void;
+  selectedId: string | null;
+  selectedIds: readonly string[];
+  safeZone: boolean;
+  onSelectTarget: (id: string, kind: "overlay" | "caption-layer" | "watermark") => void;
+  onEditTimeline: (timeline: Timeline) => void;
 }) {
   const playerRef = useRef<PlayerRef>(null);
+  const [previewTimeline, setPreviewTimeline] = useState(props.project.timeline);
+  useEffect(() => setPreviewTimeline(props.project.timeline), [props.project.timeline]);
   const [sources, setSources] = useState<{ inputs: Record<string, string>; memes: Record<string, string>; files: Record<string, string> }>({ inputs: {}, memes: {}, files: {} });
-  const render = useMemo(() => timelineToRender(props.project.timeline), [props.project.timeline]);
+  const render = useMemo(() => timelineToRender(previewTimeline), [previewTimeline]);
+  const titleBarHeight = render.titleBar?.visible ? render.titleBar.height : (previewTimeline.brand?.titleBar?.enabled || previewTimeline.brand?.titleBar?.text) ? previewTimeline.brand.titleBar.height ?? 160 : undefined;
+  const targets = useMemo<PreviewEditTarget[]>(() => {
+    const currentFrame = Math.round(props.time * render.fps);
+    const overlayTargets = render.overlay.filter((clip) => clip.startFrame <= currentFrame && currentFrame < clip.startFrame + clip.durationInFrames).map((clip) => ({
+      id: clip.id, kind: "overlay" as const, canResize: true,
+      box: { x: clip.x - clip.width / 2, y: clip.y - clip.width * 0.5625 / 2, width: clip.width, height: clip.width * 0.5625 },
+    }));
+    const layers = captionLayersOf(previewTimeline);
+    const captionTargets = layers.flatMap((layer) => {
+      const visible = [...layer.main, ...layer.sub].some((clip) => clip.startSec * render.fps <= currentFrame && clip.endSec * render.fps > currentFrame);
+      return visible ? [{ id: layer.id, kind: "caption-layer" as const, canResize: false, box: { x: layer.x - 0.4, y: layer.y - 0.07, width: 0.8, height: 0.07 } }] : [];
+    });
+    const watermark = previewTimeline.brand?.watermark;
+    const watermarkTarget = watermark?.enabled && watermark.width ? [{ id: "watermark", kind: "watermark" as const, canResize: true, box: { x: watermark.x ?? 0.8, y: watermark.y ?? 0.05, width: watermark.width, height: watermark.width * 0.5625 } }] : [];
+    return [...overlayTargets, ...captionTargets, ...watermarkTarget];
+  }, [previewTimeline, props.time, render]);
+  const changeTarget = useCallback((timeline: Timeline, id: string, kind: PreviewEditTarget["kind"], box: NormalizedBox): Timeline => {
+    if (kind === "overlay") return { ...timeline, overlays: updateOverlayInLayers(timeline.overlays, id, (clip) => ({ ...clip, x: box.x + box.width / 2, y: box.y + box.height / 2, width: box.width })) };
+    if (kind === "caption-layer") return withCaptionLayers(timeline, captionLayersOf(timeline).map((layer) => layer.id === id ? { ...layer, x: box.x + box.width / 2, y: box.y + box.height } : layer));
+    return { ...timeline, brand: { ...timeline.brand, watermark: { ...timeline.brand?.watermark, x: box.x, y: box.y, width: box.width } } };
+  }, []);
+  const previewTarget = useCallback((id: string, box: NormalizedBox) => {
+    const kind = targets.find((target) => target.id === id)?.kind;
+    if (kind) setPreviewTimeline((current) => changeTarget(current, id, kind, box));
+  }, [targets, changeTarget]);
+  const commitTarget = useCallback((id: string, box: NormalizedBox) => {
+    const kind = targets.find((target) => target.id === id)?.kind;
+    if (kind) props.onEditTimeline(changeTarget(previewTimeline, id, kind, box));
+  }, [targets, changeTarget, previewTimeline, props.onEditTimeline]);
   const sourcesReady = hasAllRenderSources(render, { ...sources, overlayInputs: sources.inputs });
   useEffect(() => {
     let active = true;
@@ -97,6 +136,7 @@ export function Preview(props: {
   }, [props.time, render.durationInFrames, render.fps, sourcesReady]);
 
   return <div className="studio-preview-player">
+    <div className="studio-preview-stack">
     {render.durationInFrames > 0 && sourcesReady ? <Player
       ref={playerRef}
       component={U3Short}
@@ -113,5 +153,7 @@ export function Preview(props: {
       moveToBeginningWhenEnded={false}
       style={{ width: "100%", height: "100%" }}
     /> : render.durationInFrames > 0 ? <p>미리보기를 준비하고 있어요.</p> : <p>타임라인에 미디어를 넣어 주세요.</p>}
+    {targets.length ? <PreviewEditLayer targets={targets} selectedId={props.selectedId} safeZone={props.safeZone} titleBarHeight={titleBarHeight} onSelect={props.onSelectTarget} onPreview={previewTarget} onCommit={commitTarget} onDragStart={() => { if (props.playing) props.onPlaying(false); }} /> : props.safeZone ? <PreviewEditLayer targets={[]} selectedId={props.selectedId} safeZone titleBarHeight={titleBarHeight} onSelect={props.onSelectTarget} onPreview={previewTarget} onCommit={commitTarget} onDragStart={() => { if (props.playing) props.onPlaying(false); }} /> : null}
+    </div>
   </div>;
 }

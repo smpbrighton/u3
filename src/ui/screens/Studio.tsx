@@ -45,6 +45,7 @@ export function Studio(props: {
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [zoom, setZoom] = useState(4);
   const [snap, setSnap] = useState(true);
+  const [safeZone, setSafeZone] = useState(false);
   const [saving, setSaving] = useState(false);
   const [playing, setPlaying] = useState(false);
   const [recording, setRecording] = useState(false);
@@ -266,7 +267,11 @@ export function Studio(props: {
     <div className="studio-workspace">
       <LibraryPanel project={{ ...props.project, timeline }} selectedId={selected.id} playhead={playhead} onAddVoice={addVoice} onRecordingChange={(active) => { setRecording(active); if (active) setPlaying(false); }} onAddVideo={(id) => addVideo(id)} onSelectMeme={(meme) => addMeme(meme, timeline.video.find((clip) => clip.id === selected.id && clip.kind === "meme")?.id)} onAddSfx={addSfx} onPointerDrop={(item, x, y) => void addLibraryItemAt(item, x, y)} onPointerMove={updateLibraryDropGuide} onPointerCancel={() => setLibraryDropGuide(null)} onProject={props.onProject} onError={props.onError} onSnackbar={props.onSnackbar} />
       <section className="studio-preview-area" aria-label="미리보기">
-        <Preview project={{ ...props.project, timeline }} time={playhead} playing={playing} muteOriginal={recording} onTime={setPlayhead} onPlaying={setPlaying} />
+        <Preview project={{ ...props.project, timeline }} time={playhead} playing={playing} muteOriginal={recording} onTime={setPlayhead} onPlaying={setPlaying} selectedId={selected.id} selectedIds={selectedIds} safeZone={safeZone} onSelectTarget={(id, kind) => {
+          const found = findOverlayInLayers(timeline.overlays, id);
+          const track = kind === "caption-layer" ? "caption-layer" : kind === "watermark" ? "brand" : `video-${(found?.layer ?? 0) + 2}`;
+          setSelected({ id, track }); setSelectedIds([id]);
+        }} onEditTimeline={edit} />
         <div className="studio-playback-controls">
           <ActionButton layout="iconOnly" variant="neutralWeak" aria-label={playing ? "일시 정지" : "재생"} disabled={recording} onClick={() => setPlaying((value) => !value)}><Icon svg={<HugeiconsIcon icon={playing ? PauseIcon : PlayIcon} size={18} />} /></ActionButton>
           <span>{timeLabel(playhead)} / {timeLabel(duration)}</span>
@@ -302,7 +307,7 @@ export function Studio(props: {
     </div>
     <div className="studio-timeline-drop">
       {libraryDropGuide ? <div className="studio-library-drop-guide" style={{ left: libraryDropGuide.x, top: libraryDropGuide.top, height: libraryDropGuide.height }} /> : null}
-      <Timeline timeline={timeline} inputs={props.project.inputs} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} selectedIds={selectedIds} onSelect={(id, track, shift) => {
+      <Timeline timeline={timeline} inputs={props.project.inputs} playhead={playhead} zoom={zoom} snap={snap} safeZone={safeZone} selectedId={selected.id} selectedIds={selectedIds} onSafeZoneChange={setSafeZone} onSelect={(id, track, shift) => {
         if (!id) { setSelected({ id: null, track: null }); setSelectedIds([]); return; }
         const ids = shift && selected.id
           ? selected.track === track

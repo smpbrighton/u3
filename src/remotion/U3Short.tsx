@@ -33,14 +33,14 @@ const VideoLayer: React.FC<{ props: U3ShortProps; index: number; sourceStartFram
   const isPhoto = sequence.kind === "main" && props.inputKinds[sequence.inputId!] === "photo";
   const edge = style ?? videoEdgeStyle(sequence, frame, props.render.fps);
   const layerStyle: React.CSSProperties = { ...fill, opacity: (sequence.opacity ?? 1) * edge.opacity, transform: edge.transform, clipPath: edge.clipPath };
-  if (isPhoto) return <AbsoluteFill style={layerStyle}><Img src={src} style={{ ...fill, objectFit: "cover" }} /></AbsoluteFill>;
+  if (isPhoto) return <AbsoluteFill data-u3-target={sequence.id} style={layerStyle}><Img src={src} style={{ ...fill, objectFit: "cover" }} /></AbsoluteFill>;
   if (sequence.kind === "meme") {
     const loopFrames = Math.max(1, props.memeFrames[sequence.memeId!] ?? sequence.durationInFrames);
-    return <AbsoluteFill style={layerStyle}><Loop durationInFrames={loopFrames} times={Math.ceil(sequence.durationInFrames / loopFrames)} name="짤 반복 재생">
+    return <AbsoluteFill data-u3-target={sequence.id} style={layerStyle}><Loop durationInFrames={loopFrames} times={Math.ceil(sequence.durationInFrames / loopFrames)} name="짤 반복 재생">
       <Video src={src} trimBefore={sourceStartFrame} playbackRate={playbackRate} muted objectFit="contain" style={fill} />
     </Loop></AbsoluteFill>;
   }
-  return <AbsoluteFill style={layerStyle}><MainVideo src={src} sourceStartFrame={sourceStartFrame ?? sequence.sourceStartFrame ?? 0} playbackRate={playbackRate} /></AbsoluteFill>;
+  return <AbsoluteFill data-u3-target={sequence.id} style={layerStyle}><MainVideo src={src} sourceStartFrame={sourceStartFrame ?? sequence.sourceStartFrame ?? 0} playbackRate={playbackRate} /></AbsoluteFill>;
 };
 
 const OverlayLayer: React.FC<{ props: U3ShortProps; index: number }> = ({ props, index }) => {
@@ -50,8 +50,8 @@ const OverlayLayer: React.FC<{ props: U3ShortProps; index: number }> = ({ props,
   const src = clip.kind === "meme" ? props.memes[clip.memeId!] : props.overlayInputs[clip.inputId!];
   if (!src) throw new Error(`겹친 영상 URL이 없습니다: ${clip.kind === "meme" ? clip.memeId : clip.inputId}`);
   const style = overlayMediaStyle(clip, { ...edge, opacity: edge.opacity * (clip.opacity ?? 1) });
-  if (clip.kind === "photo") return <Img src={src} style={style} />;
-  const video = <Video src={src} muted trimBefore={clip.kind === "video" ? clip.sourceStartFrame ?? 0 : 0} loop={false} objectFit="contain" style={style} />;
+  if (clip.kind === "photo") return <Img data-u3-target={clip.id} src={src} style={style} />;
+  const video = <Video data-u3-target={clip.id} src={src} muted trimBefore={clip.kind === "video" ? clip.sourceStartFrame ?? 0 : 0} loop={false} objectFit="contain" style={style} />;
   if (clip.kind !== "meme") return video;
   const loopFrames = Math.max(1, props.memeFrames[clip.memeId!] ?? clip.durationInFrames);
   return <Loop durationInFrames={loopFrames} times={Math.ceil(clip.durationInFrames / loopFrames)} name="겹친 짤 반복 재생">{video}</Loop>;
@@ -126,7 +126,7 @@ export const SceneCaption: React.FC<{ caption: import("../core/timeline/to-rende
   const boxHeight = paired ? layout.height * 2 : layout.height;
   const top = caption.y * 1920 - boxHeight;
   return (
-    <div style={{
+    <div data-u3-target={caption.layerId} style={{
       position: "absolute",
       left: `${caption.x * 100}%`,
       top,
@@ -172,7 +172,7 @@ export const U3Short: React.FC<U3ShortProps> = (props) => (
       </Sequence>
     ))}
     {props.render.titleBar?.visible ? <AbsoluteFill style={{ pointerEvents: "none", justifyContent: "flex-start", alignItems: "center", height: props.render.titleBar.height, backgroundColor: props.render.titleBar.bgColor, opacity: props.render.titleBar.opacity, color: props.render.titleBar.color, fontFamily: CAPTION_FONT_FAMILY[props.render.titleBar.font as keyof typeof CAPTION_FONT_FAMILY], fontSize: props.render.titleBar.fontSize, fontWeight: captionWeight(props.render.titleBar.font as keyof typeof CAPTION_FONT_FAMILY), textAlign: "center" }}>{props.render.titleBar.text}</AbsoluteFill> : null}
-    {props.render.watermark?.visible ? <Img src={props.render.watermark.file} style={{ position: "absolute", left: `${props.render.watermark.x * 100}%`, top: `${props.render.watermark.y * 100}%`, width: `${props.render.watermark.width * 100}%`, height: "auto", opacity: props.render.watermark.opacity }} /> : null}
+    {props.render.watermark?.visible ? <Img data-u3-target="watermark" src={props.render.watermark.file} style={{ position: "absolute", left: `${props.render.watermark.x * 100}%`, top: `${props.render.watermark.y * 100}%`, width: `${props.render.watermark.width * 100}%`, height: "auto", opacity: props.render.watermark.opacity }} /> : null}
     {props.render.audio.map((layer) => {
       const src = layer.track === "source" || layer.track === "stem-voice" || layer.track === "stem-bg"
         ? props.inputs[layer.inputId!]

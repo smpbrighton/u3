@@ -44,9 +44,34 @@ export function Inspector(props: {
   const videoStarts = useMemo(() => videoStartTimes(props.timeline), [props.timeline]);
   const video = props.timeline.video.find((clip) => clip.id === props.selectedId);
   const overlay = props.selectedId ? findOverlayInLayers(props.timeline.overlays, props.selectedId)?.clip : undefined;
-  const caption = captionLayersOf(props.timeline)[0]?.main.find((clip) => clip.id === props.selectedId);
+  const caption = captionLayersOf(props.timeline).flatMap((layer) => [...layer.main, ...layer.sub]).find((clip) => clip.id === props.selectedId);
+  const editableCaption = captionLayersOf(props.timeline)[0]?.main.find((clip) => clip.id === props.selectedId);
   const voiceClip = props.timeline.voice.find((clip) => clip.id === props.selectedId);
   const sfxClip = props.timeline.sfx.find((clip) => clip.id === props.selectedId);
+  const selectedOpacityIds = props.selectedIds.length ? props.selectedIds : props.selectedId ? [props.selectedId] : [];
+  const selectedOpacity = selectedOpacityIds.map((id) => {
+    const layer = captionLayersOf(props.timeline).find((item) => item.id === id);
+    const videoClip = props.timeline.video.find((item) => item.id === id);
+    const overlayClip = findOverlayInLayers(props.timeline.overlays, id)?.clip;
+    const captionClip = captionLayersOf(props.timeline).flatMap((item) => [...item.main, ...item.sub]).find((item) => item.id === id);
+    return layer?.opacity ?? videoClip?.opacity ?? overlayClip?.opacity ?? captionClip?.opacity;
+  }).filter((value): value is number => value !== undefined);
+  const opacityValue = selectedOpacity.length ? selectedOpacity[0]! : 1;
+  const updateOpacity = (opacity: number) => {
+    if (props.selectedTrack === "caption-layer") {
+      props.onChange(withCaptionLayers(props.timeline, captionLayersOf(props.timeline).map((layer) => layer.id === props.selectedId ? { ...layer, opacity } : layer)));
+      return;
+    }
+    if (props.selectedTrack === "brand") {
+      props.onChange({ ...props.timeline, brand: { ...props.timeline.brand, watermark: { ...props.timeline.brand?.watermark, opacity } } });
+      return;
+    }
+    const ids = new Set(selectedOpacityIds);
+    const videoClips = props.timeline.video.map((clip) => ids.has(clip.id) ? { ...clip, opacity } : clip);
+    const overlays = props.timeline.overlays.map((layer) => layer.map((clip) => ids.has(clip.id) ? { ...clip, opacity } as OverlayClip : clip));
+    const layers = captionLayersOf(props.timeline).map((layer) => ({ ...layer, main: layer.main.map((clip) => ids.has(clip.id) ? { ...clip, opacity } : clip), sub: layer.sub.map((clip) => ids.has(clip.id) ? { ...clip, opacity } : clip) }));
+    props.onChange(withCaptionLayers({ ...props.timeline, video: videoClips, overlays }, layers));
+  };
   const sourceId = props.selectedId?.startsWith("source:") ? props.selectedId.slice("source:".length) : props.selectedId?.startsWith("stem-") ? props.selectedId.split(":")[1] : null;
   const sourceClip = sourceId ? props.timeline.video.find((clip) => clip.id === sourceId) : undefined;
   const input = sourceClip?.kind === "main" ? props.project.inputs.find((item) => item.id === sourceClip.inputId) : undefined;
@@ -59,6 +84,7 @@ export function Inspector(props: {
     const groupCount = overlay.groupId ? props.timeline.overlays.flat().filter((item) => item.groupId === overlay.groupId).length : 0;
     return <InspectorShell title={`${props.selectedTrack === "video" ? "영상 2" : props.selectedTrack?.replace(/^video-/, "영상 ") ?? "영상 2"} 속성`} error={error}>
       {groupCount ? <GroupSummary count={groupCount} onUngroup={props.onUngroup} /> : null}
+      <OpacityControl value={opacityValue} count={selectedOpacityIds.length} onChange={updateOpacity} />
       <label>시작 시각 <b>{overlay.startSec.toFixed(1)}초</b><StudioSlider label="시작 시각" min={0} max={Math.max(0, videoDuration(props.timeline) - duration)} step={0.1} value={Math.min(overlay.startSec, Math.max(0, videoDuration(props.timeline) - duration))} onChange={value => updateOverlay({ startSec: value })} /></label>
       <label>길이 <b>{duration.toFixed(1)}초</b><StudioTextInput label="길이" inputMode="decimal" value={String(duration)} onChange={raw => {
         const value = Number(raw);
@@ -204,6 +230,7 @@ export function Inspector(props: {
       props.onChange({ ...props.timeline, video: updated });
     };
     return <InspectorShell title={video.kind === "meme" ? "짤 속성" : "영상 클립"} error={error} {...dialogProps}>
+      <OpacityControl value={opacityValue} count={selectedOpacityIds.length} onChange={updateOpacity} />
       {groupCount ? <GroupSummary count={groupCount} onUngroup={props.onUngroup} /> : null}
       {video.kind === "main" && "inStartSec" in video ? <div className="studio-inspector-grid">
         <StudioTextInput label="원본 시작" inputMode="decimal" value={String(video.inStartSec)} onChange={value => { if (value !== "") editTrim("start", Number(value)); }} />
@@ -221,7 +248,12 @@ export function Inspector(props: {
     </InspectorShell>;
   }
 
-  if (caption) return <InspectorShell title="자막 속성" error={error} {...dialogProps}><StudioTextarea label="자막" rows={4} value={caption.text} onChange={value => updateCaptionText(props.timeline, caption.id, value, props.onChange)} /></InspectorShell>;
+  if (props.selectedTrack === "caption-layer") {
+    const layer = captionLayersOf(props.timeline).find((item) => item.id === props.selectedId);
+    if (layer) return <InspectorShell title={`${layer.name} 투명도`} error={error} {...dialogProps}><OpacityControl value={layer.opacity ?? 1} count={1} onChange={updateOpacity} /></InspectorShell>;
+  }
+  if (props.selectedTrack === "brand") return <InspectorShell title="워터마크 속성" error={error} {...dialogProps}><OpacityControl value={props.timeline.brand?.watermark?.opacity ?? 1} count={1} onChange={updateOpacity} /></InspectorShell>;
+  if (caption) return <InspectorShell title="자막 속성" error={error} {...dialogProps}><OpacityControl value={opacityValue} count={selectedOpacityIds.length} onChange={updateOpacity} />{editableCaption ? <StudioTextarea label="자막" rows={4} value={editableCaption.text} onChange={value => updateCaptionText(props.timeline, editableCaption.id, value, props.onChange)} /> : null}</InspectorShell>;
   if (voiceClip || sfxClip) {
     const clip = voiceClip ?? sfxClip!;
     const track = voiceClip ? "voice" : "sfx";
@@ -319,6 +351,10 @@ function InspectorShell(props: {
       </AlertDialog.Content>
     </AlertDialog.Root>
   </>;
+}
+
+function OpacityControl(props: { value: number; count: number; onChange: (value: number) => void }) {
+  return <label className="studio-range-label">투명도{props.count > 1 ? ` (${props.count}개)` : ""} <b>{Math.round(props.value * 100)}%</b><StudioSlider label="투명도" min={0} max={1} step={0.01} value={props.value} onChange={props.onChange} /></label>;
 }
 
 function GainControl(props: { label: string; gain: number; muted?: boolean; onChange: (value: number) => void; onMute?: () => void }) {
