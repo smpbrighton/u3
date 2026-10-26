@@ -173,13 +173,17 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
       </section>
       <section className="section-card settings-card script-prompt-card" aria-labelledby="script-prompt-title">
         <h2 id="script-prompt-title" className="settings-section-title">대본 프롬프트</h2>
-        <TextField label="기본 지시문" description="대본을 만들 때마다 적용할 지시문이에요." maxGraphemeCount={4000}>
+        <TextField
+          label="기본 지시문"
+          description="대본을 만들 때마다 적용할 지시문이에요."
+          maxGraphemeCount={4000}
+          value={scriptPrompt}
+          onValueChange={({ value }) => setScriptPrompt(value)}
+        >
           <TextFieldTextarea
             className="script-prompt-input"
             maxLength={4000}
-            value={scriptPrompt}
             disabled={scriptPromptLoading || scriptPromptSaving}
-            onChange={event => setScriptPrompt(event.currentTarget.value)}
           />
         </TextField>
         <div className="action-row settings-actions">

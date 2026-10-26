@@ -273,8 +273,13 @@ export function Script(props: {
         </section>
       ) : (
         <section className="section-card" style={{ marginTop: 20 }}>
-          <TextField label="간략한 대본" description="짧은 문장으로 내용을 적어 주세요.">
-            <TextFieldTextarea style={{ minHeight: 220 }} placeholder="예: 비 오는 날 카페에 갔는데 자리가 없어서 30분 기다렸어요." value={prompt} onChange={event => setPrompt(event.currentTarget.value)} />
+          <TextField
+            label="간략한 대본"
+            description="짧은 문장으로 내용을 적어 주세요."
+            value={prompt}
+            onValueChange={({ value }) => setPrompt(value)}
+          >
+            <TextFieldTextarea style={{ minHeight: 220 }} placeholder="예: 비 오는 날 카페에 갔는데 자리가 없어서 30분 기다렸어요." />
           </TextField>
         </section>
       )}
