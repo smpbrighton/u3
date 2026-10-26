@@ -5,6 +5,7 @@ export interface ResolvedScriptMemes {
   memes: Record<number, MemeMeta>;
   alternateMemes: Record<number, MemeMeta>;
   missingCount: number;
+  missingSceneIndexes: number[];
 }
 
 export interface AutomaticMemeRank {
@@ -21,9 +22,11 @@ export function chooseMissingInputMemes(
   script: CodexScript,
   rankings: readonly AutomaticMemeRank[],
   existing: Readonly<Record<number, MemeMeta>> = {},
+  existingAlternates: Readonly<Record<number, MemeMeta>> = {},
 ): ResolvedScriptMemes {
   const scenes = script.scenes.map(scene => ({ ...scene }));
   const memes = { ...existing };
+  const usedIds = new Set([...Object.values(existing), ...Object.values(existingAlternates)].map(item => item.id));
   const missingInputs = new Set<number>();
   const assignedInputs = new Set<number>();
   for (const [index, scene] of scenes.entries()) {
@@ -31,18 +34,17 @@ export function chooseMissingInputMemes(
   }
   for (const scene of scenes) if (!assignedInputs.has(scene.inputIndex)) missingInputs.add(scene.inputIndex);
 
-  let missingCount = 0;
+  const missingSceneIndexes: number[] = [];
   for (const inputIndex of missingInputs) {
     const indexes = scenes.flatMap((scene, index) => scene.inputIndex === inputIndex ? [index] : []);
-    const claimed = new Set(indexes.flatMap(index => memes[index] ? [memes[index]!.id] : []));
     const ranked = indexes.map(index => {
       const result = rankings[index] ?? { by: "rule" as const, items: [] };
-      const candidates = result.items.map(rankMeme).filter(candidate => !claimed.has(candidate.meme.id));
+      const candidates = result.items.map(rankMeme).filter(candidate => !usedIds.has(candidate.meme.id));
       return { index, by: result.by, candidates };
     }).filter(item => item.candidates.length > 0);
 
     if (!ranked.length) {
-      missingCount += indexes.length;
+      missingSceneIndexes.push(...indexes);
       continue;
     }
 
@@ -54,8 +56,14 @@ export function chooseMissingInputMemes(
     const scene = scenes[selected.index]!;
     scenes[selected.index] = { ...scene, memeBefore: false, memeAfter: true };
     memes[selected.index] = candidate;
+    usedIds.add(candidate.id);
   }
-  return { script: { scenes }, memes, alternateMemes: {}, missingCount };
+  return { script: { scenes }, memes, alternateMemes: {}, missingCount: missingSceneIndexes.length, missingSceneIndexes };
+}
+
+/** 두 자동 배치 단계의 누락 장면 인덱스를 합치고 겹치는 장면은 한 번만 센다. */
+export function combineMissingMemeCounts(...results: readonly Pick<ResolvedScriptMemes, "missingSceneIndexes">[]): number {
+  return new Set(results.flatMap(result => result.missingSceneIndexes)).size;
 }
 
 /** Codex 짤 위치를 정규화하고 순위 결과를 장면에 연결한다. */
@@ -65,45 +73,37 @@ export function resolveScriptMemes(
 ): ResolvedScriptMemes {
   const memes: Record<number, MemeMeta> = {};
   const alternateMemes: Record<number, MemeMeta> = {};
-  const usedByInput = new Map<number, Set<string>>();
-  let missingCount = 0;
+  const usedIds = new Set<string>();
+  const missingSceneIndexes: number[] = [];
 
   const scenes = script.scenes.map((scene, index) => {
     if (scene.reaction === null) return { ...scene, memeBefore: false, memeAfter: false };
 
     const ranked = rankedMemes[index];
     const candidates = Array.isArray(ranked) ? ranked : ranked ? [ranked] : [];
-    const used = usedByInput.get(scene.inputIndex) ?? new Set<string>();
-    const meme = candidates.find(candidate => !used.has(candidate.id));
+    const meme = candidates.find(candidate => !usedIds.has(candidate.id));
     if (!meme) {
-      missingCount += 1;
+      missingSceneIndexes.push(index);
       return { ...scene, memeBefore: false, memeAfter: false };
     }
-    used.add(meme.id);
-    usedByInput.set(scene.inputIndex, used);
+    usedIds.add(meme.id);
 
     let memeBefore = scene.memeBefore;
     let memeAfter = scene.memeAfter;
     if (!memeBefore && !memeAfter) memeAfter = true;
     if (memeBefore && memeAfter) {
-      const second = candidates.find(candidate => candidate.id !== meme.id);
-      if (!second) {
+      const alternate = candidates.find(candidate => !usedIds.has(candidate.id));
+      if (alternate) {
+        alternateMemes[index] = alternate;
+        usedIds.add(alternate.id);
+      } else {
         memeBefore = false;
         memeAfter = true;
-      } else {
-        const alternate = candidates.find(candidate => candidate.id !== meme.id && !used.has(candidate.id));
-        if (alternate) {
-          alternateMemes[index] = alternate;
-          used.add(alternate.id);
-        } else {
-          memeBefore = false;
-          memeAfter = true;
-        }
       }
     }
     memes[index] = meme;
     return { ...scene, memeBefore, memeAfter };
   });
 
-  return { script: { scenes }, memes, alternateMemes, missingCount };
+  return { script: { scenes }, memes, alternateMemes, missingCount: missingSceneIndexes.length, missingSceneIndexes };
 }

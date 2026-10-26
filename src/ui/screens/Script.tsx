@@ -8,7 +8,7 @@ import { RadioSelectBoxRoot, RadioSelectBoxItem } from "../../../seed-design/ui/
 import { api, watchJob, type EngineJob } from "../api";
 import type { CodexScript, FrameGroup, Project, SystemStatus } from "../types";
 import type { MemeMeta } from "../../core/schema";
-import { chooseMissingInputMemes, resolveScriptMemes, type AutomaticMemeRank } from "../../core/script-memes";
+import { chooseMissingInputMemes, combineMissingMemeCounts, resolveScriptMemes, type AutomaticMemeRank } from "../../core/script-memes";
 import { timelineFromScript, type SfxLibraryItem } from "../../core/timeline/from-script";
 import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -138,8 +138,13 @@ export function Script(props: {
           }
         }));
       }
-      const fallbackMemes = chooseMissingInputMemes(resolvedMemes.script, situationRankings, resolvedMemes.memes);
-      const resolvedWithFallback = { ...resolvedMemes, script: fallbackMemes.script, memes: fallbackMemes.memes, missingCount: fallbackMemes.missingCount };
+      const fallbackMemes = chooseMissingInputMemes(resolvedMemes.script, situationRankings, resolvedMemes.memes, resolvedMemes.alternateMemes);
+      const resolvedWithFallback = {
+        ...resolvedMemes,
+        script: fallbackMemes.script,
+        memes: fallbackMemes.memes,
+        missingCount: combineMissingMemeCounts(resolvedMemes, fallbackMemes),
+      };
       const script = resolvedWithFallback.script;
       const sfxItems = await api<SfxLibraryResponseItem[]>("GET", "/api/library/sfx", undefined, controller.signal).catch(() => []);
       const sfxLibrary: Record<string, SfxLibraryItem[]> = {};
