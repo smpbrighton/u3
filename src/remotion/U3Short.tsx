@@ -194,7 +194,7 @@ export const U3Short: React.FC<U3ShortProps> = (props) => (
       </Sequence>
     ))}
     {props.render.titleBar?.visible ? <BrandTitleBar titleBar={props.render.titleBar} /> : null}
-    {props.render.watermark?.visible ? <Img data-u3-target="watermark" src={props.render.watermark.file} style={{ position: "absolute", left: `${props.render.watermark.x * 100}%`, top: `${props.render.watermark.y * 100}%`, width: `${props.render.watermark.width * 100}%`, height: "auto", opacity: props.render.watermark.opacity }} /> : null}
+    {props.render.watermark?.visible ? <Img data-u3-target="watermark" src={props.render.watermark.file} style={{ position: "absolute", left: `${props.render.watermark.x * 100}%`, top: `${props.render.watermark.y * 100}%`, width: `${props.render.watermark.width * 100}%`, height: "auto", transform: "translate(-50%, -50%)", opacity: props.render.watermark.opacity }} /> : null}
     {props.render.audio.map((layer) => {
       const src = layer.track === "source" || layer.track === "stem-voice" || layer.track === "stem-bg"
         ? props.inputs[layer.inputId!]
