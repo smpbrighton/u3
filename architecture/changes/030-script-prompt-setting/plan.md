@@ -16,6 +16,7 @@ Track: lite.
 
 - `src/core/script-prompt.ts`: 기본값, 고정 규칙 미리보기, 프롬프트 조립 순수 함수.
 - `src/engine/routes/system.ts`, `src/engine/routes/script.ts`: 설정 GET·PUT과 생성 시 프롬프트 구성.
+- `src/engine/pipeline/script-validation.ts`: 생성 경로와 공유하는 읽기 전용 형식 규칙 미리보기.
 - `src/ui/screens/Settings.tsx`, `src/ui/styles.css`: 프롬프트 설정 카드와 읽기 전용 규칙 목록.
 - `src/ui/screens/Script.tsx`: AI/direct 모드 요청 형식 변경.
 - `tests/core/script-prompt.test.ts`, `tests/server/script-prompt.test.ts`: 기본값·규칙·조립과 설정 API를 검증.

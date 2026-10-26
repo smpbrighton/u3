@@ -4,8 +4,10 @@ import { ActionButton } from "../../../seed-design/ui/action-button";
 import { PageBanner } from "../../../seed-design/ui/page-banner";
 import { ProgressCircle } from "../../../seed-design/ui/progress-circle";
 import { SelectRoot, SelectTrigger, SelectContent, SelectGroup, SelectItem } from "../../../seed-design/ui/select";
+import { TextField, TextFieldTextarea } from "../../../seed-design/ui/text-field";
 import { api, watchJob, watchJobs, type EngineJob } from "../api";
 import type { SystemStatus } from "../types";
+import { DEFAULT_SCRIPT_PROMPT } from "../../core/script-prompt";
 
 type ModelStatus = {
   bgeM3: { available: boolean; ranking: "embedding" | "rules" };
@@ -14,6 +16,7 @@ type ModelStatus = {
 
 type CodexModel = { slug: string; displayName: string; efforts: string[] };
 type CodexModelCatalog = { source: "codex-cli" | "fallback"; models: CodexModel[] };
+type ScriptPromptSettings = { prompt: string; isDefault: boolean; rulesPreview: string };
 
 export function Settings(props: { onSnackbar: (message: string) => void; onError: (message: string) => void }) {
   const [status, setStatus] = useState<SystemStatus | null>(null);
@@ -23,23 +26,34 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
   const [checking, setChecking] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [codexSettings, setCodexSettings] = useState({ model: "gpt-6-luna", effort: "medium" });
+  const [scriptPrompt, setScriptPrompt] = useState(DEFAULT_SCRIPT_PROMPT);
+  const [savedScriptPrompt, setSavedScriptPrompt] = useState(DEFAULT_SCRIPT_PROMPT);
+  const [scriptPromptRules, setScriptPromptRules] = useState<string[]>([]);
+  const [scriptPromptLoading, setScriptPromptLoading] = useState(true);
+  const [scriptPromptSaving, setScriptPromptSaving] = useState(false);
 
   const refresh = useCallback(async () => {
     setChecking(true);
     setError(null);
     try {
-      const [systemResult, modelResult] = await Promise.allSettled([
+      const results = await Promise.allSettled([
         api<SystemStatus>("GET", "/api/system").then(setStatus),
         api<ModelStatus>("GET", "/api/models").then(setModels),
         api<typeof codexSettings>("GET", "/api/system/codex-settings").then(setCodexSettings),
         api<CodexModelCatalog>("GET", "/api/system/codex-models").then(setCodexCatalog),
+        api<ScriptPromptSettings>("GET", "/api/system/script-prompt").then(value => {
+          setScriptPrompt(value.prompt);
+          setSavedScriptPrompt(value.prompt);
+          setScriptPromptRules(value.rulesPreview.split("\n"));
+        }),
       ]);
-      const failed = [systemResult, modelResult].find(result => result.status === "rejected");
+      const failed = results.find(result => result.status === "rejected");
       if (failed?.status === "rejected") throw failed.reason;
     } catch (reason) {
       setError(reason instanceof Error ? reason.message : String(reason));
     } finally {
       setChecking(false);
+      setScriptPromptLoading(false);
     }
   }, []);
 
@@ -110,6 +124,21 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
     catch (reason) { props.onError(reason instanceof Error ? reason.message : String(reason)); }
   }
 
+  async function saveScriptPrompt() {
+    setScriptPromptSaving(true);
+    try {
+      const saved = await api<ScriptPromptSettings>("PUT", "/api/system/script-prompt", { prompt: scriptPrompt });
+      setScriptPrompt(saved.prompt);
+      setSavedScriptPrompt(saved.prompt);
+      setScriptPromptRules(saved.rulesPreview.split("\n"));
+      props.onSnackbar("대본 프롬프트를 저장했어요");
+    } catch (reason) {
+      props.onError(reason instanceof Error ? reason.message : String(reason));
+    } finally {
+      setScriptPromptSaving(false);
+    }
+  }
+
   return (
     <section className="screen" aria-labelledby="settings-title">
       <header className="screen-header"><div><h1 id="settings-title" className="screen-title">설정</h1></div></header>
@@ -141,6 +170,26 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
           </div>
         </div>
         <div className="action-row settings-actions"><ActionButton className="settings-refresh-button" variant="neutralWeak" disabled={checking} loading={checking} aria-label={checking ? "다시 확인 중" : "다시 확인"} onClick={() => void refresh()}>{checking ? "다시 확인 중" : "다시 확인"}</ActionButton></div>
+      </section>
+      <section className="section-card settings-card script-prompt-card" aria-labelledby="script-prompt-title">
+        <h2 id="script-prompt-title" className="settings-section-title">대본 프롬프트</h2>
+        <TextField label="기본 지시문" description="대본을 만들 때마다 적용할 지시문이에요." maxGraphemeCount={4000}>
+          <TextFieldTextarea
+            className="script-prompt-input"
+            maxLength={4000}
+            value={scriptPrompt}
+            disabled={scriptPromptLoading || scriptPromptSaving}
+            onChange={event => setScriptPrompt(event.currentTarget.value)}
+          />
+        </TextField>
+        <div className="action-row settings-actions">
+          <ActionButton variant="neutralWeak" disabled={scriptPromptLoading || scriptPromptSaving || scriptPrompt === DEFAULT_SCRIPT_PROMPT} onClick={() => setScriptPrompt(DEFAULT_SCRIPT_PROMPT)}>기본값으로 되돌리기</ActionButton>
+          <ActionButton variant="brandSolid" disabled={scriptPromptLoading || scriptPromptSaving || scriptPrompt === savedScriptPrompt} loading={scriptPromptSaving} onClick={() => void saveScriptPrompt()}>저장</ActionButton>
+        </div>
+        <div className="script-prompt-rules" aria-labelledby="script-prompt-rules-title">
+          <h3 id="script-prompt-rules-title">앱이 항상 덧붙이는 규칙</h3>
+          <ul>{scriptPromptRules.map((rule, index) => <li key={index}>{rule}</li>)}</ul>
+        </div>
       </section>
       <section className="section-card settings-row" aria-labelledby="jev-title"><h2 id="jev-title">Jev 짤 판정</h2><span className={`status-label ${status?.jev.available ? "is-ready" : "is-warning"}`}>{status?.jev.available ? "연결됨" : "연결 안 됨"}</span></section>
       <section className="section-card" aria-labelledby="models-title">

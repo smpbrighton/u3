@@ -80,7 +80,8 @@ export function Script(props: {
     controllerRef.current = controller;
     try {
       const response = await api<EngineJob>("POST", `/api/projects/${props.project.id}/script/recommend`, {
-        prompt: mode === "direct" ? prompt.trim() : "영상과 사진을 보고 장면별 대본을 추천해 주세요.",
+        mode,
+        ...(mode === "direct" ? { prompt: prompt.trim() } : {}),
       }, controller.signal);
       jobIdRef.current = response.id;
       setGeneration({ phase: "running", message: response.message ?? "Codex 실행 중", cancellable: response.cancellable });

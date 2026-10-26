@@ -6,6 +6,8 @@ import type { AppContext } from "../app";
 import { parseJson } from "../http";
 import { codexLoginStatus } from "../pipeline/codex-path";
 import { readUsage } from "../pipeline/usage";
+import { DEFAULT_SCRIPT_PROMPT } from "../../core/script-prompt";
+import { formatScriptInputGuidePreview } from "../pipeline/script-validation";
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_CODEX_MODELS = [{ slug: "gpt-6-luna", displayName: "GPT-6-Luna", efforts: ["low", "medium", "high"] }];
@@ -42,6 +44,25 @@ export function registerSystemRoutes(app: Hono, context: AppContext): void {
   });
 
   app.get("/api/system/codex-models", async c => c.json(await readCodexModels(await context.codexPath())));
+
+  app.get("/api/system/script-prompt", async c => {
+    const settings = await context.store.readSettings();
+    const prompt = typeof settings.scriptPrompt === "string" && settings.scriptPrompt.trim()
+      ? settings.scriptPrompt
+      : DEFAULT_SCRIPT_PROMPT;
+    return c.json({ prompt, isDefault: prompt === DEFAULT_SCRIPT_PROMPT, rulesPreview: formatScriptInputGuidePreview() });
+  });
+
+  app.put("/api/system/script-prompt", async c => {
+    const { prompt: rawPrompt } = await parseJson(c, z.object({ prompt: z.string().max(4000) }));
+    const prompt = rawPrompt.trim();
+    const settings = await context.store.readSettings();
+    if (!prompt || prompt === DEFAULT_SCRIPT_PROMPT) delete settings.scriptPrompt;
+    else settings.scriptPrompt = prompt;
+    await context.store.saveSettings(settings);
+    const savedPrompt = prompt || DEFAULT_SCRIPT_PROMPT;
+    return c.json({ prompt: savedPrompt, isDefault: savedPrompt === DEFAULT_SCRIPT_PROMPT, rulesPreview: formatScriptInputGuidePreview() });
+  });
 
   app.put("/api/system/codex-settings", async c => {
     const value = await parseJson(c, z.object({ model: z.string().trim().min(1), effort: z.string().trim().min(1) }));

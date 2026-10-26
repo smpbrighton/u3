@@ -12,6 +12,7 @@ import { ffprobe } from "../pipeline/ffmpeg";
 import { listMemes } from "../pipeline/library";
 import { formatScriptInputGuide, validateScriptForInputs } from "../pipeline/script-validation";
 import { inputDisplayName } from "../../core/input";
+import { buildScriptPrompt, DEFAULT_SCRIPT_PROMPT } from "../../core/script-prompt";
 
 export function registerScriptRoutes(app: Hono, context: AppContext): void {
   app.get("/api/projects/:id/script", async c => {
@@ -37,9 +38,13 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
     const project = await context.store.getProject(c.req.param("id"));
     if (!project) throw new HttpError(404, "not-found", "프로젝트가 없습니다");
     const request = await parseJson(c, z.object({
-      prompt: z.string().trim().min(1),
+      mode: z.enum(["ai", "direct"]).optional(),
+      prompt: z.string().optional(),
       images: z.array(z.string().min(1)).optional(),
     }));
+    const mode = request.mode ?? "direct";
+    const userPrompt = request.prompt?.trim();
+    if (mode === "direct" && !userPrompt) throw new HttpError(400, "invalid", "직접 쓰기 모드에는 사용자 요청이 필요합니다");
     const bin = await context.codexPath();
     if (!bin) throw new HttpError(503, "codex-not-found", "Codex CLI를 찾지 못했습니다");
 
@@ -65,8 +70,13 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
         return Array.from({ length: count }, (_, frameIndex) => `${(((frameIndex + 0.5) / count) * input.durationSec!).toFixed(1)}초`);
       });
       const result = await codexCliRunner({ bin, model: typeof settings.codexModel === "string" ? settings.codexModel : "gpt-6-luna", effort: typeof settings.codexEffort === "string" ? settings.codexEffort : "medium" }).runScript({
-        ...request,
-        prompt: `${request.prompt}\n\n${formatScriptInputGuide(inputs, frameTimes, emotions)}`,
+        images: request.images,
+        prompt: buildScriptPrompt({
+          mode,
+          basePrompt: typeof settings.scriptPrompt === "string" && settings.scriptPrompt.trim() ? settings.scriptPrompt : DEFAULT_SCRIPT_PROMPT,
+          userPrompt,
+          formatRules: formatScriptInputGuide(inputs, frameTimes, emotions),
+        }),
         signal,
         transcribe: context.transcribeInput,
         prepareImages: async () => {
