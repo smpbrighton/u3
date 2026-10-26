@@ -2,17 +2,25 @@ import { describe, expect, it } from "vitest";
 import { buildScriptPrompt, DEFAULT_SCRIPT_PROMPT } from "../../src/core/script-prompt";
 
 describe("buildScriptPrompt", () => {
-  it("기본값은 현재 AI 추천 문장으로 시작한다", () => {
-    expect(DEFAULT_SCRIPT_PROMPT.startsWith("영상과 사진을 보고 장면별 대본을 추천해 주세요.")).toBe(true);
+  it("uUu 대본 원칙을 U3 자막에 맞춘 기본 지침으로 제공한다", () => {
+    expect(DEFAULT_SCRIPT_PROMPT).toContain("## 언어집");
+    expect(DEFAULT_SCRIPT_PROMPT).toContain("## AI 티 줄이기");
+    expect(DEFAULT_SCRIPT_PROMPT).toContain("epoko77-ai/im-not-ai(MIT)");
+    expect(DEFAULT_SCRIPT_PROMPT).toContain("자막은 영상 장면에 표시되는 문장");
+    expect(DEFAULT_SCRIPT_PROMPT).not.toMatch(/\{\{|visual|upload|emphasis|revealWord|TTS|나레이션|상품:/i);
   });
 
-  it("AI 모드는 저장된 기본 지시문과 형식 규칙만 붙인다", () => {
-    expect(buildScriptPrompt({ mode: "ai", basePrompt: "기본 지시문", formatRules: "형식 규칙", userPrompt: "무시할 요청" }))
-      .toBe("기본 지시문\n\n형식 규칙");
+  it("기본 지침, 사용자 요청, 화자 설정, 형식 규칙 순서로 조립한다", () => {
+    expect(buildScriptPrompt({
+      mode: "direct", basePrompt: "기본 지침", userPrompt: "사용자 요청", formatRules: "형식 규칙",
+      voice: { speaker: "화자 설정", tone: "말투 설정", persona: "성격 설정" },
+    })).toBe("기본 지침\n\n사용자 요청:\n사용자 요청\n\n화자:\n화자 설정\n\n말투:\n말투 설정\n\n성격:\n성격 설정\n\n형식 규칙");
   });
 
-  it("직접 쓰기 모드는 사용자 요청을 형식 규칙 앞에 붙인다", () => {
-    expect(buildScriptPrompt({ mode: "direct", basePrompt: "기본 지시문", userPrompt: "비 오는 날 카페 이야기", formatRules: "형식 규칙" }))
-      .toBe("기본 지시문\n\n사용자 요청:\n비 오는 날 카페 이야기\n\n형식 규칙");
+  it("비어 있는 화자 설정은 생략하고 AI 모드에서는 사용자 요청을 넣지 않는다", () => {
+    expect(buildScriptPrompt({
+      mode: "ai", basePrompt: "기본 지침", userPrompt: "무시", formatRules: "형식 규칙",
+      voice: { speaker: "  ", tone: "", persona: "성격 설정" },
+    })).toBe("기본 지침\n\n성격:\n성격 설정\n\n형식 규칙");
   });
 });
