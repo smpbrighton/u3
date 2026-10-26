@@ -126,6 +126,26 @@ export class CarouselStore {
     });
   }
 
+  async replacePlan(id: string, plan: { topic: string; style: string; slides: Array<{ title: string; body: string; imagePrompt: string }> }): Promise<CarouselData> {
+    return this.lock(id, async () => {
+      const current = await this.readRaw(id);
+      if (!current) throw new HttpError(404, "not-found", `캐러셀이 없습니다: ${id}`);
+      if (this.hasActiveForCarousel(id)) throw new HttpError(409, "active-job", "이미지 생성 중에는 기획을 바꿀 수 없습니다");
+      const slides = current.slides.map((slide, index) => ({
+        id: slide.id,
+        title: plan.slides[index]!.title,
+        body: plan.slides[index]!.body,
+        imagePrompt: plan.slides[index]!.imagePrompt,
+        textPlacement: slide.textPlacement,
+        status: "idle" as const,
+      }));
+      const next = Carousel.parse({ ...current, topic: plan.topic, style: plan.style, slides, savedAt: this.now().toISOString() });
+      await this.write(next);
+      for (const slide of current.slides) if (slide.image?.file) await rm(path.join(this.carouselDir(id), slide.image.file), { force: true });
+      return next;
+    });
+  }
+
   async updateSlideUserFields(id: string, slideId: string, fields: UserSlideFields): Promise<CarouselData> {
     return this.updateSlide(id, slideId, fields, false);
   }

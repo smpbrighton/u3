@@ -5,6 +5,7 @@ import type { Jobs } from "./jobs";
 import type { MemeIndex } from "./pipeline/meme-embed";
 import type { MediaServer } from "./pipeline/media-server";
 import type { TranscribeInput } from "./pipeline/codex";
+import type { ImageAspect, ImageModel, ImageQuality } from "./pipeline/codex-image";
 import { cors, errorBody, localOnly, onError, tokenGuard } from "./http";
 import { registerEventRoutes } from "./routes/events";
 import { registerProjectRoutes } from "./routes/projects";
@@ -21,6 +22,9 @@ import { registerSeparateRoutes } from "./routes/separate";
 import { registerTranscribeRoutes } from "./routes/transcribe";
 import { registerModelRoutes } from "./routes/models";
 import { registerOutputRoutes } from "./routes/output";
+import { registerCarouselRoutes } from "./routes/carousels";
+import { CarouselStore } from "./carousel-store";
+import { ImageQueue } from "./image-queue";
 
 export interface AppContext {
   store: Store;
@@ -36,9 +40,19 @@ export interface AppContext {
   whisperPath?: string;
   sileroPath?: string;
   mrxPath?: string;
+  carouselStore?: import("./carousel-store").CarouselStore;
+  imageQueue?: import("./image-queue").ImageQueue;
+  carouselServices?: {
+    refine(input: { topic: string }, signal?: AbortSignal): Promise<{ candidates: Array<{ topic: string; angle: string }>; usage: Record<string, number> }>;
+    plan(input: { topic: string; count: number }, signal?: AbortSignal): Promise<{ style: string; slides: Array<{ title: string; body: string; imagePrompt: string }>; topic?: string; usage: Record<string, number> }>;
+    generateImage(input: { prompt: string; style: string; model: ImageModel; quality: ImageQuality; aspect: ImageAspect; output: string; signal?: AbortSignal }): Promise<{ output: string; usage: Record<string, number> } | Buffer>;
+  };
+  composeCarouselSlide?: (carousel: import("../core/carousel").Carousel, slide: import("../core/carousel").CarouselSlide, destination: string) => Promise<void>;
 }
 
 export function createApp(context: AppContext) {
+  context.imageQueue ??= new ImageQueue();
+  context.carouselStore ??= new CarouselStore(context.store.root, id => context.jobs.hasActiveForProject(id));
   const app = new Hono();
   app.onError(onError);
   app.notFound(c => c.json(errorBody("not-found", "요청 경로가 없습니다"), 404));
@@ -54,6 +68,7 @@ export function createApp(context: AppContext) {
   registerMemeRoutes(app, context);
   registerLibraryRoutes(app, context);
   registerSystemRoutes(app, context);
+  registerCarouselRoutes(app, context);
   registerMediaRoutes(app, context);
   registerFrameRoutes(app, context);
   registerRenderRoutes(app, context);

@@ -8,9 +8,12 @@ import { codexLoginStatus } from "../pipeline/codex-path";
 import { readUsage } from "../pipeline/usage";
 import { DEFAULT_SCRIPT_PROMPT } from "../../core/script-prompt";
 import { formatScriptInputGuidePreview } from "../pipeline/script-validation";
+import { ImageQueue } from "../image-queue";
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_CODEX_MODELS = [{ slug: "gpt-6-luna", displayName: "GPT-6-Luna", efforts: ["low", "medium", "high"] }];
+const ImageOptions = z.object({ model: z.enum(["flare", "sunburst"]), quality: z.enum(["low", "medium", "high", "auto"]), aspect: z.enum(["4:5", "1:1"]), concurrency: z.number().int().min(1).max(10) });
+const DEFAULT_IMAGE_OPTIONS = { model: "flare" as const, quality: "auto" as const, aspect: "4:5" as const, concurrency: 3 };
 
 async function readCodexModels(bin: string | null) {
   if (!bin) return { source: "fallback" as const, models: DEFAULT_CODEX_MODELS };
@@ -29,6 +32,20 @@ async function readCodexModels(bin: string | null) {
 }
 
 export function registerSystemRoutes(app: Hono, context: AppContext): void {
+  app.get("/api/system/image-options", async c => {
+    const settings = await context.store.readSettings();
+    const parsed = ImageOptions.safeParse(settings.imageOptions);
+    return c.json(parsed.success ? parsed.data : DEFAULT_IMAGE_OPTIONS);
+  });
+
+  app.put("/api/system/image-options", async c => {
+    const imageOptions = await parseJson(c, ImageOptions);
+    const settings = await context.store.readSettings();
+    await context.store.saveSettings({ ...settings, imageOptions });
+    (context.imageQueue ??= new ImageQueue()).setConcurrency(imageOptions.concurrency);
+    return c.json(imageOptions);
+  });
+
   app.get("/api/system", async c => {
     const bin = await context.codexPath();
     const codex = bin ? await codexLoginStatus(bin) : { installed: false, loggedIn: false };
