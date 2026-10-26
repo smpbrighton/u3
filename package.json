@@ -49,6 +49,7 @@
     "opentype.js": "^2.0.0",
     "p-queue": "^10.0.0",
     "react": "19.3.0",
+    "react-colorful": "^5.8.1",
     "react-dom": "19.3.0",
     "remotion": "4.0.529",
     "wav": "1.0.2",

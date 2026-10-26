@@ -21,6 +21,7 @@ type CodexModelCatalog = { source: "codex-cli" | "fallback"; models: CodexModel[
 type ScriptPromptSettings = { prompt: string; isDefault: boolean; rulesPreview: string };
 type ScriptVoiceField = "speaker" | "tone" | "persona" | "review";
 type ScriptVoiceSettings = Record<ScriptVoiceField, string>;
+type IntroSfxSetting = { enabled: boolean; ref: string; atSec: number; title: string; durationSec: number };
 const DEFAULT_SCRIPT_VOICE: ScriptVoiceSettings = { speaker: "", tone: "", persona: "", review: DEFAULT_SCRIPT_REVIEW_PROMPT };
 type ImageOptions = { model: "flare" | "sunburst"; quality: "low" | "medium" | "high" | "auto"; aspect: "4:5" | "1:1"; concurrency: number };
 
@@ -41,6 +42,17 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
   const [scriptVoiceLoading, setScriptVoiceLoading] = useState(true);
   const [scriptVoiceSaving, setScriptVoiceSaving] = useState<Partial<Record<ScriptVoiceField, boolean>>>({});
   const [imageOptions, setImageOptions] = useState<ImageOptions>({ model: "flare", quality: "auto", aspect: "4:5", concurrency: 3 });
+  const [introSfx, setIntroSfx] = useState<IntroSfxSetting>({ enabled: true, ref: "", atSec: 3, title: "띠링- 소리", durationSec: 1.5 });
+  const [notifyItems, setNotifyItems] = useState<Array<{ ref: string; title: string; url: string }>>([]);
+  useEffect(() => {
+    void api<IntroSfxSetting>("GET", "/api/system/intro-sfx").then(setIntroSfx).catch(() => undefined);
+    void api<Array<{ ref: string; title: string; url: string; category: string }>>("GET", "/api/library/sfx").then(items => setNotifyItems(items.filter(item => item.category === "notify"))).catch(() => undefined);
+  }, []);
+  async function saveIntroSfx(next: IntroSfxSetting) {
+    setIntroSfx(next);
+    try { setIntroSfx(await api<IntroSfxSetting>("PUT", "/api/system/intro-sfx", { enabled: next.enabled, ref: next.ref, atSec: next.atSec })); }
+    catch (reason) { props.onError(reason instanceof Error ? reason.message : String(reason)); }
+  }
 
   const refresh = useCallback(async () => {
     setChecking(true);
@@ -257,6 +269,13 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
             </div>
           </div>)}
         </div>
+      </section>
+      <section className="section-card settings-card" aria-labelledby="intro-sfx-title">
+        <h2 id="intro-sfx-title" className="settings-section-title">자동 알림음</h2>
+        <label><input type="checkbox" checked={introSfx.enabled} onChange={event => void saveIntroSfx({ ...introSfx, enabled: event.target.checked })} /> 켜기</label>
+        <label>알림음 <select value={introSfx.ref} onChange={event => { const item = notifyItems.find(candidate => candidate.ref === event.target.value); if (item) void saveIntroSfx({ ...introSfx, ref: item.ref, title: item.title }); }}>{notifyItems.map(item => <option key={item.ref} value={item.ref}>{item.title}</option>)}</select></label>
+        <ActionButton variant="neutralWeak" disabled={!notifyItems.find(item => item.ref === introSfx.ref)} onClick={() => { const item = notifyItems.find(candidate => candidate.ref === introSfx.ref); if (item) new Audio(item.url).play().catch(() => undefined); }}>미리 듣기</ActionButton>
+        <label>시각 {introSfx.atSec.toFixed(1)}초 <input type="range" min="0" max="10" step="0.1" value={introSfx.atSec} onChange={event => setIntroSfx(value => ({ ...value, atSec: Number(event.target.value) }))} onMouseUp={() => void saveIntroSfx(introSfx)} onTouchEnd={() => void saveIntroSfx(introSfx)} /></label>
       </section>
       <section className="section-card settings-row" aria-labelledby="jev-title"><h2 id="jev-title">Jev 짤 판정</h2><span className={`status-label ${status?.jev.available ? "is-ready" : "is-warning"}`}>{status?.jev.available ? "연결됨" : "연결 안 됨"}</span></section>
       <section className="section-card" aria-labelledby="models-title">

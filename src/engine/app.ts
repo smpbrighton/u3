@@ -25,6 +25,7 @@ import { registerOutputRoutes } from "./routes/output";
 import { registerCarouselRoutes } from "./routes/carousels";
 import { CarouselStore } from "./carousel-store";
 import { ImageQueue } from "./image-queue";
+import { registerCaptionRoutes } from "./routes/captions";
 
 export interface AppContext {
   store: Store;
@@ -65,6 +66,7 @@ export function createApp(context: AppContext) {
   registerInputRoutes(app, context);
   registerVoiceRoutes(app, context);
   registerScriptRoutes(app, context);
+  registerCaptionRoutes(app, context);
   registerMemeRoutes(app, context);
   registerLibraryRoutes(app, context);
   registerSystemRoutes(app, context);

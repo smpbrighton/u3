@@ -154,22 +154,24 @@ export function deleteVideoSelection(timeline: Timeline, selectedIds: readonly s
 }
 
 export function trimCaptionClip(timeline: Timeline, clipId: string, edge: "start" | "end", toSec: number): Timeline {
-  const layer = captionLayersOf(timeline).find((item) => item.main.some((clip) => clip.id === clipId));
-  const clips = layer?.main ?? timeline.captions;
+  const layer = captionLayersOf(timeline).find((item) => [...item.main, ...item.sub].some((clip) => clip.id === clipId));
+  const row = layer?.main.some(clip => clip.id === clipId) ? "main" : "sub";
+  const clips = layer ? layer[row] : timeline.captions;
   const clip = requireClip(clips, clipId, "caption");
   if (edge === "start" ? toSec <= clip.startSec : toSec >= clip.endSec) throw new RangeError("클립을 늘리는 트림은 지원하지 않습니다");
   const next = edge === "start" ? { ...clip, startSec: toSec } : { ...clip, endSec: toSec };
   if (next.startSec < 0 || next.endSec <= next.startSec) throw new RangeError("자막 구간이 올바르지 않습니다");
-  return layer ? withCaptionLayers(timeline, captionLayersOf(timeline).map((item) => item.id === layer.id ? { ...item, main: item.main.map((current) => current.id === clipId ? next : current) } : item)) : { ...timeline, captions: timeline.captions.map((item) => item.id === clipId ? next : item) };
+  return layer ? withCaptionLayers(timeline, captionLayersOf(timeline).map((item) => item.id === layer.id ? { ...item, [row]: item[row].map((current) => current.id === clipId ? next : current) } : item)) : { ...timeline, captions: timeline.captions.map((item) => item.id === clipId ? next : item) };
 }
 
 export function moveCaptionClip(timeline: Timeline, clipId: string, startSec: number): Timeline {
-  const layer = captionLayersOf(timeline).find((item) => item.main.some((clip) => clip.id === clipId));
-  const clips = layer?.main ?? timeline.captions;
+  const layer = captionLayersOf(timeline).find((item) => [...item.main, ...item.sub].some((clip) => clip.id === clipId));
+  const row = layer?.main.some(clip => clip.id === clipId) ? "main" : "sub";
+  const clips = layer ? layer[row] : timeline.captions;
   const clip = requireClip(clips, clipId, "caption");
   if (startSec < 0) throw new RangeError("시작 시각은 0 이상이어야 합니다");
   const next = { ...clip, startSec, endSec: startSec + clip.endSec - clip.startSec };
-  return layer ? withCaptionLayers(timeline, captionLayersOf(timeline).map((item) => item.id === layer.id ? { ...item, main: item.main.map((current) => current.id === clipId ? next : current) } : item)) : { ...timeline, captions: timeline.captions.map((item) => item.id === clipId ? next : item) };
+  return layer ? withCaptionLayers(timeline, captionLayersOf(timeline).map((item) => item.id === layer.id ? { ...item, [row]: item[row].map((current) => current.id === clipId ? next : current) } : item)) : { ...timeline, captions: timeline.captions.map((item) => item.id === clipId ? next : item) };
 }
 
 export function trimAudioClip(clips: readonly AudioClip[], clipId: string, edge: "start" | "end", toSec: number, fileDurationSec: number): AudioClip[] {

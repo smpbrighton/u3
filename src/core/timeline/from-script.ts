@@ -1,5 +1,5 @@
 import { DEFAULT_CAPTION_STYLE, type AudioClip, type CodexScript, type Input, type MemeMeta, type SfxMeta, type Timeline, type VideoClip } from "../schema";
-import { pickSfxFile, resolveSceneSfx, SCENE_SFX_MAX_SEC } from "../sfx";
+import { pickSfxFile, resolveSceneSfx, SCENE_SFX_FADE_SEC, SCENE_SFX_MAX_SEC } from "../sfx";
 import { placeOverlayInLowestLayer } from "./overlay-layers";
 
 export const DEFAULT_CHARS_PER_SEC = 5.7;
@@ -23,6 +23,7 @@ export interface FromScriptOptions {
   sfxLibrary?: Readonly<Record<string, readonly SfxLibraryItem[]>>;
   /** scene index (0-based) -> preselected sound effect */
   sfx?: Readonly<Record<number, SfxMeta>>;
+  introSfx?: { enabled: boolean; ref: string; atSec: number; durationSec?: number };
 }
 
 function videoClip(sceneIndex: number, input: Input, startSec: number, endSec: number): VideoClip {
@@ -38,6 +39,7 @@ export function timelineFromScript(script: CodexScript, inputs: readonly Input[]
   const video: VideoClip[] = [];
   let overlays: Timeline["overlays"] = [];
   const captions: Timeline["captions"] = [];
+  const subCaptions: NonNullable<Timeline["captionLayers"]>[number]["sub"] = [];
   const sfx: AudioClip[] = [];
   let cursor = 0;
 
@@ -86,6 +88,7 @@ export function timelineFromScript(script: CodexScript, inputs: readonly Input[]
 
     const durationSec = mainDuration;
     captions.push({ id: `scene-${index}-caption`, startSec: cursor, endSec: cursor + durationSec, text: scene.caption });
+    if (scene.subCaption?.trim()) subCaptions.push({ id: `scene-${index}-sub-caption`, startSec: cursor, endSec: cursor + durationSec, text: scene.subCaption });
     const category = resolveSceneSfx(
       { sfxCategory: scene.sfxCategory ?? undefined, reaction: scene.reaction ?? undefined },
       options.memes?.[index]?.emotion,
@@ -105,9 +108,15 @@ export function timelineFromScript(script: CodexScript, inputs: readonly Input[]
     cursor += durationSec;
   });
 
+  const intro = options.introSfx;
+  const totalDuration = cursor;
+  if (intro?.enabled && totalDuration >= intro.atSec + 1.5) {
+    sfx.push({ id: "intro-notification-sfx", startSec: intro.atSec, file: intro.ref, inStartSec: 0, inEndSec: Math.min(SCENE_SFX_MAX_SEC, intro.durationSec ?? SCENE_SFX_MAX_SEC), gain: 1, lane: Math.max(0, ...sfx.map(item => item.lane ?? 0)) + 1, fadeOutSec: Math.min(SCENE_SFX_FADE_SEC, intro.durationSec ?? SCENE_SFX_MAX_SEC) });
+  }
+
   return {
     video, overlays, captions,
-    captionLayers: [{ id: "caption-layer-1", name: "자막", x: 0.5, y: 1555 / 1920, style: DEFAULT_CAPTION_STYLE, main: captions, sub: [] }], voice: [], sfx,
+    captionLayers: [{ id: "caption-layer-1", name: "자막", x: 0.5, y: 1480 / 1920, style: DEFAULT_CAPTION_STYLE, main: captions, sub: subCaptions }], brand: { titleBar: { text: script.title ?? "" } }, voice: [], sfx,
     audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } },
   };
 }

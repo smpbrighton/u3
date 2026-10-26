@@ -148,9 +148,10 @@ export function Script(props: {
       };
       const script = resolvedWithFallback.script;
       const sfxItems = await api<SfxLibraryResponseItem[]>("GET", "/api/library/sfx", undefined, controller.signal).catch(() => []);
+      const introSfx = await api<{ enabled: boolean; ref: string; atSec: number; durationSec: number }>("GET", "/api/system/intro-sfx", undefined, controller.signal).catch(() => ({ enabled: true, ref: "", atSec: 3, durationSec: 1.5 }));
       const sfxLibrary: Record<string, SfxLibraryItem[]> = {};
       for (const item of sfxItems) (sfxLibrary[item.category] ??= []).push({ ...item, file: item.ref });
-      const timeline = timelineFromScript(script, inputs, { projectId: props.project.id, memes: resolvedWithFallback.memes, alternateMemes: resolvedMemes.alternateMemes, sfxLibrary });
+      const timeline = timelineFromScript(script, inputs, { projectId: props.project.id, memes: resolvedWithFallback.memes, alternateMemes: resolvedMemes.alternateMemes, sfxLibrary, introSfx });
       const saved = await api<Project>("PUT", `/api/projects/${props.project.id}`, {
         ...props.project,
         inputs,

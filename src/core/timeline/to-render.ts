@@ -196,6 +196,7 @@ export function timelineToRender(timeline: Timeline, brand?: RenderBrandSettings
     audio.push({
       id: clip.id, track, startFrame: frame(clip.startSec), durationInFrames: frame(clip.inEndSec - clip.inStartSec),
       sourceStartFrame: frame(clip.inStartSec), volume: volume(gain, clip.gain), file: clip.file,
+      ...(clip.fadeOutSec ? { volumeTransitions: [{ startFrame: Math.max(frame(clip.startSec), frame(clip.startSec + clip.inEndSec - clip.inStartSec - clip.fadeOutSec)), durationInFrames: frame(clip.fadeOutSec), from: 1, to: 0 }] } : {}),
     });
   }
 

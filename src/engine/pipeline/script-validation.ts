@@ -32,6 +32,8 @@ export function formatScriptInputGuide(
       return `${item}, 원본 길이 ${input.durationSec ?? "확인 불가"}초; 프레임 시각: ${times.join(", ")}`;
     }),
     "영상 장면은 원본 기준 startSec와 endSec를 모두 초 단위로 출력합니다.",
+    "title에는 영상 타이틀 바에 쓸 제목을 30자 이내로 출력합니다.",
+    "subCaption에는 각 장면의 한국어 자막을 의미가 같은 자연스러운 영어 자막으로 출력합니다.",
   ].join("\n");
 }
 
@@ -75,5 +77,5 @@ export function validateScriptForInputs(
       reaction: scene.reaction !== null && emotions.includes(scene.reaction) ? scene.reaction : null,
     };
   });
-  return { scenes };
+  return { ...script, scenes };
 }

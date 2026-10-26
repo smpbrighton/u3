@@ -1,4 +1,5 @@
 import type { Hono } from "hono";
+import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { z } from "zod";
@@ -10,6 +11,12 @@ import { DEFAULT_SCRIPT_PROMPT } from "../../core/script-prompt";
 import { DEFAULT_SCRIPT_REVIEW_PROMPT } from "../../core/script-review";
 import { formatScriptInputGuidePreview } from "../pipeline/script-validation";
 import { ImageQueue } from "../image-queue";
+import { listSfx } from "../pipeline/library";
+import { createLibraryReference } from "../../core/library-reference";
+
+const IntroSfx = z.object({ enabled: z.boolean(), ref: z.string().min(1), atSec: z.number().min(0).max(10) });
+const DEFAULT_INTRO_SFX = { enabled: true, ref: "u3-library:sfx/notify/sfx-mum36456-06c20f.mp3", atSec: 3 };
+const pathRelativeLibrary = (file: string, root: string) => path.relative(path.basename(root) === "library" ? root : path.join(root, "library"), file);
 
 const execFileAsync = promisify(execFile);
 const DEFAULT_CODEX_MODELS = [{ slug: "gpt-6-luna", displayName: "GPT-6-Luna", efforts: ["low", "medium", "high"] }];
@@ -33,6 +40,28 @@ async function readCodexModels(bin: string | null) {
 }
 
 export function registerSystemRoutes(app: Hono, context: AppContext): void {
+  app.get("/api/system/intro-sfx", async c => {
+    const settings = await context.store.readSettings();
+    const parsed = IntroSfx.safeParse(settings.introSfx);
+    const library = await listSfx(context.resourceDir ?? process.cwd());
+    const introSfx = parsed.success ? parsed.data : DEFAULT_INTRO_SFX;
+    const root = context.resourceDir ?? process.cwd();
+    const item = library.find(sfx => sfx.category === "notify" && createLibraryReference(pathRelativeLibrary(sfx.file, root)) === introSfx.ref)
+      ?? library.find(sfx => sfx.category === "notify" && sfx.title === "띠링- 소리");
+    const resolved = { ...introSfx, ref: item ? createLibraryReference(pathRelativeLibrary(item.file, root)) : introSfx.ref };
+    if (!parsed.success) await context.store.saveSettings({ ...settings, introSfx: resolved });
+    return c.json({ ...resolved, title: item?.title ?? "띠링- 소리", durationSec: item?.durationSec ?? 1.5 });
+  });
+
+  app.put("/api/system/intro-sfx", async c => {
+    const value = await parseJson(c, IntroSfx);
+    const library = await listSfx(context.resourceDir ?? process.cwd());
+    const selected = library.find(sfx => sfx.category === "notify" && createLibraryReference(pathRelativeLibrary(sfx.file, context.resourceDir ?? process.cwd())) === value.ref);
+    if (!selected) return c.json({ error: "알림음 라이브러리의 notify 소리를 선택해 주세요" }, 400);
+    const settings = await context.store.readSettings();
+    await context.store.saveSettings({ ...settings, introSfx: value });
+    return c.json({ ...value, title: selected.title, durationSec: selected.durationSec });
+  });
   app.get("/api/system/image-options", async c => {
     const settings = await context.store.readSettings();
     const parsed = ImageOptions.safeParse(settings.imageOptions);

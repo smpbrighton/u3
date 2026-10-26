@@ -40,7 +40,7 @@ export function decideActionMove(input: ActionMoveInput): ActionMoveDecision {
   }
   if (editorRow === "video") return { kind: "reorder-video1" };
   if (/^video-(?:[2-9]|[1-9]\d+)$/.test(editorRow)) return { kind: "move-overlay" };
-  if (editorRow === "captions") return { kind: "move-caption" };
+  if (editorRow === "captions" || /-main$|-sub$/.test(editorRow)) return { kind: "move-caption" };
   if (editorRow === "voice") return { kind: "move-audio", track: "voice" };
   if (editorRow === "sfx" || /^sfx-\d+$/.test(editorRow)) return { kind: "move-audio", track: "sfx" };
   return { kind: "ignore" };

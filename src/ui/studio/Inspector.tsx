@@ -11,6 +11,7 @@ import { api, watchJob, type EngineJob } from "../api";
 import { clampTransitionDuration, parseTransitionDuration, transitionDurationLimit } from "./transition-length";
 import { StudioSlider, StudioSwitch, StudioTextInput, StudioTextarea, StudioSelect } from "./SeedControls";
 import { RadioGroup, RadioGroupItem } from "../../../seed-design/ui/radio-group";
+import { CaptionLayerEditor } from "./CaptionLayerEditor";
 
 const AlertDialog = { Root: AlertDialogRoot, Content: AlertDialogContent, Header: AlertDialogHeader, Title: AlertDialogTitle, Description: AlertDialogDescription, Footer: AlertDialogFooter, Action: AlertDialogAction };
 
@@ -77,6 +78,10 @@ export function Inspector(props: {
   const input = sourceClip?.kind === "main" ? props.project.inputs.find((item) => item.id === sourceClip.inputId) : undefined;
   const audioGain = props.timeline.audio;
   const separated = input ? audioGain.stems?.[input.id] : undefined;
+
+  const selectedLayerId = props.selectedTrack?.replace(/-(main|sub)$/, "");
+  const selectedLayer = captionLayersOf(props.timeline).find(layer => layer.id === selectedLayerId);
+  if (selectedLayer) return <InspectorShell title={`${selectedLayer.name} 편집`} error={error}><CaptionLayerEditor project={props.project} timeline={props.timeline} layer={selectedLayer} onChange={props.onChange} /></InspectorShell>;
 
   if (overlay) {
     const duration = overlayDuration(overlay);
@@ -368,5 +373,5 @@ function CaptionEditor(props: { caption?: TimelineData["captions"][number]; time
 
 function updateCaptionText(timeline: TimelineData, id: string, text: string, onChange: (timeline: TimelineData) => void) {
   const layers = captionLayersOf(timeline);
-  onChange(withCaptionLayers(timeline, layers.map((layer, index) => index === 0 ? { ...layer, main: layer.main.map((clip) => clip.id === id ? { ...clip, text } : clip) } : layer)));
+  onChange(withCaptionLayers(timeline, layers.map(layer => ({ ...layer, main: layer.main.map(clip => clip.id === id ? { ...clip, text } : clip), sub: layer.sub.map(clip => clip.id === id ? { ...clip, text } : clip) }))));
 }

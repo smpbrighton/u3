@@ -360,7 +360,7 @@ export function Timeline(props: {
               if (clip?.kind === "main" && "inStartSec" in clip) doEdit(() => trimVideoClip(props.timeline, action.id, edge, toSec, props.inputDurations?.[clip.inputId]));
               else if (clip) doEdit(() => trimVideoClip(props.timeline, action.id, edge, toSec));
             } else if (/^video-(?:[2-9]|[1-9]\d+)$/.test(row.id)) doEdit(() => trimOverlayClip(props.timeline, action.id, edge, dir === "left" ? start : end));
-            else if (row.id === "captions") doEdit(() => trimCaptionClip(props.timeline, action.id, edge, dir === "left" ? start : end));
+            else if (row.id === "captions" || /-main$|-sub$/.test(row.id)) doEdit(() => trimCaptionClip(props.timeline, action.id, edge, dir === "left" ? start : end));
             else if (row.id === "voice" || row.id === "sfx" || /^sfx-\d+$/.test(row.id)) {
               const clips = row.id === "voice" ? props.timeline.voice : props.timeline.sfx;
               const clip = clips.find((item) => item.id === action.id);

@@ -15,6 +15,7 @@ export const DEFAULT_SCRIPT_REVIEW_PROMPT = `# 쇼츠 대본 낭독 검수
 - 이야기 흐름: 대본의 프레임 흐름은 바꾸지 않는다. 이야기가 한 걸음씩 나아가게 유지한다.
 - 장면 구조: 장면 수와 순서를 바꾸지 않는다. 각 장면의 inputIndex, startSec, endSec, reaction, memeBefore, memeAfter, sfxCategory를 그대로 둔다.
 - 화면 근거: 각 caption이 가리키는 화면 속 동작과 대상은 해당 장면의 입력 항목과 시각에 맞아야 한다.
+- subCaption과 title은 번역과 제목 품질을 위해 고칠 수 있다. 두 필드를 보호 필드로 취급하지 않는다.
 
 ## 검수 목록
 1. 자막 읽기: 한 번에 읽히지 않는 문장, 숨이 막히는 긴 문장, 자막으로 읽기 어려운 기호를 고친다.

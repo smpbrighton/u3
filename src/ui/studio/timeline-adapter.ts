@@ -29,7 +29,7 @@ export interface SfxLabel { ref: string; title?: string; category?: string }
 export interface MemeLabel { id: string; description?: string }
 
 export function labelForAction(id: string, timeline: Timeline, inputs: readonly Input[] = [], sfxItems: readonly SfxLabel[] = [], memes: readonly MemeLabel[] = []): string {
-  const caption = captionLayersOf(timeline)[0]?.main.find(item => item.id === id);
+  const caption = captionLayersOf(timeline).flatMap(layer => [...layer.main, ...layer.sub]).find(item => item.id === id);
   if (caption) return caption.text;
   const video = timeline.video.find(item => item.id === id);
   if (video) {
@@ -88,7 +88,10 @@ export function timelineToStudioRows(timeline: Timeline): StudioRow[] {
     return [action(`stem-bg:${clip.id}`, start, start + clipDuration(clip), "stem-bg", false)];
   });
   return [
-    row("captions", captionLayersOf(timeline)[0]?.main.map((clip) => action(clip.id, clip.startSec, clip.endSec, "caption")) ?? []),
+    ...(timeline.captionLayers ? captionLayersOf(timeline).flatMap(layer => [
+      row(`${layer.id}-main`, layer.main.map(clip => action(clip.id, clip.startSec, clip.endSec, "caption")), TRACK_ROW_HEIGHT, `${layer.name} 메인`),
+      row(`${layer.id}-sub`, layer.sub.map(clip => action(clip.id, clip.startSec, clip.endSec, "caption")), TRACK_ROW_HEIGHT, `${layer.name} 서브`),
+    ]) : [row("captions", timeline.captions.map(clip => action(clip.id, clip.startSec, clip.endSec, "caption")))]),
     ...overlayRows,
     row("video", videoActions, TRACK_ROW_HEIGHT, "영상 1"),
     ...(sourceActions.length ? [row("source", sourceActions)] : []),
