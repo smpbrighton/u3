@@ -22,6 +22,13 @@ describe("Carousel schema", () => {
     const parsed = Carousel.parse(example);
     expect(Carousel.parse(JSON.parse(JSON.stringify(parsed)))).toEqual(parsed);
   });
+
+  it("reads legacy 030 carousels as topic sourced generated slides", () => {
+    const parsed = Carousel.parse(example);
+    expect(parsed.source).toEqual({ kind: "topic" });
+    expect(parsed.slides[0]?.background).toEqual({ kind: "generated", image: example.slides[0]!.image });
+    expect(parsed.topic).toBe("처음 주제");
+  });
 });
 
 describe("carousel receive names", () => {

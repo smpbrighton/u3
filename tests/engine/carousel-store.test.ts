@@ -30,6 +30,20 @@ describe("CarouselStore", () => {
     });
   });
 
+  it("merges user highlight edits with engine-owned frame and preserves a manually edited box", async () => {
+    const store = await storeWith();
+    const created = await store.createCarousel({ name: "영상", source: { kind: "project", projectId: "p1", projectName: "프로젝트" }, aspect: "4:5", slides: [
+      { id: "s1", title: "제목", body: "본문", textPlacement: "bottom", background: { kind: "frame", sec: 2, cropY: 0.5, status: "idle", highlight: { style: "border", target: "상품", box: { left: 0.1, top: 0.2, right: 0.6, bottom: 0.8 } } } },
+    ] });
+    await store.updateSlideEngineFields(created.id, "s1", { background: { frame: { file: "frames/s1-1.png" }, highlight: { box: { left: 0.2, top: 0.3, right: 0.7, bottom: 0.9 } }, status: "done" } });
+    await store.updateSlideUserFields(created.id, "s1", { background: { kind: "frame", sec: 5, cropY: 0.4, highlight: { style: "dim", target: "수정한 대상", box: { left: 0.15, top: 0.25, right: 0.65, bottom: 0.85 } } } });
+    const result = await store.getCarousel(created.id);
+    expect(result?.slides[0]?.background).toMatchObject({
+      kind: "frame", sec: 5, cropY: 0.4, frame: { file: "frames/s1-1.png" }, status: "done",
+      highlight: { style: "dim", target: "수정한 대상", box: { left: 0.15, top: 0.25, right: 0.65, bottom: 0.85 } },
+    });
+  });
+
   it("marks queued and running slides failed when no active job exists", async () => {
     const store = await storeWith();
     const created = await store.createCarousel({ name: "이름", topic: "주제", aspect: "1:1", style: "사진", slides: [
