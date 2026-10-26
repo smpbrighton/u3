@@ -5,6 +5,7 @@ import { placeOverlayInLowestLayer } from "./overlay-layers";
 export const DEFAULT_CHARS_PER_SEC = 5.7;
 export const DEFAULT_PHOTO_MIN_SEC = 1.5;
 export const DEFAULT_MEME_MAX_SEC = 2;
+const VIDEO_JOIN_TOLERANCE_SEC = 0.05;
 
 export interface SfxLibraryItem {
   id: string;
@@ -62,7 +63,21 @@ export function timelineFromScript(script: CodexScript, inputs: readonly Input[]
       overlays = placeOverlayInLowestLayer(overlays, { id: `scene-${index}-meme-${suffix}`, memeId: selected.id, startSec: start, durationSec, x: 0.5, y: 0.5, width: 0.6 });
     };
     if (scene.memeBefore) addMeme("before");
-    video.push(videoClip(index, input, mainStart, mainEnd));
+    const nextVideo = videoClip(index, input, mainStart, mainEnd);
+    const previousVideo = video.at(-1);
+    if (
+      input.kind === "video"
+      && previousVideo?.kind === "main"
+      && previousVideo.inputId === input.id
+      && previousVideo.inEndSec !== undefined
+      && nextVideo.kind === "main"
+      && nextVideo.inStartSec !== undefined
+      && Math.abs(previousVideo.inEndSec - nextVideo.inStartSec) <= VIDEO_JOIN_TOLERANCE_SEC
+    ) {
+      video[video.length - 1] = { ...previousVideo, inEndSec: nextVideo.inEndSec };
+    } else {
+      video.push(nextVideo);
+    }
     if (scene.memeAfter) addMeme("after");
 
     const durationSec = mainDuration;
