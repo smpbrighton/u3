@@ -38,6 +38,18 @@ async function setup(jevEnabled = true) {
 }
 
 describe("video derived carousel API", () => {
+  it("accepts all four aspects for frame based carousels", async () => {
+    const { app, store, jobs, project } = await setup();
+    for (const aspect of ["9:16", "16:9"] as const) {
+      const response = await app.request(`/api/projects/${project.id}/carousel`, { method: "POST", headers, body: JSON.stringify({ count: 2, aspect }) });
+      expect(response.status).toBe(202);
+      const result = await response.json() as { carousel: { id: string; aspect: string }; job: { id: string } };
+      expect(result.carousel.aspect).toBe(aspect);
+      await jobs.wait(result.job.id);
+      expect((await store.requireCarousel(result.carousel.id)).aspect).toBe(aspect);
+    }
+  });
+
   it("plans without frame images, extracts one frame and box per slide, and isolates a re-extract to one slide", async () => {
     const { app, store, jobs, project, askBox } = await setup();
     const response = await app.request(`/api/projects/${project.id}/carousel`, { method: "POST", headers, body: JSON.stringify({ count: 2 }) });
