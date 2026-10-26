@@ -1,6 +1,6 @@
 # 0014 범위: 입력·대본·짤·효과음·소리 편집·내보내기·캐러셀
 
-Status: accepted
+Status: superseded-by 0017
 Source: changes/030-carousel-images/spec.md
 Supersedes: 0003
 
