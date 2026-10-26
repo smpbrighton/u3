@@ -1,6 +1,6 @@
 # 0012 편집 모델: 짤 기본 오버레이와 효과음 트랙 여러 개
 
-Status: accepted
+Status: superseded-by 0016
 Source: changes/023-shortcuts-transition-length/plan.md
 Supersedes: 0011
 
