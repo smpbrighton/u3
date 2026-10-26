@@ -63,6 +63,19 @@ describe("timelineFromScript", () => {
     expect(timeline.video).toHaveLength(2);
   });
 
+  it("허용 오차 안의 경계 차이는 장면별 자막 시간과 합친 영상 길이에 반영하지 않는다", () => {
+    const script: CodexScript = { scenes: [
+      { caption: "첫 장면", inputIndex: 1, reaction: null, memeBefore: false, memeAfter: false, sfxCategory: null, startSec: 0.3, endSec: 2.4 },
+      { caption: "둘째 장면", inputIndex: 1, reaction: null, memeBefore: false, memeAfter: false, sfxCategory: null, startSec: 2.42, endSec: 5.2 },
+    ] };
+    const timeline = timelineFromScript(script, [{ id: "video-a", kind: "video", file: "a.mp4", durationSec: 10 }]);
+
+    expect(timeline.video).toHaveLength(1);
+    expect(timeline.video[0] && "inStartSec" in timeline.video[0] && "inEndSec" in timeline.video[0]
+      ? timeline.video[0].inEndSec - timeline.video[0].inStartSec : null).toBeCloseTo(4.88);
+    expect(timeline.captions.map(({ startSec, endSec }) => [startSec, endSec])).toEqual([[0, 2.1], [2.1, 4.88]]);
+  });
+
   it("reaction null 장면에 연결한 짤은 overlays에 두고 영상 길이를 늘리지 않는다", () => {
     const script: CodexScript = { scenes: [
       { caption: "첫 장면", inputIndex: 1, reaction: null, memeBefore: false, memeAfter: true, sfxCategory: null, startSec: 0.3, endSec: 2.4 },
