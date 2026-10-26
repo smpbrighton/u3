@@ -26,8 +26,8 @@ describe("derived carousel UI state", () => {
 
   it("prefers a saved timeline duration and falls back for older derived carousels", () => {
     const slides = [
-      { ...frame, sec: 4.5 },
-      { ...frame, sec: 8.2 },
+      { id: "slide-1", title: "", body: "", textPlacement: "bottom" as const, background: { ...frame, sec: 4.5 }, status: "idle" as const },
+      { id: "slide-2", title: "", body: "", textPlacement: "bottom" as const, background: { ...frame, sec: 8.2 }, status: "idle" as const },
     ] as CarouselSlide[];
     expect(derivedFrameDuration(42, 60, slides)).toBe(42);
     expect(derivedFrameDuration(undefined, 60, slides)).toBe(60);

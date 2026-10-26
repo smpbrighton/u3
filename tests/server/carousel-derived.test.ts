@@ -101,7 +101,7 @@ describe("video derived carousel API", () => {
     const updated = await app.request(`/api/carousels/${result.carousel.id}/slides/${result.carousel.slides[0]!.id}/highlight`, { method: "POST", headers, body: JSON.stringify({ style: "none", target: "" }) });
 
     expect(updated.status).toBe(200);
-    expect(await updated.json()).toMatchObject({ slides: [{ background: { highlight: { style: "none" } } }] });
+    expect(await updated.json()).toMatchObject({ slides: expect.arrayContaining([expect.objectContaining({ background: { highlight: expect.objectContaining({ style: "none" }) } })]) });
     expect(askBox).toHaveBeenCalledTimes(2);
   });
 });
