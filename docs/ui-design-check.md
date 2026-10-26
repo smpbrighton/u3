@@ -9,6 +9,19 @@ W26의 1280×800 레이아웃 결함을 수정했다. SEED 컴포넌트 내부 �
 | 홈 · 프로젝트 1개 | 사이드바가 창 높이를 채운다. 카드에 썸네일, 이름, 메타, 더보기 메뉴를 표시한다. | `out/manual/w27-home.png` |
 | Studio · 미디어 | 항목마다 썸네일, 이름, 종류·길이를 한 행에 둔다. | `out/manual/w27-studio-media.png` |
 | Studio · 짤 | 3열 카드와 두 줄 설명을 표시한다. | `out/manual/w27-studio-memes.png` |
+
+## W28 SEED 칩·라벨 점검
+
+- 단계 이동은 SEED `Chip Tabs`로 표시한다. 공통 Chip 문서는 Chip을 Tab 역할로 쓰려면 Tabs의 Chip Variant를 사용하라고 안내한다. Tabs Guidelines는 Chip Tabs의 `medium`을 작은 영역의 전환에 권장하고, `small`은 제공하지 않는다. React Chip Tabs 문서는 카테고리·필터 전환, controlled `value`, disabled trigger, `medium` size 사용 예시를 제공한다.
+- 입력·대본 헤더는 같은 `ChipTabsRoot`/`ChipTabsList`/`ChipTabsTrigger`를 쓴다. 선택 상태로 현재 단계를 알리고, 입력이 없을 때 대본을, 영상 클립이 없을 때 스튜디오를 비활성화한다.
+- 설정 Codex Select와 Inspector 전환 Select의 바깥 중복 라벨을 제거했다. 각 Select의 `label`만 표시한다.
+- 단계 칩의 수동 padding·border·radius와 ActionButton 중첩을 없앴다. `.steps` 배치 규칙 하나만 남겼다.
+- Inspector, 홈 카드·메뉴·빈 상태, Studio 라이브러리·미리보기·타임라인 및 Dialog·Snackbar를 코드로 대조했다. 그 외의 기능이나 단축키 결함은 확인하지 않았다.
+
+| 화면 | 확인 결과 | 캡처 |
+|---|---|---|
+| 홈 · 빈 목록 | 지정한 분리 데이터 경로로 개발 앱의 초기 빈 화면을 확인했다. 창 캡처는 1280×800이다. | `out/manual/w28-home.png` |
+| 입력 · 대본 · 설정 · Studio · Dialog · Snackbar | 화면 전환이나 폼 조작이 필요한 화면은 요청에 따라 조작하지 않았다. 조정자 패키징 앱 캡처를 코드와 대조했다. | 개발 앱 캡처 미수행 |
 | Studio · 타임라인 | 확대 Slider에 140px 폭을 확보한다. 라벨과 값은 한 줄이다. 트랙 음소거 Toggle Button은 xsmall 크기로 행 안에 둔다. | `out/manual/w27-studio-media.png` |
 
 입력, 대본, 설정, Inspector의 영상·소리·자막·효과음 속성, 내보내기·이름 바꾸기 Dialog, Menu, Snackbar는 구현 코드와 배치 스타일을 검토했다. 폭 0, 세로 줄바꿈, 행 겹침, 버튼의 행 높이 초과, 해당 결함 유형의 텍스트 잘림은 코드에서 발견하지 못했다. 이 화면은 개발 앱에서 직접 열어 확인하지 못했다.
