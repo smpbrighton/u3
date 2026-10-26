@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { timelineTrackLabels } from "../../src/ui/studio/timeline-track-labels";
+import { timelineTrackLabels, withNewVideoTrackRow } from "../../src/ui/studio/timeline-track-labels";
 
 describe("timeline track labels", () => {
   it("adapter 행과 같은 순서와 개수로 자막 레이어 이름을 만든다", () => {
@@ -28,5 +28,20 @@ describe("timeline track labels", () => {
     ]);
 
     expect(labels.map(({ name }) => name)).toEqual(["자막", "새 영상 트랙", "영상 1"]);
+  });
+
+  it("새 영상 트랙 행을 자막 레이어의 메인·서브 행 아래에 둔다", () => {
+    const rows = [
+      { id: "caption-main", name: "자막 메인", actions: [], rowHeight: 28 },
+      { id: "caption-sub", name: "자막 서브", actions: [], rowHeight: 28 },
+      { id: "pov-main", name: "POV 메인", actions: [], rowHeight: 28 },
+      { id: "pov-sub", name: "POV 서브", actions: [], rowHeight: 28 },
+      { id: "video-2", name: "영상 2", actions: [], rowHeight: 28 },
+      { id: "video", name: "영상 1", actions: [], rowHeight: 28 },
+    ];
+
+    expect(withNewVideoTrackRow(rows).map(({ id }) => id)).toEqual([
+      "caption-main", "caption-sub", "pov-main", "pov-sub", "video-new", "video-2", "video",
+    ]);
   });
 });
