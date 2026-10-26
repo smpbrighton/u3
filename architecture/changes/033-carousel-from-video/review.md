@@ -1,5 +1,5 @@
 # Review: carousel-from-video
-Author: claude-opus-5-5[1m] (opencodex 경유). Status: draft. Round: 1.
+Author: claude-opus-5-5[1m] (opencodex 경유). Status: accepted. Round: 1.
 
 ## 대조한 것
 - 변경 문서: `architecture/changes/033-carousel-from-video/intent.md`, `architecture/changes/033-carousel-from-video/spec.md`
