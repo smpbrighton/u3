@@ -1,6 +1,6 @@
 # 0003 범위: 입력·대본·짤·효과음·소리 편집·내보내기
 
-Status: accepted
+Status: superseded-by 0014
 Source: changes/001-desktop-studio/spec.md
 
 ## 맥락
