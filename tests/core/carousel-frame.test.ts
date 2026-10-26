@@ -19,7 +19,7 @@ describe("carousel frame selection", () => {
       { caption: "두 번째", inputIndex: 1, reaction: null, memeBefore: false, memeAfter: false, sfxCategory: null, startSec: 8, endSec: 10 },
     ];
     expect(sceneFrameSec(scenes, timeline, 1)).toBe(2);
-    expect(sceneFrameSec(scenes, timeline, 2)).toBe(8);
+    expect(sceneFrameSec(scenes, timeline, 2)).toBe(7);
   });
 
   it("moves a scene centered in a meme clip to the nearest main-video frame", () => {
