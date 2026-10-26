@@ -302,12 +302,13 @@ export function Studio(props: {
         <HugeiconsIcon icon={Redo02Icon} size={16} />다시 실행
       </ActionButton>
       <span className="studio-toolbar-spacer" />
+      <StudioSwitch label="세이프존" checked={safeZone} onChange={setSafeZone} size="16" />
       <StudioSwitch label="스냅" checked={snap} onChange={setSnap} size="16" />
       <label className="studio-zoom"><span>확대</span><span className="studio-zoom-slider"><StudioSlider label="확대" min={1} max={10} step={0.1} value={zoom} onChange={setZoom} /></span><output>{zoom.toFixed(1)}×</output></label>
     </div>
     <div className="studio-timeline-drop">
       {libraryDropGuide ? <div className="studio-library-drop-guide" style={{ left: libraryDropGuide.x, top: libraryDropGuide.top, height: libraryDropGuide.height }} /> : null}
-      <Timeline timeline={timeline} inputs={props.project.inputs} playhead={playhead} zoom={zoom} snap={snap} safeZone={safeZone} selectedId={selected.id} selectedIds={selectedIds} onSafeZoneChange={setSafeZone} onSelect={(id, track, shift) => {
+      <Timeline timeline={timeline} inputs={props.project.inputs} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} selectedIds={selectedIds} onSelect={(id, track, shift) => {
         if (!id) { setSelected({ id: null, track: null }); setSelectedIds([]); return; }
         const ids = shift && selected.id
           ? selected.track === track
@@ -316,7 +317,7 @@ export function Studio(props: {
           : [id];
         const expanded = expandVideoGroupSelection(timeline, ids);
         setSelected({ id, track }); setSelectedIds(expanded);
-      }} onPlayhead={setPlayhead} onEdit={edit} onError={props.onError} onBlocked={props.onSnackbar} onSnapChange={setSnap} onZoomChange={setZoom} onMute={toggleMute} inputDurations={Object.fromEntries(props.project.inputs.map((input) => [input.id, input.durationSec ?? 1]))} />
+      }} onPlayhead={setPlayhead} onEdit={edit} onError={props.onError} onBlocked={props.onSnackbar} onZoomChange={setZoom} onMute={toggleMute} inputDurations={Object.fromEntries(props.project.inputs.map((input) => [input.id, input.durationSec ?? 1]))} />
     </div>
     {exportOpen ? <ExportDialog projectId={props.project.id} projectName={props.project.name} timelineLength={Math.max(duration, ...timeline.voice.map(clip => clip.startSec + clip.inEndSec - clip.inStartSec), ...timeline.sfx.map(clip => clip.startSec + clip.inEndSec - clip.inStartSec))} onClose={() => setExportOpen(false)} onSnackbar={props.onSnackbar} /> : null}
   </section>;

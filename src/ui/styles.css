@@ -161,7 +161,6 @@ input::placeholder, textarea::placeholder { color: var(--seed-color-palette-gray
 .studio-zoom-slider > * { width: 100%; min-width: 0; }
 .studio-timeline-drop { flex: 0 0 310px; min-height: 0; overflow: auto; }
 .studio-timeline { min-width: 760px; background: var(--seed-color-bg-layer-default); }
-.studio-timeline-toolbar { display: none; }
 .studio-timeline-body { display: flex; min-width: 760px; }
 .studio-track-labels { width: 112px; flex: 0 0 112px; border-right: 1px solid var(--seed-color-palette-gray-200); }
 .studio-track-ruler { height: var(--studio-ruler-height); box-sizing: border-box; border-bottom: 1px solid var(--seed-color-palette-gray-200); }

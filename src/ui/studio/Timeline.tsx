@@ -17,7 +17,7 @@ import { decideActionMove, isUnchangedTimeline, resolveVideoTrackAtPointer, shou
 import { timelinePointerSeconds } from "./timeline-zoom";
 import { studioShortcut } from "./shortcuts";
 import { audioGroupForRow, normalizeSfxLanes } from "../../core/timeline/sfx-lanes";
-import { StudioSlider, StudioSwitch } from "./SeedControls";
+import { timelineTrackLabels } from "./timeline-track-labels";
 import { ToggleButton } from "../../../seed-design/ui/toggle-button";
 import { Icon } from "@seed-design/react";
 
@@ -37,7 +37,6 @@ export function Timeline(props: {
   playhead: number;
   zoom: number;
   snap: boolean;
-  safeZone?: boolean;
   inputDurations?: Record<string, number>;
   audioDurations?: Record<string, number>;
   selectedId: string | null;
@@ -46,8 +45,6 @@ export function Timeline(props: {
   onPlayhead: (time: number) => void;
   onEdit: (timeline: TimelineData) => void;
   onError: (message: string) => void;
-  onSnapChange?: (enabled: boolean) => void;
-  onSafeZoneChange?: (enabled: boolean) => void;
   onZoomChange?: (zoom: number) => void;
   onMute?: (track: string) => void;
   onBlocked?: (message: string) => void;
@@ -63,16 +60,7 @@ export function Timeline(props: {
   const [editorKey, setEditorKey] = useState(0);
   const rows = useMemo(() => timelineToStudioRows(props.timeline), [props.timeline]);
   const displayRows = useMemo(() => [...rows.slice(0, 1), { id: "video-new", name: "새 영상 트랙", actions: [], rowHeight: TRACK_ROW_HEIGHT }, ...rows.slice(1)], [rows]);
-  const overlayTracks = displayRows.filter((row) => /^video-(?:[2-9]|[1-9]\d+)$/.test(row.id) || row.id === "video-new").map((row) => ({
-    id: row.id,
-    name: row.name ?? "영상 2",
-    color: "#A875D6",
-  }));
-  const tracks = TRACKS.filter((track) => rows.some((row) => row.id === track.id)).flatMap((track) => track.id === "video"
-    ? [...overlayTracks, track]
-    : track.id === "sfx"
-      ? rows.filter((row) => row.id === "sfx" || /^sfx-\d+$/.test(row.id)).map((row) => ({ id: row.id, name: row.name ?? "효과음", color: track.color }))
-      : [track]);
+  const tracks = timelineTrackLabels(displayRows);
   const starts = useMemo(() => videoStartTimes(props.timeline), [props.timeline]);
   const data = displayRows.map((item) => ({ ...item, actions: item.actions.map((action) => ({ ...action, selected: props.selectedIds.includes(action.id) })) }));
 
@@ -257,13 +245,6 @@ export function Timeline(props: {
     "--studio-track-row-height": `${TRACK_ROW_HEIGHT}px`,
     "--studio-ruler-height": `${TIMELINE_RULER_HEIGHT}px`,
   } as CSSProperties}>
-    <div className="studio-timeline-toolbar">
-      <div className="studio-track-labels studio-track-labels--toolbar" />
-      <span>포인터에서 자르기 <kbd>C</kbd> · 재생 헤드에서 자르기 <kbd>S</kbd> · 묶기 <kbd>⌘M</kbd> / 풀기 <kbd>⇧⌘M</kbd></span>
-      <StudioSwitch label="세이프존" checked={props.safeZone ?? false} onChange={checked => props.onSafeZoneChange?.(checked)} size="16" />
-      <StudioSwitch label="스냅" checked={props.snap} onChange={checked => props.onSnapChange?.(checked)} size="16" />
-      <label className="studio-zoom"><span>확대</span><span className="studio-zoom-slider"><StudioSlider label="확대" min={1} max={10} step={0.1} value={props.zoom} onChange={value => props.onZoomChange?.(value)} /></span><output>{props.zoom.toFixed(1)}×</output></label>
-    </div>
     <div className="studio-timeline-body">
       <div className="studio-track-labels">
         <div className="studio-track-ruler" />
