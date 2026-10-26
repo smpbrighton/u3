@@ -20,6 +20,12 @@ export function parseImageEvents(stdout: string): { sessionId: string | null; us
   return { sessionId, ...parseCodexEvents(stdout) };
 }
 
+export function codexImageFailureMessage(events: { reason: string | null; detail: string | null }, exitCode: number): string {
+  const reason = events.reason ?? codexFailureReason(events.detail ?? "");
+  const detail = events.detail?.trim().slice(0, 120);
+  return `Codex 요청 실패: ${reason}${detail ? ` (${detail})` : ""} (종료 코드 ${exitCode})`;
+}
+
 export function requestedImageSize(aspect: ImageAspect): { width: number; height: number } {
   if (aspect === "4:5") return { width: 1024, height: 1280 };
   if (aspect === "1:1") return { width: 1024, height: 1024 };
@@ -119,7 +125,7 @@ export async function runCodexImage(options: CodexImageOptions): Promise<{ outpu
     const events = parseImageEvents(result.stdout);
     if (result.aborted || options.signal?.aborted) throw new Error("이미지 생성을 취소했습니다");
     if (result.timedOut) throw new Error("Codex 이미지 생성 시간이 초과되었습니다");
-    if (result.code !== 0 || events.failed) throw new Error(`Codex ${events.reason ?? codexFailureReason(result.stderr)}${events.detail ? `: ${events.detail}` : ""}`);
+    if (result.code !== 0 || events.failed) throw new Error(codexImageFailureMessage({ reason: events.reason ?? codexFailureReason(result.stderr), detail: events.detail ?? (result.stderr.trim() || null) }, result.code));
     let source: string;
     try {
       source = await resolveImageResult({ workDir, codexHome: env.CODEX_HOME ?? path.join(os.homedir(), ".codex"), sessionId: events.sessionId, ignoredFiles: referenceImage ? [referenceImage] : [] });

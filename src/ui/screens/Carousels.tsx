@@ -16,7 +16,7 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Icon } from "@seed-design/react";
 import { api, carouselFileUrl, watchJobs } from "../api";
 import { PreviewEditLayer, type PreviewEditTarget } from "../studio/PreviewEditLayer";
-import { canReextractFrame, defaultHighlightBox, highlightRequestBody, showsBackgroundSection } from "./carousel/derived-ui-state";
+import { canDownloadSlides, canReextractFrame, defaultHighlightBox, derivedFrameDuration, highlightRequestBody, showsBackgroundSection } from "./carousel/derived-ui-state";
 import { BackgroundSection } from "./carousel/BackgroundSection";
 
 type Candidate = { topic: string; angle: string };
@@ -122,7 +122,7 @@ function CarouselWorkspace(props: { carousel: Carousel; jobs: Job[]; onBack: () 
   const current = edited?.id === slide?.id ? edited : slide;
   const [imageUrl, setImageUrl] = useState("");
   const [sourceAvailable, setSourceAvailable] = useState(props.carousel.source.kind !== "project");
-  const [sourceDuration, setSourceDuration] = useState(0);
+  const [sourceDuration, setSourceDuration] = useState(props.carousel.source.kind === "project" ? derivedFrameDuration(props.carousel.source.durationSec, undefined, props.carousel.slides) : 0);
   const [boxSelected, setBoxSelected] = useState(true);
   const [highlightChoice, setHighlightChoice] = useState<"none" | "border" | "dim" | "zoom" | "ai-outline">("border");
   const size = carouselCanvasSize(props.carousel.aspect);
@@ -133,12 +133,13 @@ function CarouselWorkspace(props: { carousel: Carousel; jobs: Job[]; onBack: () 
   useEffect(() => { setHighlightChoice(slide?.background.kind === "frame" ? slide.background.highlight?.style ?? "border" : "border"); }, [slide?.id, slide?.background]);
   useEffect(() => {
     let live = true;
-    if (props.carousel.source.kind !== "project") { setSourceAvailable(false); return; }
-    void api<{ timeline: { video: Array<{ durationSec?: number; inStartSec?: number; inEndSec?: number }> } }>("GET", `/api/projects/${encodeURIComponent(props.carousel.source.projectId)}`)
-      .then(project => { if (!live) return; setSourceAvailable(true); setSourceDuration(project.timeline.video.reduce((sum, clip) => sum + (clip.durationSec ?? Math.max(0, (clip.inEndSec ?? 0) - (clip.inStartSec ?? 0))), 0)); })
-      .catch(() => { if (live) { setSourceAvailable(false); setSourceDuration(0); } });
+    const source = props.carousel.source;
+    if (source.kind !== "project") { setSourceAvailable(false); return; }
+    void api<{ timeline: { video: Array<{ durationSec?: number; inStartSec?: number; inEndSec?: number }> } }>("GET", `/api/projects/${encodeURIComponent(source.projectId)}`)
+      .then(project => { if (!live) return; setSourceAvailable(true); setSourceDuration(derivedFrameDuration(source.durationSec, project.timeline.video.reduce((sum, clip) => sum + (clip.durationSec ?? Math.max(0, (clip.inEndSec ?? 0) - (clip.inStartSec ?? 0))), 0), props.carousel.slides)); })
+      .catch(() => { if (live) { setSourceAvailable(false); setSourceDuration(derivedFrameDuration(source.durationSec, undefined, props.carousel.slides)); } });
     return () => { live = false; };
-  }, [props.carousel.source]);
+  }, [props.carousel.source, props.carousel.slides]);
   useEffect(() => {
     let active = true;
     const image = slide?.background.kind === "frame" ? (slide.background.highlight?.style === "ai-outline" ? slide.background.highlight.image : slide.background.frame) : slide?.background.image ?? slide?.image;
@@ -159,7 +160,7 @@ function CarouselWorkspace(props: { carousel: Carousel; jobs: Job[]; onBack: () 
       setEdited(updated.slides.find(item => item.id === slide.id) ?? null);
     } catch (error) { props.onError(message(error)); }
   }
-  async function saveHighlight(patch: { style?: "border" | "dim" | "zoom" | "ai-outline"; target?: string; box?: import("../../core/carousel").CarouselBox; color?: string; width?: number }) {
+  async function saveHighlight(patch: { style?: "none" | "border" | "dim" | "zoom" | "ai-outline"; target?: string; box?: import("../../core/carousel").CarouselBox; color?: string; width?: number }) {
     if (!slide || slide.background.kind !== "frame") return;
     const highlight = { ...slide.background.highlight, ...patch, style: patch.style ?? slide.background.highlight?.style ?? "border", target: patch.target ?? slide.background.highlight?.target ?? "" };
     try {
@@ -202,10 +203,10 @@ function CarouselWorkspace(props: { carousel: Carousel; jobs: Job[]; onBack: () 
   const savedFrame = slide?.background.kind === "frame" ? slide.background : null;
   const box = savedFrame?.highlight?.box;
   const editTargets: PreviewEditTarget[] = box ? [{ id: slide!.id, kind: "overlay", canResize: true, resizeProportionally: true, box: { x: box.left, y: box.top, width: box.right - box.left, height: box.bottom - box.top } }] : [];
-  const activeHighlightStyle = savedFrame?.highlight?.style ?? "border";
+  const activeHighlightStyle = savedFrame?.highlight?.style === "none" ? "border" : savedFrame?.highlight?.style ?? "border";
 
   return <section className="screen carousel-workspace" aria-label={`${props.carousel.name} 작업 화면`}>
-    <header className="carousel-workspace-header"><div><ActionButton variant="neutralWeak" onClick={props.onBack}>캐러셀 목록</ActionButton><h1 className="screen-title">{props.carousel.name}</h1></div><div className="carousel-workspace-actions"><ActionButton variant="brandSolid" disabled={downloading} loading={downloading} onClick={() => void handleDownload()}>모두 받기</ActionButton>{props.jobs.some(job => job.projectId === props.carousel.id) ? <ActionButton variant="neutralWeak" onClick={() => void cancelAll()}>전체 취소</ActionButton> : null}</div></header>
+    <header className="carousel-workspace-header"><div><ActionButton variant="neutralWeak" onClick={props.onBack}>캐러셀 목록</ActionButton><h1 className="screen-title">{props.carousel.name}</h1></div><div className="carousel-workspace-actions"><ActionButton variant="brandSolid" disabled={downloading || !canDownloadSlides(props.carousel.slides)} loading={downloading} onClick={() => void handleDownload()}>모두 받기</ActionButton>{props.jobs.some(job => job.projectId === props.carousel.id) ? <ActionButton variant="neutralWeak" onClick={() => void cancelAll()}>전체 취소</ActionButton> : null}</div></header>
     <div className="carousel-editor">
       <aside className="carousel-slides" aria-label="캐러셀 장 목록">{props.carousel.slides.map((item, index) => <button type="button" key={item.id} aria-pressed={item.id === slide?.id} className="carousel-slide-choice" onClick={() => setSelectedId(item.id)}><span className="carousel-slide-thumb" style={{ aspectRatio: `${size.width} / ${size.height}` }}>{slideImage(item) ? <CarouselImage carouselId={props.carousel.id} file={slideImage(item)!.file} /> : <span>{index + 1}</span>}</span><span className="carousel-slide-label">{index + 1}장 <small>{slideStatus(item) === "idle" || slideStatus(item) === "queued" ? "대기" : slideStatus(item) === "running" ? "생성 중" : slideStatus(item) === "done" ? "완료" : "실패"}</small></span></button>)}</aside>
       <main className="carousel-preview-area"><div className="carousel-player" style={{ aspectRatio: `${size.width} / ${size.height}` }}>{slide && current ? <>
@@ -224,7 +225,7 @@ function CarouselWorkspace(props: { carousel: Carousel; jobs: Job[]; onBack: () 
           style={activeHighlightStyle} target={currentFrame.highlight?.target ?? ""} color={currentFrame.highlight?.color ?? "#ffffff"} width={currentFrame.highlight?.width ?? 6} choice={highlightChoice}
           onTime={sec => setEdited({ ...current, background: { ...currentFrame, sec } })}
           onReextract={() => void reextractFrame()} onCropY={cropY => { setEdited({ ...current, background: { ...currentFrame, cropY } }); void persistFrame({ cropY }); }}
-          onStyle={style => { setHighlightChoice(style); if (style !== "none") void saveHighlight({ style }); }}
+          onStyle={style => { setHighlightChoice(style); void saveHighlight({ style }); }}
           onTarget={target => { setEdited({ ...current, background: { ...currentFrame, highlight: { ...currentFrame.highlight, style: activeHighlightStyle, target } } }); }}
           onTargetSave={target => void saveHighlight({ target })} onColor={color => void saveHighlight({ color })} onWidth={value => void saveHighlight({ width: value })} onAiCreate={() => void saveHighlight({ style: "ai-outline" })}
         /> : null}

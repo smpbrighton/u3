@@ -14,7 +14,7 @@ export function textPlacementStyle(placement: CarouselTextPlacement): CSSPropert
   return { justifyContent: placement === "top" ? "flex-start" : placement === "center" ? "center" : "flex-end" };
 }
 
-export function carouselHighlightInput(highlight: { style: "border" | "dim" | "zoom" | "ai-outline"; target?: string; box?: { left: number; top: number; right: number; bottom: number }; color?: string; width?: number } | undefined): { style: "border" | "dim" | "zoom"; box?: { left: number; top: number; right: number; bottom: number }; color?: string; width?: number } | undefined {
-  if (!highlight || highlight.style === "ai-outline") return undefined;
+export function carouselHighlightInput(highlight: { style: "none" | "border" | "dim" | "zoom" | "ai-outline"; target?: string; box?: { left: number; top: number; right: number; bottom: number }; color?: string; width?: number } | undefined): { style: "border" | "dim" | "zoom"; box?: { left: number; top: number; right: number; bottom: number }; color?: string; width?: number } | undefined {
+  if (!highlight || highlight.style === "none" || highlight.style === "ai-outline") return undefined;
   return { style: highlight.style, ...(highlight.box ? { box: highlight.box } : {}), ...(highlight.color ? { color: highlight.color } : {}), ...(highlight.width ? { width: highlight.width } : {}) };
 }

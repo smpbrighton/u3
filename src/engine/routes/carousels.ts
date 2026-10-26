@@ -14,6 +14,7 @@ import { CodexScript, captionLayersOf } from "../../core/schema";
 import { sceneFrameSec } from "../../core/carousel-frame";
 import { renderCarouselFrame } from "../pipeline/carousel-frame";
 import { askJevBox } from "../pipeline/jev-box";
+import { videoDuration as timelineVideoDuration } from "../../core/timeline/ops";
 
 const RefineSchema = z.object({ candidates: z.array(z.object({ topic: z.string().min(1), angle: z.string().min(1) })).length(3) });
 const PlanSchema = z.object({ style: z.string().min(1), slides: z.array(z.object({ title: z.string(), body: z.string(), imagePrompt: z.string().min(1) })) });
@@ -111,7 +112,7 @@ export function registerCarouselRoutes(app: Hono, context: AppContext): void {
     const parsed = DerivedPlanSchema.safeParse({ slides: plan.slides });
     if (!parsed.success || parsed.data.slides.length !== input.count || parsed.data.slides.some(slide => slide.sceneNumber > script.scenes.length)) throw new HttpError(502, "invalid-plan", "Codex 파생 기획 결과가 요청한 장 수나 대본 장면 번호와 맞지 않습니다");
     await recordCodexUsage(context.store.root, plan.usage, project.id);
-    const carousel = await store.createCarousel({ name: `${project.name} 캐러셀`, source: { kind: "project", projectId: project.id, projectName: project.name }, aspect, slides: parsed.data.slides.map((slide, index) => ({ id: `slide-${index + 1}`, sceneNumber: slide.sceneNumber, title: slide.title, body: slide.body, textPlacement: "bottom", background: { kind: "frame", sec: sceneFrameSec(script.scenes, project.timeline, slide.sceneNumber, sourceInputs[script.scenes[slide.sceneNumber - 1]?.inputIndex! - 1]?.id), cropY: 0.5, status: "queued", highlight: { style: "border", target: slide.target } } })) });
+    const carousel = await store.createCarousel({ name: `${project.name} 캐러셀`, source: { kind: "project", projectId: project.id, projectName: project.name, durationSec: timelineVideoDuration(project.timeline) }, aspect, slides: parsed.data.slides.map((slide, index) => ({ id: `slide-${index + 1}`, sceneNumber: slide.sceneNumber, title: slide.title, body: slide.body, textPlacement: "bottom", background: { kind: "frame", sec: sceneFrameSec(script.scenes, project.timeline, slide.sceneNumber, sourceInputs[script.scenes[slide.sceneNumber - 1]?.inputIndex! - 1]?.id), cropY: 0.5, status: "queued", highlight: { style: "border", target: slide.target } } })) });
     const job = context.jobs.start({ kind: "image", projectId: carousel.id, label: `${carousel.name} 파생 프레임`, key: `carousel-derived:${carousel.id}`, cancellable: true }, async jobContext => {
       const currentProject = await context.store.requireProject(project.id);
       for (const slide of carousel.slides) {
@@ -183,12 +184,13 @@ export function registerCarouselRoutes(app: Hono, context: AppContext): void {
   });
 
   app.post("/api/carousels/:id/slides/:slideId/highlight", async c => {
-    const input = await parseJson(c, z.object({ style: z.enum(["border", "dim", "zoom", "ai-outline"]), target: z.string().max(1000), box: z.object({ left: z.number().min(0).max(1), top: z.number().min(0).max(1), right: z.number().min(0).max(1), bottom: z.number().min(0).max(1) }).optional(), color: z.string().optional(), width: z.number().positive().max(100).optional() }));
+    const input = await parseJson(c, z.object({ style: z.enum(["none", "border", "dim", "zoom", "ai-outline"]), target: z.string().max(1000), box: z.object({ left: z.number().min(0).max(1), top: z.number().min(0).max(1), right: z.number().min(0).max(1), bottom: z.number().min(0).max(1) }).optional(), color: z.string().optional(), width: z.number().positive().max(100).optional() }));
     const id = c.req.param("id"), slideId = c.req.param("slideId");
     const carousel = await store.requireCarousel(id); const slide = carousel.slides.find(item => item.id === slideId);
     if (!slide || slide.background.kind !== "frame") throw new HttpError(400, "not-frame", "frame 배경 장이 아닙니다");
     const background = slide.background;
     await store.updateSlideUserFields(id, slideId, { background: { highlight: { style: input.style, target: input.target, ...(input.box ? { box: input.box } : {}), ...(input.color ? { color: input.color } : {}), ...(input.width ? { width: input.width } : {}) } } });
+    if (input.style === "none") return c.json(await store.requireCarousel(id));
     if (input.box) await store.clearAutomaticHighlight(id, slideId, false);
     else if (input.style !== "ai-outline") {
       const settings = await context.store.readSettings();
@@ -304,10 +306,11 @@ export function registerCarouselRoutes(app: Hono, context: AppContext): void {
     const done = carousel.slides.filter(slide => slide.background.kind === "generated"
       ? !!(slide.background.image ?? slide.image) && slide.status === "done"
       : !!carouselSlideImage(slide) && slide.background.status === "done");
+    if (done.length === 0) return c.json({ message: "받을 수 있는 완료된 장이 없습니다" }, 409);
+    if (!context.composeCarouselSlide) throw new HttpError(503, "composer-unavailable", "최종 이미지 합성은 CarouselSlide 구현 뒤 사용할 수 있습니다");
     const targetRoot = path.resolve(dir); await mkdir(targetRoot, { recursive: true });
     const existing = await readdir(targetRoot); const folder = nextCarouselFolderName(carouselFolderName(carousel.name), existing);
     const destination = path.join(targetRoot, folder); await mkdir(destination);
-    if (!context.composeCarouselSlide) throw new HttpError(503, "composer-unavailable", "최종 이미지 합성은 CarouselSlide 구현 뒤 사용할 수 있습니다");
     for (const [index, slide] of done.entries()) await context.composeCarouselSlide(carousel, slide, path.join(destination, receivedSlideFileName(index)));
     return c.json({ directory: destination, files: done.map((_, index) => receivedSlideFileName(index)) });
   });

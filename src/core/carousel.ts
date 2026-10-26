@@ -7,11 +7,11 @@ export type CarouselBox = z.infer<typeof CarouselBox>;
 
 export const CarouselSource = z.discriminatedUnion("kind", [
   z.object({ kind: z.literal("topic") }),
-  z.object({ kind: z.literal("project"), projectId: z.string().min(1), projectName: z.string().min(1) }),
+  z.object({ kind: z.literal("project"), projectId: z.string().min(1), projectName: z.string().min(1), durationSec: z.number().min(0).optional() }),
 ]);
 const GeneratedBackground = z.object({ kind: z.literal("generated"), image: CarouselImage.optional() });
 const FrameHighlight = z.object({
-  style: z.enum(["border", "dim", "zoom", "ai-outline"]),
+  style: z.enum(["none", "border", "dim", "zoom", "ai-outline"]),
   target: z.string().default(""),
   box: CarouselBox.optional(),
   boxManual: z.boolean().optional(),
