@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { CodexScript, MemeMeta } from "../../src/core/schema";
-import { chooseMissingInputMemes, resolveScriptMemes } from "../../src/core/script-memes";
+import { chooseMissingInputMemes, combineMissingMemeCounts, resolveScriptMemes } from "../../src/core/script-memes";
 
 const meme: MemeMeta = {
   id: "meme-1",
@@ -76,6 +76,19 @@ describe("resolveScriptMemes", () => {
 });
 
 describe("chooseMissingInputMemes", () => {
+  it("서로 다른 입력의 같은 1위 짤을 다시 쓰지 않고 다음 후보를 고른다", () => {
+    const script: CodexScript = { scenes: [
+      scene({ reaction: null }),
+      scene({ reaction: null, inputIndex: 2 }),
+    ] };
+    const result = chooseMissingInputMemes(script, [
+      { by: "rule", items: [meme, secondMeme] },
+      { by: "rule", items: [meme, secondMeme] },
+    ]);
+
+    expect(Object.values(result.memes).map(({ id }) => id)).toEqual(["meme-1", "meme-2"]);
+  });
+
   it("reaction null 장면만 있는 입력마다 적합도가 높은 장면 한 곳에 짤을 고른다", () => {
     const script: CodexScript = { scenes: [
       scene({ reaction: null, startSec: 0.3, endSec: 2.4 }),
@@ -117,5 +130,18 @@ describe("chooseMissingInputMemes", () => {
   it("후보가 없는 입력 장면을 누락 수에 포함한다", () => {
     const script: CodexScript = { scenes: [scene({ reaction: null })] };
     expect(chooseMissingInputMemes(script, [{ by: "rule", items: [] }]).missingCount).toBe(1);
+  });
+});
+
+describe("combineMissingMemeCounts", () => {
+  it("두 단계에서 빠진 장면 수를 합치고 같은 장면은 한 번만 센다", () => {
+    const first = resolveScriptMemes({ scenes: [scene(), scene(), scene()] }, [null, null, [meme]]);
+    const fallback = chooseMissingInputMemes({ scenes: [scene(), scene(), scene()] }, [
+      { by: "rule", items: [] }, { by: "rule", items: [] }, { by: "rule", items: [] },
+    ]);
+
+    expect(first.missingCount).toBe(2);
+    expect(fallback.missingCount).toBe(3);
+    expect(combineMissingMemeCounts(first, fallback)).toBe(3);
   });
 });
