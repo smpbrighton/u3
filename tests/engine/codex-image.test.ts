@@ -2,7 +2,7 @@ import { mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { imagePrompt, parseImageEvents, requestedImageSize, resolveImageResult, validatePng } from "../../src/engine/pipeline/codex-image";
+import { imagePrompt, outlinePrompt, parseImageEvents, requestedImageSize, resolveImageResult, validatePng } from "../../src/engine/pipeline/codex-image";
 
 const roots: string[] = [];
 afterEach(async () => Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))));
@@ -39,5 +39,11 @@ describe("Codex image helpers", () => {
     expect(requestedImageSize("1:1")).toEqual({ width: 1024, height: 1024 });
     expect(imagePrompt({ prompt: "푸른 종이 질감", style: "콜라주", model: "flare", quality: "low", aspect: "1:1", output: "/tmp/slide.png" })).toContain("글자 없음");
     expect(imagePrompt({ prompt: "푸른 종이 질감", style: "콜라주", model: "flare", quality: "low", aspect: "1:1", output: "/tmp/slide.png" })).toContain("1024×1024");
+  });
+
+  it("keeps source text out of the no-text rule for AI outline edits", () => {
+    const prompt = outlinePrompt({ instruction: "원본의 사람·상품·글자를 그대로 두고 손에 든 상품에만 흰 윤곽 테두리를 추가한다.", model: "flare", quality: "low", aspect: "4:5", output: "/tmp/outline.png" });
+    expect(prompt).toContain("원본의 사람·상품·글자를 그대로 두고");
+    expect(prompt).not.toContain("글자 없음");
   });
 });
