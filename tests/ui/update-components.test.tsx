@@ -1,8 +1,13 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { UpdateSidebar, AppInfo } from "../../src/ui/UpdateControls";
 import type { UpdateSnapshot } from "../../src/ui/updater";
+
+// Node SSR에서는 SEED의 CSS import만 제외하고 버튼의 disabled·내용을 검사한다.
+vi.mock("../../seed-design/ui/action-button", () => ({
+  ActionButton: (props: { disabled?: boolean; children: React.ReactNode }) => <button disabled={props.disabled}>{props.children}</button>,
+}));
 
 const idle: UpdateSnapshot = { status: "idle", currentVersion: "0.2.0", lastCheckedAt: null, checking: false, revision: 0 };
 describe("업데이트 화면", () => {

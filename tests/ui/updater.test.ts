@@ -28,7 +28,7 @@ describe("업데이트 상태", () => {
 describe("업데이트 다시 시작", () => {
   function setup(busy = false) {
     const saves = new RestartSaves();
-    const save = vi.fn(async () => undefined);
+    const save = vi.fn(async (): Promise<void> => undefined);
     saves.register(save);
     const restart = vi.fn(async () => undefined);
     const getBusy = vi.fn(async () => ({ busy }));

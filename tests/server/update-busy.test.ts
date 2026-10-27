@@ -12,7 +12,7 @@ async function setup() {
   const root = await mkdtemp(path.join(os.tmpdir(), "u3-update-busy-")); roots.push(root);
   const jobs = new Jobs();
   const app = createApp({ store: new Store(root), jobs, token: "test-token", codexPath: async () => null, jevAvailable: false });
-  const busy = () => app.request("http://127.0.0.1/api/system/busy", { headers: { authorization: "Bearer test-token" } }).then(r => r.json());
+  const busy = async () => (await app.request("http://127.0.0.1/api/system/busy", { headers: { authorization: "Bearer test-token" } })).json();
   return { app, jobs, busy };
 }
 
