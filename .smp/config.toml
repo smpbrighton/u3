@@ -1,13 +1,13 @@
 # /smp:plan 의 구현 작업자 모델. /smp:plan model <값> 으로도 바꾼다.
 impl_model="anthropic/claude-sonnet-5-5"
 # /smp:wiki ingest 의 페이지 작성 작업자 모델. /smp:wiki model <값> 으로도 바꾼다.
-wiki_model="gpt-6-luna"
+wiki_model="gpt-6.1-terra"
 # /smp:critic 의 대조 작업자 모델. /smp:critic model <값> 으로도 바꾼다.
 critic_model="anthropic/claude-opus-5-5"
 # /smp:atlassian 의 쓰기(Jira 이슈·Confluence 페이지) 초안 작성과 등록을 맡는 작업자 모델. /smp:atlassian model <값> 으로도 바꾼다.
-atlassian_model="gpt-6-luna"
+atlassian_model="gpt-6.1-terra"
 # /smp:gpt-image 가 image_gen 을 부르는 codex 에이전트 모델(codex exec -m). 이미지 모델(flare·sunburst)과 무관하다.
-gpt_image_codex_model="gpt-6-luna"
+gpt_image_codex_model="gpt-6.1-terra"
 # /smp:gpt-image 의 codex 추론 강도. none | minimal | low | medium | high | xhigh | max | ultra (모델마다 지원 범위가 다르다)
 gpt_image_effort="xhigh"
 # /smp:gpt-image 의 이미지 품질. low | medium | high | auto
