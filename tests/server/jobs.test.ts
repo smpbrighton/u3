@@ -11,6 +11,14 @@ function gate() {
 }
 
 describe("JobRegistry 취소", () => {
+  it("취소한 heavy-media 작업은 정리가 끝날 때까지 key를 유지한다", async () => {
+    const jobs = new JobRegistry(); const g = gate();
+    const started = jobs.start({ kind: "tts", label: "음성 만들기", key: "heavy-media", cancellable: true }, async () => { await g.promise; return done(); });
+    jobs.cancel(started.id);
+    expect(jobs.findActive("heavy-media")).toMatchObject({ id: started.id, stopping: true });
+    g.open(); await jobs.wait(started.id);
+    expect(jobs.findActive("heavy-media")).toBeNull();
+  });
   it("취소할 수 있는 작업은 신호를 받고 곧바로 discarded로 끝난다", async () => {
     const jobs = new JobRegistry();
     const g = gate();
