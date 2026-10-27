@@ -1,6 +1,6 @@
 # 0001 앱 구조: Tauri 셸 + Node sidecar 엔진
 
-Status: accepted
+Status: superseded-by 0025
 Source: changes/001-desktop-studio/spec.md
 
 ## 맥락
