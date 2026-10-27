@@ -275,7 +275,6 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
       <header className="screen-header"><div><h1 id="settings-title" className="screen-title">설정</h1></div></header>
       {error ? <div className="page-banner-wrap"><PageBanner tone="warning" variant="weak" description={error} /></div> : null}
       <div className="settings-grid">
-        <AppInfo status={props.update} onCheck={props.onCheckUpdate} />
         <div className="settings-columns">
           <div className="settings-column settings-column-a">
             <section className="section-card settings-card" aria-labelledby="watermark-title">
@@ -371,6 +370,7 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
               <div className="intro-sfx-actions"><ActionButton variant="neutralWeak" disabled={!notifyItems.find(item => item.ref === introSfx.ref)} onClick={() => { const item = notifyItems.find(candidate => candidate.ref === introSfx.ref); if (item) new Audio(item.url).play().catch(() => undefined); }}>미리 듣기</ActionButton></div>
               <div className="intro-sfx-slider"><Slider label="알림음 시각" indicator={`${introSfx.atSec.toFixed(1)}초`} min={0} max={10} step={0.1} values={[introSfx.atSec]} onValuesChange={values => { const atSec = values[0]; if (typeof atSec === "number") setIntroSfx(value => ({ ...value, atSec })); }} onValuesCommit={values => { const atSec = values[0]; if (typeof atSec === "number") void saveIntroSfx({ ...introSfx, atSec }); }} /></div>
             </section>
+            <AppInfo status={props.update} onCheck={props.onCheckUpdate} />
           </div>
         </div>
         <section className="section-card settings-card script-prompt-card" aria-labelledby="script-prompt-title">
