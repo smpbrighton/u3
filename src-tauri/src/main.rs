@@ -234,3 +234,33 @@ fn macos_menu<M: Manager<tauri::Wry>>(manager: &M) -> tauri::Result<Menu<tauri::
     let help_menu = Submenu::with_items(app, "Help", true, &[])?;
     Menu::with_items(app, &[&app_menu, &edit_menu, &view_menu, &window_menu, &help_menu])
 }
+
+#[cfg(test)]
+mod bundled_engine_tests {
+    use super::*;
+
+    #[test]
+    fn packaged_engine_runs_node_directly_with_the_existing_arguments_and_environment() {
+        let resources = std::env::temp_dir().join(format!("u3 engine resources {}", uuid::Uuid::new_v4()));
+        std::fs::create_dir_all(&resources).unwrap();
+        std::fs::write(resources.join("chrome-path.txt"), "chrome-headless-shell\n").unwrap();
+        let command = bundled_engine_command(&resources, "test-token").unwrap();
+        assert_eq!(command.get_program(), resources.join("node").as_os_str());
+        assert_eq!(command.get_args().collect::<Vec<_>>(), vec![resources.join("engine.mjs").as_os_str()]);
+        let env: std::collections::HashMap<_, _> = command.get_envs().map(|(key, value)| (key.to_string_lossy().into_owned(), value.unwrap().to_string_lossy().into_owned())).collect();
+        assert_eq!(env.get("U3_TOKEN").unwrap(), "test-token");
+        assert_eq!(env.get("TAURI_ORIGIN").unwrap(), "tauri://localhost");
+        for (key, relative) in [
+            ("U3_RESOURCE_DIR", ""), ("U3_FONT_DIR", "assets/fonts"), ("U3_LIBRARY_DIR", "library"),
+            ("U3_MRX_MODEL", "models/mrx.int8.onnx"), ("U3_WHISPER_CLI", "bin/whisper-cli"),
+            ("U3_SILERO_MODEL", "models/ggml-silero-v6.2.0.bin"), ("U3_REMOTION_BUNDLE", "remotion-bundle"),
+            ("U3_CHROME_EXECUTABLE", "chrome/chrome-headless-shell"),
+            ("FFMPEG_BIN", "node_modules/@remotion/compositor-darwin-arm64/ffmpeg"),
+            ("FFPROBE_BIN", "node_modules/@remotion/compositor-darwin-arm64/ffprobe"),
+        ] {
+            let expected = if relative.is_empty() { resources.clone() } else { resources.join(relative) };
+            assert_eq!(env.get(key).unwrap(), &expected.to_string_lossy());
+        }
+        std::fs::remove_dir_all(resources).unwrap();
+    }
+}
