@@ -55,7 +55,7 @@ try:
         raise ValueError('서명된 버전이 릴리스 버전과 다릅니다')
 except (OSError, ValueError, UnicodeError) as error:
     sys.exit(f'업데이터 서명 파일을 확인하세요: {error}')
-url = f'https://github.com/smpbrighton/u3/releases/download/v{version}/U3.app.tar.gz'
+url = f'https://github.com/smpbrighton/u3-releases/releases/download/v{version}/U3.app.tar.gz'
 manifest = {
     'version': version,
     'notes': f'U3 {version}',
@@ -186,5 +186,5 @@ git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Ca
 git commit -m "release $VERSION"
 git tag -a "v$VERSION" -m "U3 $VERSION"
 git push --atomic origin main "v$VERSION"
-gh release create "v$VERSION" "$DMG" "$TARBALL" "$SIGNATURE_FILE" "$OUT/latest.json" --repo smpbrighton/u3 --verify-tag --title "U3 $VERSION" --generate-notes --latest
+gh release create "v$VERSION" "$DMG" "$TARBALL" "$SIGNATURE_FILE" "$OUT/latest.json" --repo smpbrighton/u3-releases --target main --title "U3 $VERSION" --notes "U3 $VERSION" --latest
 echo "✓ release published: v$VERSION"

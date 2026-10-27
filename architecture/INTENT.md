@@ -24,7 +24,7 @@
 - 라이브러리: 짤·효과음과 짤 색인은 앱에 넣고 bge-m3 는 처음 실행 때 받음, 그 전에는 규칙 점수 → [0004](decisions/0004-bundled-library-lazy-model.md)
 - 편집 모델: 자막 레이어 여러 개(메인·서브 두 줄, 레이어 스타일·위치, 폰트 세 가지), 여러 영상 트랙(영상 1 은 본 화면만 빈틈 없음, 짤은 기본으로 영상 2 이상 작은 창), 모든 화면 클립 투명도, 워터마크·타이틀 바(설정 기본값 + 영상별 값), 효과음 트랙 여러 개, `@xzdarcy/react-timeline-editor` + 앱이 만든 자르기·실행 취소 → [0016](decisions/0016-caption-layers-opacity-brand.md)
 - 타이틀 바 내용: 설정에서 글·이미지 기본값, 영상별 재정의, 새 영상에 AI 제목 자동 채움 없음 → [0020](decisions/0020-title-bar-content.md)
-- 자동 업데이트: GitHub Releases(`smpbrighton/u3`)의 서명된 업데이트를 받아 다시 시작·종료 때 적용, Developer ID 공증 → [0021](decisions/0021-auto-update.md)
+- 자동 업데이트: GitHub Releases(public `smpbrighton/u3-releases`, 소스는 private)의 서명된 업데이트를 받아 다시 시작·종료 때 적용, Developer ID 공증 → [0021](decisions/0021-auto-update.md)
 - 자동 생성: 같은 원본의 이어지는 장면은 영상 1 클립 하나, 원본 영상마다 짤 하나 이상(Jev 가 장면 선택, 영상 2), 프로젝트 안 짤 중복 없음 → [0013](decisions/0013-generation-merge-clips-memes.md)
 - 소리: 녹음은 웹뷰 MediaRecorder, 음성 분리는 MRX(MIT) int8 ONNX 를 onnxruntime-node CPU EP 로, 결과는 목소리·배경 두 트랙 → [0008](decisions/0008-voice-record-separate-cpu.md)
 - 받아 적기: whisper.cpp(Metal, 정적 빌드) + large-v3-turbo q5_0(사용자가 받기를 고를 때 받음), 한국어 고정, 단어 시각을 클립 구간으로 옮겨 자막 클립, AI 추천 대본 입력에도 씀 → [0007](decisions/0007-whisper-stt.md)
