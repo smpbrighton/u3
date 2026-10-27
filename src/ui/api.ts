@@ -86,7 +86,8 @@ export async function brandMediaUrl(relativePath: string): Promise<string> {
 export async function carouselFileUrl(carouselId: string, relativePath: string): Promise<string> {
   const engine = await connection();
   const encoded = relativePath.split("/").map(encodeURIComponent).join("/");
-  return `http://127.0.0.1:${engine.port}/carousels/${encodeURIComponent(carouselId)}/${encoded}?token=${encodeURIComponent(engine.token)}`;
+  const origin = isTauri() && !import.meta.env.DEV ? `http://127.0.0.1:${engine.port}` : "";
+  return `${origin}/api/media/carousels/${encodeURIComponent(carouselId)}/${encoded}?token=${encodeURIComponent(engine.token)}`;
 }
 
 export interface EngineJob {

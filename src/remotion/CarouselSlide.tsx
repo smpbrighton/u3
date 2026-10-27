@@ -19,8 +19,8 @@ ensureFonts();
 
 export const CarouselSlide: React.FC<CarouselSlideProps> = ({ imageUrl, title, body, textPlacement, aspect = "4:5", frameCropY, highlight }) => (
   <AbsoluteFill style={{ backgroundColor: "#202020" }}>
-    <Img src={imageUrl} style={{ ...fill, objectFit: "cover", objectPosition: frameCropY === undefined ? "50% 50%" : frameCropPosition(frameCropY) }} />
-    {highlight?.box && highlight.style !== "border" ? <Img src={imageUrl} style={{
+    {imageUrl ? <Img src={imageUrl} style={{ ...fill, objectFit: "cover", objectPosition: frameCropY === undefined ? "50% 50%" : frameCropPosition(frameCropY) }} /> : null}
+    {imageUrl && highlight?.box && highlight.style !== "border" ? <Img src={imageUrl} style={{
       position: "absolute", inset: 0, width: "100%", height: "100%", objectFit: "cover",
       objectPosition: frameCropY === undefined ? "50% 50%" : frameCropPosition(frameCropY),
       clipPath: `inset(${highlight.box.top * 100}% ${(1 - highlight.box.right) * 100}% ${(1 - highlight.box.bottom) * 100}% ${highlight.box.left * 100}%)`,
