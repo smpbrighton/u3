@@ -1,6 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
 mod updater_logic;
+mod updater;
 
 use serde::Serialize;
 use std::io::{BufRead, BufReader, Error, ErrorKind};
@@ -128,6 +129,7 @@ fn main() {
     let builder = tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
         .plugin(tauri_plugin_dialog::init())
+        .plugin(tauri_plugin_updater::Builder::new().build())
         .setup(|app| {
             #[cfg(target_os = "macos")]
             app.set_menu(macos_menu(app)?)?;
@@ -161,14 +163,19 @@ fn main() {
                     }
                 }
             }
+            updater::setup(app.handle());
             Ok(())
         });
     builder
-        .invoke_handler(tauri::generate_handler![engine_connection])
+        .invoke_handler(tauri::generate_handler![engine_connection, updater::update_status, updater::update_check_now, updater::update_restart])
         .build(tauri::generate_context!())
         .expect("failed to build U3")
         .run(|app, event| {
+            if let tauri::RunEvent::WindowEvent { event: tauri::WindowEvent::Focused(true), .. } = &event {
+                updater::focus(app);
+            }
             if let tauri::RunEvent::Exit = event {
+                updater::stop(app);
                 if let Some(engine) = app.try_state::<EngineProcess>() {
                     if let Ok(mut child) = engine.child.lock() {
                         if let Some(mut child) = child.take() {
@@ -190,6 +197,7 @@ fn main() {
                         }
                     }
                 }
+                updater::install_on_exit(app);
             }
         });
 }
