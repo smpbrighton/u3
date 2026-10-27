@@ -1,12 +1,13 @@
 import { Audio, Video } from "@remotion/media";
 import { AbsoluteFill, Img, Loop, Sequence, useCurrentFrame } from "remotion";
 import { useMemo } from "react";
-import { CAPTION_LINE_HEIGHT, CAPTION_MAX_LINE_WIDTH, CAPTION_PAD_X, CAPTION_PAD_Y, fitCaptionText } from "../core/layout";
+import { CAPTION_LINE_HEIGHT, CAPTION_PAD_X, CAPTION_PAD_Y, stackCaptionRows } from "../core/layout";
+import { captionWeight, measureCaption } from "./caption-measure";
 import { ensureFonts } from "./fonts";
 import { CAPTION_FONT_FAMILY } from "../core/fonts";
 import type { U3ShortProps } from "./types";
 import type { ClipTransition } from "../core/schema";
-import type { RenderAudioLayer, RenderTransition, RenderVideoSequence } from "../core/timeline/to-render";
+import type { RenderAudioLayer, RenderCaption, RenderTransition, RenderVideoSequence } from "../core/timeline/to-render";
 import { transitionProgressAt, transitionStyleAt, type TransitionStyle } from "../core/timeline/transitions";
 import { overlayMediaStyle } from "./overlay-style";
 
@@ -19,7 +20,6 @@ const colorWithAlpha = (color: string, alpha: number) => {
   const value = match[1]!;
   return `rgba(${parseInt(value.slice(0, 2), 16)}, ${parseInt(value.slice(2, 4), 16)}, ${parseInt(value.slice(4, 6), 16)}, ${Math.max(0, Math.min(1, alpha))})`;
 };
-const captionWeight = (font: keyof typeof CAPTION_FONT_FAMILY) => font === "tmon" ? 400 : 700;
 
 const MainVideo: React.FC<{ src: string; sourceStartFrame: number; playbackRate?: number }> = ({ src, sourceStartFrame, playbackRate = 1 }) => (
   <Video src={src} trimBefore={sourceStartFrame} playbackRate={playbackRate} muted loop={false} objectFit="cover" style={fill} />
@@ -104,51 +104,36 @@ function audioVolume(layer: RenderAudioLayer, localFrame: number): number {
   return layer.volume * multiplier;
 }
 
-export const SceneCaption: React.FC<{ caption: import("../core/timeline/to-render").RenderCaption; paired: boolean }> = ({ caption, paired }) => {
+export const SceneCaption: React.FC<{ caption: RenderCaption; partner?: RenderCaption }> = ({ caption, partner }) => {
   const { text, style, row } = caption;
-  const layout = useMemo(() => {
-    const context = document.createElement("canvas").getContext("2d");
-    if (!context) throw new Error("자막 측정 canvas를 만들 수 없습니다");
-    const baseSize = row === "main" ? style.mainSize : style.subSize;
-    const fontFamily = CAPTION_FONT_FAMILY[style.font];
-    const fit = fitCaptionText(text, CAPTION_MAX_LINE_WIDTH, (value, fontSize) => {
-      context.font = `${captionWeight(style.font)} ${fontSize}px ${fontFamily}`;
-      return context.measureText(value).width * 1.04;
-    }, 20, baseSize);
-    const lineTexts = fit.lines;
-    const width = (value: string) => {
-      context.font = `${captionWeight(style.font)} ${fit.fontSize}px ${fontFamily}`;
-      return context.measureText(value).width * 1.04;
-    };
-    const height = lineTexts.length * fit.fontSize * CAPTION_LINE_HEIGHT + 2 * CAPTION_PAD_Y;
-    return { lines: lineTexts, fontSize: fit.fontSize, height, width: Math.min(CAPTION_MAX_LINE_WIDTH + 2 * CAPTION_PAD_X, Math.max(160, ...lineTexts.map(width)) + 2 * CAPTION_PAD_X) };
-  }, [text, style, row]);
-  const boxHeight = paired ? layout.height * 2 : layout.height;
-  const top = caption.y * 1920 - boxHeight;
+  const layout = useMemo(() => measureCaption(text, style, row), [text, style, row]);
+  const partnerLayout = useMemo(() => partner ? measureCaption(partner.text, partner.style, partner.row) : undefined, [partner?.text, partner?.style, partner?.row]);
+  const frame = stackCaptionRows(caption.y * 1920, { [row]: layout.height, ...(partner && partnerLayout ? { [partner.row]: partnerLayout.height } : {}) })[row]!;
+  const width = Math.max(layout.width, partnerLayout?.width ?? 0);
+  const borderRadius = !partner ? 20 : row === "main" ? "20px 20px 0 0" : "0 0 20px 20px";
   return (
     <div data-u3-target={caption.layerId} style={{
       position: "absolute",
       left: `${caption.x * 100}%`,
-      top,
-      width: layout.width,
-      height: boxHeight,
+      top: frame.top,
+      width,
+      height: frame.height,
       transform: "translateX(-50%)",
       boxSizing: "border-box",
       backgroundColor: style.bar ? colorWithAlpha(style.barColor, caption.clipOpacity * caption.layerOpacity * caption.barOpacity) : "transparent",
-      borderRadius: 20,
+      borderRadius,
       color: style.color,
       fontFamily: CAPTION_FONT_FAMILY[style.font],
       fontWeight: captionWeight(style.font),
       fontSize: layout.fontSize,
       lineHeight: CAPTION_LINE_HEIGHT,
       textAlign: "center",
+      padding: `${CAPTION_PAD_Y}px ${CAPTION_PAD_X}px`,
       display: "flex",
       flexDirection: "column",
-      justifyContent: paired ? (row === "main" ? "flex-start" : "flex-end") : "center",
+      justifyContent: "center",
     }}>
-      <div style={{ boxSizing: "border-box", height: layout.height, padding: `${CAPTION_PAD_Y}px ${CAPTION_PAD_X}px`, display: "flex", flexDirection: "column", justifyContent: "center" }}>
-        {layout.lines.map((line, index) => <div key={index} style={{ whiteSpace: "pre", opacity: caption.opacity ?? 1 }}>{line}</div>)}
-      </div>
+      {layout.lines.map((line, index) => <div key={index} style={{ whiteSpace: "pre", opacity: caption.opacity ?? 1 }}>{line}</div>)}
     </div>
   );
 };
@@ -190,7 +175,7 @@ export const U3Short: React.FC<U3ShortProps> = (props) => (
     ))}
     {props.render.captions.map((caption) => (
       <Sequence key={caption.id} from={caption.startFrame} durationInFrames={caption.durationInFrames} layout="none" name={`자막 ${caption.id}`}>
-        <SceneCaption caption={caption} paired={props.render.captions.some((other) => other.layerId === caption.layerId && other.row !== caption.row && other.startFrame < caption.startFrame + caption.durationInFrames && other.startFrame + other.durationInFrames > caption.startFrame)} />
+        <SceneCaption caption={caption} partner={props.render.captions.find((other) => other.layerId === caption.layerId && other.row !== caption.row && other.startFrame < caption.startFrame + caption.durationInFrames && other.startFrame + other.durationInFrames > caption.startFrame)} />
       </Sequence>
     ))}
     {props.render.titleBar?.visible ? <BrandTitleBar titleBar={props.render.titleBar} /> : null}

@@ -9,8 +9,11 @@ import { libraryReferencePath } from "../../core/library-reference";
 import { frameForTime, frameToSeekAfterPlayerReady } from "./preview-seek";
 import { hasAllRenderSources } from "./preview-sources";
 import { PreviewEditLayer, type PreviewEditTarget } from "./PreviewEditLayer";
-import type { NormalizedBox } from "../../core/preview-geometry";
+import { captionTargetBox, mediaTargetBox, type NormalizedBox } from "../../core/preview-geometry";
+import { measureCaption } from "../../remotion/caption-measure";
 import { findOverlayInLayers, updateOverlayInLayers } from "../../core/timeline/overlay-layers";
+
+const DEFAULT_MEDIA_ASPECT = 9 / 16;
 
 export function Preview(props: {
   project: Project;
@@ -26,6 +29,8 @@ export function Preview(props: {
   onEditTimeline: (timeline: Timeline) => void;
 }) {
   const playerRef = useRef<PlayerRef>(null);
+  const stackRef = useRef<HTMLDivElement>(null);
+  const [mediaAspects, setMediaAspects] = useState<Record<string, number>>({});
   const [previewTimeline, setPreviewTimeline] = useState(props.project.timeline);
   useEffect(() => setPreviewTimeline(props.project.timeline), [props.project.timeline]);
   const [brand, setBrand] = useState<BrandSettings>(DEFAULT_BRAND_SETTINGS);
@@ -36,21 +41,25 @@ export function Preview(props: {
     const currentFrame = Math.round(props.time * render.fps);
     const overlayTargets = render.overlay.filter((clip) => clip.startFrame <= currentFrame && currentFrame < clip.startFrame + clip.durationInFrames).map((clip) => ({
       id: clip.id, kind: "overlay" as const, canResize: true,
-      box: { x: clip.x - clip.width / 2, y: clip.y - clip.width * 0.5625 / 2, width: clip.width, height: clip.width * 0.5625 },
+      box: mediaTargetBox(clip, clip.width, mediaAspects[clip.id] ?? DEFAULT_MEDIA_ASPECT),
     }));
     const layers = captionLayersOf(previewTimeline);
     const captionTargets = layers.flatMap((layer) => {
-      const visible = [...layer.main, ...layer.sub].some((clip) => clip.startSec * render.fps <= currentFrame && clip.endSec * render.fps > currentFrame);
-      return visible ? [{ id: layer.id, kind: "caption-layer" as const, canResize: false, box: { x: layer.x - 0.4, y: layer.y - 0.07, width: 0.8, height: 0.07 } }] : [];
+      const at = (clips: typeof layer.main) => clips.find((clip) => clip.startSec * render.fps <= currentFrame && clip.endSec * render.fps > currentFrame);
+      const rows = [["main", at(layer.main)], ["sub", at(layer.sub)]] as const;
+      const sizes = rows.flatMap(([row, clip]) => clip ? [measureCaption(clip.text, layer.style, row)] : []);
+      if (!sizes.length) return [];
+      const size = { width: Math.max(...sizes.map((item) => item.width)), height: sizes.reduce((sum, item) => sum + item.height, 0) };
+      return [{ id: layer.id, kind: "caption-layer" as const, canResize: false, box: captionTargetBox(layer, size) }];
     });
-    const watermark = previewTimeline.brand?.watermark;
-    const watermarkTarget = watermark?.enabled && watermark.width ? [{ id: "watermark", kind: "watermark" as const, canResize: true, box: { x: watermark.x ?? 0.8, y: watermark.y ?? 0.05, width: watermark.width, height: watermark.width * 0.5625 } }] : [];
+    const watermark = render.watermark;
+    const watermarkTarget = watermark?.visible ? [{ id: "watermark", kind: "watermark" as const, canResize: true, box: mediaTargetBox(watermark, watermark.width, mediaAspects.watermark ?? DEFAULT_MEDIA_ASPECT) }] : [];
     return [...overlayTargets, ...captionTargets, ...watermarkTarget];
-  }, [previewTimeline, props.time, render]);
+  }, [previewTimeline, props.time, render, mediaAspects]);
   const changeTarget = useCallback((timeline: Timeline, id: string, kind: PreviewEditTarget["kind"], box: NormalizedBox): Timeline => {
     if (kind === "overlay") return { ...timeline, overlays: updateOverlayInLayers(timeline.overlays, id, (clip) => ({ ...clip, x: box.x + box.width / 2, y: box.y + box.height / 2, width: box.width })) };
     if (kind === "caption-layer") return withCaptionLayers(timeline, captionLayersOf(timeline).map((layer) => layer.id === id ? { ...layer, x: box.x + box.width / 2, y: box.y + box.height } : layer));
-    return { ...timeline, brand: { ...timeline.brand, watermark: { ...timeline.brand?.watermark, x: box.x, y: box.y, width: box.width } } };
+    return { ...timeline, brand: { ...timeline.brand, watermark: { ...timeline.brand?.watermark, x: box.x + box.width / 2, y: box.y + box.height / 2, width: box.width } } };
   }, []);
   const previewTarget = useCallback((id: string, box: NormalizedBox) => {
     const kind = targets.find((target) => target.id === id)?.kind;
@@ -61,6 +70,27 @@ export function Preview(props: {
     if (kind) props.onEditTimeline(changeTarget(previewTimeline, id, kind, box));
   }, [targets, changeTarget, previewTimeline, props.onEditTimeline]);
   const sourcesReady = hasAllRenderSources(render, { ...sources, overlayInputs: sources.inputs });
+  useEffect(() => {
+    // 짤·워터마크는 높이 auto 로 그려진다. 선택 상자 높이를 맞추려고 그려진 요소의 비율(높이/폭)을 잰다.
+    const stack = stackRef.current;
+    if (!stack) return;
+    const elements = () => [...stack.querySelectorAll<HTMLElement>("[data-u3-target]")];
+    const measure = () => {
+      const next: Record<string, number> = {};
+      for (const element of elements()) {
+        const id = element.dataset.u3Target;
+        if (id && element.offsetWidth && element.offsetHeight) next[id] = element.offsetHeight / element.offsetWidth;
+      }
+      setMediaAspects((current) => Object.entries(next).every(([id, aspect]) => Math.abs((current[id] ?? 0) - aspect) < 1e-4) ? current : { ...current, ...next });
+    };
+    const resize = new ResizeObserver(measure);
+    const observe = () => { for (const element of elements()) resize.observe(element); };
+    const mutation = new MutationObserver(() => { observe(); measure(); });
+    mutation.observe(stack, { childList: true, subtree: true });
+    observe();
+    measure();
+    return () => { resize.disconnect(); mutation.disconnect(); };
+  }, [sourcesReady]);
   useEffect(() => {
     let active = true;
     void api<BrandSettings>("GET", "/api/system/brand").then(async value => {
@@ -145,7 +175,7 @@ export function Preview(props: {
   }, [props.time, render.durationInFrames, render.fps, sourcesReady]);
 
   return <div className="studio-preview-player">
-    <div className="studio-preview-stack">
+    <div ref={stackRef} className="studio-preview-stack">
     {render.durationInFrames > 0 && sourcesReady ? <Player
       ref={playerRef}
       component={U3Short}

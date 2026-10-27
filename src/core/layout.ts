@@ -129,3 +129,14 @@ export function computeLayout(input: LayoutInput, m: Measurer): Layout {
   ];
   return { title, captions, elements };
 }
+
+export interface CaptionRowFrame { top: number; height: number }
+
+/** 같은 레이어의 메인·서브 자막을 레이어 아래 끝(anchorY)부터 서브, 메인 순으로 겹치지 않게 쌓는다. */
+export function stackCaptionRows(anchorY: number, heights: { main?: number; sub?: number }): { main?: CaptionRowFrame; sub?: CaptionRowFrame } {
+  const rows: { main?: CaptionRowFrame; sub?: CaptionRowFrame } = {};
+  let bottom = anchorY;
+  if (heights.sub !== undefined) { rows.sub = { top: bottom - heights.sub, height: heights.sub }; bottom = rows.sub.top; }
+  if (heights.main !== undefined) rows.main = { top: bottom - heights.main, height: heights.main };
+  return rows;
+}

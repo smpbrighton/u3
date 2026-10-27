@@ -49,3 +49,16 @@ export function pickTopTarget<T extends PreviewTarget>(targets: readonly T[], po
 export function recordPreviewDrag(history: TimelineHistory, finalTimeline: Timeline): TimelineHistory {
   return pushHistory(history, finalTimeline);
 }
+
+/** 중심과 폭(캔버스 폭 비율)과 미디어 비율(높이/폭, 픽셀)로 겹친 미디어의 선택 상자를 만든다. */
+export function mediaTargetBox(center: Point, width: number, aspect: number): NormalizedBox {
+  const height = width * aspect * CANVAS.width / CANVAS.height;
+  return { x: center.x - width / 2, y: center.y - height / 2, width, height };
+}
+
+/** 아래 가운데 기준점과 캔버스 픽셀 크기로 자막 레이어의 선택 상자를 만든다. */
+export function captionTargetBox(anchor: Point, size: { width: number; height: number }): NormalizedBox {
+  const width = size.width / CANVAS.width;
+  const height = size.height / CANVAS.height;
+  return { x: anchor.x - width / 2, y: anchor.y - height, width, height };
+}
