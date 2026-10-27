@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Project, Timeline as TimelineData, VideoClip } from "../../core/schema";
 import { videoDuration, videoStartTimes, VIDEO_TRACK_REQUIRED_MESSAGE } from "../../core/timeline/ops";
 import { createHistory, pushHistory, redo, undo, type TimelineHistory } from "../../core/timeline/history";
@@ -8,7 +8,8 @@ import { Preview } from "../studio/Preview";
 import { Timeline } from "../studio/Timeline";
 import { Inspector } from "../studio/Inspector";
 import { LibraryPanel, type LibraryDragItem } from "../studio/LibraryPanel";
-import { api } from "../api";
+import { api, watchJob, type EngineJob } from "../api";
+import { applyTtsResults, ttsItemsFromTimeline, type TtsResult } from "../../core/tts-clips";
 import { ExportDialog } from "../ExportDialog";
 import { StudioSlider, StudioSwitch } from "../studio/SeedControls";
 import { ArrowLeft01Icon, PlayIcon, PauseIcon, Undo02Icon, Redo02Icon } from "@hugeicons/core-free-icons";
@@ -57,6 +58,12 @@ export function Studio(props: {
   const [createCarouselOpen, setCreateCarouselOpen] = useState(false);
   const [libraryDropGuide, setLibraryDropGuide] = useState<{ x: number; top: number; height: number } | null>(null);
   const timeline = history.present;
+  const timelineRef = useRef(timeline);
+  timelineRef.current = timeline;
+  const ttsTask = useRef<{ controller: AbortController; jobId?: string } | null>(null);
+  const [ttsJob, setTtsJob] = useState<EngineJob | null>(null);
+  const [ttsStarting, setTtsStarting] = useState(false);
+  const ttsBusy = ttsStarting || Boolean(ttsJob && ["running", "queued"].includes(ttsJob.status));
   const duration = useMemo(() => Math.max(0.1, videoDuration(timeline)), [timeline]);
   const render = useMemo(() => timelineToRender(timeline), [timeline]);
   const starts = useMemo(() => videoStartTimes(timeline), [timeline]);
@@ -72,9 +79,55 @@ export function Studio(props: {
   }, [props.project.id]);
 
   const edit = useCallback((next: TimelineData) => {
-    if (JSON.stringify(next) === JSON.stringify(history.present)) return;
-    setHistory((current) => pushHistory(current, next));
-  }, [history.present]);
+    setHistory((current) => JSON.stringify(next) === JSON.stringify(current.present) ? current : pushHistory(current, next));
+  }, []);
+
+  useEffect(() => {
+    setTtsJob(null);
+    setTtsStarting(false);
+    return () => {
+      const task = ttsTask.current;
+      ttsTask.current = null;
+      task?.controller.abort();
+      if (task?.jobId) void api("DELETE", `/api/jobs/${task.jobId}`).catch(() => undefined);
+    };
+  }, [props.project.id]);
+
+  async function generateTts(captionId?: string) {
+    if (ttsTask.current) return;
+    const items = ttsItemsFromTimeline(timelineRef.current).filter(item => !captionId || item.captionId === captionId);
+    if (!items.length) { props.onSnackbar("음성으로 만들 자막이 없어요."); return; }
+    const task: { controller: AbortController; jobId?: string } = { controller: new AbortController() };
+    ttsTask.current = task;
+    setTtsJob(null);
+    setTtsStarting(true);
+    try {
+      const started = await api<EngineJob>("POST", `/api/projects/${props.project.id}/tts`, { items });
+      task.jobId = started.id;
+      if (task.controller.signal.aborted) { await api("DELETE", `/api/jobs/${started.id}`); return; }
+      setTtsJob(started);
+      const final = await watchJob(started.id, setTtsJob, task.controller.signal);
+      if (task.controller.signal.aborted || final.status === "discarded") return;
+      if (final.status !== "done") throw new Error(final.error ?? "음성을 만들지 못했어요.");
+      const next = applyTtsResults(timelineRef.current, final.result as TtsResult[]);
+      edit(next);
+      const saved = await api<Project>("PUT", `/api/projects/${props.project.id}`, { ...props.project, timeline: next, savedAt: new Date().toISOString() });
+      if (task.controller.signal.aborted) return;
+      props.onProject(saved);
+      props.onSnackbar("음성을 만들었어요.");
+    } catch (error) {
+      if (!task.controller.signal.aborted) props.onError(error instanceof Error ? error.message : String(error));
+    } finally {
+      if (ttsTask.current === task) { ttsTask.current = null; setTtsStarting(false); }
+    }
+  }
+
+  async function cancelTts() {
+    const task = ttsTask.current;
+    if (!task?.jobId) return;
+    try { await api("DELETE", `/api/jobs/${task.jobId}`); }
+    catch (error) { props.onError(error instanceof Error ? error.message : String(error)); }
+  }
 
   const addVoice = useCallback((file: string, durationSec: number) => {
     const clip = { id: crypto.randomUUID(), startSec: playhead, file, inStartSec: 0, inEndSec: durationSec, gain: 1 };
@@ -289,7 +342,7 @@ export function Studio(props: {
           <StudioSlider label="재생 헤드" min={0} max={duration} step={0.01} value={Math.min(playhead, duration)} onChange={setPlayhead} />
         </div>
       </section>
-      <Inspector project={{ ...props.project, timeline }} selectedId={selected.id} selectedIds={selectedIds} selectedTrack={selected.track} timeline={timeline} onChange={edit} onProject={props.onProject} onSnackbar={props.onSnackbar} onUngroup={() => edit(ungroupVideoClips(timeline, selectedIds))} />
+      <Inspector project={{ ...props.project, timeline }} selectedId={selected.id} selectedIds={selectedIds} selectedTrack={selected.track} timeline={timeline} onChange={edit} onProject={props.onProject} onSnackbar={props.onSnackbar} onUngroup={() => edit(ungroupVideoClips(timeline, selectedIds))} onGenerateTts={id => void generateTts(id)} ttsBusy={ttsBusy} />
     </div>
     <div className="studio-edit-toolbar">
       <ActionButton
@@ -319,7 +372,7 @@ export function Studio(props: {
     </div>
     <div className="studio-timeline-drop">
       {libraryDropGuide ? <div className="studio-library-drop-guide" style={{ left: libraryDropGuide.x, top: libraryDropGuide.top, height: libraryDropGuide.height }} /> : null}
-      <Timeline timeline={timeline} inputs={props.project.inputs} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} selectedIds={selectedIds} onSelect={(id, track, shift) => {
+      <Timeline timeline={timeline} inputs={props.project.inputs} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} selectedIds={selectedIds} onGenerateTts={() => void generateTts()} onCancelTts={() => void cancelTts()} ttsBusy={ttsBusy} ttsJob={ttsJob} onSelect={(id, track, shift) => {
         if (!id) { setSelected({ id: null, track: null }); setSelectedIds([]); return; }
         const ids = shift && selected.id
           ? selected.track === track

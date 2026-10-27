@@ -93,6 +93,22 @@ async function main(): Promise<void> {
     ["OFL-Pretendard.txt", "/Volumes/X31/workspace/smp_workspace/uUu/out/ui/fonts/Pretendard-LICENSE.txt"],
   ];
   for (const [name, source] of legalSources) await cp(source, join(notices, name));
+  const mlxRoot = join(cache, "u3-tts/checkouts/mlx-swift");
+  const qwenSwiftRoot = join(cache, "u3-tts/checkouts/swift-qwen3-tts");
+  const mlxLicense = await readFile(join(mlxRoot, "LICENSE"), "utf8");
+  const qwenSwiftReadme = await readFile(join(qwenSwiftRoot, "README.md"), "utf8");
+  if (!/## License\s+MIT/.test(qwenSwiftReadme)) throw new Error("swift-qwen3-tts의 MIT 고지를 확인하지 못했습니다");
+  await writeFile(join(notices, "MIT-mlx-swift.txt"), mlxLicense);
+  await writeFile(join(notices, "MIT-swift-qwen3-tts.txt"),
+    "swift-qwen3-tts, AtomGradient. Revision 27a5b5b2c5d55258bead2c6e851208987e1ca225.\nhttps://github.com/AtomGradient/swift-qwen3-tts\nThe pinned README identifies the license as MIT. The standard MIT text follows.\n\n" + mlxLicense.replace("Copyright (c) 2023 ml-explore", "Copyright (c) AtomGradient"));
+  const qwenLicense = join(cache, "Qwen3-TTS-APACHE-2.0.txt");
+  try { await requireHash(qwenLicense, "a44a6081c73ad75f0255bb2bb5cab74ef1829565a895a24e53a4f11290ab7655", "Qwen3-TTS 라이선스"); }
+  catch {
+    execFileSync("curl", ["-fL", "https://raw.githubusercontent.com/QwenLM/Qwen3-TTS/022e286b98fbec7e1e916cb940cdf532cd9f488e/LICENSE", "-o", qwenLicense], { stdio: "inherit" });
+    await requireHash(qwenLicense, "a44a6081c73ad75f0255bb2bb5cab74ef1829565a895a24e53a4f11290ab7655", "Qwen3-TTS 라이선스");
+  }
+  await writeFile(join(notices, "Apache-2.0-Qwen3-TTS.txt"),
+    "Qwen3-TTS by Qwen Team. tokenizer.json is generated from vocab.json, merges.txt and tokenizer_config.json.\nSource: https://huggingface.co/mlx-community/Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit/tree/41d3337e8b7f2843a75841595fc14e4b9a7a4b96\nOriginal model: https://huggingface.co/Qwen/Qwen3-TTS-12Hz-1.7B-CustomVoice\nLicense: Apache-2.0.\n\n" + await readFile(qwenLicense, "utf8"));
   await writeFile(join(notices, "THIRD-PARTY.txt"), "U3 includes third-party assets and software. License texts are in this directory.\n");
   process.stdout.write("앱 라이브러리와 모델 리소스를 복사하고 체크섬을 확인했습니다.\n");
 }

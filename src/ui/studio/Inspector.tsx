@@ -13,6 +13,7 @@ import { clampTransitionDuration, parseTransitionDuration, transitionDurationLim
 import { StudioSlider, StudioSwitch, StudioTextInput, StudioTextarea, StudioSelect } from "./SeedControls";
 import { RadioGroup, RadioGroupItem } from "../../../seed-design/ui/radio-group";
 import { CaptionLayerEditor } from "./CaptionLayerEditor";
+import { ttsOverflow } from "../../core/tts-clips";
 
 const AlertDialog = { Root: AlertDialogRoot, Content: AlertDialogContent, Header: AlertDialogHeader, Title: AlertDialogTitle, Description: AlertDialogDescription, Footer: AlertDialogFooter, Action: AlertDialogAction };
 
@@ -29,6 +30,8 @@ export function Inspector(props: {
   onProject: (project: Project) => void;
   onSnackbar: (message: string) => void;
   onUngroup: () => void;
+  onGenerateTts?: (captionId: string) => void;
+  ttsBusy?: boolean;
 }) {
   const [sfxItems, setSfxItems] = useState<SfxItem[]>([]);
   const [job, setJob] = useState<EngineJob | null>(null);
@@ -269,6 +272,10 @@ export function Inspector(props: {
       {track === "sfx" ? <StudioSelect label="효과음 바꾸기" value={clip.file} items={sfxItems.map(item => ({ value: item.ref, label: item.title }))} onChange={value => { const item = sfxItems.find((sfx) => sfx.ref === value); if (item) updateClip(clip.id, { file: item.ref, inStartSec: 0, inEndSec: item.durationSec }, "sfx"); }} /> : null}
       {track === "voice" ? <p className="studio-help">선택한 음성 클립에서 받아 적어요.</p> : null}
       {track === "voice" ? <ActionButton variant="neutralWeak" onClick={() => void createCaptions()}>자막 만들기</ActionButton> : null}
+      {track === "voice" && clip.id.startsWith("tts-") ? <>
+        <ActionButton variant="neutralWeak" disabled={props.ttsBusy} onClick={() => props.onGenerateTts?.(clip.id.slice(4))}>다시 만들기</ActionButton>
+        {ttsOverflow(props.timeline).some(item => item.id === clip.id) ? <PageBanner tone="warning" variant="weak" description="다음 음성과 겹쳐 함께 들린다" /> : null}
+      </> : null}
     </InspectorShell>;
   }
 

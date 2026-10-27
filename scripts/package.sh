@@ -7,6 +7,7 @@ cd "$HERE"
 pnpm exec tsx scripts/build-engine.ts
 bash scripts/check-engine-key.sh src-tauri/resources/engine.mjs
 bash scripts/build-whisper.sh
+bash scripts/build-tts.sh
 pnpm exec tsx scripts/fetch-resources.ts
 pnpm tauri build --config src-tauri/tauri.bundle.conf.json "$@"
 

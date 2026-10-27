@@ -172,6 +172,11 @@ input::placeholder, textarea::placeholder { color: var(--seed-color-palette-gray
 .studio-track-ruler { height: var(--studio-ruler-height); box-sizing: border-box; border-bottom: 1px solid var(--seed-color-palette-gray-200); }
 .studio-track-label { display: flex; height: var(--studio-track-row-height); min-width: 0; box-sizing: border-box; align-items: center; justify-content: space-between; gap: 4px; padding: 0 8px 0 10px; border-top: 1px solid var(--seed-color-palette-gray-100); border-left: 3px solid; color: var(--seed-color-palette-gray-700); font-size: 11px; font-weight: 700; }
 .studio-track-name { min-width: 0; flex: 1 1 auto; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.studio-tts-track { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-rows: 16px 22px; gap: 2px 4px; align-content: center; }
+.studio-tts-button { grid-column: 1 / -1; min-height: 20px; height: 20px; padding: 0 4px; font-size: 10px; }
+.studio-tts-progress { display: flex; align-items: center; gap: 8px; padding: 6px 12px; font-size: 12px; }
+.studio-tts-progress progress { flex: 1; max-width: 240px; }
+.studio-tts-warning { color: #513900; background: #ffd366; border-radius: 50%; min-width: 14px; text-align: center; margin-right: 4px; }
 .studio-timeline-editor { min-width: 0; flex: 1; overflow: hidden; }
 .studio-timeline-editor .timeline-editor { height: 100%; }
 .studio-timeline-editor .timeline-editor-time-area { height: var(--studio-ruler-height); }

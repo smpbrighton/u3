@@ -1,4 +1,5 @@
 import type { Hono } from "hono";
+import { TTS_SPEAKERS, ttsSettingsOf } from "../../core/tts-clips";
 import path from "node:path";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -245,6 +246,14 @@ export function registerSystemRoutes(app: Hono, context: AppContext): void {
       tone: typeof settings.scriptTone === "string" ? settings.scriptTone : "",
       persona: typeof settings.scriptPersona === "string" ? settings.scriptPersona : "",
     });
+  });
+
+  app.get("/api/system/tts-settings", async c => c.json(ttsSettingsOf(await context.store.readSettings())));
+  app.put("/api/system/tts-settings", async c => {
+    const value = await parseJson(c, z.object({ speaker: z.enum(TTS_SPEAKERS), instruct: z.string().max(4000) }));
+    const settings = await context.store.readSettings();
+    await context.store.saveSettings({ ...settings, ttsSpeaker: value.speaker, ttsInstruct: value.instruct });
+    return c.json(value);
   });
 
   app.put("/api/system/script-voice", async c => {

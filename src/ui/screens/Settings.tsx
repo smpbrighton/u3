@@ -15,10 +15,12 @@ import { DEFAULT_BRAND_SETTINGS, type BrandSettings } from "../../core/schema";
 import { BrandPreview } from "../settings/BrandPreview";
 import { AppInfo } from "../UpdateControls";
 import type { UpdateSnapshot } from "../updater";
+import { DEFAULT_TTS_SETTINGS, TTS_SPEAKERS } from "../../core/tts-clips";
 
 type ModelStatus = {
   bgeM3: { available: boolean; ranking: "embedding" | "rules" };
   whisper: { available: boolean; sizeBytes: number };
+  qwenTts: { available: boolean; sizeBytes: number };
 };
 
 type CodexModel = { slug: string; displayName: string; efforts: string[] };
@@ -37,6 +39,9 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
   const [jevChanging, setJevChanging] = useState<"save" | "delete" | null>(null);
   const [jevWarning, setJevWarning] = useState<string | null>(null);
   const [models, setModels] = useState<ModelStatus | null>(null);
+  const [ttsSettings, setTtsSettings] = useState(DEFAULT_TTS_SETTINGS);
+  const [savedTtsSettings, setSavedTtsSettings] = useState(DEFAULT_TTS_SETTINGS);
+  const [ttsSaving, setTtsSaving] = useState(false);
   const [codexCatalog, setCodexCatalog] = useState<CodexModelCatalog>({ source: "fallback", models: [] });
   const [jobs, setJobs] = useState<EngineJob[]>([]);
   const [checking, setChecking] = useState(true);
@@ -77,6 +82,7 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
         api<SystemStatus>("GET", "/api/system").then(setStatus),
         api<SystemStatus["jev"]>("GET", "/api/system/jev").then(setJevStatus),
         api<ModelStatus>("GET", "/api/models").then(setModels),
+        api<typeof DEFAULT_TTS_SETTINGS>("GET", "/api/system/tts-settings").then(value => { setTtsSettings(value); setSavedTtsSettings(value); }),
         api<typeof codexSettings>("GET", "/api/system/codex-settings").then(setCodexSettings),
         api<ImageOptions>("GET", "/api/system/image-options").then(setImageOptions),
         api<BrandSettings>("GET", "/api/system/brand").then(async value => {
@@ -147,13 +153,13 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
     }
   }
 
-  async function download(model: "bge-m3" | "whisper") {
+  async function download(model: "bge-m3" | "whisper" | "qwen-tts") {
     try {
       const job = await api<EngineJob>("POST", "/api/models/download", { model });
       setJobs(current => [...current.filter(item => item.id !== job.id), job]);
       const controller = new AbortController();
       const final = await watchJob(job.id, update => setJobs(current => [...current.filter(item => item.id !== update.id), update]), controller.signal);
-      if (final.status === "done") props.onSnackbar(model === "whisper" ? "받아 적기 모델을 받았어요." : "짤 검색 모델을 받았어요.");
+      if (final.status === "done") props.onSnackbar(model === "qwen-tts" ? "음성 만들기 모델을 받았어요." : model === "whisper" ? "받아 적기 모델을 받았어요." : "짤 검색 모델을 받았어요.");
       else if (final.status === "failed") props.onError(final.error ?? "모델을 받지 못했어요.");
       await refresh();
     } catch (reason) {
@@ -173,6 +179,17 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
   const modelJob = (name: string) => jobs.find(job => job.label?.toLowerCase().includes(name) && ["queued", "running"].includes(job.status));
   const bgeJob = modelJob("bge-m3");
   const whisperJob = modelJob("whisper");
+  const ttsModelJob = modelJob("qwen-tts");
+
+  async function saveTtsSettings() {
+    setTtsSaving(true);
+    try {
+      const saved = await api<typeof DEFAULT_TTS_SETTINGS>("PUT", "/api/system/tts-settings", ttsSettings);
+      setTtsSettings(saved); setSavedTtsSettings(saved);
+      props.onSnackbar("음성 설정을 저장했어요.");
+    } catch (reason) { props.onError(reason instanceof Error ? reason.message : String(reason)); }
+    finally { setTtsSaving(false); }
+  }
   const codexMessage = !status || status.codex.loggedIn ? null : status.codex.installed
     ? "터미널에서 codex login 을 실행한 뒤 다시 확인해 주세요."
     : "codex CLI를 설치한 뒤 터미널에서 codex login 을 실행해 주세요.";
@@ -361,6 +378,17 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
               <div className="model-row"><div><h3>받아 적기 모델</h3><p>자막 만들기와 AI 추천 대본에 써요. · 574 MB</p></div>
                 {whisperJob ? <div className="model-progress"><ProgressCircle size="24" tone="brand" value={whisperJob.progress === null ? undefined : whisperJob.progress * 100} /><span>{whisperJob.message ?? "받는 중"}{whisperJob.progress === null ? "" : ` · ${Math.round(whisperJob.progress * 100)}%`}</span><ActionButton variant="neutralWeak" size="small" onClick={() => void cancel(whisperJob.id)}>취소</ActionButton></div> : <ActionButton variant="neutralWeak" disabled={models?.whisper.available} onClick={() => void download("whisper")}>{models?.whisper.available ? "받음" : "받기"}</ActionButton>}
               </div>
+              <div className="model-row"><div><h3>음성 만들기 모델</h3><p>자막을 음성으로 만들 때 써요. · 약 3.1 GB</p></div>
+                {ttsModelJob ? <div className="model-progress"><ProgressCircle size="24" tone="brand" value={ttsModelJob.progress === null ? undefined : ttsModelJob.progress * 100} /><span>{ttsModelJob.message ?? "받는 중"}{ttsModelJob.progress === null ? "" : ` · ${Math.round(ttsModelJob.progress * 100)}%`}</span><ActionButton variant="neutralWeak" size="small" onClick={() => void cancel(ttsModelJob.id)}>취소</ActionButton></div> : models?.qwenTts?.available ? <span className="model-ready">준비됨</span> : <ActionButton variant="neutralWeak" onClick={() => void download("qwen-tts")}>받기</ActionButton>}
+              </div>
+            </section>
+            <section className="section-card settings-card" aria-labelledby="tts-settings-title">
+              <h2 id="tts-settings-title" className="settings-section-title">음성</h2>
+              <ModelSelect label="화자" value={ttsSettings.speaker} items={TTS_SPEAKERS.map(speaker => ({ value: speaker, label: speaker }))} onChange={speaker => setTtsSettings(current => ({ ...current, speaker: speaker as typeof current.speaker }))} />
+              <TextField label="말투 지시" value={ttsSettings.instruct} onValueChange={({ value }) => setTtsSettings(current => ({ ...current, instruct: value }))}>
+                <TextFieldInput maxLength={4000} placeholder="예: 밝고 자연스럽게 말해 주세요" />
+              </TextField>
+              <div className="action-row settings-actions"><ActionButton variant="brandSolid" disabled={checking || ttsSaving || JSON.stringify(ttsSettings) === JSON.stringify(savedTtsSettings)} loading={ttsSaving} onClick={() => void saveTtsSettings()}>저장</ActionButton></div>
             </section>
           </div>
           <div className="settings-column settings-column-b">

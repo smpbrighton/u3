@@ -7,6 +7,8 @@ import { done } from "../jobs";
 import { HttpError, parseJson } from "../http";
 import { bgeM3Ready, downloadBgeM3, downloadWhisper } from "../pipeline/models";
 import { configuredModelPath } from "../pipeline/model-paths";
+import { QWEN_TTS_FILES, QWEN_TTS_MODEL_DIR, qwenTtsReady } from "../pipeline/models";
+import { ensureQwenTts } from "./tts";
 
 async function exists(file: string): Promise<boolean> {
   return stat(file).then(info => info.isFile()).catch(() => false);
@@ -26,16 +28,17 @@ export function registerModelRoutes(app: Hono, context: AppContext): void {
     return c.json({
       bgeM3: { available: await bgeM3Ready(modelRoot), path: bgeModel, ranking: await bgeM3Ready(modelRoot) ? "embedding" : "rules" },
       whisper: { available: await exists(whisperModel), path: whisperModel, sizeBytes: 574_041_195 },
+      qwenTts: { available: await (context.ttsServices?.ready ?? qwenTtsReady)(modelRoot), path: path.join(modelRoot, QWEN_TTS_MODEL_DIR), sizeBytes: QWEN_TTS_FILES.reduce((sum, file) => sum + (file.size ?? 0), 0) },
       resources: { whisperCli: await exists(whisperCli), silero: await exists(silero), mrx: await exists(mrx) },
     });
   });
 
   app.post("/api/models/download", async c => {
-    const { model } = await parseJson(c, z.object({ model: z.enum(["bge-m3", "whisper"]) }));
+    const { model } = await parseJson(c, z.object({ model: z.enum(["bge-m3", "whisper", "qwen-tts"]) }));
     const active = context.jobs.findActive("model-download");
     if (active) throw new HttpError(409, "model-download-active", "모델을 이미 받고 있습니다");
     const job = context.jobs.start({ kind: "models", label: `${model} 모델 받기`, key: "model-download", cancellable: true }, async jobContext => {
-      const result = model === "bge-m3"
+      const result = model === "qwen-tts" ? await ensureQwenTts(context, jobContext.signal, progress => jobContext.progress(progress, "TTS 모델 받는 중")) : model === "bge-m3"
         ? await downloadBgeM3({ cacheDir: path.join(context.store.root, "cache/models"), signal: jobContext.signal, onProgress: progress => jobContext.progress(progress, "bge-m3 받는 중") })
         : await downloadWhisper({ cacheDir: path.join(context.store.root, "cache/models"), signal: jobContext.signal, onProgress: progress => jobContext.progress(progress, "whisper 모델 받는 중") });
       return done({ model, path: result });

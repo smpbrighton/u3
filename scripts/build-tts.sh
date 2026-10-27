@@ -45,4 +45,34 @@ fi
 mkdir -p "$ROOT/src-tauri/binaries" "$ROOT/src-tauri/resources/tts"
 install -m 755 "$BIN" "$ROOT/src-tauri/binaries/u3-tts-aarch64-apple-darwin"
 install -m 644 "$METALLIB" "$ROOT/src-tauri/resources/tts/default.metallib"
+
+# Python은 빌드 캐시 안에서만 쓴다. 앱에는 tokenizer.json 하나만 복사한다.
+TOKENIZER_BUILD="$CACHE/tts-tokenizer"
+MODEL="Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit"
+REVISION="41d3337e8b7f2843a75841595fc14e4b9a7a4b96"
+INPUT="$TOKENIZER_BUILD/models/$MODEL"
+mkdir -p "$INPUT"
+for entry in \
+  'vocab.json ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910' \
+  'merges.txt 599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3' \
+  'tokenizer_config.json dc3c31c3bdaedd5016382bb3cbe07323026775ad51f5a4fb564505992ae4a670'; do
+  read -r name expected <<< "$entry"
+  if [[ ! -f "$INPUT/$name" ]]; then
+    curl -fL "https://huggingface.co/mlx-community/$MODEL/resolve/$REVISION/$name" -o "$INPUT/$name.part"
+    mv "$INPUT/$name.part" "$INPUT/$name"
+  fi
+  actual=$(shasum -a 256 "$INPUT/$name" | awk '{print $1}')
+  [[ "$actual" = "$expected" ]] || { echo "$name SHA-256 검사가 실패했습니다" >&2; exit 1; }
+done
+export PIP_CACHE_DIR="$TOKENIZER_BUILD/pip-cache"
+export PYTHONPYCACHEPREFIX="$TOKENIZER_BUILD/pycache"
+export HF_HOME="$TOKENIZER_BUILD/huggingface"
+export HF_HUB_OFFLINE=1
+[[ -x "$TOKENIZER_BUILD/venv/bin/python" ]] || python3 -m venv "$TOKENIZER_BUILD/venv"
+"$TOKENIZER_BUILD/venv/bin/python" -m pip install --disable-pip-version-check -r "$ROOT/native/u3-tts/spike/requirements.txt"
+"$TOKENIZER_BUILD/venv/bin/python" "$ROOT/native/u3-tts/spike/prepare-tokenizers.py" \
+  --models "$TOKENIZER_BUILD/models" --results "$TOKENIZER_BUILD/results" --model "$MODEL" --tokenizer-only
+actual=$(shasum -a 256 "$INPUT/tokenizer.json" | awk '{print $1}')
+[[ "$actual" = '09267689b8362020b9763b65dd5be7e086b31e28d72e02837a9e781de9a91bc7' ]] || { echo 'tokenizer.json SHA-256 검사가 실패했습니다' >&2; exit 1; }
+install -m 644 "$INPUT/tokenizer.json" "$ROOT/src-tauri/resources/tts/tokenizer.json"
 echo "✓ u3-tts built: $BIN"

@@ -21,6 +21,15 @@ S1 은 통과했다. 기록은 `docs/spikes/qwen-tts.md` 다. 아래는 S1 뒤 �
 - 라이선스 파일: `scripts/fetch-resources.ts` 에 Qwen3-TTS Apache-2.0 고지를 tokenizer.json 출처로 함께 적는다.
 - 039 는 병합됐다. 이모지 정의는 main 의 `src/core/script-style.ts` 를 쓴다.
 
+### 구현 접점 보완
+- main의 `package.json`은 `scripts/package.sh`를 호출한다. TTS 빌드 호출은 이 스크립트에 넣는다. release 설정은 bundle 설정의 `externalBin`과 resources glob을 그대로 상속한다.
+- `src/core/script-style.ts`의 기존 `EMOJI` 정의를 export해서 TTS 정리에 공유한다. `src/engine/jobs.ts`의 작업 종류에 `tts`를 더한다.
+- `src/ui/screens/Studio.tsx`가 TTS 작업·취소를 소유한다. 완료 시 현재 타임라인에 결과를 적용하고 저장한다. `Timeline.tsx`와 `Inspector.tsx`는 이 동작을 호출한다. 같은 파일 이름으로 다시 만든 음성은 `Preview.tsx`에서 저장 시각을 URL에 붙여 새로 읽는다. 필요한 스타일은 `src/ui/styles.css`에 둔다.
+- 도우미 실행·모델 다운로드 회귀 검증은 `tests/engine/tts.test.ts`, `tests/engine/models.test.ts`, 공용 가짜 도우미는 `tests/helpers/tts.ts`에 둔다.
+- `tests/scripts/engine-key.test.ts`의 패키징 가짜 환경에 TTS 빌드 단계를 더하고, 리소스 복사·Tauri 빌드보다 먼저 실행되는지 확인한다.
+- 생성 파일은 프로젝트의 임시 폴더에 둔다. 전부 성공하면 기존 파일을 교체한다. 파일 교체와 임시 폴더 정리는 취소 요청이 끼어들지 않도록 동기 처리한다. 실패·취소 때 기존 TTS 파일과 녹음은 유지한다.
+- `prepare-tokenizers.py`에 단일 모델·tokenizer 전용 모드를 더한다. 빌드는 대본·가중치 없이 고정 revision의 tokenizer 원본 세 파일만 사용한다.
+
 ## 바꿀 파일
 - `native/u3-tts/` (new): Swift 패키지. swift-qwen3-tts 를 고정 커밋으로 의존한다. `main.swift` 가 표준 입력 JSON 을 읽고 wav 와 진행 이벤트를 낸다. metallib 경로는 인자로 받는다.
 - `scripts/build-tts.sh` (new): `native/u3-tts` 를 release 로 빌드한다. 빌드 산출물은 `U3_BUILD_CACHE` 에 둔다. 결과를 `src-tauri/binaries/u3-tts-aarch64-apple-darwin` 과 `src-tauri/resources/tts/default.metallib` 로 복사한다. 시스템 밖 dylib 의존이 있으면 실패한다(`scripts/build-whisper.sh` 와 같은 검사).
@@ -69,6 +78,13 @@ S1 은 통과했다. 기록은 `docs/spikes/qwen-tts.md` 다. 아래는 S1 뒤 �
 5. 패키징한 `.app` 에서 `scripts/check-macos-executables.sh` 가 종료 코드 0 이다.
 6. GUI: 패키징한 앱에서 대본을 만들고 「음성 만들기」를 누른다. 목소리 트랙에 클립이 들어가고 미리보기에서 소리가 난다. 스크린샷 경로를 기록한다.
 7. 미검증 항목은 완료 보고에 그대로 적는다.
+
+## 구현 검증 기록
+- `pnpm verify`: 종료 코드 0. Vitest 115개 파일에서 584개 통과·2개 건너뜀, Rust 10개 통과. 마지막 줄은 `✓ verify passed`다. 로그: `/Volumes/X31/.cache/u3/build/040-implementation-verify.log`.
+- `pnpm package`: 종료 코드 0. `.app`과 `.dmg`를 만들었다. 앱은 `/Volumes/X31/.cache/u3/build/040-cargo-target/release/bundle/macos/U3.app`이다. 로그: `/Volumes/X31/.cache/u3/build/040-implementation-package.log`.
+- 위 앱에 `scripts/check-macos-executables.sh`를 실행했다. 종료 코드는 0이다. `u3-tts`는 arm64 Mach-O다. Resources의 tokenizer SHA-256은 S1과 같다. 앱에 가중치나 Python venv를 넣지 않았다.
+- 위 앱의 도우미와 Resources를 실제 모델 폴더로 연결해 TTS API를 확인했다. 7.36초 WAV를 만들었고 엔진은 프로젝트 타임라인을 바꾸지 않았다. 결과: `/Volumes/X31/.cache/u3/build/040-packaged-tts-smoke.json`.
+- 증명 6의 GUI 확인은 감독자가 수행한다. 새 사용자 환경에서 전체 모델을 실제 네트워크로 받는 동작은 별도 확인하지 않았다. 다운로드·체크섬·tokenizer 복사·첫 생성 연결은 가짜 다운로드와 도우미로 검증했다.
 
 ## 롤백
 - 새 설정 키(`ttsSpeaker`·`ttsInstruct`)와 `voice/tts-*.wav` 는 기존 데이터를 바꾸지 않는다. 커밋을 되돌리면 TTS 클립은 일반 음성 클립으로 남는다.

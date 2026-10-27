@@ -1,4 +1,4 @@
-"""S1 개발 실험 전용이다. 생성 파일과 Python 환경은 X31 캐시에 둔다."""
+"""개발·빌드 전용 tokenizer 생성이다. 생성 파일과 Python 환경은 X31 캐시에 둔다."""
 import argparse
 import hashlib
 import json
@@ -14,9 +14,11 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--models", type=Path, required=True)
     parser.add_argument("--results", type=Path, required=True)
+    parser.add_argument("--model", action="append", help="지정한 모델만 변환한다. 생략하면 S1의 세 모델을 변환한다.")
+    parser.add_argument("--tokenizer-only", action="store_true", help="대본 입력 파일 없이 빌드용 tokenizer를 만든다.")
     args = parser.parse_args()
-    items = json.loads((args.results / "items.json").read_text())
-    names = [
+    items = [] if args.tokenizer_only else json.loads((args.results / "items.json").read_text())
+    names = args.model or [
         "Qwen3-TTS-12Hz-1.7B-CustomVoice-bf16",
         "Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit",
         "Qwen3-TTS-12Hz-0.6B-CustomVoice-bf16",

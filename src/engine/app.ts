@@ -27,6 +27,9 @@ import { CarouselStore } from "./carousel-store";
 import { ImageQueue } from "./image-queue";
 import { registerCaptionRoutes } from "./routes/captions";
 import type { JevKeyStore } from "./jev-key";
+import { registerTtsRoutes } from "./routes/tts";
+import type { downloadQwenTts, qwenTtsReady } from "./pipeline/models";
+import type { runTts } from "./pipeline/tts";
 
 export interface AppContext {
   store: Store;
@@ -43,6 +46,8 @@ export interface AppContext {
   whisperPath?: string;
   sileroPath?: string;
   mrxPath?: string;
+  ttsPath?: string;
+  ttsServices?: { ready?: typeof qwenTtsReady; download?: typeof downloadQwenTts; run?: typeof runTts };
   carouselStore?: import("./carousel-store").CarouselStore;
   imageQueue?: import("./image-queue").ImageQueue;
   carouselServices?: {
@@ -83,6 +88,7 @@ export function createApp(context: AppContext) {
   registerSeparateRoutes(app, context);
   registerTranscribeRoutes(app, context);
   registerModelRoutes(app, context);
+  registerTtsRoutes(app, context);
   registerEventRoutes(app, context);
   return app;
 }

@@ -100,6 +100,7 @@ if (args.includes("tauri")) write(path.join(process.env.CARGO_TARGET_DIR, "relea
 `);
   await chmod(pnpm, 0o755);
   await writeFile(path.join(scripts, "build-whisper.sh"), "#!/bin/sh\nexit 0\n");
+  await writeFile(path.join(scripts, "build-tts.sh"), "#!/bin/sh\nprintf 'build-tts\\n' >> commands\n");
   const run = () => exec("bash", [path.join(scripts, "package.sh"), "--config", "release.json", "--bundles", "app", "--no-sign"], {
     cwd: dir, env: { ...env, CARGO_TARGET_DIR: target, PATH: `${bin}:${process.env.PATH}` },
   });
@@ -121,7 +122,11 @@ describe("패키징 키 검사 연결", () => {
   it("검사를 통과한 앱만 성공하고 릴리스 빌드 인자를 유지한다", async () => {
     const { run, dir } = await packageFixture("clean");
     await expect(run()).resolves.toBeDefined();
-    expect(await readFile(path.join(dir, "commands"), "utf8")).toContain("--config release.json --bundles app --no-sign");
+    const commands = await readFile(path.join(dir, "commands"), "utf8");
+    expect(commands).toContain("--config release.json --bundles app --no-sign");
+    expect(commands.indexOf("build-tts")).toBeGreaterThan(commands.indexOf("scripts/build-engine.ts"));
+    expect(commands.indexOf("build-tts")).toBeLessThan(commands.indexOf("scripts/fetch-resources.ts"));
+    expect(commands.indexOf("scripts/fetch-resources.ts")).toBeLessThan(commands.indexOf("tauri build"));
   });
 
   it("릴리스가 앱의 키 검사를 서명·공증보다 먼저 실행한다", async () => {

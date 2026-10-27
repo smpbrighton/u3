@@ -1,9 +1,68 @@
 import { createHash } from "node:crypto";
 import { createReadStream } from "node:fs";
-import { mkdir, rename, rm, stat } from "node:fs/promises";
+import { copyFile, mkdir, rename, rm, stat } from "node:fs/promises";
 import path from "node:path";
 
 export interface ModelFile { url: string; sha256: string; relativePath: string; size?: number }
+export const QWEN_TTS_MODEL_DIR = "Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit";
+export const QWEN_TTS_REVISION = "41d3337e8b7f2843a75841595fc14e4b9a7a4b96";
+export const QWEN_TOKENIZER_SHA256 = "09267689b8362020b9763b65dd5be7e086b31e28d72e02837a9e781de9a91bc7";
+const QWEN_FILES: Array<[string, string, number]> = [
+  ["config.json", "43f29f9ab55cf387bd2ce1d07e9d95a5ca8974fa2fda4e2b45c13ae64aad3bfa", 6058],
+  ["generation_config.json", "f1b90b4513f3b34c62851049e2492d7b4c5940daf1276f89c82b8ef04127f3aa", 245],
+  ["merges.txt", "599bab54075088774b1733fde865d5bd747cbcc7a547c5bc12610e874e26f5e3", 1671839],
+  ["model.safetensors", "b696f4bf45f54497b6de758981e76f1410bd68af05a657477dee466b0202df1a", 2393308931],
+  ["model.safetensors.index.json", "2551ed02dc288b90cd6b7ec98652433f08ef2ae98fb3eda5248a4b9e5b47d08b", 71786],
+  ["preprocessor_config.json", "efdde1022ea9d76928bf7a9cd53139138f5ba2e466e837f08f6105ab1af1c119", 127],
+  ["speech_tokenizer/config.json", "ee65bb901c876664ab8707c487157aa1a6ee57c65969b28fb5ec9dc211e68167", 2336],
+  ["speech_tokenizer/configuration.json", "6bc26d64eb5024b4d1dab5a52371958b429256d6c9d59787f1f5294a54e0cebd", 76],
+  ["speech_tokenizer/model.safetensors", "836b7b357f5ea43e889936a3709af68dfe3751881acefe4ecf0dbd30ba571258", 682293092],
+  ["speech_tokenizer/preprocessor_config.json", "fcb3805e597e786d4067706e602f6688524640f8d3396790e2e09b5942fcbdfb", 234],
+  ["tokenizer_config.json", "dc3c31c3bdaedd5016382bb3cbe07323026775ad51f5a4fb564505992ae4a670", 7344],
+  ["vocab.json", "ca10d7e9fb3ed18575dd1e277a2579c16d108e32f27439684afa0e10b1440910", 2776833],
+];
+export const QWEN_TTS_FILES: ModelFile[] = QWEN_FILES.map(([relativePath, sha256, size]) => ({
+  relativePath, sha256, size,
+  url: `https://huggingface.co/mlx-community/${QWEN_TTS_MODEL_DIR}/resolve/${QWEN_TTS_REVISION}/${relativePath}`,
+}));
+
+export async function qwenTtsReady(cacheDir: string): Promise<boolean> {
+  const root = path.join(cacheDir, QWEN_TTS_MODEL_DIR);
+  for (const file of QWEN_TTS_FILES) {
+    const info = await stat(path.join(root, file.relativePath)).catch(() => null);
+    if (!info?.isFile() || info.size !== file.size) return false;
+  }
+  return sha256(path.join(root, "tokenizer.json")).then(hash => hash === QWEN_TOKENIZER_SHA256).catch(() => false);
+}
+
+export async function downloadQwenTts(options: {
+  cacheDir: string; tokenizerPath: string; signal?: AbortSignal; onProgress?: (progress: number) => void;
+  fetcher?: typeof fetch; files?: ModelFile[]; tokenizerSha256?: string;
+}): Promise<string> {
+  const checkAbort = () => { if (options.signal?.aborted) throw new Error("TTS 모델 받기를 취소했습니다"); };
+  checkAbort();
+  if (await sha256(options.tokenizerPath) !== (options.tokenizerSha256 ?? QWEN_TOKENIZER_SHA256)) throw new Error("tokenizer.json SHA-256 검사가 실패했습니다");
+  const root = path.join(options.cacheDir, QWEN_TTS_MODEL_DIR);
+  const files = options.files ?? QWEN_TTS_FILES;
+  const total = files.reduce((sum, file) => sum + (file.size ?? 0), 0);
+  let done = 0;
+  for (const file of files) {
+    checkAbort();
+    await downloadModelFile({ file, destination: path.join(root, file.relativePath), signal: options.signal, fetcher: options.fetcher,
+      onProgress: received => options.onProgress?.(total ? Math.min(1, (done + received) / total) : 0) });
+    done += file.size ?? (await stat(path.join(root, file.relativePath))).size;
+  }
+  checkAbort();
+  await mkdir(root, { recursive: true });
+  const temporary = path.join(root, "tokenizer.json.part");
+  try {
+    await copyFile(options.tokenizerPath, temporary);
+    checkAbort();
+    await rename(temporary, path.join(root, "tokenizer.json"));
+  } finally { await rm(temporary, { force: true }); }
+  options.onProgress?.(1);
+  return root;
+}
 export const WHISPER_MODEL: ModelFile = {
   url: "https://huggingface.co/ggerganov/whisper.cpp/resolve/5359861c739e955e79d9a303bcbc70fb988958b1/ggml-large-v3-turbo-q5_0.bin",
   sha256: "394221709cd5ad1f40c46e6031ca61bce88931e6e088c188294c6d5a55ffa7e2",

@@ -6,7 +6,9 @@ import { VolumeIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { moveAudioClip, moveCaptionClip, moveOverlayClip, overlayDuration, splitOverlayClip, splitVideoClip, trimAudioClip, trimCaptionClip, trimOverlayClip, trimVideoClip, videoStartTimes } from "../../core/timeline/ops";
 import { labelForAction, timelineToStudioRows, reorderVideoByStart, type StudioAction, type MemeLabel, type SfxLabel } from "./timeline-adapter";
-import { api } from "../api";
+import { api, type EngineJob } from "../api";
+import { ttsOverflow } from "../../core/tts-clips";
+import { ActionButton } from "../../../seed-design/ui/action-button";
 import { scaleWidthForZoom, scrollLeftForZoomAnchor, zoomFromPinch, zoomFromWheel } from "./timeline-zoom";
 import { TIMELINE_ACTION_INSET, TIMELINE_RULER_HEIGHT, TRACK_ROW_HEIGHT, timelineActionHeight, timelineEditorHeight } from "./timeline-layout";
 import { findOverlayInLayers } from "../../core/timeline/overlay-layers";
@@ -48,6 +50,10 @@ export function Timeline(props: {
   onZoomChange?: (zoom: number) => void;
   onMute?: (track: string) => void;
   onBlocked?: (message: string) => void;
+  onGenerateTts?: () => void;
+  onCancelTts?: () => void;
+  ttsBusy?: boolean;
+  ttsJob?: EngineJob | null;
 }) {
   const ref = useRef<TimelineState>(null);
   const editorHost = useRef<HTMLDivElement>(null);
@@ -61,6 +67,7 @@ export function Timeline(props: {
   const rows = useMemo(() => timelineToStudioRows(props.timeline), [props.timeline]);
   const displayRows = useMemo(() => withNewVideoTrackRow(rows), [rows]);
   const tracks = timelineTrackLabels(displayRows);
+  const ttsWarnings = new Set(ttsOverflow(props.timeline).map(clip => clip.id));
   const starts = useMemo(() => videoStartTimes(props.timeline), [props.timeline]);
   const data = displayRows.map((item) => ({ ...item, actions: item.actions.map((action) => ({ ...action, selected: props.selectedIds.includes(action.id) })) }));
 
@@ -245,6 +252,11 @@ export function Timeline(props: {
     "--studio-track-row-height": `${TRACK_ROW_HEIGHT}px`,
     "--studio-ruler-height": `${TIMELINE_RULER_HEIGHT}px`,
   } as CSSProperties}>
+    {props.ttsBusy ? <div className="studio-tts-progress" role="status">
+      <span>{props.ttsJob?.message ?? "음성 만들기 준비 중"}</span>
+      <progress max={1} value={props.ttsJob?.progress ?? undefined} aria-label="음성 만들기 진행률" />
+      <ActionButton size="xsmall" variant="neutralWeak" disabled={!props.ttsJob} onClick={props.onCancelTts}>취소</ActionButton>
+    </div> : null}
     <div className="studio-timeline-body">
       <div className="studio-track-labels">
         <div className="studio-track-ruler" />
@@ -257,9 +269,10 @@ export function Timeline(props: {
                 : group === "stem-voice" ? stems.length > 0 && stems.every((item) => item.voice.muted)
                   : group === "stem-bg" ? stems.length > 0 && stems.every((item) => item.bg.muted)
                     : false;
-          return <div key={track.id} className="studio-track-label" style={{ borderLeftColor: track.color }}>
+          return <div key={track.id} className={`studio-track-label${track.id === "voice" ? " studio-tts-track" : ""}`} style={{ borderLeftColor: track.color }}>
             <span className="studio-track-name">{track.name}</span>
             {group ? <ToggleButton variant="neutralWeak" size="xsmall" pressed={muted} onPressedChange={() => props.onMute?.(group)} aria-label={muted ? `${track.name} 음소거 해제` : `${track.name} 음소거`} className={`studio-track-mute${muted ? " is-muted" : ""}`}><Icon svg={<HugeiconsIcon icon={VolumeIcon} size={14} />} /></ToggleButton> : null}
+            {track.id === "voice" ? <ActionButton className="studio-tts-button" size="xsmall" variant="neutralWeak" disabled={props.ttsBusy} onClick={props.onGenerateTts}>음성 만들기</ActionButton> : null}
           </div>;
         })}
       </div>
@@ -284,7 +297,8 @@ export function Timeline(props: {
             const item = action as StudioAction;
             const label = labelForAction(action.id, props.timeline, props.inputs, sfxItems, memeItems);
             const marker = { position: "absolute" as const, top: 1, width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderBottom: "6px solid rgba(255,255,255,.9)" };
-            return <div style={actionStyle(item)} title={label}>
+            return <div style={actionStyle(item)} title={ttsWarnings.has(item.id) ? `${label} · 다음 음성과 겹쳐 함께 들린다` : label}>
+              {ttsWarnings.has(item.id) ? <span className="studio-tts-warning" aria-label="다음 음성과 겹쳐 함께 들린다">!</span> : null}
               {item.startTransition?.kind.kind === "dissolve" ? <span aria-label="시작 디졸브" style={{ ...marker, left: 3 }} /> : null}
               <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
               {item.endTransition?.kind.kind === "dissolve" ? <span aria-label="끝 디졸브" style={{ ...marker, right: 3 }} /> : null}

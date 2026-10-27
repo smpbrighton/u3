@@ -12,7 +12,8 @@
       "icons/icon.png"
     ],
     "externalBin": [
-      "binaries/whisper-cli"
+      "binaries/whisper-cli",
+      "binaries/u3-tts"
     ],
     "resources": [
       "resources/**/*"

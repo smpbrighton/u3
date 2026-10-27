@@ -9,6 +9,7 @@ import { HttpError, parseJson } from "../http";
 import { runFfmpeg } from "../pipeline/ffmpeg";
 import { separateWav } from "../pipeline/separate";
 import { configuredModelPath } from "../pipeline/model-paths";
+import { requireHeavyMediaIdle } from "./tts";
 
 function inputPath(projectDir: string, file: string): string {
   const resolvedRoot = path.resolve(projectDir);
@@ -30,7 +31,8 @@ export function registerSeparateRoutes(app: Hono, context: AppContext, separate 
     const bgRelative = `stems/${input.id}.bg.wav`;
     const voicePath = path.join(projectDir, voiceRelative);
     const bgPath = path.join(projectDir, bgRelative);
-    const job = context.jobs.start({ kind: "separate", projectId: project.id, label: "음성 분리", cancellable: true }, async jobContext => {
+    requireHeavyMediaIdle(context);
+    const job = context.jobs.start({ kind: "separate", projectId: project.id, label: "음성 분리", key: "heavy-media", cancellable: true }, async jobContext => {
       const work = await mkdtemp(path.join(os.tmpdir(), "u3-mrx-"));
       const normalized = path.join(work, "audio.wav");
       try {

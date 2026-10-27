@@ -1,6 +1,6 @@
 import type { CodexScript } from "./schema";
 
-const EMOJI = /\p{Extended_Pictographic}/u;
+export const EMOJI = /\p{Extended_Pictographic}/u;
 const EMOJI_SUFFIX = /[\s\p{Extended_Pictographic}\p{Emoji_Modifier}\uFE0F\u200D]+$/u;
 const segmenter = new Intl.Segmenter("ko", { granularity: "grapheme" });
 

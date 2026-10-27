@@ -115,7 +115,7 @@ export function Preview(props: {
         api<MemeSource[]>("GET", "/api/library/memes").catch(() => []),
         Promise.all(render.audio.filter((layer) => layer.file && !layer.file.startsWith("http")).map(async (layer) => [layer.file!, libraryReferencePath(layer.file!)
           ? await libraryMediaUrl(layer.file!)
-          : await mediaUrl(props.project.id, layer.file!)] as const)),
+          : `${await mediaUrl(props.project.id, layer.file!)}${layer.file!.startsWith("voice/tts-") ? `&v=${encodeURIComponent(props.project.savedAt)}` : ""}`] as const)),
       ]);
       if (!active) return;
       const memeById = new Map(memeItems.map((item) => [item.id, item.url]));
@@ -144,7 +144,7 @@ export function Preview(props: {
       });
     })().catch(() => {});
     return () => { active = false; };
-  }, [props.project.id, props.project.inputs, render.video, render.audio, render.overlay]);
+  }, [props.project.id, props.project.inputs, props.project.savedAt, render.video, render.audio, render.overlay]);
   const propsForPlayer = useMemo<U3ShortProps>(() => ({
     render: {
       ...render,
