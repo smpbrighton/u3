@@ -1,6 +1,6 @@
 # 0018 AI: codex(모델·effort 선택, 기본 gpt-6-luna)와 Jev(짤 적합도·강조 상자) 만
 
-Status: accepted
+Status: superseded-by 0024
 Source: changes/033-carousel-from-video/spec.md
 Supersedes: 0009
 
