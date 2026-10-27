@@ -1,5 +1,5 @@
 # Review: qwen-tts
-Author: claude-opus-5-5[1m]. Status: draft. Round: 1.
+Author: claude-opus-5-5[1m]. Status: accepted. Round: 1.
 
 ## 대조한 것
 - 변경: `architecture/changes/040-qwen-tts/intent.md`, `architecture/changes/040-qwen-tts/spec.md`
