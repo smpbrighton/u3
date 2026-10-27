@@ -10,6 +10,7 @@ import { frameForTime, frameToSeekAfterPlayerReady } from "./preview-seek";
 import { hasAllRenderSources } from "./preview-sources";
 import { PreviewEditLayer, type PreviewEditTarget } from "./PreviewEditLayer";
 import { captionTargetBox, mediaTargetBox, type NormalizedBox } from "../../core/preview-geometry";
+import { useFontRevision } from "../../remotion/fonts";
 import { measureCaption } from "../../remotion/caption-measure";
 import { findOverlayInLayers, updateOverlayInLayers } from "../../core/timeline/overlay-layers";
 
@@ -30,6 +31,7 @@ export function Preview(props: {
   onSelectTarget: (id: string, kind: "overlay" | "caption-layer" | "watermark") => void;
   onEditTimeline: (timeline: Timeline) => void;
 }) {
+  const fontRevision = useFontRevision();
   const playerRef = useRef<PlayerRef>(null);
   const stackRef = useRef<HTMLDivElement>(null);
   const [mediaAspects, setMediaAspects] = useState<Record<string, number>>({});
@@ -42,11 +44,11 @@ export function Preview(props: {
   const targets = useMemo<PreviewEditTarget[]>(() => {
     const currentFrame = Math.round(props.time * render.fps);
     const overlayTargets = render.overlay.filter((clip) => clip.startFrame <= currentFrame && currentFrame < clip.startFrame + clip.durationInFrames).map((clip) => ({
-      id: clip.id, kind: "overlay" as const, canResize: true,
+      id: clip.id, kind: "overlay" as const, canResize: true, resizeProportionally: true,
       box: mediaTargetBox(clip, clip.width, (clip.kind === "meme" ? sources.memeAspects[clip.memeId!] : undefined) ?? mediaAspects[clip.id] ?? DEFAULT_MEDIA_ASPECT),
     }));
     const layers = captionLayersOf(previewTimeline);
-    const captionTargets = layers.flatMap((layer) => {
+    const captionTargets = (fontRevision ? layers : []).flatMap((layer) => {
       const at = (clips: typeof layer.main) => clips.find((clip) => clip.startSec * render.fps <= currentFrame && clip.endSec * render.fps > currentFrame);
       const rows = [["main", at(layer.main)], ["sub", at(layer.sub)]] as const;
       const sizes = rows.flatMap(([row, clip]) => clip ? [measureCaption(clip.text, layer.style, row)] : []);
@@ -57,7 +59,7 @@ export function Preview(props: {
     const watermark = render.watermark;
     const watermarkTarget = watermark?.visible ? [{ id: "watermark", kind: "watermark" as const, canResize: true, box: mediaTargetBox(watermark, watermark.width, mediaAspects.watermark ?? DEFAULT_MEDIA_ASPECT) }] : [];
     return [...overlayTargets, ...captionTargets, ...watermarkTarget];
-  }, [previewTimeline, props.time, render, mediaAspects, sources.memeAspects]);
+  }, [previewTimeline, props.time, render, mediaAspects, sources.memeAspects, fontRevision]);
   const changeTarget = useCallback((timeline: Timeline, id: string, kind: PreviewEditTarget["kind"], box: NormalizedBox): Timeline => {
     if (kind === "overlay") return { ...timeline, overlays: updateOverlayInLayers(timeline.overlays, id, (clip) => ({ ...clip, x: box.x + box.width / 2, y: box.y + box.height / 2, width: box.width })) };
     if (kind === "caption-layer") return withCaptionLayers(timeline, captionLayersOf(timeline).map((layer) => layer.id === id ? { ...layer, x: box.x + box.width / 2, y: box.y + box.height } : layer));

@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { CANVAS, type Box } from "../../core/geometry";
-import { limitBoxBelowTitleBar, moveNormalizedBox, screenToNormalized, snapBoxToSafeZone, type NormalizedBox, type PreviewTarget, type ScreenRect } from "../../core/preview-geometry";
+import { limitBoxBelowTitleBar, moveNormalizedBox, resizeNormalizedBox, screenToNormalized, snapBoxToSafeZone, type NormalizedBox, type PreviewTarget, type ScreenRect } from "../../core/preview-geometry";
 
 export type PreviewEditTarget = PreviewTarget & { kind: "overlay" | "caption-layer" | "watermark"; canResize: boolean; resizeProportionally?: boolean };
 
@@ -31,12 +31,8 @@ export function PreviewEditLayer(props: {
     if (!current || !rect) return;
     const point = screenToNormalized({ x: event.clientX, y: event.clientY }, rect);
     let box = current.resize
-      ? (() => {
-        const maxWidth = current.resizeProportionally ? Math.min(1, current.box.width / current.box.height) : 1;
-        return { ...current.box, width: Math.max(0.05, Math.min(maxWidth, current.box.width + (event.clientX - current.start.x) / rect.width)) };
-      })()
+      ? resizeNormalizedBox(current.box, event.clientX - current.start.x, rect.width, 0.05, current.resizeProportionally)
       : moveNormalizedBox(current.box, point.x - screenToNormalized(current.start, rect).x, point.y - screenToNormalized(current.start, rect).y);
-    if (current.resize && current.resizeProportionally) box = { ...box, height: current.box.height * (box.width / current.box.width) };
     if (props.safeZone) {
       const pixelBox: Box = { x: box.x * CANVAS.width, y: box.y * CANVAS.height, width: box.width * CANVAS.width, height: box.height * CANVAS.height };
       const snapped = snapBoxToSafeZone(pixelBox);

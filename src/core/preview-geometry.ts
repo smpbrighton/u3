@@ -17,8 +17,10 @@ export function normalizedToScreen(point: Point, rect: ScreenRect): Point {
   return { x: rect.left + point.x * rect.width, y: rect.top + point.y * rect.height };
 }
 
-export function resizeNormalizedBox(box: NormalizedBox, deltaX: number, containerWidth: number, minWidth = 0.05): NormalizedBox {
-  return { ...box, width: clamp(box.width + deltaX / containerWidth, minWidth, 1) };
+export function resizeNormalizedBox(box: NormalizedBox, deltaX: number, containerWidth: number, minWidth = 0.05, proportional = false): NormalizedBox {
+  const maxWidth = proportional ? Math.min(1, box.width / box.height) : 1;
+  const width = clamp(box.width + deltaX / containerWidth, minWidth, maxWidth);
+  return { ...box, width, height: proportional ? box.height * width / box.width : box.height };
 }
 
 export function moveNormalizedBox(box: NormalizedBox, deltaX: number, deltaY: number): NormalizedBox {
@@ -32,7 +34,7 @@ export function moveNormalizedBox(box: NormalizedBox, deltaX: number, deltaY: nu
 
 export function snapBoxToSafeZone(box: Box): Box {
   const margin = sideMarginFor(box);
-  const x = clamp(box.x, margin, Math.max(margin, CANVAS.width - margin - box.width));
+  const x = box.width > CANVAS.width - 2 * margin ? (CANVAS.width - box.width) / 2 : clamp(box.x, margin, CANVAS.width - margin - box.width);
   const y = clamp(box.y, SAFE_ZONE.top, Math.max(SAFE_ZONE.top, SAFE_ZONE.bottom - box.height));
   return { ...box, x, y };
 }
