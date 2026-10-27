@@ -1,6 +1,5 @@
 import { describe, expect, it } from "vitest";
 import { DEFAULT_SCRIPT_PROMPT } from "../../src/core/script-prompt";
-import { DEFAULT_SCRIPT_REVIEW_PROMPT } from "../../src/core/script-review";
 
 describe("uUu script prompt transfer", () => {
   it("preserves the seven frame stories, their hooks, and the language-book choices", () => {
@@ -27,11 +26,13 @@ describe("uUu script prompt transfer", () => {
     expect(DEFAULT_SCRIPT_PROMPT).toContain("장면에서 보이는 동작과 대상은 그 장면의 입력 항목과 시각에 맞아야 한다");
   });
 
-  it("retains the read-through, story-flow, speech-style, and ending checks for captions", () => {
-    expect(DEFAULT_SCRIPT_REVIEW_PROMPT).toContain("자막을 읽는 사람이 읽었을 때 어색한 곳만 고친다");
-    expect(DEFAULT_SCRIPT_REVIEW_PROMPT).toContain("프레임의 흐름대로 이야기가 한 걸음씩 나아가는지");
-    expect(DEFAULT_SCRIPT_REVIEW_PROMPT).toContain("같은 말끝은 대본 전체에서 두 번까지");
-    expect(DEFAULT_SCRIPT_REVIEW_PROMPT).toContain("경험·의견을 묻는 공감 질문");
-    expect(DEFAULT_SCRIPT_REVIEW_PROMPT).toContain("inputIndex, startSec, endSec, reaction, memeBefore, memeAfter, sfxCategory");
+  it("더라 말끝을 한 번으로 제한하고 읽지 않는 이모지를 문장 뒤에 두 개까지 허용한다", () => {
+    expect(DEFAULT_SCRIPT_PROMPT).toContain('"~더라"·"~라더라"는 합쳐서 대본 전체에서 1번까지만');
+    expect(DEFAULT_SCRIPT_PROMPT).toContain("이모지는 대본 전체에서 2개까지");
+    expect(DEFAULT_SCRIPT_PROMPT).toContain("문장 끝 부호 뒤에만");
+    expect(DEFAULT_SCRIPT_PROMPT).toContain("이모지는 읽지 않는다");
+    expect(DEFAULT_SCRIPT_PROMPT).toContain('"ㅋㅋ", "ㄹㅇ" 같은 초성 말은 쓰지 않는다');
+    expect(DEFAULT_SCRIPT_PROMPT).not.toContain("초성 말과 이모지는 쓰지 않는다");
+    expect(DEFAULT_SCRIPT_PROMPT).toMatch(/예시 3[\s\S]*\p{Extended_Pictographic}/u);
   });
 });

@@ -39,18 +39,23 @@ describe("대본 말투 검사", () => {
   });
 
   it("같은 말끝 세 번을 장면을 넘어 센다", () => {
-    expect(checkScriptStyle(script("처음엔 안 믿었어. 좀 다르거든.", "직접 해 봤어. 신기하네.", "다시 골랐어."))).toContainEqual(expect.stringContaining("말끝 '었어'"));
-    expect(checkScriptStyle(script("처음엔 안 믿었어. 좀 다르거든. 직접 해 봤어."))).toEqual([]);
+    expect(checkScriptStyle(script("처음엔 안 믿었어. 좀 다르거든.", "직접 한번 먹었어. 신기하네.", "다시 믿었어."))).toContainEqual(expect.stringContaining("말끝 '었어'"));
+    expect(checkScriptStyle(script("처음엔 안 믿었어. 좀 다르거든. 직접 한번 먹었어."))).toEqual([]);
   });
 
   it("같은 말끝이 두 문장 연속이면 장면을 넘어 잡는다", () => {
-    expect(checkScriptStyle(script("직접 해 봤어. 😊", "결국 다시 골랐어."))).toContainEqual(expect.stringContaining("연속"));
+    expect(checkScriptStyle(script("직접 한번 먹었어. 😊", "결국 다시 믿었어."))).toContainEqual(expect.stringContaining("연속"));
     expect(checkScriptStyle(script("직접 해 봤어.", "좀 다르거든."))).toEqual([]);
   });
 
   it("지로 끝나는 말끝은 하나로 센다", () => {
     expect(checkScriptStyle(script("직접 봤지. 정말 다르거지."))).toContainEqual(expect.stringContaining("말끝 '지'"));
     expect(checkScriptStyle(script("직접 봤지. 정말 다르네."))).toEqual([]);
+  });
+
+  it("마지막 두 음절을 고를 때 공백을 음절로 세지 않는다", () => {
+    expect(checkScriptStyle(script("이제 집에 가.", "내일 학교로 가."))).toEqual([]);
+    expect(checkScriptStyle(script("이제 집에 가.", "곧 가게에 가."))).toContainEqual(expect.stringContaining("말끝 '에가'"));
   });
 
   it("마지막 문장을 뺀 물음표는 두 개까지 허용한다", () => {

@@ -17,6 +17,7 @@ Track: lite.
 ## 바꿀 파일
 - `src/core/script-prompt.ts`: 기본 프롬프트에서 "~더라" 예시를 줄이고 말끝 예시를 섞는다. "~더라" 1회 규칙과 이모지 허용 규칙을 넣는다. 이모지가 들어간 예시 대본 한 개를 더한다.
 - `src/core/script-style.ts` (new): `checkScriptStyle(script)` 가 위반 목록(문자열 배열)을 돌려준다.
+- `src/core/measure.ts`, `tests/core/measure-emoji.test.ts` (new): 실제 폰트의 이모지 대체 글리프 폭을 테스트하고, 이모지는 결합 문자 단위로 1em으로 측정한다.
 - `src/core/script-review.ts`: 지운다.
 - `src/engine/routes/script.ts`: 검수 호출을 지운다. 초안을 `checkScriptStyle` 로 검사하고, 위반이 있으면 위반 목록을 붙여 한 번만 다시 생성한다. 응답의 `reviewResult`·`reviewWarning` 을 `styleWarnings` 로 바꾼다.
 - `src/engine/routes/system.ts`: `/api/system/script-voice` 의 GET·PUT 에서 `review` 를 지운다. 저장 파일의 옛 `scriptReview` 값은 읽지 않고 그대로 둔다.
@@ -54,8 +55,8 @@ caption 을 문장으로 나눈다(".", "?", "!" 기준, 뒤의 이모지는 앞
 9. 이모지 렌더링을 확인한다(증명 3).
 
 ## 리스크
-- 가장 위험한 단계: 이모지 렌더링. 자막 폭 측정(`src/core/measure.ts`, opentype)은 한글 폰트만 싣는다. 폰트에 없는 이모지는 대체 글리프 폭으로 측정된다. 내보내기는 Remotion(Chromium)이 시스템 이모지 폰트로 그린다. 측정 폭과 그린 폭이 다르면 줄바꿈이 어긋난다. 증명 3에서 확인하고, 어긋나면 측정에서 이모지 폭을 글자 크기 1em 으로 계산한다.
-- 녹음 뒤 받아 적기(whisper)로 자막을 다시 만들면 이모지는 사라진다. 이 경로가 대본 caption 을 덮어쓰는지는 확인하지 않았다. 구현 때 확인하고 결과를 이 절에 적는다.
+- 가장 위험한 단계: 이모지 렌더링. 자막 폭 측정(`src/core/measure.ts`, opentype)은 한글 폰트만 싣는다. 테스트에서 Gmarket Sans의 없는 이모지 대체 글리프 폭은 48px 크기에서 44.16px(0.92em)으로 확인했다. 이모지를 결합 문자 단위로 1em으로 계산하고 피부색·ZWJ·variation selector도 테스트한다. 내보내기는 Remotion(Chromium)이 시스템 이모지 폰트로 그린다. 실제 렌더링과 줄바꿈은 감독자가 증명 3에서 확인한다.
+- whisper 경로 확인: 녹음 완료(`Recorder.tsx`)는 음성 클립만 추가한다. 받아 적기 실행 후 겹치는 자막 교체를 승인하면(`Inspector.tsx` → `/transcribe/apply`) 첫 자막 레이어의 겹치는 메인 자막을 교체하므로 대본에서 만든 caption의 이모지가 사라진다. `script.json`과 서브 자막은 보존한다(`src/engine/routes/transcribe.ts`).
 - 재생성이 생기면 그 대본은 codex 를 두 번 부른다. 검수가 매번 두 번 부르던 지금보다 평균 호출 수는 줄어든다.
 - 말끝 판정(마지막 두 음절)은 규칙 기반이라 오탐이 있다. 오탐은 재생성 한 번과 경고 표시로 끝나고 대본 생성은 막지 않는다.
 - 택하지 않은 대안: 검수 프롬프트를 짧게 줄여 남기기. 같은 모델이 같은 규칙을 다시 보는 구조라 효과가 작고 호출이 늘어서 택하지 않았다.

@@ -233,7 +233,6 @@ input::placeholder, textarea::placeholder { color: var(--seed-color-palette-gray
 .script-prompt-input { height: 240px; min-height: 240px; max-height: 240px; overflow-y: auto; resize: none; }
 .script-voice-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--seed-dimension-x5) var(--seed-dimension-x4); margin-top: var(--seed-dimension-x6); }
 .script-voice-field { min-width: 0; }
-.script-voice-field-review { grid-column: 1 / -1; }
 .script-voice-field { display: grid; gap: var(--seed-dimension-x2); }
 .script-voice-input { height: 240px; min-height: 240px; max-height: 240px; overflow-y: auto; resize: none; }
 .settings-section-title { margin-bottom: var(--seed-dimension-x4); }

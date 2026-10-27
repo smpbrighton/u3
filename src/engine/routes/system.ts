@@ -9,7 +9,6 @@ import { HttpError, parseJson } from "../http";
 import { codexLoginStatus } from "../pipeline/codex-path";
 import { readUsage } from "../pipeline/usage";
 import { DEFAULT_SCRIPT_PROMPT, SCRIPT_PROMPT_MAX_LENGTH } from "../../core/script-prompt";
-import { DEFAULT_SCRIPT_REVIEW_PROMPT } from "../../core/script-review";
 import { formatScriptInputGuidePreview } from "../pipeline/script-validation";
 import { ImageQueue } from "../image-queue";
 import { listSfx } from "../pipeline/library";
@@ -245,23 +244,21 @@ export function registerSystemRoutes(app: Hono, context: AppContext): void {
     return c.json({
       tone: typeof settings.scriptTone === "string" ? settings.scriptTone : "",
       persona: typeof settings.scriptPersona === "string" ? settings.scriptPersona : "",
-      review: typeof settings.scriptReview === "string" && settings.scriptReview.trim() ? settings.scriptReview : DEFAULT_SCRIPT_REVIEW_PROMPT,
     });
   });
 
   app.put("/api/system/script-voice", async c => {
     const value = await parseJson(c, z.object({
       tone: z.string().max(4000),
-      persona: z.string().max(4000), review: z.string().max(SCRIPT_PROMPT_MAX_LENGTH),
+      persona: z.string().max(4000),
     }));
     const settings = await context.store.readSettings();
     await context.store.saveSettings({
       ...settings,
       scriptTone: value.tone,
       scriptPersona: value.persona,
-      scriptReview: value.review,
     });
-    return c.json({ ...value, review: value.review.trim() ? value.review : DEFAULT_SCRIPT_REVIEW_PROMPT });
+    return c.json(value);
   });
 
   app.put("/api/system/codex-settings", async c => {

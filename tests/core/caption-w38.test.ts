@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { CodexScript } from "../../src/core/schema";
 import { swapCaptionRows } from "../../src/core/caption-layers";
 import { timelineFromScript } from "../../src/core/timeline/from-script";
-import { reviewScriptResult } from "../../src/core/script-review";
 
 describe("W38 caption layers", () => {
   it("swaps all main and sub clips without changing their times", () => {
@@ -17,9 +16,4 @@ describe("W38 caption layers", () => {
     expect(timeline.brand?.titleBar?.text).toBeUndefined();
   });
 
-  it("accepts review changes to subCaption and title", () => {
-    const draft = { title: "제목", scenes: [{ inputIndex: 1, startSec: 0, endSec: 2, caption: "한글", subCaption: "English", reaction: "none", sfxCategory: null }] };
-    const reviewed = { ...draft, title: "검수 제목", scenes: [{ ...draft.scenes[0], subCaption: "Reviewed English" }] };
-    expect(reviewScriptResult(draft, reviewed)).toMatchObject({ warning: null, script: { title: "검수 제목", scenes: [{ subCaption: "Reviewed English" }] } });
-  });
 });

@@ -11,7 +11,6 @@ import { TextField, TextFieldInput, TextFieldTextarea } from "../../../seed-desi
 import { api, brandMediaUrl, watchJob, watchJobs, type EngineJob } from "../api";
 import type { SystemStatus } from "../types";
 import { DEFAULT_SCRIPT_PROMPT, SCRIPT_PROMPT_MAX_LENGTH } from "../../core/script-prompt";
-import { DEFAULT_SCRIPT_REVIEW_PROMPT } from "../../core/script-review";
 import { DEFAULT_BRAND_SETTINGS, type BrandSettings } from "../../core/schema";
 import { BrandPreview } from "../settings/BrandPreview";
 import { AppInfo } from "../UpdateControls";
@@ -25,10 +24,10 @@ type ModelStatus = {
 type CodexModel = { slug: string; displayName: string; efforts: string[] };
 type CodexModelCatalog = { source: "codex-cli" | "fallback"; models: CodexModel[] };
 type ScriptPromptSettings = { prompt: string; isDefault: boolean; rulesPreview: string };
-type ScriptVoiceField = "tone" | "persona" | "review";
+type ScriptVoiceField = "tone" | "persona";
 type ScriptVoiceSettings = Record<ScriptVoiceField, string>;
 type IntroSfxSetting = { enabled: boolean; ref: string; atSec: number; title: string; durationSec: number };
-const DEFAULT_SCRIPT_VOICE: ScriptVoiceSettings = { tone: "", persona: "", review: DEFAULT_SCRIPT_REVIEW_PROMPT };
+const DEFAULT_SCRIPT_VOICE: ScriptVoiceSettings = { tone: "", persona: "" };
 type ImageOptions = { model: "flare" | "sunburst"; quality: "low" | "medium" | "high" | "auto"; aspect: "4:5" | "1:1" | "9:16" | "16:9"; concurrency: number };
 
 export function Settings(props: { onSnackbar: (message: string) => void; onError: (message: string) => void; update: UpdateSnapshot | null; onCheckUpdate: () => void }) {
@@ -220,7 +219,7 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
   }
 
   function resetScriptVoiceField(field: ScriptVoiceField) {
-    const value = field === "review" ? DEFAULT_SCRIPT_REVIEW_PROMPT : "";
+    const value = "";
     setScriptVoice(current => ({ ...current, [field]: value }));
     void saveScriptVoiceField(field, value);
   }
@@ -426,18 +425,18 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
             <ActionButton variant="brandSolid" disabled={scriptPromptLoading || scriptPromptSaving || scriptPrompt === savedScriptPrompt} loading={scriptPromptSaving} onClick={() => void saveScriptPrompt()}>저장</ActionButton>
           </div>
           <div className="script-voice-fields">
-            {(["tone", "persona", "review"] as const).map(field => <div className={`script-voice-field script-voice-field-${field}`} key={field}>
+            {(["tone", "persona"] as const).map(field => <div className={`script-voice-field script-voice-field-${field}`} key={field}>
               <TextField
                 label={scriptVoiceLabel(field)}
-                description={field === "review" ? "대본을 검수할 때 적용할 지시문이에요." : "비워 두면 언어집에서 AI가 선택해요."}
-                maxGraphemeCount={field === "review" ? SCRIPT_PROMPT_MAX_LENGTH : 4000}
+                description="비워 두면 언어집에서 AI가 선택해요."
+                maxGraphemeCount={4000}
                 value={scriptVoice[field]}
                 onValueChange={({ value }) => setScriptVoice(current => ({ ...current, [field]: value }))}
               >
-                <TextFieldTextarea className="script-voice-input" maxLength={field === "review" ? SCRIPT_PROMPT_MAX_LENGTH : 4000} disabled={scriptVoiceLoading || Boolean(scriptVoiceSaving[field])} />
+                <TextFieldTextarea className="script-voice-input" maxLength={4000} disabled={scriptVoiceLoading || Boolean(scriptVoiceSaving[field])} />
               </TextField>
               <div className="action-row settings-actions">
-                <ActionButton variant="neutralWeak" disabled={scriptVoiceLoading || Boolean(scriptVoiceSaving[field]) || scriptVoice[field] === (field === "review" ? DEFAULT_SCRIPT_REVIEW_PROMPT : "")} onClick={() => resetScriptVoiceField(field)}>기본값으로 되돌리기</ActionButton>
+                <ActionButton variant="neutralWeak" disabled={scriptVoiceLoading || Boolean(scriptVoiceSaving[field]) || scriptVoice[field] === ""} onClick={() => resetScriptVoiceField(field)}>기본값으로 되돌리기</ActionButton>
                 <ActionButton variant="brandSolid" disabled={scriptVoiceLoading || Boolean(scriptVoiceSaving[field]) || scriptVoice[field] === savedScriptVoice[field]} loading={Boolean(scriptVoiceSaving[field])} onClick={() => void saveScriptVoiceField(field)}>저장</ActionButton>
               </div>
             </div>)}
@@ -449,7 +448,7 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
 }
 
 function scriptVoiceLabel(field: ScriptVoiceField): string {
-  return ({ tone: "말투", persona: "성격", review: "자막 검수" })[field];
+  return ({ tone: "말투", persona: "성격" })[field];
 }
 
 function ModelSelect(props: { label: string; value: string; items: Array<{ value: string; label: string }>; onChange: (value: string) => void }) {

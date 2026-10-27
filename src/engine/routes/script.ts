@@ -13,7 +13,7 @@ import { listMemes } from "../pipeline/library";
 import { formatScriptInputGuide, validateScriptForInputs } from "../pipeline/script-validation";
 import { inputDisplayName } from "../../core/input";
 import { buildScriptPrompt, DEFAULT_SCRIPT_PROMPT } from "../../core/script-prompt";
-import { buildScriptReviewPrompt, DEFAULT_SCRIPT_REVIEW_PROMPT, reviewScriptResult } from "../../core/script-review";
+import { checkScriptStyle } from "../../core/script-style";
 
 export function registerScriptRoutes(app: Hono, context: AppContext): void {
   app.get("/api/projects/:id/script", async c => {
@@ -122,34 +122,37 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
           throw error;
         }
       };
-      const result = await runAndRecord(buildScriptPrompt({
+      const prompt = buildScriptPrompt({
         mode,
         basePrompt: typeof settings.scriptPrompt === "string" && settings.scriptPrompt.trim() ? settings.scriptPrompt : DEFAULT_SCRIPT_PROMPT,
         userPrompt,
         voice,
         formatRules: formatScriptInputGuide(inputs, frameTimes, emotions),
-      }), request.images, true);
-      const draft = validateScriptForInputs(result.output, inputs, emotions);
-      const reviewPrompt = buildScriptReviewPrompt({
-        reviewPrompt: typeof settings.scriptReview === "string" && settings.scriptReview.trim() ? settings.scriptReview : DEFAULT_SCRIPT_REVIEW_PROMPT,
-        draft,
-        userPrompt,
-        voice,
       });
-      let reviewed: ReturnType<typeof reviewScriptResult>;
-      let reviewResult: CodexScript | null = null;
-      try {
-        const review = await runAndRecord(reviewPrompt, preparedImages.length ? preparedImages : request.images);
-        reviewResult = review.output;
-        reviewed = reviewScriptResult(draft, review.output);
-      } catch (error) {
-        reviewed = reviewScriptResult(draft, null, error instanceof Error ? `자막 검수에 실패해 초안을 사용했습니다: ${error.message}` : "자막 검수에 실패해 초안을 사용했습니다.");
+      const result = await runAndRecord(prompt, request.images, true);
+      const draft = validateScriptForInputs(result.output, inputs, emotions);
+      let script = draft;
+      let styleWarnings = checkScriptStyle(draft);
+      if (styleWarnings.length) {
+        progress(0.6, "말투 규칙에 맞춰 대본 다시 생성 중");
+        const retryPrompt = `${prompt}\n\n## 이전 초안에서 고칠 것\n${styleWarnings.map(warning => `- ${warning}`).join("\n")}`;
+        try {
+          const retry = await runAndRecord(retryPrompt, preparedImages.length ? preparedImages : request.images);
+          const regenerated = validateScriptForInputs(retry.output, inputs, emotions);
+          const remaining = checkScriptStyle(regenerated);
+          if (remaining.length < styleWarnings.length) {
+            script = regenerated;
+            styleWarnings = remaining;
+          }
+        } catch (error) {
+          if (signal.aborted) throw error;
+          styleWarnings.push(error instanceof Error ? `대본 재생성에 실패해 초안을 사용했습니다: ${error.message}` : "대본 재생성에 실패해 초안을 사용했습니다.");
+        }
       }
-      const script = reviewed.script;
       await mkdir(context.store.projectDir(project.id), { recursive: true });
       await writeFile(path.join(context.store.projectDir(project.id), "script.json"), `${JSON.stringify(script, null, 2)}\n`);
       progress(1, "대본 추천 완료");
-      return { script, draft, reviewResult, reviewWarning: reviewed.warning, transcriptWarnings: result.transcriptWarnings };
+      return { script, draft, styleWarnings, transcriptWarnings: result.transcriptWarnings };
     });
     return c.json(job, 202);
   });

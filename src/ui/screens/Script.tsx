@@ -90,9 +90,12 @@ export function Script(props: {
         setGeneration({ phase: "running", message: next.message, cancellable: next.cancellable });
       }, controller.signal);
       if (done.status !== "done") throw new Error(done.error ?? done.message ?? "대본 생성을 마치지 못했어요.");
-      const result = done.result as { script?: CodexScript; transcriptWarnings?: { inputId: string; warning: string }[] };
+      const result = done.result as { script?: CodexScript; transcriptWarnings?: { inputId: string; warning: string }[]; styleWarnings?: string[] };
       if (!result.script) throw new Error("엔진이 대본을 반환하지 않았어요.");
-      const warning = result.transcriptWarnings?.map(item => item.warning).join(" · ") ?? null;
+      const warning = [
+        ...(result.transcriptWarnings ?? []).map(item => `받아 적기 안내: ${item.warning}`),
+        ...(result.styleWarnings ?? []).map(item => `대본 말투 안내: ${item}`),
+      ].join(" · ") || null;
       setTranscriptWarning(warning);
       const inputs = props.project.inputs.filter(input => input.id !== "placeholder");
       const rankedResults = await Promise.all(result.script.scenes.map(async (scene) => {
@@ -160,7 +163,7 @@ export function Script(props: {
       });
       props.onProject(saved);
       setGeneration({ phase: "idle", message: null, cancellable: false });
-      const notices = [warning ? `받아 적기 안내: ${warning}` : null, resolvedWithFallback.missingCount ? `짤을 넣지 못한 장면 ${resolvedWithFallback.missingCount}개` : null].filter(Boolean);
+      const notices = [warning, resolvedWithFallback.missingCount ? `짤을 넣지 못한 장면 ${resolvedWithFallback.missingCount}개` : null].filter(Boolean);
       props.onSnackbar(notices.length ? `대본을 만들었어요. ${notices.join(" · ")}` : "대본을 만들었어요.");
       props.onStudio();
     } catch (error) {
@@ -286,7 +289,7 @@ export function Script(props: {
       )}
         {transcriptWarning ? (
           <div className="page-banner-wrap" role="status">
-            <PageBanner tone="warning" variant="weak" description={`받아 적기를 건너뛰었어요: ${transcriptWarning}`} />
+            <PageBanner tone="warning" variant="weak" description={transcriptWarning} />
           </div>
         ) : null}
         {busy && workflowView.progress ? (
