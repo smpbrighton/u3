@@ -135,6 +135,7 @@ import plistlib, sys
 with open(sys.argv[1], 'rb') as f: info = plistlib.load(f)
 if info['CFBundleShortVersionString'] != sys.argv[2]: sys.exit('빌드된 앱 버전이 다릅니다')
 PY
+bash scripts/check-macos-executables.sh "$APP"
 bash scripts/sign-nested.sh "$APP" "$IDENTITY"
 
 notarize() {

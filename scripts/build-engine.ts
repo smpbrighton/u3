@@ -159,11 +159,6 @@ try {
   await cp(dirname(browser.path), join(resources, "chrome"), { recursive: true });
   await writeFile(join(resources, "chrome-path.txt"), basename(browser.path));
 
-  const launcher = join(root, "src-tauri/binaries/u3-engine-aarch64-apple-darwin");
-  await mkdir(dirname(launcher), { recursive: true });
-  await writeFile(launcher, `#!/bin/sh\nset -eu\nAPP_RESOURCES="$(CDPATH= cd -- "$(dirname -- "$0")/../Resources/resources" && pwd)"\nexec "$APP_RESOURCES/node" "$APP_RESOURCES/engine.mjs"\n`);
-  await chmod(launcher, 0o755);
-
   await checkDylibs(join(resources, "node"));
   const compositorDir = join(runtimeNodeModules, "@remotion/compositor-darwin-arm64");
   for (const executable of ["remotion", "ffmpeg", "ffprobe"]) {

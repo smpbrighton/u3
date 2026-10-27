@@ -66,20 +66,15 @@ fn start_engine() -> Result<(Child, EngineConnection), Box<dyn std::error::Error
     Ok((child, EngineConnection { port, token }))
 }
 
-#[cfg(not(debug_assertions))]
-fn start_engine(app: &tauri::AppHandle) -> Result<(Child, EngineConnection), Box<dyn std::error::Error>> {
-    let token = uuid::Uuid::new_v4().to_string();
-    let resources = app.path().resource_dir()?.join("resources");
-    let executable = std::env::current_exe()?
-        .parent()
-        .ok_or_else(|| Error::new(ErrorKind::NotFound, "앱 실행 경로를 찾지 못했습니다"))?
-        .join("u3-engine");
+#[cfg(any(not(debug_assertions), test))]
+fn bundled_engine_command(resources: &std::path::Path, token: &str) -> Result<Command, Error> {
     let library = resources.join("library");
     let chrome = resources.join("chrome").join(
         std::fs::read_to_string(resources.join("chrome-path.txt"))?.trim(),
     );
-    let mut child = Command::new(executable)
-        .env("U3_TOKEN", &token)
+    let mut command = Command::new(resources.join("node"));
+    command.arg(resources.join("engine.mjs"))
+        .env("U3_TOKEN", token)
         .env("TAURI_ORIGIN", "tauri://localhost")
         .env("U3_RESOURCE_DIR", &resources)
         .env("U3_FONT_DIR", resources.join("assets/fonts"))
@@ -93,8 +88,15 @@ fn start_engine(app: &tauri::AppHandle) -> Result<(Child, EngineConnection), Box
         .env("FFPROBE_BIN", resources.join("node_modules/@remotion/compositor-darwin-arm64/ffprobe"))
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
-        .stderr(Stdio::inherit())
-        .spawn()?;
+        .stderr(Stdio::inherit());
+    Ok(command)
+}
+
+#[cfg(not(debug_assertions))]
+fn start_engine(app: &tauri::AppHandle) -> Result<(Child, EngineConnection), Box<dyn std::error::Error>> {
+    let token = uuid::Uuid::new_v4().to_string();
+    let resources = app.path().resource_dir()?.join("resources");
+    let mut child = bundled_engine_command(&resources, &token)?.spawn()?;
     let stdout = child
         .stdout
         .take()
