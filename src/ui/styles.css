@@ -205,7 +205,7 @@ input::placeholder, textarea::placeholder { color: var(--seed-color-palette-gray
 .intro-sfx-card .settings-section-title { grid-column: 1 / -1; margin-bottom: 0; }
 .intro-sfx-actions { display: flex; justify-content: flex-start; }
 .intro-sfx-slider { min-width: 0; grid-column: 1 / -1; }
-.intro-sfx-card .seed-switch__root { grid-column: 1 / -1; }
+.intro-sfx-card .seed-switch__root { grid-column: 1 / -1; justify-self: start; }
 .intro-sfx-card .seed-switch__label { white-space: nowrap; }
 .brand-inspector-heading { margin: 4px 0 0; font-size: 14px; }
 .settings-card-heading, .settings-row { display: flex; align-items: center; justify-content: space-between; gap: var(--seed-dimension-x4); }
