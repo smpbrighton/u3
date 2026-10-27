@@ -1,5 +1,5 @@
 # Review: shadcn-redesign
-Author: claude-opus-5-5[1m] (opencodex 경유). Status: draft. Round: 1.
+Author: claude-opus-5-5[1m] (opencodex 경유). Status: accepted. Round: 1.
 
 ## 대조한 것
 - 변경: `architecture/changes/043-shadcn-redesign/intent.md`, `spec.md`
