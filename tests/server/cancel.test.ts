@@ -6,7 +6,7 @@ import { Store } from "../../src/engine/store";
 describe("queued job cancellation", () => {
   it("aborts the running task and keeps its cancelled state", async () => {
     const jobs = new Jobs();
-    const app = createApp({ store: new Store("/tmp/u3-cancel"), jobs, token: "token", codexPath: async () => null, jevAvailable: false });
+    const app = createApp({ store: new Store("/tmp/u3-cancel"), jobs, token: "token", codexPath: async () => null, jevKey: async () => null });
     let signal: AbortSignal | undefined;
     const job = jobs.enqueue("느린 작업", async context => {
       signal = context.signal;

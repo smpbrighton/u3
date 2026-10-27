@@ -127,12 +127,13 @@ export function registerCarouselRoutes(app: Hono, context: AppContext): void {
           const png = await readFile(outputPath); const saved = await store.saveFrameVersion(carousel.id, slide.id, png); await rm(outputPath, { force: true });
           const savedSlide = saved.slides.find(item => item.id === slide.id)!;
           const savedBackground = savedSlide.background.kind === "frame" ? savedSlide.background : undefined;
-          const enabled = settings.jevEnabled !== false && context.jevAvailable;
+          const apiKey = await context.jevKey();
+          const enabled = settings.jevEnabled !== false && !!apiKey;
           if (!savedBackground?.frame?.file) throw new Error("저장된 프레임 파일을 찾을 수 없습니다");
           const boxResult = enabled
             ? context.carouselServices?.askBox
               ? await context.carouselServices.askBox({ imagePath: path.join(store.carouselDir(carousel.id), savedBackground.frame.file), target: background.highlight?.target ?? "", enabled })
-              : await askJevBox({ imagePath: path.join(store.carouselDir(carousel.id), savedBackground.frame.file), target: background.highlight?.target ?? "", apiKey: process.env.TYPESAFE_API_KEY, enabled })
+              : await askJevBox({ imagePath: path.join(store.carouselDir(carousel.id), savedBackground.frame.file), target: background.highlight?.target ?? "", apiKey: apiKey ?? undefined, enabled })
             : { box: null, confidence: null, usage: { input_tokens: 0, output_tokens: 0 }, model: "jev-1.14.0" };
           if (enabled && boxResult.usage.input_tokens + boxResult.usage.output_tokens > 0) await recordProviderUsage(context.store.root, "jev", boxResult.usage, project.id);
           await store.updateSlideEngineFields(carousel.id, slide.id, { background: { highlight: { box: boxResult.box ?? undefined } } });
@@ -163,7 +164,8 @@ export function registerCarouselRoutes(app: Hono, context: AppContext): void {
       else await renderProjectFrame(context, project, input.sec, output);
       const updated = await store.saveFrameVersion(id, slideId, await readFile(output)); await rm(output, { force: true });
       const settings = await context.store.readSettings();
-      const enabled = settings.jevEnabled !== false && context.jevAvailable;
+      const apiKey = await context.jevKey();
+      const enabled = settings.jevEnabled !== false && !!apiKey;
       const fresh = updated.slides.find(item => item.id === slideId)!;
       const freshBackground = fresh.background.kind === "frame" ? fresh.background : undefined;
       const frameFile = freshBackground?.frame?.file;
@@ -171,7 +173,7 @@ export function registerCarouselRoutes(app: Hono, context: AppContext): void {
         const imagePath = path.join(store.carouselDir(id), frameFile);
         const result = context.carouselServices?.askBox
           ? await context.carouselServices.askBox({ imagePath, target: nextBackground.highlight?.target ?? "", enabled })
-          : await askJevBox({ imagePath, target: nextBackground.highlight?.target ?? "", apiKey: process.env.TYPESAFE_API_KEY, enabled });
+          : await askJevBox({ imagePath, target: nextBackground.highlight?.target ?? "", apiKey: apiKey ?? undefined, enabled });
         if (enabled) await recordProviderUsage(context.store.root, "jev", result.usage, project.id);
         await store.updateSlideEngineFields(id, slideId, { background: { highlight: { ...(freshBackground.highlight ?? { style: "border", target: "" }), box: result.box ?? undefined } } });
       } else if (!enabled) await store.clearAutomaticHighlight(id, slideId, true);
@@ -194,12 +196,13 @@ export function registerCarouselRoutes(app: Hono, context: AppContext): void {
     if (input.box) await store.clearAutomaticHighlight(id, slideId, false);
     else if (input.style !== "ai-outline") {
       const settings = await context.store.readSettings();
-      const enabled = settings.jevEnabled !== false && context.jevAvailable;
+      const apiKey = await context.jevKey();
+      const enabled = settings.jevEnabled !== false && !!apiKey;
       if (enabled && background.frame?.file) {
         const imagePath = path.join(store.carouselDir(id), background.frame.file);
         const result = context.carouselServices?.askBox
           ? await context.carouselServices.askBox({ imagePath, target: input.target, enabled })
-          : await askJevBox({ imagePath, target: input.target, apiKey: process.env.TYPESAFE_API_KEY, enabled });
+          : await askJevBox({ imagePath, target: input.target, apiKey: apiKey ?? undefined, enabled });
         await recordProviderUsage(context.store.root, "jev", result.usage, carousel.source.kind === "project" ? carousel.source.projectId : id);
         await store.updateSlideEngineFields(id, slideId, { background: { highlight: { ...(background.highlight ?? { style: input.style, target: input.target }), box: result.box ?? undefined } } });
       } else await store.clearAutomaticHighlight(id, slideId, true);

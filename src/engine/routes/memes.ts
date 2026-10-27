@@ -2,7 +2,7 @@ import type { Hono } from "hono";
 import { z } from "zod";
 import type { AppContext } from "../app";
 import { HttpError, parseJson } from "../http";
-import { jevClientFromEnv } from "../pipeline/jev";
+import { jevClient } from "../pipeline/jev";
 import { listMemes } from "../pipeline/library";
 import { rankSceneMemes, createUsageLog } from "../pipeline/meme-rank";
 
@@ -20,7 +20,7 @@ export function registerMemeRoutes(app: Hono, context: AppContext): void {
     const root = process.env.U3_LIBRARY_DIR;
     const library = await listMemes(root);
     const ranking = await rankSceneMemes({
-      jev: jevClientFromEnv(),
+      jev: jevClient(await context.jevKey()),
       usage: createUsageLog(context.store.root),
       index: context.memeIndex ?? null,
     }, {

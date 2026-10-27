@@ -26,6 +26,7 @@ import { registerCarouselRoutes } from "./routes/carousels";
 import { CarouselStore } from "./carousel-store";
 import { ImageQueue } from "./image-queue";
 import { registerCaptionRoutes } from "./routes/captions";
+import type { JevKeyStore } from "./jev-key";
 
 export interface AppContext {
   store: Store;
@@ -33,7 +34,8 @@ export interface AppContext {
   token: string;
   tauriOrigin?: string;
   codexPath: () => Promise<string | null>;
-  jevAvailable: boolean;
+  jevKey: () => Promise<string | null>;
+  jevKeyStore?: JevKeyStore;
   memeIndex?: MemeIndex;
   mediaServer?: MediaServer;
   transcribeInput?: TranscribeInput;

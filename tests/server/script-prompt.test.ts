@@ -14,7 +14,7 @@ async function appAt() {
   const root = await mkdtemp(path.join(os.tmpdir(), "u3-script-prompt-"));
   roots.push(root);
   const store = new Store(root);
-  const app = createApp({ store, jobs: new Jobs(), token: "test-token", codexPath: async () => null, jevAvailable: false });
+  const app = createApp({ store, jobs: new Jobs(), token: "test-token", codexPath: async () => null, jevKey: async () => null });
   return { app, store };
 }
 

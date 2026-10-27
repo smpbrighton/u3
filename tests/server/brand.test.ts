@@ -18,7 +18,7 @@ async function appAt() {
   roots.push(root);
   const store = new Store(root);
   await store.init();
-  return { app: createApp({ store, jobs: new Jobs(), token: "test-token", codexPath: async () => null, jevAvailable: false }), store, root };
+  return { app: createApp({ store, jobs: new Jobs(), token: "test-token", codexPath: async () => null, jevKey: async () => null }), store, root };
 }
 
 function pngFixture() {
@@ -84,7 +84,7 @@ describe("brand settings and watermark API", () => {
     const rendered = vi.fn(async () => undefined);
     const jobs = new Jobs();
     const app = new Hono();
-    registerRenderRoutes(app, { store, jobs, token: "test-token", codexPath: async () => null, jevAvailable: false }, rendered);
+    registerRenderRoutes(app, { store, jobs, token: "test-token", codexPath: async () => null, jevKey: async () => null }, rendered);
 
     const response = await app.request("http://127.0.0.1/api/projects/20261026-120000-abcd/render", { method: "POST", headers, body: JSON.stringify({ outputPath: path.join(root, "out.mp4") }) });
     expect(response.status).toBe(202);

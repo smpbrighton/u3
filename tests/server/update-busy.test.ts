@@ -11,7 +11,7 @@ afterEach(async () => { await Promise.all(roots.splice(0).map(root => rm(root, {
 async function setup() {
   const root = await mkdtemp(path.join(os.tmpdir(), "u3-update-busy-")); roots.push(root);
   const jobs = new Jobs();
-  const app = createApp({ store: new Store(root), jobs, token: "test-token", codexPath: async () => null, jevAvailable: false });
+  const app = createApp({ store: new Store(root), jobs, token: "test-token", codexPath: async () => null, jevKey: async () => null });
   const busy = async () => (await app.request("http://127.0.0.1/api/system/busy", { headers: { authorization: "Bearer test-token" } })).json();
   return { app, jobs, busy };
 }

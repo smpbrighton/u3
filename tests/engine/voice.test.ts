@@ -15,7 +15,7 @@ describe("voice upload route", () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "u3-voice-upload-"));
     const store = new Store(path.relative(process.cwd(), root));
     const project = Project.parse(JSON.parse(await readFile(path.join(fixtureRoot, "project.json"), "utf8")));
-    const app = createApp({ store, jobs: new Jobs(), token, codexPath: async () => null, jevAvailable: false });
+    const app = createApp({ store, jobs: new Jobs(), token, codexPath: async () => null, jevKey: async () => null });
     try {
       await store.init();
       await store.saveProject(project);
@@ -43,7 +43,7 @@ describe("voice upload route", () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "u3-voice-type-"));
     const store = new Store(root);
     const project = Project.parse(JSON.parse(await readFile(path.join(fixtureRoot, "project.json"), "utf8")));
-    const app = createApp({ store, jobs: new Jobs(), token, codexPath: async () => null, jevAvailable: false });
+    const app = createApp({ store, jobs: new Jobs(), token, codexPath: async () => null, jevKey: async () => null });
     try {
       await store.init();
       await store.saveProject(project);

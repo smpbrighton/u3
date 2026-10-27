@@ -22,7 +22,7 @@ describe("render route media", () => {
       roots: { projects: path.join(root, "projects"), library: path.join(root, "library"), brand: path.join(root, "brand") },
       token,
     });
-    const app = createApp({ store, jobs, token, codexPath: async () => null, jevAvailable: false, mediaServer });
+    const app = createApp({ store, jobs, token, codexPath: async () => null, jevKey: async () => null, mediaServer });
     const project = Project.parse(JSON.parse(await readFile(path.join(fixtureRoot, "project.json"), "utf8")));
     project.inputs = [{ id: "main-video", kind: "video", file: "input/video.mp4", durationSec: 4 }];
     project.timeline = {

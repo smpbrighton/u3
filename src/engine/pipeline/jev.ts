@@ -157,9 +157,9 @@ export function typesafeJevClient(opts: TypesafeJevOptions): JevClient {
   };
 }
 
-/** TYPESAFE_API_KEY가 있으면 클라이언트, 없으면 null(판단을 건너뛴다) */
-export function jevClientFromEnv(env: NodeJS.ProcessEnv = process.env, fetchImpl?: FetchLike): JevClient | null {
-  return env.TYPESAFE_API_KEY ? typesafeJevClient({ apiKey: env.TYPESAFE_API_KEY, fetchImpl }) : null;
+/** 현재 키가 없으면 null(판단을 건너뛴다) */
+export function jevClient(apiKey: string | null, fetchImpl?: FetchLike): JevClient | null {
+  return apiKey ? typesafeJevClient({ apiKey, fetchImpl }) : null;
 }
 
 /** 질문 종류에 맞는 답 하나. noul은 p, choice·score는 고른 것에 p를 주고 나머지에 고르게 나눈다 */

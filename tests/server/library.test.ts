@@ -22,7 +22,7 @@ describe("sidecar library routes", () => {
       id: "laugh-1", emotion: "laugh", situations: ["친구가 어이없는 말을 했을 때"], importedAt: "2026-09-01T00:00:00.000Z", tagsConfirmed: true, description: "황당한 표정",
     }));
     vi.stubEnv("U3_LIBRARY_DIR", path.join(root, "library"));
-    const app = createApp({ store: new Store(path.join(root, "store")), jobs: new Jobs(), token: "secret", codexPath: async () => null, jevAvailable: false });
+    const app = createApp({ store: new Store(path.join(root, "store")), jobs: new Jobs(), token: "secret", codexPath: async () => null, jevKey: async () => null });
 
     const response = await app.request("http://127.0.0.1/api/library/memes/search", {
       method: "POST",
@@ -50,7 +50,7 @@ describe("sidecar library routes", () => {
       description: "laughing person",
     }));
     vi.stubEnv("U3_LIBRARY_DIR", path.join(root, "library"));
-    const app = createApp({ store: new Store(path.join(root, "store")), jobs: new Jobs(), token: "secret", codexPath: async () => null, jevAvailable: false });
+    const app = createApp({ store: new Store(path.join(root, "store")), jobs: new Jobs(), token: "secret", codexPath: async () => null, jevKey: async () => null });
 
     const response = await app.request("http://127.0.0.1/api/library/memes?q=laugh", { headers: { authorization: "Bearer secret" } });
     const items = await response.json() as { id: string; url: string }[];
@@ -71,7 +71,7 @@ describe("sidecar library routes", () => {
       }));
     }
     vi.stubEnv("U3_LIBRARY_DIR", path.join(root, "library"));
-    const app = createApp({ store: new Store(path.join(root, "store")), jobs: new Jobs(), token: "secret", codexPath: async () => null, jevAvailable: false });
+    const app = createApp({ store: new Store(path.join(root, "store")), jobs: new Jobs(), token: "secret", codexPath: async () => null, jevKey: async () => null });
 
     const response = await app.request("http://127.0.0.1/api/library/memes?limit=1&offset=1", { headers: { authorization: "Bearer secret" } });
     const items = await response.json() as { id: string }[];

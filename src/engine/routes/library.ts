@@ -5,7 +5,7 @@ import type { AppContext } from "../app";
 import { SCENE_SFX_USES, orderSfxSituationCandidates, readSfxFits, sfxSituationFitRequest, type SfxSituationCandidate } from "../../core/sfx";
 import { z } from "zod";
 import { HttpError, parseJson } from "../http";
-import { jevClientFromEnv } from "../pipeline/jev";
+import { jevClient } from "../pipeline/jev";
 import { listMemes, listSfx, searchLibrary, type LibraryEntry } from "../pipeline/library";
 import { judgeMemes, searchMemeCandidates, createUsageLog } from "../pipeline/meme-rank";
 import { memeSituationState } from "../../core/meme-rank";
@@ -57,7 +57,7 @@ export function registerLibraryRoutes(app: Hono, context: AppContext): void {
 
   app.post("/api/library/memes/judge", async c => {
     const input = await parseJson(c, MemeJudgeRequest);
-    const jev = jevClientFromEnv();
+    const jev = jevClient(await context.jevKey());
     if (!jev) throw new HttpError(503, "jev-unavailable", "Jev API 키가 없습니다");
     const root = process.env.U3_LIBRARY_DIR ?? path.join(process.cwd(), "resources");
     const library = await listMemes(root);
@@ -80,7 +80,7 @@ export function registerLibraryRoutes(app: Hono, context: AppContext): void {
 
   app.post("/api/library/sfx/judge", async c => {
     const input = await parseJson(c, SfxJudgeRequest);
-    const jev = jevClientFromEnv();
+    const jev = jevClient(await context.jevKey());
     if (!jev) throw new HttpError(503, "jev-unavailable", "Jev API 키가 없습니다");
     const root = process.env.U3_LIBRARY_DIR ?? path.join(process.cwd(), "resources");
     const library = await listSfx(root);

@@ -20,7 +20,7 @@ async function appAt() {
     token: "one-time-token",
     tauriOrigin: "tauri://localhost",
     codexPath: async () => null,
-    jevAvailable: false,
+    jevKey: async () => null,
   });
 }
 

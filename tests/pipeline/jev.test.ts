@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import type { JevQuestion, JevRequest } from "../../src/core/jev-api";
-import { answerFor, fakeJevClient, JEV_MODEL, JevError, jevClientFromEnv, retryAfterMs, typesafeJevClient } from "../../src/engine/pipeline/jev";
+import { answerFor, fakeJevClient, JEV_MODEL, JevError, jevClient, retryAfterMs, typesafeJevClient } from "../../src/engine/pipeline/jev";
 
 const REQ: JevRequest = {
   state: { text: "차 시트 틈 청소" },
@@ -87,8 +87,8 @@ describe("TypeSafe 클라이언트", () => {
   });
 
   it("키가 없으면 클라이언트를 만들지 않는다", () => {
-    expect(jevClientFromEnv({})).toBeNull();
-    expect(jevClientFromEnv({ TYPESAFE_API_KEY: "k" })).not.toBeNull();
+    expect(jevClient(null)).toBeNull();
+    expect(jevClient("k")).not.toBeNull();
   });
 });
 

@@ -16,6 +16,9 @@ import { listSfx } from "../pipeline/library";
 import { createLibraryReference } from "../../core/library-reference";
 import { BrandSettings, DEFAULT_BRAND_SETTINGS } from "../../core/schema";
 import { validateBrandImage } from "../brand-image";
+import { deleteJevKey, saveJevKey } from "../jev-key";
+import { JEV_MODEL, JevError, typesafeJevClient } from "../pipeline/jev";
+import { JEV_BOX_MODEL } from "../pipeline/jev-box";
 
 const IntroSfx = z.object({ enabled: z.boolean(), ref: z.string().min(1), atSec: z.number().min(0).max(10) });
 const DEFAULT_INTRO_SFX = { enabled: true, ref: "u3-library:sfx/notify/sfx-mum36456-06c20f.mp3", atSec: 3 };
@@ -52,6 +55,12 @@ async function readCodexModels(bin: string | null) {
 }
 
 export function registerSystemRoutes(app: Hono, context: AppContext): void {
+  async function jevStatus() {
+    const key = await context.jevKey();
+    const settings = await context.store.readSettings();
+    return { available: !!key, hasKey: !!key, keyHint: key ? key.slice(-4) : null, enabled: settings.jevEnabled !== false, model: JEV_MODEL, boxModel: JEV_BOX_MODEL };
+  }
+
   app.get("/api/system/busy", c => {
     const jobs = context.jobs.list().filter(job => job.status === "queued" || job.status === "running" || job.stopping)
       .map(({ id, kind, label, status, stopping }) => ({ id, kind, label, status, stopping }));
@@ -167,18 +176,42 @@ export function registerSystemRoutes(app: Hono, context: AppContext): void {
   app.get("/api/system", async c => {
     const bin = await context.codexPath();
     const codex = bin ? await codexLoginStatus(bin) : { installed: false, loggedIn: false };
-    const settings = await context.store.readSettings();
     return c.json({
       codex,
-      jev: { available: context.jevAvailable, enabled: settings.jevEnabled !== false, model: "jev-1.13.0", boxModel: "jev-1.14.0" },
+      jev: await jevStatus(),
     });
+  });
+
+  app.get("/api/system/jev", async c => c.json(await jevStatus()));
+
+  app.put("/api/system/jev-key", async c => {
+    const { key } = await parseJson(c, z.object({ key: z.string().trim().min(1).max(4000).regex(/^[^\x00-\x1f\x7f]+$/, "키를 확인해 주세요") }));
+    let warning: string | undefined;
+    try {
+      await typesafeJevClient({ apiKey: key, timeoutMs: 8_000, maxRetries: 0 }).ask({
+        state: { text: "U3 key check" },
+        questions: { valid: { type: "noul", instructions: "Does the text mention U3?" } },
+      });
+    } catch (error) {
+      if (error instanceof JevError && (error.status === 401 || error.status === 403)) throw new HttpError(400, "invalid-jev-key", "키를 확인해 주세요");
+      warning = "연결을 확인하지 못했지만 키를 저장했어요. 나중에 다시 확인해 주세요.";
+    }
+    try { await (context.jevKeyStore?.saveJevKey ?? saveJevKey)(key); }
+    catch { throw new HttpError(500, "jev-key-save", "Jev 키를 Keychain에 저장하지 못했습니다"); }
+    return c.json({ ...await jevStatus(), ...(warning ? { warning } : {}) });
+  });
+
+  app.delete("/api/system/jev-key", async c => {
+    try { await (context.jevKeyStore?.deleteJevKey ?? deleteJevKey)(); }
+    catch { throw new HttpError(500, "jev-key-delete", "Jev 키를 Keychain에서 지우지 못했습니다"); }
+    return c.json(await jevStatus());
   });
 
   app.put("/api/system/jev", async c => {
     const { enabled } = await parseJson(c, z.object({ enabled: z.boolean() }));
     const settings = await context.store.readSettings();
     await context.store.saveSettings({ ...settings, jevEnabled: enabled });
-    return c.json({ enabled, available: context.jevAvailable, model: "jev-1.13.0", boxModel: "jev-1.14.0" });
+    return c.json(await jevStatus());
   });
 
   app.get("/api/system/codex-settings", async c => {

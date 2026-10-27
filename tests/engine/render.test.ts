@@ -38,7 +38,7 @@ describe("render route", () => {
     app.use("/api/*", tokenGuard("test-token"));
     const { registerRenderRoutes } = await import("../../src/engine/routes/render");
     const { registerEventRoutes } = await import("../../src/engine/routes/events");
-    const context = { store, jobs, token: "test-token", codexPath: async () => null, jevAvailable: false };
+    const context = { store, jobs, token: "test-token", codexPath: async () => null, jevKey: async () => null };
     registerEventRoutes(app, context);
     registerRenderRoutes(app, context, async (options: RenderShortOptions) => new Promise(resolve => {
       options.signal?.addEventListener("abort", () => { aborted = true; resolve(undefined as never); }, { once: true });

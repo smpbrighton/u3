@@ -23,7 +23,7 @@ async function fakeCodex(live: boolean) {
   await writeFile(bin, `#!/bin/sh\nif [ "$3" = "--bundled" ]; then cat "${root}/bundled.json"; exit 0; fi\n${live ? `cat "${root}/live.json"` : "exit 1"}\n`);
   await chmod(bin, 0o755);
   const store = new Store(root);
-  return createApp({ store, jobs: new Jobs(), token: "test-token", codexPath: async () => bin, jevAvailable: false });
+  return createApp({ store, jobs: new Jobs(), token: "test-token", codexPath: async () => bin, jevKey: async () => null });
 }
 
 const slugs = async (app: Awaited<ReturnType<typeof fakeCodex>>) => {

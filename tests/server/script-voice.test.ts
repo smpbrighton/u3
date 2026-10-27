@@ -14,7 +14,7 @@ async function appAt() {
   const root = await mkdtemp(path.join(os.tmpdir(), "u3-script-voice-"));
   roots.push(root);
   const store = new Store(root);
-  return { app: createApp({ store, jobs: new Jobs(), token: "test-token", codexPath: async () => null, jevAvailable: false }), store };
+  return { app: createApp({ store, jobs: new Jobs(), token: "test-token", codexPath: async () => null, jevKey: async () => null }), store };
 }
 
 const headers = { authorization: "Bearer test-token", "content-type": "application/json" };

@@ -23,7 +23,7 @@ async function setup(jevEnabled = true) {
   ] }));
   await store.saveSettings({ jevEnabled });
   const jobs = new Jobs(); const askBox = vi.fn(async () => ({ box: { left: 0.1, top: 0.1, right: 0.7, bottom: 0.8 }, confidence: 0.9, usage: { input_tokens: 2, output_tokens: 1 }, model: "jev-1.14.0" }));
-  const app = createApp({ store, jobs, token: "test-token", codexPath: async () => null, jevAvailable: true,
+  const app = createApp({ store, jobs, token: "test-token", codexPath: async () => null, jevKey: async () => "fixture-jev-key",
     carouselServices: {
       refine: async () => ({ candidates: [], usage: {} }), plan: async () => ({ style: "", slides: [], usage: {} }), generateImage: async () => Buffer.from([]),
       derivePlan: async ({ count, prompt }) => {

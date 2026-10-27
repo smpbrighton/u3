@@ -15,6 +15,7 @@ import { done } from "./jobs";
 import { configuredModelPath } from "./pipeline/model-paths";
 import { installEngineShutdown } from "./shutdown";
 import { renderCarouselSlide } from "./pipeline/render";
+import { readJevKey } from "./jev-key";
 
 process.stdin.resume();
 process.on("unhandledRejection", reason => {
@@ -90,7 +91,7 @@ const app = createApp({
   token,
   tauriOrigin,
   codexPath: () => findCodexPath(store),
-  jevAvailable: !!process.env.TYPESAFE_API_KEY,
+  jevKey: readJevKey,
   transcribeInput,
   memeIndex: index,
   mediaServer,

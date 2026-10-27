@@ -26,7 +26,7 @@ describe("meme rank without a local model", () => {
       jobs: new Jobs(),
       token,
       codexPath: async () => null,
-      jevAvailable: false,
+      jevKey: async () => null,
       memeIndex: memeIndex(root, embedder),
     });
     try {
