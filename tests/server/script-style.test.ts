@@ -35,7 +35,7 @@ async function recommend() {
   await store.saveProject({ ...project, inputs: [{ id: "video", kind: "video", file: "input.mp4", durationSec: 3 }] });
   await store.saveSettings({ scriptPrompt: "저장한 기본 지침", scriptTone: "말투 설정", scriptPersona: "성격 설정", scriptReview: "읽지 않을 옛 검수 설정" });
   const jobs = new Jobs();
-  const app = createApp({ store, jobs, token: "token", codexPath: async () => "fake-codex", jevAvailable: false, resourceDir: path.join(root, "resources"), transcribeInput: async () => ({ text: "" }) });
+  const app = createApp({ store, jobs, token: "token", codexPath: async () => "fake-codex", jevKey: async () => null, resourceDir: path.join(root, "resources"), transcribeInput: async () => ({ text: "" }) });
   const response = await app.request(`/api/projects/${project.id}/script/recommend`, {
     method: "POST", headers: { authorization: "Bearer token", "content-type": "application/json" },
     body: JSON.stringify({ mode: "direct", prompt: "사용자 요청", images: ["frame.png"] }),
