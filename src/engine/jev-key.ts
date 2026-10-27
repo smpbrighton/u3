@@ -51,7 +51,8 @@ export function createJevKeyStore(options: {
 
   return {
     readJevKey: () => sequential(async () => {
-      const developmentKey = env.TYPESAFE_API_KEY?.trim();
+      // 설치본(U3_RESOURCE_DIR 있음)은 GUI 환경에 키가 있어도 설정에 입력한 Keychain 키만 쓴다.
+      const developmentKey = env.U3_RESOURCE_DIR ? undefined : env.TYPESAFE_API_KEY?.trim();
       if (developmentKey) return developmentKey;
       if (cached !== undefined) return cached;
       try {
