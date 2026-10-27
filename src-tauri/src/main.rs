@@ -1,5 +1,7 @@
 #![cfg_attr(not(debug_assertions), windows_subsystem = "windows")]
 
+mod updater_logic;
+
 use serde::Serialize;
 use std::io::{BufRead, BufReader, Error, ErrorKind};
 #[cfg(debug_assertions)]
