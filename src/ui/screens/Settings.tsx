@@ -275,24 +275,6 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
       <div className="settings-grid">
         <div className="settings-columns">
           <div className="settings-column settings-column-a">
-            <section className="section-card settings-card" aria-labelledby="image-options-title">
-              <h2 id="image-options-title" className="settings-section-title">이미지 생성</h2>
-              <div className="settings-model-fields">
-                <ModelSelect label="이미지 모델" value={imageOptions.model} items={[{ value: "flare", label: "Flare · 빠름" }, { value: "sunburst", label: "Sunburst · 고품질" }]} onChange={model => void updateImageOptions({ ...imageOptions, model: model as ImageOptions["model"] })} />
-                <ModelSelect label="퀄리티" value={imageOptions.quality} items={["low", "medium", "high", "auto"].map(value => ({ value, label: value }))} onChange={quality => void updateImageOptions({ ...imageOptions, quality: quality as ImageOptions["quality"] })} />
-                <ModelSelect label="비율" value={imageOptions.aspect} items={[{ value: "4:5", label: "4:5" }, { value: "1:1", label: "1:1" }, { value: "9:16", label: "9:16" }, { value: "16:9", label: "16:9" }]} onChange={aspect => void updateImageOptions({ ...imageOptions, aspect: aspect as ImageOptions["aspect"] })} />
-              </div>
-              <div className="image-concurrency"><Slider label={`동시 실행 수 · ${imageOptions.concurrency}`} min={1} max={10} step={1} values={[imageOptions.concurrency]} onValuesChange={values => { const concurrency = values[0]; if (typeof concurrency === "number") void updateImageOptions({ ...imageOptions, concurrency }); }} /></div>
-            </section>
-            <section className="section-card settings-card intro-sfx-card" aria-labelledby="intro-sfx-title">
-              <h2 id="intro-sfx-title" className="settings-section-title">자동 알림음</h2>
-              <Switch label="자동 알림음 켜기" checked={introSfx.enabled} onCheckedChange={enabled => void saveIntroSfx({ ...introSfx, enabled })} />
-              <ModelSelect label="알림음" value={introSfx.ref} items={notifyItems.map(item => ({ value: item.ref, label: item.title }))} onChange={ref => { const item = notifyItems.find(candidate => candidate.ref === ref); if (item) void saveIntroSfx({ ...introSfx, ref: item.ref, title: item.title }); }} />
-              <div className="intro-sfx-actions"><ActionButton variant="neutralWeak" disabled={!notifyItems.find(item => item.ref === introSfx.ref)} onClick={() => { const item = notifyItems.find(candidate => candidate.ref === introSfx.ref); if (item) new Audio(item.url).play().catch(() => undefined); }}>미리 듣기</ActionButton></div>
-              <div className="intro-sfx-slider"><Slider label="알림음 시각" indicator={`${introSfx.atSec.toFixed(1)}초`} min={0} max={10} step={0.1} values={[introSfx.atSec]} onValuesChange={values => { const atSec = values[0]; if (typeof atSec === "number") setIntroSfx(value => ({ ...value, atSec })); }} onValuesCommit={values => { const atSec = values[0]; if (typeof atSec === "number") void saveIntroSfx({ ...introSfx, atSec }); }} /></div>
-            </section>
-          </div>
-          <div className="settings-column settings-column-b">
             <section className="section-card settings-card" aria-labelledby="watermark-title">
               <h2 id="watermark-title" className="settings-section-title">워터마크</h2>
               <BrandPreview layer="watermark" brand={brand} watermarkUrl={watermarkUrl} />
@@ -308,28 +290,6 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
               </div>
               <div className="action-row settings-actions"><ActionButton variant="brandSolid" disabled={brandLoading || Boolean(brandSaving.watermark) || JSON.stringify(brand.watermark) === JSON.stringify(savedBrand.watermark)} loading={Boolean(brandSaving.watermark)} onClick={() => void saveBrand("watermark")}>저장</ActionButton></div>
             </section>
-            <section className="section-card settings-card" aria-labelledby="title-bar-title">
-              <h2 id="title-bar-title" className="settings-section-title">타이틀 바</h2>
-              <BrandPreview layer="titleBar" brand={brand} titleImageUrl={titleImageUrl} />
-              <SegmentedControl aria-label="타이틀 내용 종류" value={brand.titleBar.kind} onValueChange={kind => setBrandField("titleBar", { ...brand.titleBar, kind: kind as "text" | "image" })}>
-                <SegmentedControlItem value="text">글</SegmentedControlItem><SegmentedControlItem value="image">이미지</SegmentedControlItem>
-              </SegmentedControl>
-              {brand.titleBar.kind === "text" ? <TextField label="기본 글" value={brand.titleBar.text} onValueChange={({ value }) => setBrandField("titleBar", { ...brand.titleBar, text: value.slice(0, 30) })}><TextFieldInput maxLength={30} disabled={brandLoading} /></TextField> : <div className="brand-settings-watermark">
-                <div className="brand-watermark-preview">{titleImageUrl ? <img src={titleImageUrl} alt="타이틀 이미지 미리보기" /> : <span>타이틀 이미지 없음</span>}</div>
-                <div className="brand-watermark-actions"><ActionButton variant="neutralWeak" disabled={brandLoading} onClick={() => void chooseTitleImage()}>이미지 선택</ActionButton>{brand.titleBar.file ? <ActionButton variant="ghost" onClick={() => void deleteTitleImage()}>지우기</ActionButton> : null}</div>
-              </div>}
-              <div className="settings-model-fields brand-fields">
-                <BrandNumber label="타이틀 바 높이" min={40} max={600} step={1} value={brand.titleBar.height} suffix="px" onChange={value => setBrandField("titleBar", { ...brand.titleBar, height: value })} />
-                <BrandColor label="배경 색" value={brand.titleBar.bgColor} onChange={bgColor => setBrandField("titleBar", { ...brand.titleBar, bgColor })} />
-                <BrandNumber label="배경 투명도" min={0} max={100} step={1} value={Math.round(brand.titleBar.bgOpacity * 100)} suffix="%" onChange={value => setBrandField("titleBar", { ...brand.titleBar, bgOpacity: value / 100 })} />
-                <ModelSelect label="폰트" value={brand.titleBar.font} items={[{ value: "pretendard", label: "Pretendard" }, { value: "gmarket", label: "G마켓 산스" }, { value: "tmon", label: "티몬체" }]} onChange={font => setBrandField("titleBar", { ...brand.titleBar, font: font as BrandSettings["titleBar"]["font"] })} />
-                <BrandNumber label="글자 크기" min={12} max={200} step={1} value={brand.titleBar.fontSize} suffix="px" onChange={value => setBrandField("titleBar", { ...brand.titleBar, fontSize: value })} />
-                <BrandColor label="글자 색" value={brand.titleBar.color} onChange={color => setBrandField("titleBar", { ...brand.titleBar, color })} />
-              </div>
-              <div className="action-row settings-actions"><ActionButton variant="brandSolid" disabled={brandLoading || Boolean(brandSaving.titleBar) || JSON.stringify(brand.titleBar) === JSON.stringify(savedBrand.titleBar)} loading={Boolean(brandSaving.titleBar)} onClick={() => void saveBrand("titleBar")}>저장</ActionButton></div>
-            </section>
-          </div>
-          <div className="settings-column settings-column-c">
             <section className="section-card settings-card" aria-labelledby="codex-title">
               <div className="settings-card-heading"><h2 id="codex-title">codex</h2><span className={`status-label ${status?.codex.loggedIn ? "is-ready" : "is-warning"}`}>{codexState}</span></div>
               {codexMessage ? <div className="page-banner-wrap settings-warning"><PageBanner tone="warning" variant="weak" description={codexMessage} /></div> : null}
@@ -369,6 +329,46 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
               </div>
             </section>
           </div>
+          <div className="settings-column settings-column-b">
+            <section className="section-card settings-card" aria-labelledby="title-bar-title">
+              <h2 id="title-bar-title" className="settings-section-title">타이틀 바</h2>
+              <BrandPreview layer="titleBar" brand={brand} titleImageUrl={titleImageUrl} />
+              <SegmentedControl aria-label="타이틀 내용 종류" value={brand.titleBar.kind} onValueChange={kind => setBrandField("titleBar", { ...brand.titleBar, kind: kind as "text" | "image" })}>
+                <SegmentedControlItem value="text">글</SegmentedControlItem><SegmentedControlItem value="image">이미지</SegmentedControlItem>
+              </SegmentedControl>
+              {brand.titleBar.kind === "text" ? <TextField label="기본 글" value={brand.titleBar.text} onValueChange={({ value }) => setBrandField("titleBar", { ...brand.titleBar, text: value.slice(0, 30) })}><TextFieldInput maxLength={30} disabled={brandLoading} /></TextField> : <div className="brand-settings-watermark">
+                <div className="brand-watermark-preview">{titleImageUrl ? <img src={titleImageUrl} alt="타이틀 이미지 미리보기" /> : <span>타이틀 이미지 없음</span>}</div>
+                <div className="brand-watermark-actions"><ActionButton variant="neutralWeak" disabled={brandLoading} onClick={() => void chooseTitleImage()}>이미지 선택</ActionButton>{brand.titleBar.file ? <ActionButton variant="ghost" onClick={() => void deleteTitleImage()}>지우기</ActionButton> : null}</div>
+              </div>}
+              <div className="settings-model-fields brand-fields">
+                <BrandNumber label="타이틀 바 높이" min={40} max={600} step={1} value={brand.titleBar.height} suffix="px" onChange={value => setBrandField("titleBar", { ...brand.titleBar, height: value })} />
+                <BrandColor label="배경 색" value={brand.titleBar.bgColor} onChange={bgColor => setBrandField("titleBar", { ...brand.titleBar, bgColor })} />
+                <BrandNumber label="배경 투명도" min={0} max={100} step={1} value={Math.round(brand.titleBar.bgOpacity * 100)} suffix="%" onChange={value => setBrandField("titleBar", { ...brand.titleBar, bgOpacity: value / 100 })} />
+                <ModelSelect label="폰트" value={brand.titleBar.font} items={[{ value: "pretendard", label: "Pretendard" }, { value: "gmarket", label: "G마켓 산스" }, { value: "tmon", label: "티몬체" }]} onChange={font => setBrandField("titleBar", { ...brand.titleBar, font: font as BrandSettings["titleBar"]["font"] })} />
+                <BrandNumber label="글자 크기" min={12} max={200} step={1} value={brand.titleBar.fontSize} suffix="px" onChange={value => setBrandField("titleBar", { ...brand.titleBar, fontSize: value })} />
+                <BrandColor label="글자 색" value={brand.titleBar.color} onChange={color => setBrandField("titleBar", { ...brand.titleBar, color })} />
+              </div>
+              <div className="action-row settings-actions"><ActionButton variant="brandSolid" disabled={brandLoading || Boolean(brandSaving.titleBar) || JSON.stringify(brand.titleBar) === JSON.stringify(savedBrand.titleBar)} loading={Boolean(brandSaving.titleBar)} onClick={() => void saveBrand("titleBar")}>저장</ActionButton></div>
+            </section>
+          </div>
+          <div className="settings-column settings-column-c">
+            <section className="section-card settings-card" aria-labelledby="image-options-title">
+              <h2 id="image-options-title" className="settings-section-title">이미지 생성</h2>
+              <div className="settings-model-fields">
+                <ModelSelect label="이미지 모델" value={imageOptions.model} items={[{ value: "flare", label: "Flare · 빠름" }, { value: "sunburst", label: "Sunburst · 고품질" }]} onChange={model => void updateImageOptions({ ...imageOptions, model: model as ImageOptions["model"] })} />
+                <ModelSelect label="퀄리티" value={imageOptions.quality} items={["low", "medium", "high", "auto"].map(value => ({ value, label: value }))} onChange={quality => void updateImageOptions({ ...imageOptions, quality: quality as ImageOptions["quality"] })} />
+                <ModelSelect label="비율" value={imageOptions.aspect} items={[{ value: "4:5", label: "4:5" }, { value: "1:1", label: "1:1" }, { value: "9:16", label: "9:16" }, { value: "16:9", label: "16:9" }]} onChange={aspect => void updateImageOptions({ ...imageOptions, aspect: aspect as ImageOptions["aspect"] })} />
+              </div>
+              <div className="image-concurrency"><Slider label={`동시 실행 수 · ${imageOptions.concurrency}`} min={1} max={10} step={1} values={[imageOptions.concurrency]} onValuesChange={values => { const concurrency = values[0]; if (typeof concurrency === "number") void updateImageOptions({ ...imageOptions, concurrency }); }} /></div>
+            </section>
+            <section className="section-card settings-card intro-sfx-card" aria-labelledby="intro-sfx-title">
+              <h2 id="intro-sfx-title" className="settings-section-title">자동 알림음</h2>
+              <Switch label="자동 알림음 켜기" checked={introSfx.enabled} onCheckedChange={enabled => void saveIntroSfx({ ...introSfx, enabled })} />
+              <ModelSelect label="알림음" value={introSfx.ref} items={notifyItems.map(item => ({ value: item.ref, label: item.title }))} onChange={ref => { const item = notifyItems.find(candidate => candidate.ref === ref); if (item) void saveIntroSfx({ ...introSfx, ref: item.ref, title: item.title }); }} />
+              <div className="intro-sfx-actions"><ActionButton variant="neutralWeak" disabled={!notifyItems.find(item => item.ref === introSfx.ref)} onClick={() => { const item = notifyItems.find(candidate => candidate.ref === introSfx.ref); if (item) new Audio(item.url).play().catch(() => undefined); }}>미리 듣기</ActionButton></div>
+              <div className="intro-sfx-slider"><Slider label="알림음 시각" indicator={`${introSfx.atSec.toFixed(1)}초`} min={0} max={10} step={0.1} values={[introSfx.atSec]} onValuesChange={values => { const atSec = values[0]; if (typeof atSec === "number") setIntroSfx(value => ({ ...value, atSec })); }} onValuesCommit={values => { const atSec = values[0]; if (typeof atSec === "number") void saveIntroSfx({ ...introSfx, atSec }); }} /></div>
+            </section>
+          </div>
         </div>
         <section className="section-card settings-card script-prompt-card" aria-labelledby="script-prompt-title">
           <h2 id="script-prompt-title" className="settings-section-title">대본 프롬프트</h2>
@@ -390,7 +390,7 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
             <ActionButton variant="brandSolid" disabled={scriptPromptLoading || scriptPromptSaving || scriptPrompt === savedScriptPrompt} loading={scriptPromptSaving} onClick={() => void saveScriptPrompt()}>저장</ActionButton>
           </div>
           <div className="script-voice-fields">
-            {(["tone", "persona", "review"] as const).map(field => <div className="script-voice-field" key={field}>
+            {(["tone", "persona", "review"] as const).map(field => <div className={`script-voice-field script-voice-field-${field}`} key={field}>
               <TextField
                 label={scriptVoiceLabel(field)}
                 description={field === "review" ? "대본을 검수할 때 적용할 지시문이에요." : "비워 두면 언어집에서 AI가 선택해요."}
