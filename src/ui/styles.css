@@ -226,6 +226,9 @@ input::placeholder, textarea::placeholder { color: var(--seed-color-palette-gray
 .settings-details dd { display: flex; min-width: 0; align-items: center; gap: 10px; margin: 0; }
 .settings-details code { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .settings-actions { margin-top: var(--seed-dimension-x4); }
+.jev-key-form { display: grid; gap: var(--seed-dimension-x4); margin-top: var(--seed-dimension-x4); }
+.jev-key-actions { display: flex; justify-content: flex-end; gap: var(--seed-dimension-x2); }
+.jev-key-guide { margin: 0; color: var(--seed-color-fg-neutral-muted); font-size: 14px; }
 .script-prompt-card .settings-section-title { margin-bottom: var(--seed-dimension-x4); }
 .script-prompt-input { height: 240px; min-height: 240px; max-height: 240px; overflow-y: auto; resize: none; }
 .script-voice-fields { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: var(--seed-dimension-x5) var(--seed-dimension-x4); margin-top: var(--seed-dimension-x6); }

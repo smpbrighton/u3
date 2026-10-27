@@ -33,6 +33,10 @@ type ImageOptions = { model: "flare" | "sunburst"; quality: "low" | "medium" | "
 
 export function Settings(props: { onSnackbar: (message: string) => void; onError: (message: string) => void; update: UpdateSnapshot | null; onCheckUpdate: () => void }) {
   const [status, setStatus] = useState<SystemStatus | null>(null);
+  const [jevStatus, setJevStatus] = useState<SystemStatus["jev"] | null>(null);
+  const [jevKey, setJevKey] = useState("");
+  const [jevChanging, setJevChanging] = useState<"save" | "delete" | null>(null);
+  const [jevWarning, setJevWarning] = useState<string | null>(null);
   const [models, setModels] = useState<ModelStatus | null>(null);
   const [codexCatalog, setCodexCatalog] = useState<CodexModelCatalog>({ source: "fallback", models: [] });
   const [jobs, setJobs] = useState<EngineJob[]>([]);
@@ -72,6 +76,7 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
     try {
       const results = await Promise.allSettled([
         api<SystemStatus>("GET", "/api/system").then(setStatus),
+        api<SystemStatus["jev"]>("GET", "/api/system/jev").then(setJevStatus),
         api<ModelStatus>("GET", "/api/models").then(setModels),
         api<typeof codexSettings>("GET", "/api/system/codex-settings").then(setCodexSettings),
         api<ImageOptions>("GET", "/api/system/image-options").then(setImageOptions),
@@ -104,6 +109,21 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
+
+  async function changeJevKey(action: "save" | "delete") {
+    if (jevChanging || (action === "save" && !jevKey.trim())) return;
+    setJevChanging(action);
+    setJevWarning(null);
+    try {
+      const saved = await api<SystemStatus["jev"] & { warning?: string }>(action === "save" ? "PUT" : "DELETE", "/api/system/jev-key", action === "save" ? { key: jevKey } : undefined);
+      setJevKey("");
+      setJevStatus(saved);
+      setJevWarning(saved.warning ?? null);
+      props.onSnackbar(action === "save" ? "Jev 키를 저장했어요." : "Jev 키를 지웠어요.");
+    } catch (reason) {
+      props.onError(reason instanceof Error ? reason.message : String(reason));
+    } finally { setJevChanging(null); }
+  }
 
   useEffect(() => {
     const controller = new AbortController();
@@ -320,7 +340,20 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
               </div>
               <div className="action-row settings-actions"><ActionButton className="settings-refresh-button" variant="neutralWeak" disabled={checking} loading={checking} aria-label={checking ? "다시 확인 중" : "다시 확인"} onClick={() => void refresh()}>{checking ? "다시 확인 중" : "다시 확인"}</ActionButton></div>
             </section>
-            <section className="section-card settings-row" aria-labelledby="jev-title"><h2 id="jev-title">Jev 짤 판정</h2><span className={`status-label ${status?.jev.available ? "is-ready" : "is-warning"}`}>{status?.jev.available ? "연결됨" : "연결 안 됨"}</span></section>
+            <section className="section-card settings-card" aria-labelledby="jev-title">
+              <div className="settings-card-heading"><h2 id="jev-title">Jev 짤 판정</h2><span role="status" className={`status-label ${jevStatus?.hasKey ? "is-ready" : "is-warning"}`}>{jevStatus ? jevStatus.hasKey ? "연결됨" : "키 없음" : "확인 중"}</span></div>
+              <form className="jev-key-form" onSubmit={event => { event.preventDefault(); void changeJevKey("save"); }}>
+                <TextField label="Jev API 키" value={jevKey} onValueChange={({ value }) => setJevKey(value)}>
+                  <TextFieldInput type="password" autoComplete="off" autoCapitalize="none" spellCheck={false} maxLength={4000} disabled={!jevStatus || jevChanging !== null} placeholder={jevStatus?.hasKey ? `저장됨 ····${jevStatus.keyHint ?? ""}` : "Jev API 키를 입력하세요"} />
+                </TextField>
+                {jevStatus && !jevStatus.hasKey ? <p className="jev-key-guide">키가 없으면 짤은 규칙 점수로 골라요</p> : null}
+                {jevWarning ? <div className="page-banner-wrap"><PageBanner tone="warning" variant="weak" description={jevWarning} /></div> : null}
+                <div className="jev-key-actions">
+                  <ActionButton type="button" variant="neutralWeak" disabled={!jevStatus?.hasKey || jevChanging !== null} loading={jevChanging === "delete"} onClick={() => void changeJevKey("delete")}>지우기</ActionButton>
+                  <ActionButton type="submit" variant="brandSolid" disabled={!jevStatus || !jevKey.trim() || jevChanging !== null} loading={jevChanging === "save"}>저장</ActionButton>
+                </div>
+              </form>
+            </section>
             <section className="section-card" aria-labelledby="models-title">
               <h2 id="models-title" className="settings-section-title">모델</h2>
               <div className="model-row"><div><h3>짤 검색 모델</h3><p>{bgeJob ? "받는 동안 짤은 기본 순위로 골라요." : models?.bgeM3.available ? "짤을 검색할 때 사용해요." : "받기 전에는 짤을 기본 순위로 골라요."}</p></div>

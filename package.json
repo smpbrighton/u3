@@ -15,7 +15,7 @@
     "test:models": "tsx scripts/test-models.ts",
     "smoke": "tsx scripts/smoke.ts",
     "verify": "bash scripts/verify.sh",
-    "package": "tsx scripts/build-engine.ts && bash scripts/build-whisper.sh && tsx scripts/fetch-resources.ts && pnpm tauri build --config src-tauri/tauri.bundle.conf.json",
+    "package": "bash scripts/package.sh",
     "tauri": "tauri"
   },
   "pnpm": {

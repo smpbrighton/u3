@@ -20,36 +20,6 @@ function fail(message: string): never {
   throw new Error(message);
 }
 
-function parseEnv(contents: string): Record<string, string> {
-  const values: Record<string, string> = {};
-  for (const line of contents.split(/\r?\n/)) {
-    const match = line.match(/^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=\s*(.*)\s*$/);
-    if (!match) continue;
-    let value = match[2].trim();
-    if ((value.startsWith("'") && value.endsWith("'")) || (value.startsWith('"') && value.endsWith('"'))) {
-      value = value.slice(1, -1);
-    } else {
-      value = value.replace(/\s+#.*$/, "").trim();
-    }
-    values[match[1]] = value;
-  }
-  return values;
-}
-
-async function readJevKey(): Promise<string> {
-  const dotenvPath = join(root, ".env");
-  const selectedPath = process.env.U3_ENV_FILE || dotenvPath;
-  let contents: string;
-  try {
-    contents = await readFile(selectedPath, "utf8");
-  } catch {
-    fail("Jev 키 파일을 읽지 못했습니다. 레포 루트 .env 또는 U3_ENV_FILE을 확인하세요.");
-  }
-  const key = parseEnv(contents).TYPESAFE_API_KEY;
-  if (!key?.trim()) fail("TYPESAFE_API_KEY가 비어 있습니다.");
-  return key.trim();
-}
-
 async function sha256(file: string): Promise<string> {
   const hash = createHash("sha256");
   const data = await readFile(file);
@@ -118,7 +88,6 @@ async function checkDylibs(binary: string, bundledDir?: string): Promise<void> {
 }
 
 try {
-  const jevKey = await readJevKey();
   await mkdir(cache, { recursive: true });
   await rm(resources, { recursive: true, force: true });
   await mkdir(resources, { recursive: true });
@@ -127,16 +96,10 @@ try {
   await mkdir(runtimeStage, { recursive: true });
   await installProductionDependencies(runtimeStage);
 
-  const engineSource = await readFile(join(root, "src/engine/main.ts"), "utf8");
   const runtimeNodeModules = join(runtimeStage, "node_modules");
   const bundlePath = join(resources, "engine.mjs");
   await build({
-    stdin: {
-      contents: `process.env.TYPESAFE_API_KEY = ${JSON.stringify(jevKey)};\n${engineSource}`,
-      resolveDir: join(root, "src/engine"),
-      sourcefile: "main.ts",
-      loader: "ts",
-    },
+    entryPoints: [join(root, "src/engine/main.ts")],
     outfile: bundlePath,
     bundle: true,
     platform: "node",
@@ -148,6 +111,7 @@ try {
     sourcemap: false,
     logLevel: "silent",
   });
+  execFileSync("bash", [join(root, "scripts/check-engine-key.sh"), bundlePath], { stdio: "inherit" });
   await cp(nodeBinary, join(resources, "node"));
   await chmod(join(resources, "node"), 0o755);
   await cp(runtimeNodeModules, join(resources, "node_modules"), { recursive: true });

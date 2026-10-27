@@ -130,6 +130,7 @@ pnpm verify
 pnpm package --config src-tauri/tauri.release.conf.json --bundles app --no-sign
 APP="$CARGO_TARGET_DIR/release/bundle/macos/U3.app"
 [[ -d "$APP" ]] || { echo "앱을 찾지 못했습니다: $APP" >&2; exit 1; }
+bash scripts/check-engine-key.sh "$APP"
 python3 -I - "$APP/Contents/Info.plist" "$VERSION" <<'PY'
 import plistlib, sys
 with open(sys.argv[1], 'rb') as f: info = plistlib.load(f)
