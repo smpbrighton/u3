@@ -43,7 +43,7 @@ describe("릴리스 dry-run", () => {
     expect(await readdir(s.out)).toEqual(["latest.json"]);
     const latest = JSON.parse(await readFile(path.join(s.out, "latest.json"), "utf8"));
     expect(latest).toMatchObject({ version: "0.2.1", notes: "U3 0.2.1", platforms: { "darwin-aarch64": {
-      url: "https://github.com/smpbrighton/u3-releases/releases/download/v0.2.1/U3.app.tar.gz", signature: s.signature,
+      url: "https://github.com/smpbrighton/u3/releases/download/v0.2.1/U3.app.tar.gz", signature: s.signature,
     } } });
     expect(Object.keys(latest.platforms)).toEqual(["darwin-aarch64"]);
     expect(latest.pub_date).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
