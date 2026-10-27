@@ -60,6 +60,12 @@ describe("미리보기 편집 좌표", () => {
     expect(snapBoxToSafeZone({ x: 600, y: 1100, width: 400, height: 200 }).x).toBe(520);
   });
 
+  it("안전 폭보다 넓은 상자를 캔버스 가운데에 두고 세로 스냅을 유지한다", () => {
+    expect(snapBoxToSafeZone({ x: 160, y: 1400, width: 960, height: 200 })).toEqual({ x: 60, y: 1280, width: 960, height: 200 });
+    expect(snapBoxToSafeZone({ x: 0, y: 1100, width: 761, height: 100 }).x).toBe(159.5);
+    expect(snapBoxToSafeZone({ x: 0, y: 1100, width: 760, height: 100 }).x).toBe(160);
+  });
+
   it("자막 상자 위쪽을 타이틀 바 아래로 제한한다", () => {
     expect(limitBoxBelowTitleBar({ x: 0.2, y: 0.02, width: 0.4, height: 0.2 }, 160, 1920)).toEqual({ x: 0.2, y: 160 / 1920, width: 0.4, height: 0.2 });
   });

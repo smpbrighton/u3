@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { stackCaptionRows } from "../../src/core/layout";
-import { captionTargetBox, mediaTargetBox } from "../../src/core/preview-geometry";
+import { captionTargetBox, mediaTargetBox, resizeNormalizedBox } from "../../src/core/preview-geometry";
 
 describe("paired caption rows", () => {
   it("stacks main above sub without overlapping backgrounds", () => {
@@ -31,5 +31,14 @@ describe("preview target boxes", () => {
     expect(box.height).toBeCloseTo(314 / 1920);
     expect(box.x).toBeCloseTo(0.5 - 450 / 1080);
     expect(box.y + box.height).toBeCloseTo(0.77);
+  });
+});
+
+describe("짤 선택 상자 폭 조절", () => {
+  it("HOPEFULLY의 폭을 조절하는 동안 높이도 표시 비율에 맞춘다", () => {
+    const box = mediaTargetBox({ x: 0.5, y: 0.4 }, 0.6, 258 / 320);
+    const resized = resizeNormalizedBox(box, 108, 1080, 0.05, true);
+    expect(resized.width).toBeCloseTo(0.7);
+    expect(resized.height / resized.width).toBeCloseTo(258 / 320 * 1080 / 1920);
   });
 });
