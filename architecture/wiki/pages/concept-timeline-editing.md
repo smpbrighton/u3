@@ -22,6 +22,12 @@ U3 타임라인은 영상·자막·음성·효과음 트랙을 저장하고, 영
 - 라이브러리 상황 검색은 후보를 먼저 표시하고 Jev 판정 결과를 반영한다. 판정 실패 시 후보를 유지한다. `src/engine/routes/library.ts` `src/ui/studio/library-request.ts` `architecture/changes/024-library-situation-search/plan.md`
 - 시험 화면에서 자막 글꼴 로딩 후 측정과 짤 선택 상자 크기를 확인했다. 타이틀 이미지의 MP4 패딩도 확인했다. 저장 후 반복 알림 경고는 당시 범위 밖으로 남겼으며 현재 해소 여부는 코드에서 못 찾음. `git:ace838c:` `git:242f3b1:`
 
+- 대본 추천은 caption의 말끝 반복, 문장부호, 초성 말과 마지막 장면의 안내 문구 등을 검사한다. 이모지는 전체 2개까지 허용하며 문장 끝 부호 뒤에 둔다. `src/core/script-style.ts` `src/core/script-prompt.ts` `git:a4eeca8:`
+- 위반이 있으면 위반 목록을 붙여 한 번 재생성한다. 두 결과 중 위반이 적은 결과를 저장하고 남은 경고를 표시한다. 재생성 실패 시 초안과 경고를 유지한다. `src/engine/routes/script.ts` `src/ui/screens/Script.tsx` `git:a4eeca8:`
+- 기존 자막 검수 설정을 화면과 API에서 제거했다. 저장 파일의 기존 `scriptReview` 값은 보존한다. 직접 저장한 대본 프롬프트에는 새 기본값이 자동 적용되지 않는다. `src/engine/routes/system.ts` `src/ui/screens/Settings.tsx` `tests/server/script-voice.test.ts` `architecture/changes/039-script-voice/plan.md`
+- 자막 폭 측정에서 이모지 grapheme 하나를 1em으로 계산한다. 이모지가 들어간 MP4 렌더와 줄바꿈, 실제 대본 추천 및 설정 화면의 실행 증거는 코드에서 못 찾음. `src/core/measure.ts` `tests/core/measure-emoji.test.ts` `architecture/changes/039-script-voice/plan.md` `git:a4eeca8:`
+- 말투 규칙과 이모지 폭의 테스트가 추가되었으나 해당 변경의 테스트 실행 출력과 `pnpm verify` 통과 기록은 코드에서 못 찾음. `tests/core/script-style.test.ts` `tests/server/script-style.test.ts` `tests/core/measure-emoji.test.ts` `architecture/changes/039-script-voice/plan.md`
+
 ## 관계
 - [U3 데스크톱 앱](entity-desktop-app.md)
 - [로컬 모델과 리소스](concept-local-models.md)

@@ -11,6 +11,11 @@
 - 실제 Codex image_gen의 ephemeral 파일 유지 여부와 실제 외부 서비스 전체 흐름의 실행 증거는 코드에서 못 찾음. `architecture/changes/030-carousel-images/spec.md`
 - 결정 링크: [캐러셀 범위](../../decisions/0017-scope-carousel-two-modes.md), [이미지 비율](../../decisions/0019-carousel-image-aspects.md). `git:6f86659:`
 
+- 캐러셀 파일 URL은 토큰이 포함된 `/api/media/carousels/` 경로를 사용한다. 배포된 Tauri 앱은 엔진 origin을 붙이고 개발 환경은 상대 경로를 쓴다. `src/ui/api.ts` `src/engine/routes/media.ts` `git:2432e77:`
+- 이미지 URL이 비어 있으면 미리보기의 이미지와 강조 이미지 렌더를 생략한다. 인스펙터는 grid 열과 segmented control의 최소 폭을 제한한다. `src/remotion/CarouselSlide.tsx` `src/ui/styles.css` `git:2432e77:`
+- 변경 계획은 내려받은 영상 캐러셀 PNG 5개에 프레임과 텍스트가 있었다고 기록한다. 해당 파일과 별도 실행 증거는 코드에서 못 찾음. `architecture/changes/042-carousel-image-view/plan.md` `git:e0ecd51:`
+- URL·미디어 경로·빈 이미지 테스트가 추가되었다. 수정 전후 실행 출력, `pnpm verify`, 브라우저 넘침 검사, 패키징 앱에서 일반·영상 캐러셀 이미지 확인의 실행 증거는 코드에서 못 찾음. `tests/ui/carousel-file-url.test.ts` `tests/server/carousel-media.test.ts` `tests/remotion/carousel-slide.test.tsx` `architecture/changes/042-carousel-image-view/plan.md` `git:2432e77:`
+
 ## 관계
 - [U3 데스크톱 앱](entity-desktop-app.md)
 - [타임라인 편집](concept-timeline-editing.md)

@@ -37,3 +37,11 @@
 - `index.md`
 - 범위의 커밋에 `architecture/changes/` 문서 변경은 없다. `git:0782e6a` `git:6f4b047` `git:8e6e624`
 - 0.2.0 릴리스와 W70 테스트·수정은 관련 페이지에 반영했다. 수정된 설치본의 실제 Keychain·설정 화면 검증과 수정 포함 릴리스는 확인하지 못했다. `git:6f4b047` `git:8e6e624`
+
+## [2026-10-27] ingest | 039 script-voice · 042 carousel-image-view · 0.2.1
+- `pages/concept-timeline-editing.md`
+- `pages/concept-carousel.md`
+- `pages/concept-updates.md`
+- `index.md`
+- 계획 및 테스트 선행 커밋 `e0ecd51`, `fc4196e`, `589f0bb`, `2c9da33`, `37205a1`과 테스트 컨텍스트 수정 `2e1f1a0`은 구현과 함께 반영했으며 별도 페이지는 없다.
+- 039·042 계획의 실행 출력과 수동 검증 증거는 코드에서 못 찾음. 미검증 항목을 기능 페이지에 남겼다. `architecture/changes/039-script-voice/plan.md` `architecture/changes/042-carousel-image-view/plan.md`
