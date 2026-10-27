@@ -59,7 +59,7 @@ async function framePixels(file: string, frame: number, out: string, rendered: b
   const left = Math.round(x * width - size / 2);
   const top = Math.round(y * height - size / 2);
   const crop = `crop=${size}:${size}:${left}:${top}${rendered ? ",scale=64:64:flags=area" : ""}`;
-  await execFile("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", file, "-vf", `select=eq(n\\,${frame}),${crop},format=rgb24`, "-vsync", "0", "-frames:v", "1", "-f", "rawvideo", out]);
+  await execFile("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", file, "-vf", `select=eq(n\\,${frame}),${crop},format=rgb24`, "-fps_mode", "passthrough", "-frames:v", "1", "-f", "rawvideo", out]);
   return readFile(out);
 }
 
