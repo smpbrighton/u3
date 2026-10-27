@@ -49,7 +49,7 @@ const OverlayLayer: React.FC<{ props: U3ShortProps; index: number }> = ({ props,
   const edge = overlayEdgeStyle(clip.startTransition, clip.endTransition, frame, clip.durationInFrames, props.render.fps);
   const src = clip.kind === "meme" ? props.memes[clip.memeId!] : props.overlayInputs[clip.inputId!];
   if (!src) throw new Error(`겹친 영상 URL이 없습니다: ${clip.kind === "meme" ? clip.memeId : clip.inputId}`);
-  const style = overlayMediaStyle(clip, { ...edge, opacity: edge.opacity * (clip.opacity ?? 1) });
+  const style = overlayMediaStyle(clip, { ...edge, opacity: edge.opacity * (clip.opacity ?? 1) }, clip.kind === "meme" ? props.memeAspects?.[clip.memeId!] : undefined);
   if (clip.kind === "photo") return <Img data-u3-target={clip.id} src={src} style={style} />;
   const video = <Video data-u3-target={clip.id} src={src} muted trimBefore={clip.kind === "video" ? clip.sourceStartFrame ?? 0 : 0} loop={false} objectFit="contain" style={style} />;
   if (clip.kind !== "meme") return video;

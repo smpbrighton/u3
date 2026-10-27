@@ -106,9 +106,10 @@ export async function renderShort(options: RenderShortOptions) {
   const memeFiles = await resolveMemeFiles(memeIds, options.libraryFolder);
   const memes = Object.fromEntries(memeIds.map(id => [id, asUrl(memeFiles[id]!, options.libraryFolder, options.resolveMediaUrl)]));
   const memeFrames = Object.fromEntries(await Promise.all(memeIds.map(async (id) => [id, await videoFrames(memeFiles[id]!)] as const)));
+  const memeAspects = Object.fromEntries((await listMemes(options.libraryFolder)).filter((meme) => memeIds.includes(meme.id) && meme.width && meme.height).map((meme) => [meme.id, meme.height! / meme.width!]));
   const audio = render.audio.map((layer) => layer.file ? { ...layer, file: asUrl(layer.file, options.projectFolder, options.resolveMediaUrl, options.libraryFolder) } : layer);
   const overlayInputs = Object.fromEntries(render.overlay.filter((item) => item.inputId).map((item) => [item.inputId!, inputs[item.inputId!]!]));
-  const props: U3ShortProps = { render: { ...render, audio }, inputs, inputKinds, memes, overlayInputs, memeFrames };
+  const props: U3ShortProps = { render: { ...render, audio }, inputs, inputKinds, memes, overlayInputs, memeFrames, memeAspects };
   const serveUrl = await getBundle();
   const executable = options.browserExecutable ?? process.env.U3_CHROME_EXECUTABLE;
   const composition = await selectComposition({ serveUrl, id: "U3Short", inputProps: props, ...(executable ? { browserExecutable: executable } : {}) });

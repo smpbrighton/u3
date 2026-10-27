@@ -15,6 +15,8 @@ import { findOverlayInLayers, updateOverlayInLayers } from "../../core/timeline/
 
 const DEFAULT_MEDIA_ASPECT = 9 / 16;
 
+type MemeSource = { id: string; url: string; width?: number; height?: number };
+
 export function Preview(props: {
   project: Project;
   time: number;
@@ -34,14 +36,14 @@ export function Preview(props: {
   const [previewTimeline, setPreviewTimeline] = useState(props.project.timeline);
   useEffect(() => setPreviewTimeline(props.project.timeline), [props.project.timeline]);
   const [brand, setBrand] = useState<BrandSettings>(DEFAULT_BRAND_SETTINGS);
-  const [sources, setSources] = useState<{ inputs: Record<string, string>; memes: Record<string, string>; files: Record<string, string> }>({ inputs: {}, memes: {}, files: {} });
+  const [sources, setSources] = useState<{ inputs: Record<string, string>; memes: Record<string, string>; memeAspects: Record<string, number>; files: Record<string, string> }>({ inputs: {}, memes: {}, memeAspects: {}, files: {} });
   const render = useMemo(() => timelineToRender(previewTimeline, brand), [previewTimeline, brand]);
   const titleBarHeight = render.titleBar?.visible ? render.titleBar.height : undefined;
   const targets = useMemo<PreviewEditTarget[]>(() => {
     const currentFrame = Math.round(props.time * render.fps);
     const overlayTargets = render.overlay.filter((clip) => clip.startFrame <= currentFrame && currentFrame < clip.startFrame + clip.durationInFrames).map((clip) => ({
       id: clip.id, kind: "overlay" as const, canResize: true,
-      box: mediaTargetBox(clip, clip.width, mediaAspects[clip.id] ?? DEFAULT_MEDIA_ASPECT),
+      box: mediaTargetBox(clip, clip.width, (clip.kind === "meme" ? sources.memeAspects[clip.memeId!] : undefined) ?? mediaAspects[clip.id] ?? DEFAULT_MEDIA_ASPECT),
     }));
     const layers = captionLayersOf(previewTimeline);
     const captionTargets = layers.flatMap((layer) => {
@@ -55,7 +57,7 @@ export function Preview(props: {
     const watermark = render.watermark;
     const watermarkTarget = watermark?.visible ? [{ id: "watermark", kind: "watermark" as const, canResize: true, box: mediaTargetBox(watermark, watermark.width, mediaAspects.watermark ?? DEFAULT_MEDIA_ASPECT) }] : [];
     return [...overlayTargets, ...captionTargets, ...watermarkTarget];
-  }, [previewTimeline, props.time, render, mediaAspects]);
+  }, [previewTimeline, props.time, render, mediaAspects, sources.memeAspects]);
   const changeTarget = useCallback((timeline: Timeline, id: string, kind: PreviewEditTarget["kind"], box: NormalizedBox): Timeline => {
     if (kind === "overlay") return { ...timeline, overlays: updateOverlayInLayers(timeline.overlays, id, (clip) => ({ ...clip, x: box.x + box.width / 2, y: box.y + box.height / 2, width: box.width })) };
     if (kind === "caption-layer") return withCaptionLayers(timeline, captionLayersOf(timeline).map((layer) => layer.id === id ? { ...layer, x: box.x + box.width / 2, y: box.y + box.height } : layer));
@@ -104,13 +106,14 @@ export function Preview(props: {
     void (async () => {
       const [inputEntries, memeItems, fileEntries] = await Promise.all([
         Promise.all(props.project.inputs.map(async (input) => [input.id, await mediaUrl(props.project.id, input.file)] as const)),
-        api<{ id: string; url: string }[]>("GET", "/api/library/memes").catch(() => []),
+        api<MemeSource[]>("GET", "/api/library/memes").catch(() => []),
         Promise.all(render.audio.filter((layer) => layer.file && !layer.file.startsWith("http")).map(async (layer) => [layer.file!, libraryReferencePath(layer.file!)
           ? await libraryMediaUrl(layer.file!)
           : await mediaUrl(props.project.id, layer.file!)] as const)),
       ]);
       if (!active) return;
       const memeById = new Map(memeItems.map((item) => [item.id, item.url]));
+      const memeAspects = new Map(memeItems.flatMap((item) => item.width && item.height ? [[item.id, item.height / item.width] as const] : []));
       const referencedMemeIds = [
         ...render.video.filter((item) => item.kind === "meme").map((item) => item.memeId!),
         ...render.overlay.filter((item) => item.kind === "meme").map((item) => item.memeId!),
@@ -118,14 +121,19 @@ export function Preview(props: {
       ];
       const missingMemeIds = [...new Set(referencedMemeIds)].filter((id) => !memeById.has(id));
       const extraMemes = await Promise.all(missingMemeIds.map(async (id) => {
-        const matches = await api<{ id: string; url: string }[]>("GET", `/api/library/memes?q=${encodeURIComponent(id)}`).catch(() => []);
+        const matches = await api<MemeSource[]>("GET", `/api/library/memes?q=${encodeURIComponent(id)}`).catch(() => []);
         return matches.find((item) => item.id === id);
       }));
       if (!active) return;
-      extraMemes.forEach((item) => { if (item) memeById.set(item.id, item.url); });
+      extraMemes.forEach((item) => {
+        if (!item) return;
+        memeById.set(item.id, item.url);
+        if (item.width && item.height) memeAspects.set(item.id, item.height / item.width);
+      });
       setSources({
         inputs: Object.fromEntries(inputEntries),
         memes: Object.fromEntries(memeById),
+        memeAspects: Object.fromEntries(memeAspects),
         files: { ...Object.fromEntries(fileEntries), ...Object.fromEntries(render.audio.filter((layer) => layer.file?.startsWith("http")).map((layer) => [layer.file!, layer.file!])) },
       });
     })().catch(() => {});
@@ -145,6 +153,7 @@ export function Preview(props: {
     memes: sources.memes,
     overlayInputs: sources.inputs,
     memeFrames: {},
+    memeAspects: sources.memeAspects,
   }), [props.project.id, props.project.inputs, render, sources, props.muteOriginal]);
 
   useEffect(() => {

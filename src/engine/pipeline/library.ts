@@ -16,6 +16,8 @@ export type LibraryEntry = {
   source?: string;
   license?: string;
   durationSec?: number;
+  width?: number;
+  height?: number;
 };
 
 const memeCache = new Map<string, { signature: string; result: Promise<LibraryEntry[]> }>();

@@ -213,6 +213,7 @@ export const MemeMeta = z.object({
   id: z.string().min(1), emotion: z.string().min(1), situations: z.array(z.string()),
   importedAt: z.string(), tagsConfirmed: z.boolean(), description: z.string().optional(),
   durationSec: z.number().positive().optional(), file: z.string().optional(),
+  width: z.number().positive().optional(), height: z.number().positive().optional(),
 });
 export type MemeMeta = z.infer<typeof MemeMeta>;
 
