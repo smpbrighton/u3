@@ -10,7 +10,10 @@ bge-m3 모델이 없거나 임베딩·Jev 판정이 실패하면 짤 순위를 �
 - 설치 앱 수동 확인에서 bge-m3 2.1 GB 다운로드, 60초 음성 분리 23.4초, 60초 받아 적기 2.5초 및 CER 4.42%를 기록했다. 이 측정은 대체 미디어를 사용했고 실제 숏폼 원본은 아니다. `docs/manual-check.md` `git:1cfc7e35c4af2fa3d58d6a017a83d21556c39740:`
 - Whisper 모델 받기 진행률, 서명 빌드에서의 마이크 녹음은 미실행으로 남아 있다. `docs/manual-check.md`
 
+- TTS 모델의 다운로드와 생성 검증 상태는 [로컬 TTS](concept-local-tts.md)에 정리한다. `src/engine/pipeline/models.ts` `architecture/changes/040-qwen-tts/spec.md`
+
 ## 관계
+- [로컬 TTS](concept-local-tts.md)
 - [U3 데스크톱 앱](entity-desktop-app.md)
 - [엔진 종료](entity-engine-shutdown.md)
 - [캐러셀 생성](concept-carousel.md)

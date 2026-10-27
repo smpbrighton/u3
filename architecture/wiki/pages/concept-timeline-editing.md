@@ -28,7 +28,10 @@ U3 타임라인은 영상·자막·음성·효과음 트랙을 저장하고, 영
 - 자막 폭 측정에서 이모지 grapheme 하나를 1em으로 계산한다. 이모지가 들어간 MP4 렌더와 줄바꿈, 실제 대본 추천 및 설정 화면의 실행 증거는 코드에서 못 찾음. `src/core/measure.ts` `tests/core/measure-emoji.test.ts` `architecture/changes/039-script-voice/plan.md` `git:a4eeca8:`
 - 말투 규칙과 이모지 폭의 테스트가 추가되었으나 해당 변경의 테스트 실행 출력과 `pnpm verify` 통과 기록은 코드에서 못 찾음. `tests/core/script-style.test.ts` `tests/server/script-style.test.ts` `tests/core/measure-emoji.test.ts` `architecture/changes/039-script-voice/plan.md`
 
+- 자막 단위 음성 생성과 목소리 트랙 배치는 [로컬 TTS](concept-local-tts.md)에 정리한다. `src/core/tts-clips.ts` `src/ui/screens/Studio.tsx`
+
 ## 관계
+- [로컬 TTS](concept-local-tts.md)
 - [U3 데스크톱 앱](entity-desktop-app.md)
 - [로컬 모델과 리소스](concept-local-models.md)
 - [캐러셀 생성](concept-carousel.md)

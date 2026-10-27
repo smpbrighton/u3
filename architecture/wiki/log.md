@@ -45,3 +45,11 @@
 - `index.md`
 - 계획 및 테스트 선행 커밋 `e0ecd51`, `fc4196e`, `589f0bb`, `2c9da33`, `37205a1`과 테스트 컨텍스트 수정 `2e1f1a0`은 구현과 함께 반영했으며 별도 페이지는 없다.
 - 039·042 계획의 실행 출력과 수동 검증 증거는 코드에서 못 찾음. 미검증 항목을 기능 페이지에 남겼다. `architecture/changes/039-script-voice/plan.md` `architecture/changes/042-carousel-image-view/plan.md`
+
+## [2026-10-27] ingest | 040 qwen-tts
+- `pages/concept-local-tts.md`
+- `pages/concept-local-models.md`
+- `pages/concept-timeline-editing.md`
+- `index.md`
+- 설계 승인·review·계획 승인 커밋 `ec00382`, `40c5a94`, `0891658`과 테스트 선행 커밋 `d401836`은 별도 페이지 없이 구현 및 검증 상태에 반영했다.
+- 스파이크 커밋 `ede8fe7`, `55d1486`, `fb5e5c0`, 계획 반영 커밋 `6839136`, 구현 커밋 `910cddc`를 TTS 페이지에 반영했다.
