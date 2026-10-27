@@ -10,11 +10,11 @@ describe("W38 caption layers", () => {
     expect(swapCaptionRows(layer)).toMatchObject({ main: layer.sub, sub: layer.main });
   });
 
-  it("creates sub captions at the same times as main captions and carries title", () => {
+  it("creates sub captions at the same times as main captions without automatically filling title", () => {
     const script = CodexScript.parse({ title: "새 제목", scenes: [{ inputIndex: 1, startSec: 0, endSec: 2, caption: "한글", subCaption: "English", reaction: "none", sfxCategory: null }] });
     const timeline = timelineFromScript(script, [{ id: "i", kind: "video", file: "x.mp4", durationSec: 2 }]);
     expect(timeline.captionLayers?.[0]?.sub).toMatchObject([{ startSec: 0, endSec: 2, text: "English" }]);
-    expect(timeline.brand?.titleBar?.text).toBe("새 제목");
+    expect(timeline.brand?.titleBar?.text).toBeUndefined();
   });
 
   it("accepts review changes to subCaption and title", () => {

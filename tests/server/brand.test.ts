@@ -40,7 +40,7 @@ describe("brand settings and watermark API", () => {
     const value = { watermark: { file: "watermark.png", x: 0.4, y: 0.08, width: 0.2, opacity: 0.75 }, titleBar: { height: 180, bgColor: "#123ABC", bgOpacity: 0.4, font: "gmarket", fontSize: 48, color: "#abcdef" } };
     const saved = await app.request("http://127.0.0.1/api/system/brand", { method: "PUT", headers, body: JSON.stringify(value) });
     expect(saved.status).toBe(200);
-    expect(await saved.json()).toEqual(value);
+    expect(await saved.json()).toEqual({ ...value, titleBar: { ...value.titleBar, kind: "text", text: "" } });
     expect(await store.readSettings()).toMatchObject({ brand: value });
 
     for (const invalid of [
@@ -91,5 +91,32 @@ describe("brand settings and watermark API", () => {
     const result = await response.json() as { id: string };
     await jobs.wait(result.id);
     expect(rendered).toHaveBeenCalledWith(expect.objectContaining({ brand: expect.objectContaining({ watermark: expect.objectContaining({ file: "watermark.png" }) }) }));
+  });
+});
+
+describe("타이틀 이미지 API", () => {
+  it("전용 이미지 한 장을 저장하고 지워도 워터마크와 글·스타일은 유지한다", async () => {
+    const {app,store,root} = await appAt();
+    const initial = await (await app.request("/api/system/brand",{headers})).json();
+    await store.saveSettings({brand:{...initial,watermark:{file:"watermark.png",x:.5,y:.1,width:.2,opacity:1},titleBar:{...initial.titleBar,text:"기본 제목",height:220}}});
+    const source = path.join(root,"title.png");
+    await writeFile(source,pngFixture());
+    const uploaded = await app.request("/api/system/brand/title-image",{method:"POST",headers,body:JSON.stringify({path:source})});
+    expect(uploaded.status).toBe(200);
+    expect(await uploaded.json()).toMatchObject({file:"title.png",watermark:{file:"watermark.png"},titleBar:{kind:"image",file:"title.png",text:"기본 제목",height:220}});
+    expect(await readFile(path.join(root,"brand/title.png"))).toEqual(pngFixture());
+    const deleted = await app.request("/api/system/brand/title-image",{method:"DELETE",headers});
+    expect(deleted.status).toBe(200);
+    const result = await deleted.json();
+    expect(result.titleBar).not.toHaveProperty("file");
+    expect(result).toMatchObject({watermark:{file:"watermark.png"},titleBar:{text:"기본 제목",height:220}});
+    await expect(readFile(path.join(root,"brand/title.png"))).rejects.toThrow();
+  });
+  it("지원하지 않는 파일과 잘못된 이미지의 업로드를 거부한다",async()=>{
+    const {app,root} = await appAt();
+    for(const name of ["bad.gif","bad.png"]){
+      const source=path.join(root,name);await writeFile(source,"GIF89a");
+      expect((await app.request("/api/system/brand/title-image",{method:"POST",headers,body:JSON.stringify({path:source})})).status).toBe(400);
+    }
   });
 });
