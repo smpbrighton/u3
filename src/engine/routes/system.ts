@@ -84,6 +84,35 @@ export function registerSystemRoutes(app: Hono, context: AppContext): void {
     return c.json(next);
   });
 
+  app.post("/api/system/brand/title-image", async c => {
+    const { path: source } = await parseJson(c, z.object({ path: z.string().trim().min(1) }));
+    let image: Awaited<ReturnType<typeof validateBrandImage>>;
+    try { image = await validateBrandImage(source, "타이틀 이미지"); }
+    catch (error) { throw new HttpError(400, "invalid-title-image", error instanceof Error ? error.message : "타이틀 이미지를 확인할 수 없습니다"); }
+    const root = path.join(context.store.root, "brand");
+    const filename = `title${image.extension}`;
+    await mkdir(root, { recursive: true });
+    await copyFile(source, path.join(root, filename));
+    const settings = await context.store.readSettings();
+    const parsed = BrandSettings.safeParse(settings.brand);
+    const existing = parsed.success ? parsed.data : DEFAULT_BRAND_SETTINGS;
+    const brand = { ...existing, titleBar: { ...existing.titleBar, kind: "image" as const, file: filename } };
+    await context.store.saveSettings({ ...settings, brand });
+    if (existing.titleBar.file && existing.titleBar.file !== filename) await rm(path.join(root, existing.titleBar.file), { force: true });
+    return c.json({ ...brand, file: filename });
+  });
+
+  app.delete("/api/system/brand/title-image", async c => {
+    const settings = await context.store.readSettings();
+    const parsed = BrandSettings.safeParse(settings.brand);
+    const brand = parsed.success ? parsed.data : DEFAULT_BRAND_SETTINGS;
+    const { file, ...titleBar } = brand.titleBar;
+    if (file) await rm(path.join(context.store.root, "brand", file), { force: true });
+    const next = { ...brand, titleBar };
+    await context.store.saveSettings({ ...settings, brand: next });
+    return c.json(next);
+  });
+
   app.get("/api/system/intro-sfx", async c => {
     const settings = await context.store.readSettings();
     const parsed = IntroSfx.safeParse(settings.introSfx);

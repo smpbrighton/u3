@@ -96,9 +96,12 @@ export async function resolveMemeFiles(ids: readonly string[], libraryFolder: st
 
 export async function renderShort(options: RenderShortOptions) {
   const brandRoot = path.resolve(options.projectFolder, "../../brand");
-  const brand = options.brand?.watermark?.file
-    ? { ...options.brand, watermark: { ...options.brand.watermark, file: options.resolveMediaUrl?.(path.resolve(brandRoot, options.brand.watermark.file)) ?? path.resolve(brandRoot, options.brand.watermark.file) } }
-    : options.brand;
+  const brandFile = (file: string) => options.resolveMediaUrl?.(path.resolve(brandRoot, file)) ?? path.resolve(brandRoot, file);
+  const brand = options.brand ? {
+    ...options.brand,
+    ...(options.brand.watermark?.file ? { watermark: { ...options.brand.watermark, file: brandFile(options.brand.watermark.file) } } : {}),
+    ...(options.brand.titleBar ? { titleBar: { ...options.brand.titleBar, ...(options.brand.titleBar.file ? { file: brandFile(options.brand.titleBar.file) } : {}) } } : {}),
+  } : undefined;
   const render = timelineToRender(options.timeline, brand);
   const inputs = Object.fromEntries(options.inputs.map((input) => [input.id, input.url ?? asUrl(input.file, options.projectFolder, options.resolveMediaUrl)]));
   const inputKinds = Object.fromEntries(options.inputs.map((input) => [input.id, input.kind]));

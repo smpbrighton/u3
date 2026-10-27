@@ -118,16 +118,16 @@ export type CaptionLayer = z.infer<typeof CaptionLayer>;
 const HexColor = z.string().regex(/^#[0-9a-fA-F]{6}$/, "색상은 #RRGGBB 형식이어야 합니다");
 export const BrandSettings = z.object({
   watermark: z.object({ file: z.string().regex(/^watermark\.(png|jpg|webp)$/).optional(), x: z.number().min(0).max(1), y: z.number().min(0).max(1), width: z.number().positive().max(1), opacity: z.number().min(0).max(1) }).optional(),
-  titleBar: z.object({ height: z.number().min(40).max(600), bgColor: HexColor, bgOpacity: z.number().min(0).max(1), font: z.enum(["pretendard", "gmarket", "tmon"]), fontSize: z.number().min(12).max(200), color: HexColor }),
+  titleBar: z.object({ kind: z.enum(["text", "image"]).default("text"), text: z.string().max(30).default(""), file: z.string().regex(/^title\.(png|jpg|webp)$/).optional(), height: z.number().min(40).max(600), bgColor: HexColor, bgOpacity: z.number().min(0).max(1), font: z.enum(["pretendard", "gmarket", "tmon"]), fontSize: z.number().min(12).max(200), color: HexColor }),
 });
 export type BrandSettings = z.infer<typeof BrandSettings>;
 export const DEFAULT_BRAND_SETTINGS: BrandSettings = {
   watermark: { x: 0.5, y: 0.08, width: 0.2, opacity: 1 },
-  titleBar: { height: 160, bgColor: "#000000", bgOpacity: 0.62, font: "pretendard", fontSize: 56, color: "#FFFFFF" },
+  titleBar: { kind: "text", text: "", height: 160, bgColor: "#000000", bgOpacity: 0.62, font: "pretendard", fontSize: 56, color: "#FFFFFF" },
 };
 export const TimelineBrand = z.object({
   watermark: z.object({ enabled: z.boolean().optional(), x: z.number().min(0).max(1).optional(), y: z.number().min(0).max(1).optional(), width: z.number().positive().max(1).optional(), opacity: z.number().min(0).max(1).optional() }).optional(),
-  titleBar: z.object({ enabled: z.boolean().optional(), text: z.string().max(30), height: z.number().positive().optional(), fontSize: z.number().positive().optional(), opacity: z.number().min(0).max(1).optional() }).optional(),
+  titleBar: z.object({ enabled: z.boolean().optional(), kind: z.enum(["text", "image"]).optional(), text: z.string().max(30).optional(), height: z.number().positive().optional(), fontSize: z.number().positive().optional(), opacity: z.number().min(0).max(1).optional() }).optional(),
 });
 export type TimelineBrand = z.infer<typeof TimelineBrand>;
 export const Timeline = z.object({

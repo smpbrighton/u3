@@ -5,7 +5,7 @@ import type { U3ShortProps } from "../../remotion/types";
 
 const previewBackground = `data:image/svg+xml,${encodeURIComponent('<svg xmlns="http://www.w3.org/2000/svg" width="1080" height="1920"><rect width="100%" height="100%" fill="#888888"/></svg>')}`;
 
-export function BrandPreview(props: { brand: BrandSettings; watermarkUrl: string | null }) {
+export function BrandPreview(props: { brand: BrandSettings; layer: "watermark" | "titleBar"; watermarkUrl?: string | null; titleImageUrl?: string | null }) {
   const { brand } = props;
   const playerProps: U3ShortProps = {
     render: {
@@ -13,8 +13,10 @@ export function BrandPreview(props: { brand: BrandSettings; watermarkUrl: string
       video: [{ id: "preview-background", kind: "main", startFrame: 0, durationInFrames: 1, inputId: "preview-background" }],
       overlay: [], captions: [], audio: [], transitions: [], durationInFrames: 1,
       titleBar: {
-        visible: true,
-        text: "타이틀 미리보기",
+        visible: props.layer === "titleBar" && Boolean(brand.titleBar.kind === "image" ? props.titleImageUrl : brand.titleBar.text),
+        kind: brand.titleBar.kind,
+        text: brand.titleBar.text,
+        ...(props.titleImageUrl ? { file: props.titleImageUrl } : {}),
         height: brand.titleBar.height,
         font: brand.titleBar.font,
         fontSize: brand.titleBar.fontSize,
@@ -23,7 +25,7 @@ export function BrandPreview(props: { brand: BrandSettings; watermarkUrl: string
         bgOpacity: brand.titleBar.bgOpacity,
         opacity: 1,
       },
-      ...(brand.watermark?.file && props.watermarkUrl ? { watermark: {
+      ...(props.layer === "watermark" && brand.watermark?.file && props.watermarkUrl ? { watermark: {
         visible: true,
         file: props.watermarkUrl,
         x: brand.watermark.x,
@@ -37,7 +39,7 @@ export function BrandPreview(props: { brand: BrandSettings; watermarkUrl: string
     memes: {}, overlayInputs: {}, memeFrames: {},
   };
 
-  return <div className="brand-preview-wrap" aria-label="브랜드 미리보기">
+  return <div className="brand-preview-wrap" aria-label={props.layer === "watermark" ? "워터마크 미리보기" : "타이틀 바 미리보기"}>
     <Player component={U3Short} inputProps={playerProps} durationInFrames={1} fps={30} compositionWidth={1080} compositionHeight={1920} controls={false} acknowledgeRemotionLicense style={{ width: "100%", height: "100%" }} />
   </div>;
 }

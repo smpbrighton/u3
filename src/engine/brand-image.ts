@@ -43,16 +43,16 @@ function dimensions(bytes: Buffer, extension: string): { width: number; height: 
   return null;
 }
 
-export async function validateBrandImage(file: string): Promise<{ extension: ".png" | ".jpg" | ".webp"; size: number }> {
+export async function validateBrandImage(file: string, label = "워터마크"): Promise<{ extension: ".png" | ".jpg" | ".webp"; size: number }> {
   const extension = path.extname(file).toLowerCase();
-  if (extension !== ".png" && extension !== ".jpg" && extension !== ".jpeg" && extension !== ".webp") throw new Error("워터마크는 PNG, JPG, WebP 파일만 사용할 수 있습니다");
+  if (extension !== ".png" && extension !== ".jpg" && extension !== ".jpeg" && extension !== ".webp") throw new Error(`${label}는 PNG, JPG, WebP 파일만 사용할 수 있습니다`);
   const info = await stat(file);
-  if (!info.isFile() || info.size === 0 || info.size > MAX_BRAND_IMAGE_BYTES) throw new Error("워터마크 파일은 10 MB 이하이어야 합니다");
+  if (!info.isFile() || info.size === 0 || info.size > MAX_BRAND_IMAGE_BYTES) throw new Error(`${label} 파일은 10 MB 이하이어야 합니다`);
   const bytes = await readFile(file);
-  if (bytes.length !== info.size) throw new Error("워터마크 파일을 확인할 수 없습니다");
+  if (bytes.length !== info.size) throw new Error(`${label} 파일을 확인할 수 없습니다`);
   const size = dimensions(bytes, extension);
   if (!size || size.width < 1 || size.height < 1 || size.width > MAX_BRAND_IMAGE_DIMENSION || size.height > MAX_BRAND_IMAGE_DIMENSION) {
-    throw new Error("워터마크 이미지의 형식 또는 크기가 올바르지 않습니다");
+    throw new Error(`${label}의 형식 또는 크기가 올바르지 않습니다`);
   }
   return { extension: extension === ".jpeg" ? ".jpg" : extension, size: bytes.length };
 }

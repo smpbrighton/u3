@@ -28,9 +28,10 @@ export function StudioTextInput(props: {
   onBlur?: () => void;
   onKeyDown?: React.KeyboardEventHandler<HTMLInputElement>;
   maxLength?: number;
+  placeholder?: string;
   disabled?: boolean;
 }) {
-  return <TextField aria-label={props.label} value={props.value} onValueChange={values => props.onChange(values.value)}><TextFieldInput inputMode={props.inputMode} maxLength={props.maxLength} onBlur={props.onBlur} onKeyDown={props.onKeyDown} disabled={props.disabled} /></TextField>;
+  return <TextField aria-label={props.label} value={props.value} onValueChange={values => props.onChange(values.value)}><TextFieldInput aria-label={props.label} placeholder={props.placeholder} inputMode={props.inputMode} maxLength={props.maxLength} onBlur={props.onBlur} onKeyDown={props.onKeyDown} disabled={props.disabled} /></TextField>;
 }
 
 export function StudioTextarea(props: { label: string; value: string; rows: number; onChange: (value: string) => void }) {

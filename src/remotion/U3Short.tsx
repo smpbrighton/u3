@@ -157,7 +157,7 @@ const BrandTitleBar: React.FC<{ titleBar: NonNullable<U3ShortProps["render"]["ti
 
   return <AbsoluteFill style={{ pointerEvents: "none", alignItems: "center", justifyContent: "center", height: titleBar.height }}>
     <div style={{ position: "absolute", inset: 0, backgroundColor: colorWithAlpha(titleBar.bgColor, titleBar.bgOpacity * titleBar.opacity) }} />
-    <div style={{ position: "relative", width: "100%", padding: `0 ${CAPTION_PAD_X}px`, boxSizing: "border-box", color: titleBar.color, fontFamily, fontSize, fontWeight, textAlign: "center", opacity: titleBar.opacity, whiteSpace: "nowrap" }}>{titleBar.text}</div>
+    {titleBar.kind === "image" ? titleBar.file ? <Img src={titleBar.file} alt="타이틀 이미지" style={{ position: "relative", width: 1080 - 2 * CAPTION_PAD_X, height: Math.max(0, titleBar.height - 2 * CAPTION_PAD_Y), objectFit: "contain", opacity: titleBar.opacity }} /> : null : <div style={{ position: "relative", width: "100%", padding: `0 ${CAPTION_PAD_X}px`, boxSizing: "border-box", color: titleBar.color, fontFamily, fontSize, fontWeight, textAlign: "center", opacity: titleBar.opacity, whiteSpace: "nowrap" }}>{titleBar.text}</div>}
   </AbsoluteFill>;
 };
 

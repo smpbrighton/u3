@@ -116,7 +116,7 @@ export function timelineFromScript(script: CodexScript, inputs: readonly Input[]
 
   return {
     video, overlays, captions,
-    captionLayers: [{ id: "caption-layer-1", name: "자막", x: 0.5, y: 1480 / 1920, style: DEFAULT_CAPTION_STYLE, main: captions, sub: subCaptions }], brand: { titleBar: { text: script.title ?? "" } }, voice: [], sfx,
+    captionLayers: [{ id: "caption-layer-1", name: "자막", x: 0.5, y: 1480 / 1920, style: DEFAULT_CAPTION_STYLE, main: captions, sub: subCaptions }], voice: [], sfx,
     audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } },
   };
 }

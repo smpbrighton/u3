@@ -90,7 +90,7 @@ export interface RenderTimeline {
   audio: RenderAudioLayer[];
   transitions: RenderTransition[];
   drawOrder?: ["video", "overlay", "captions", "titleBar", "watermark"];
-  titleBar?: { visible: boolean; text: string; height: number; font: string; fontSize: number; color: string; bgColor: string; bgOpacity: number; opacity: number };
+  titleBar?: { visible: boolean; kind: "text" | "image"; file?: string; text: string; height: number; font: string; fontSize: number; color: string; bgColor: string; bgOpacity: number; opacity: number };
   watermark?: { visible: boolean; file: string; x: number; y: number; width: number; opacity: number };
   durationInFrames: number;
 }
@@ -123,7 +123,7 @@ function boundaryTransition(left: ClipTransition, right: ClipTransition): ClipTr
 
 export interface RenderBrandSettings {
   watermark?: { file?: string; x: number; y: number; width: number; opacity: number };
-  titleBar?: { height: number; bgColor: string; bgOpacity: number; font: string; fontSize: number; color: string };
+  titleBar?: { kind?: "text" | "image"; text?: string; file?: string; height: number; bgColor: string; bgOpacity: number; font: string; fontSize: number; color: string };
 }
 
 export function timelineToRender(timeline: Timeline, brand?: RenderBrandSettings): RenderTimeline {
@@ -283,15 +283,16 @@ export function timelineToRender(timeline: Timeline, brand?: RenderBrandSettings
   );
   const titleConfig = brand?.titleBar;
   const title = timeline.brand?.titleBar;
-  const titleText = title?.text ?? "";
-  const titleVisible = title?.enabled ?? Boolean(titleText);
+  const titleKind = title?.kind ?? titleConfig?.kind ?? "text";
+  const titleText = title?.text || titleConfig?.text || "";
+  const titleVisible = title?.enabled ?? Boolean(titleKind === "image" ? titleConfig?.file : titleText);
   const watermarkConfig = brand?.watermark;
   const watermark = timeline.brand?.watermark;
   const watermarkVisible = watermark?.enabled ?? Boolean(watermarkConfig?.file);
   return {
     fps: RENDER_FPS, video, overlay, captions, audio, transitions, durationInFrames,
     drawOrder: ["video", "overlay", "captions", "titleBar", "watermark"],
-    ...(titleConfig ? { titleBar: { visible: titleVisible && Boolean(titleText), text: titleText, height: title?.height ?? titleConfig.height, font: titleConfig.font, fontSize: title?.fontSize ?? titleConfig.fontSize, color: titleConfig.color, bgColor: titleConfig.bgColor, bgOpacity: titleConfig.bgOpacity, opacity: title?.opacity ?? 1 } } : {}),
+    ...(titleConfig ? { titleBar: { visible: titleVisible, kind: titleKind, ...(titleConfig.file ? { file: titleConfig.file } : {}), text: titleText, height: title?.height ?? titleConfig.height, font: titleConfig.font, fontSize: title?.fontSize ?? titleConfig.fontSize, color: titleConfig.color, bgColor: titleConfig.bgColor, bgOpacity: titleConfig.bgOpacity, opacity: title?.opacity ?? 1 } } : {}),
     ...(watermarkConfig?.file ? { watermark: { visible: watermarkVisible, file: watermarkConfig.file, x: watermark?.x ?? watermarkConfig.x, y: watermark?.y ?? watermarkConfig.y, width: watermark?.width ?? watermarkConfig.width, opacity: watermark?.opacity ?? watermarkConfig.opacity } } : {}),
   };
 }

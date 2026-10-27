@@ -98,7 +98,11 @@ export function Preview(props: {
   useEffect(() => {
     let active = true;
     void api<BrandSettings>("GET", "/api/system/brand").then(async value => {
-      const preview = value.watermark?.file ? { ...value, watermark: { ...value.watermark, file: await brandMediaUrl(value.watermark.file) } } : value;
+      const preview = {
+        ...value,
+        ...(value.watermark?.file ? { watermark: { ...value.watermark, file: await brandMediaUrl(value.watermark.file) } } : {}),
+        titleBar: { ...value.titleBar, ...(value.titleBar.file ? { file: await brandMediaUrl(value.titleBar.file) } : {}) },
+      };
       if (active) setBrand(preview);
     }).catch(() => undefined);
     return () => { active = false; };
