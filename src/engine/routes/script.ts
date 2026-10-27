@@ -53,7 +53,6 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
       progress(0.1, "Codex 실행 중");
       const settings = await context.store.readSettings();
       const voice = {
-        speaker: typeof settings.scriptSpeaker === "string" ? settings.scriptSpeaker : "",
         tone: typeof settings.scriptTone === "string" ? settings.scriptTone : "",
         persona: typeof settings.scriptPersona === "string" ? settings.scriptPersona : "",
       };

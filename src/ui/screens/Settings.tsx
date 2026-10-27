@@ -22,10 +22,10 @@ type ModelStatus = {
 type CodexModel = { slug: string; displayName: string; efforts: string[] };
 type CodexModelCatalog = { source: "codex-cli" | "fallback"; models: CodexModel[] };
 type ScriptPromptSettings = { prompt: string; isDefault: boolean; rulesPreview: string };
-type ScriptVoiceField = "speaker" | "tone" | "persona" | "review";
+type ScriptVoiceField = "tone" | "persona" | "review";
 type ScriptVoiceSettings = Record<ScriptVoiceField, string>;
 type IntroSfxSetting = { enabled: boolean; ref: string; atSec: number; title: string; durationSec: number };
-const DEFAULT_SCRIPT_VOICE: ScriptVoiceSettings = { speaker: "", tone: "", persona: "", review: DEFAULT_SCRIPT_REVIEW_PROMPT };
+const DEFAULT_SCRIPT_VOICE: ScriptVoiceSettings = { tone: "", persona: "", review: DEFAULT_SCRIPT_REVIEW_PROMPT };
 type ImageOptions = { model: "flare" | "sunburst"; quality: "low" | "medium" | "high" | "auto"; aspect: "4:5" | "1:1" | "9:16" | "16:9"; concurrency: number };
 
 export function Settings(props: { onSnackbar: (message: string) => void; onError: (message: string) => void }) {
@@ -351,7 +351,7 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
             <ActionButton variant="brandSolid" disabled={scriptPromptLoading || scriptPromptSaving || scriptPrompt === savedScriptPrompt} loading={scriptPromptSaving} onClick={() => void saveScriptPrompt()}>저장</ActionButton>
           </div>
           <div className="script-voice-fields">
-            {(["speaker", "tone", "persona", "review"] as const).map(field => <div className="script-voice-field" key={field}>
+            {(["tone", "persona", "review"] as const).map(field => <div className="script-voice-field" key={field}>
               <TextField
                 label={scriptVoiceLabel(field)}
                 description={field === "review" ? "대본을 검수할 때 적용할 지시문이에요." : "비워 두면 언어집에서 AI가 선택해요."}
@@ -374,7 +374,7 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
 }
 
 function scriptVoiceLabel(field: ScriptVoiceField): string {
-  return ({ speaker: "화자", tone: "말투", persona: "성격", review: "자막 검수" })[field];
+  return ({ tone: "말투", persona: "성격", review: "자막 검수" })[field];
 }
 
 function ModelSelect(props: { label: string; value: string; items: Array<{ value: string; label: string }>; onChange: (value: string) => void }) {

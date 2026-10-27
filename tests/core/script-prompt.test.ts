@@ -10,17 +10,17 @@ describe("buildScriptPrompt", () => {
     expect(DEFAULT_SCRIPT_PROMPT).not.toMatch(/\{\{|visual|upload|emphasis|revealWord|TTS|나레이션|상품:/i);
   });
 
-  it("기본 지침, 사용자 요청, 화자 설정, 형식 규칙 순서로 조립한다", () => {
+  it("기본 지침, 사용자 요청, 말투·성격 설정, 형식 규칙 순서로 조립한다", () => {
     expect(buildScriptPrompt({
       mode: "direct", basePrompt: "기본 지침", userPrompt: "사용자 요청", formatRules: "형식 규칙",
-      voice: { speaker: "화자 설정", tone: "말투 설정", persona: "성격 설정" },
-    })).toBe("기본 지침\n\n사용자 요청:\n사용자 요청\n\n화자:\n화자 설정\n\n말투:\n말투 설정\n\n성격:\n성격 설정\n\n형식 규칙");
+      voice: { tone: "말투 설정", persona: "성격 설정" },
+    })).toBe("기본 지침\n\n사용자 요청:\n사용자 요청\n\n말투:\n말투 설정\n\n성격:\n성격 설정\n\n형식 규칙");
   });
 
-  it("비어 있는 화자 설정은 생략하고 AI 모드에서는 사용자 요청을 넣지 않는다", () => {
+  it("비어 있는 말투·성격 설정은 생략하고 AI 모드에서는 사용자 요청을 넣지 않는다", () => {
     expect(buildScriptPrompt({
       mode: "ai", basePrompt: "기본 지침", userPrompt: "무시", formatRules: "형식 규칙",
-      voice: { speaker: "  ", tone: "", persona: "성격 설정" },
+      voice: { tone: "", persona: "성격 설정" },
     })).toBe("기본 지침\n\n성격:\n성격 설정\n\n형식 규칙");
   });
 });

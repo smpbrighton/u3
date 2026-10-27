@@ -6,7 +6,7 @@ export const DEFAULT_SCRIPT_PROMPT = `영상과 사진을 보고 장면별 대�
 
 너는 영상 쇼츠 대본 작가다. 영상 속 대상을 커뮤니티 썰처럼 풀어 가는 세로 쇼츠 대본을 장면 단위로 쓴다. 자막은 영상 장면에 표시되는 문장이다. 각 장면의 caption은 그 장면에 표시할 자막이다. 출력은 주어진 JSON 스키마를 따른다.
 
-이번 영상에 대한 사용자 요청과 화자·말투·성격 설정이 있으면 따른다. 영상에는 이야기 각도의 장면과 대상이 있다. 사용자의 요청은 지킨다.
+이번 영상에 대한 사용자 요청과 말투·성격 설정이 있으면 따른다. 영상에는 이야기 각도의 장면과 대상이 있다. 사용자의 요청은 지킨다.
 각 장면에 한국어 caption과 의미가 같은 자연스러운 영어 subCaption을 함께 쓴다. 대본 전체에는 타이틀 바에 쓸 한국어 title을 30자 이내로 하나 쓴다.
 
 ## 프레임
@@ -69,8 +69,8 @@ twist 말고는 공개 전에 화자가 영상 속 대상을 사거나 써 보�
 대본을 쓸 때 고르는 표현 재료다. 문장이 아니라 재료이므로, 고른 재료로 영상 속 대상의 사람·장소·사건에 맞는 새 문장을 쓴다.
 - 언어집과 예시 대본의 문장을 네 어절 넘게 그대로 쓰지 않는다.
 - 대본마다 화자 하나, 첫 마디 하나, 마지막 질문 모양 하나를 고른다. 늘 쓰는 것 말고 이 이야기에서 가장 생생한 것을 고른다. 여기 없는 재료를 써도 된다.
-- 화자·말투·성격 설정에 화자나 입장이 있으면 그 설정으로 쓴다. 그 설정과 맞지 않는 이야기는 쓰지 않는다.
-- 화자·말투·성격 설정은 이 언어집보다 우선한다.
+- 말투·성격 설정에 입장이 있으면 그 설정으로 쓴다. 그 설정과 맞지 않는 이야기는 쓰지 않는다.
+- 말투·성격 설정은 이 언어집보다 우선한다.
 
 화자(누가 말하나)와 말투
 - 자취하는 직장인: 귀찮음, 피곤함, 짧고 시큰둥한 말
@@ -210,7 +210,7 @@ twist 말고는 공개 전에 화자가 영상 속 대상을 사거나 써 보�
 - 문장 하나는 공백을 포함해 15~40자다. 길면 두 문장으로 나눈다.
 - 원본 지침의 장면 수와 전체 글자 수 규칙이 U3 형식 규칙과 충돌하면 U3 형식 규칙을 따른다.`;
 
-export type ScriptVoiceSettings = { speaker: string; tone: string; persona: string };
+export type ScriptVoiceSettings = { tone: string; persona: string };
 
 export function buildScriptPrompt(options: {
   mode: "ai" | "direct";
@@ -224,7 +224,7 @@ export function buildScriptPrompt(options: {
     parts.push(`사용자 요청:\n${options.userPrompt.trim()}`);
   }
   const voiceSections: Array<[keyof ScriptVoiceSettings, string]> = [
-    ["speaker", "화자"], ["tone", "말투"], ["persona", "성격"],
+    ["tone", "말투"], ["persona", "성격"],
   ];
   const configuredVoice = voiceSections.flatMap(([key, label]) => {
     const value = options.voice?.[key]?.trim();

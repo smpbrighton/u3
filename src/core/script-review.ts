@@ -48,10 +48,10 @@ export function buildScriptReviewPrompt(options: {
   reviewPrompt: string;
   draft: unknown;
   userPrompt?: string;
-  voice: { speaker: string; tone: string; persona: string };
+  voice: { tone: string; persona: string };
 }): string {
   const sections = [
-    ["화자", options.voice.speaker], ["말투", options.voice.tone], ["성격", options.voice.persona],
+    ["말투", options.voice.tone], ["성격", options.voice.persona],
   ].flatMap(([label, value]) => value.trim() ? [`${label}:\n${value.trim()}`] : []);
   return [
     options.reviewPrompt,
