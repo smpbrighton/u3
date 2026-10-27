@@ -1,0 +1,11 @@
+{
+  "bundle": {
+    "targets": ["app"],
+    "createUpdaterArtifacts": false,
+    "macOS": {
+      "signingIdentity": "Developer ID Application: BRIGHTON AI HOLDINGS PTY LTD (47RAD569PH)",
+      "hardenedRuntime": true,
+      "entitlements": "entitlements.plist"
+    }
+  }
+}
