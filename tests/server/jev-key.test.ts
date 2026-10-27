@@ -119,6 +119,16 @@ describe("Jev Keychain", () => {
     expect(await keys.readJevKey()).toBe("fixture-development-key");
   });
 
+  it("설치본(U3_RESOURCE_DIR 있음)은 환경 키를 무시하고 Keychain 키만 쓴다", async () => {
+    // launchctl setenv 등으로 GUI 앱 환경에 TYPESAFE_API_KEY 가 있어도 설정에 입력한 키가 쓰여야 한다.
+    const { keys } = await setup({ TYPESAFE_API_KEY: "fixture-development-key", U3_RESOURCE_DIR: "/Applications/U3.app/Contents/Resources/resources" });
+    expect(await keys.readJevKey()).toBeNull();
+    await keys.saveJevKey(firstKey);
+    expect(await keys.readJevKey()).toBe(firstKey);
+    await keys.deleteJevKey();
+    expect(await keys.readJevKey()).toBeNull();
+  });
+
   it("저장 실패 뒤 기존 캐시를 유지하고 자식 프로세스 오류를 노출하지 않는다", async () => {
     const { keys, root } = await setup();
     await keys.saveJevKey(secondKey);
