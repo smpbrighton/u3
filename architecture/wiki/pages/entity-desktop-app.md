@@ -11,8 +11,15 @@ U3는 macOS Apple Silicon 대상 Tauri 2 앱이며 React UI와 Node sidecar 엔�
 - Whisper 모델 다운로드 진행률, 서명 빌드에서의 마이크 녹음, iPhone 재생은 미실행이다. 사용한 미디어는 실제 숏폼 원본이 아닌 대체 클립이다. `docs/manual-check.md`
 - 설치 앱은 1.07 GiB, DMG는 530 MiB로 확인됐다. 계획의 수백 MB 기대보다 크다. `docs/manual-check.md` `architecture/changes/001-desktop-studio/spec.md`
 
+- 번들 Node가 sidecar 엔진을 직접 실행한다. 설정은 codex 모델 목록과 Jev 키를 제공한다. `src-tauri/src/main.rs` `src/ui/screens/Settings.tsx` `src/engine/routes/system.ts` `git:300c7c3:` `git:ffb1ba1:`
+- Jev 키는 login Keychain에 저장하며 실행 중 교체한다. 개발 환경 키가 있으면 우선한다. 키가 없거나 Keychain을 읽지 못하면 규칙 점수로 진행한다. `src/engine/jev-key.ts` `src/engine/routes/system.ts` `git:d317032:`
+- 키 저장 API 테스트는 가짜 security 실행 파일을 사용했다. 실제 login Keychain 저장·교체·삭제와 설정 화면의 저장·삭제 조작은 해당 실행에서 미검증이다. `git:19fcc96:` `git:20d60d0:`
+- 결정 링크: [Jev 키 설정](../../decisions/0024-jev-key-setting.md). `git:1f29af1:`
+
 ## 관계
 - [엔진 종료](entity-engine-shutdown.md)
+- [자동 업데이트와 릴리스](concept-updates.md)
+- [캐러셀 생성](concept-carousel.md)
 - [타임라인 편집](concept-timeline-editing.md)
 - [홈 카드와 내보내기 경고](concept-home-export.md)
 - [로컬 모델과 리소스](concept-local-models.md)

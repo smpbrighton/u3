@@ -12,6 +12,7 @@ Node sidecar는 stdin 종료 또는 SIGTERM에서 진행 작업과 서버 자원
 ## 관계
 - [U3 데스크톱 앱](entity-desktop-app.md)
 - [로컬 모델과 리소스](concept-local-models.md)
+- [자동 업데이트와 릴리스](concept-updates.md)
 
 ## 출처
 - `src/engine/shutdown.ts`

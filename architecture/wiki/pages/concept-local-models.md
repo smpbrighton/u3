@@ -13,6 +13,7 @@ bge-m3 모델이 없거나 임베딩·Jev 판정이 실패하면 짤 순위를 �
 ## 관계
 - [U3 데스크톱 앱](entity-desktop-app.md)
 - [엔진 종료](entity-engine-shutdown.md)
+- [캐러셀 생성](concept-carousel.md)
 
 ## 출처
 - `architecture/changes/001-desktop-studio/spec.md`

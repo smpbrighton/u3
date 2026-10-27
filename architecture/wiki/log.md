@@ -19,3 +19,14 @@
 - `index.md`
 - `architecture/changes/` 문서는 범위에 포함된 커밋에서 변경되지 않았다.
 - 검증 기록: 화면 시험에서 미디어·대본·짤·효과음·재열기·라벨·MP4 내보내기를 통과했다. iPhone 재생은 미실행이며, 덮어쓰기·무음 원본 트랙 표시 관찰은 미해결, 효과음 클리핑은 미검증이다. `docs/manual-check.md` `git:46249f4838041581cbbda7c1c72d75d98c09a6f0`
+
+## [2026-10-27] ingest | W18–W69 편집·캐러셀·업데이트·Jev 키
+- `pages/concept-timeline-editing.md`
+- `pages/concept-carousel.md`
+- `pages/concept-updates.md`
+- `pages/concept-local-models.md`
+- `pages/entity-desktop-app.md`
+- `pages/entity-engine-shutdown.md`
+- `index.md`
+- 작업자 모델 설정 변경 `bfe5091`과 테스트 선행·서식·계획·결정 기록만 포함하는 커밋은 별도 반영할 페이지가 없다. 나머지 구현은 관련 기능별 페이지에 묶었다.
+- 실제 릴리스·공증·설치, Jev 키 화면 저장·삭제 및 실제 Keychain 시험은 해당 변경의 검증에서 미실행 또는 미검증이다. `git:20d60d0` `git:19fcc96`
