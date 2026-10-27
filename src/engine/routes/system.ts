@@ -26,20 +26,29 @@ const DEFAULT_CODEX_MODELS = [{ slug: "gpt-6-luna", displayName: "GPT-6-Luna", e
 const ImageOptions = z.object({ model: z.enum(["flare", "sunburst"]), quality: z.enum(["low", "medium", "high", "auto"]), aspect: z.enum(["4:5", "1:1", "9:16", "16:9"]), concurrency: z.number().int().min(1).max(10) });
 const DEFAULT_IMAGE_OPTIONS = { model: "flare" as const, quality: "auto" as const, aspect: "4:5" as const, concurrency: 3 };
 
+type CodexCatalog = { models?: Array<{ slug?: unknown; display_name?: unknown; visibility?: unknown; supported_reasoning_levels?: Array<{ effort?: unknown }> }> };
+
+// codex 최신 목록(서버에서 갱신)을 먼저 읽고, 실패하면 실행 파일에 든 목록(--bundled)을 쓴다.
+// 다른 제공자 slug(anthropic/… 처럼 / 가 든 것)는 codex 설정이 붙인 경로라 뺀다(결정 0018).
+async function readCodexCatalog(bin: string, args: string[]) {
+  const { stdout } = await execFileAsync(bin, ["debug", "models", ...args], { timeout: 8_000, maxBuffer: 32 * 1024 * 1024 });
+  const catalog = JSON.parse(stdout) as CodexCatalog;
+  return catalog.models?.flatMap(model => {
+    if (typeof model.slug !== "string" || model.visibility !== "list" || model.slug.includes("/")) return [];
+    const efforts = model.supported_reasoning_levels?.flatMap(item => typeof item.effort === "string" ? [item.effort] : []) ?? [];
+    return [{ slug: model.slug, displayName: typeof model.display_name === "string" ? model.display_name : model.slug, efforts }];
+  }) ?? [];
+}
+
 async function readCodexModels(bin: string | null) {
   if (!bin) return { source: "fallback" as const, models: DEFAULT_CODEX_MODELS };
-  try {
-    const { stdout } = await execFileAsync(bin, ["debug", "models", "--bundled"], { timeout: 8_000, maxBuffer: 32 * 1024 * 1024 });
-    const catalog = JSON.parse(stdout) as { models?: Array<{ slug?: unknown; display_name?: unknown; visibility?: unknown; supported_reasoning_levels?: Array<{ effort?: unknown }> }> };
-    const models = catalog.models?.flatMap(model => {
-      if (typeof model.slug !== "string" || model.visibility !== "list") return [];
-      const efforts = model.supported_reasoning_levels?.flatMap(item => typeof item.effort === "string" ? [item.effort] : []) ?? [];
-      return [{ slug: model.slug, displayName: typeof model.display_name === "string" ? model.display_name : model.slug, efforts }];
-    });
-    return models?.length ? { source: "codex-cli" as const, models } : { source: "fallback" as const, models: DEFAULT_CODEX_MODELS };
-  } catch {
-    return { source: "fallback" as const, models: DEFAULT_CODEX_MODELS };
+  for (const args of [[], ["--bundled"]]) {
+    try {
+      const models = await readCodexCatalog(bin, args);
+      if (models.length) return { source: "codex-cli" as const, models };
+    } catch { /* 다음 목록으로 넘어간다 */ }
   }
+  return { source: "fallback" as const, models: DEFAULT_CODEX_MODELS };
 }
 
 export function registerSystemRoutes(app: Hono, context: AppContext): void {
