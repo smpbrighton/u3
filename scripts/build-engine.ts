@@ -156,7 +156,7 @@ try {
   await bundle({ entryPoint: join(root, "src/remotion/index.ts"), outDir: join(resources, "remotion-bundle") });
   const browser = await ensureBrowser({ logLevel: "info" });
   if (browser.type !== "local-puppeteer-browser") fail(`Remotion Chrome 유형이 예상과 다릅니다: ${browser.type}`);
-  await cp(dirname(browser.path), join(resources, "chrome-headless-shell"), { recursive: true });
+  await cp(dirname(browser.path), join(resources, "chrome"), { recursive: true });
   await writeFile(join(resources, "chrome-path.txt"), basename(browser.path));
 
   const launcher = join(root, "src-tauri/binaries/u3-engine-aarch64-apple-darwin");

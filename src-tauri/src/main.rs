@@ -72,7 +72,7 @@ fn start_engine(app: &tauri::AppHandle) -> Result<(Child, EngineConnection), Box
         .ok_or_else(|| Error::new(ErrorKind::NotFound, "앱 실행 경로를 찾지 못했습니다"))?
         .join("u3-engine");
     let library = resources.join("library");
-    let chrome = resources.join("chrome-headless-shell").join(
+    let chrome = resources.join("chrome").join(
         std::fs::read_to_string(resources.join("chrome-path.txt"))?.trim(),
     );
     let mut child = Command::new(executable)
