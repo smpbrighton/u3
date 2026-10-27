@@ -1,6 +1,6 @@
 # 0017 범위: 입력·대본·짤·효과음·소리 편집·내보내기·캐러셀(단독·영상 파생)
 
-Status: accepted
+Status: superseded-by 0022
 Source: changes/033-carousel-from-video/spec.md
 Supersedes: 0014
 
