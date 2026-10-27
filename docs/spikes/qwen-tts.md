@@ -2,7 +2,11 @@
 
 ## 결과
 
-S1의 기계 측정을 마쳤다. 가중치와 함께 배포되지 않은 `tokenizer.json`을 개발 실험용 Python으로 만들었다. 세 모델 모두 Python·Swift token id 비교와 로드를 통과했다. Sohee 화자로 예시 대본 6장면을 생성했다. WAV는 모델마다 6개씩 총 18개다. 사용자 청취 판정과 앱 통합은 진행하지 않았다.
+S1의 기계 측정과 사용자 청취 판정을 통과했다. 사용자는 「세 모델이 비슷하고 성조가 아주 자연스럽지는 않지만 어느 것을 써도 된다」고 판정했다. 감독자는 기본 모델을 **1.7B CustomVoice 8bit**로 정했다. 앱 통합은 진행하지 않았다.
+
+가중치와 함께 배포되지 않은 `tokenizer.json`은 개발 실험용 Python으로 만들었다. 세 모델 모두 Python·Swift token id 비교와 로드를 통과했다. Sohee 화자로 예시 대본 6장면을 생성했다. 초기 모델 비교 WAV는 모델마다 6개씩 총 18개다. 아래 표는 캐시 한도를 지정하기 전의 모델 비교 결과다.
+
+후속 캐시 실험의 추천은 **`--cache-limit-mb 256`**이다. 1.7B 8bit의 전체 생성은 19.30초, peak memory footprint는 6.433 GiB였다. 비교한 네 조건 중 footprint가 가장 작고 60초 기준도 통과했다. 옵션을 생략했을 때의 동작은 바꾸지 않았다.
 
 Swift 도우미와 Metal shader 빌드는 통과했다. 시스템 밖 dylib 의존은 없다. 시간은 `/usr/bin/time -l`의 `real`이다. 프로세스 시작·모델 로드·6장면 생성·파일 저장·종료를 모두 포함한다.
 
@@ -21,6 +25,60 @@ Swift 도우미와 Metal shader 빌드는 통과했다. 시스템 밖 dylib 의�
 모델별 측정은 새 프로세스로 한 번씩 했다. 측정 순서는 bf16 → 8bit → 0.6B다. 출력 음성 길이가 다르므로 생성 시간 차이를 같은 음성 길이의 성능 차이로 해석하지 않는다. 계획의 「30초 분량」 대본을 그대로 사용했지만 실제 출력은 36.16~54.32초다. 60초 기준은 지정된 6장면 전체 시간에 적용했다.
 
 최대 RSS와 footprint는 `/usr/bin/time -l`의 서로 다른 지표다. Apple Silicon의 메모리를 RSS 하나로 판단하지 않도록 둘 다 기록한다. 원시 최대 RSS는 순서대로 2,387,574,784 / 3,238,100,992 / 2,659,991,552 bytes다. footprint는 18,197,909,752 / 18,770,119,848 / 19,204,901,648 bytes다. 총 24 GiB에서 footprint만 빼면 6.114~7.052 GiB다. OS와 다른 앱을 제외한 실제 여유 메모리가 6 GiB 이상인지는 측정하지 못했다.
+
+## 1.7B 8bit의 MLX 캐시 한도 실험
+
+### 확인한 API와 구현
+
+소스는 고정된 mlx-swift 0.29.1 revision `072b684acaae80b6a463abab3a103732f33774bf`다. `Source/MLX/GPU.swift`와 `Source/Cmlx/mlx-c/mlx/c/memory.cpp`, `Source/Cmlx/mlx/mlx/backend/metal/allocator.cpp`를 읽고 다음 동작을 확인했다.
+
+- `GPU.set(cacheLimit:)`는 캐시 한도를 bytes로 받는다. `GPU.cacheLimit`로 적용값을 읽는다. 0은 캐시를 끄는 값이다.
+- `GPU.set(memoryLimit:relaxed:)`와 `GPU.memoryLimit`도 있다. 이 버전의 Swift 구현은 `relaxed` 값을 C 함수에 전달하지 않는다. C++ 구현의 memory limit는 할당·캐시 회수 정책에 쓰인다. 프로세스 footprint의 엄격한 상한으로 취급하지 않는다.
+- `GPU.snapshot()`은 `activeMemory`, `cacheMemory`, `peakMemory`를 bytes로 돌려준다. `peakMemory`는 프로세스 시작 이후 **활성 메모리의 최대값**이다. 캐시는 포함하지 않는다.
+- 캐시 한도는 즉시 초과분을 전부 버리는 상한이 아니다. `allocator.cpp`의 `free`는 현재 캐시가 한도 미만이면 반환하는 버퍼를 캐시에 넣는다. 다음 `malloc`이 초과 캐시를 회수한다. 큰 버퍼 하나 때문에 관측 캐시가 설정값을 잠시 넘는다.
+- 명시 한도가 없으면 이 Mac의 실제 cache limit와 memory limit는 모두 24,481,313,587 bytes(22.8 GiB)였다. 이는 MLX 기본 정책이다. 완전한 무제한을 뜻하지 않는다.
+
+도우미에는 `--cache-limit-mb N`, `--memory-limit-mb N`을 더했다. 옵션은 모델 로드 전에 적용한다. 인자의 1 MB는 1,048,576 bytes다. 이번 네 조건에서는 memory limit를 모두 기본값으로 유지했다. 캐시 한도만으로 footprint가 줄어 추가 memory-limit 조건은 실행하지 않았다.
+
+`loading` 이벤트에는 실제 한도값을 기록한다. `loading`, `loaded`, `itemStarted`, `progress`, `itemDone`, `done`의 `memory` 필드는 `activeBytes`, `cacheBytes`, `peakActiveBytes`다. 진행 이벤트는 토큰 12개마다 기록한다. 아래 cache 최대값은 이 이벤트에서 관측한 최대값이다. 연속 관측한 정확한 cache peak는 아니다. 활성 최대값은 MLX allocator가 유지하는 정확한 누적 최대값이다.
+
+### 조건과 측정 결과
+
+모델·revision·tokenizer·Sohee·한국어·빈 instruct·seed 0·대본 6장면·Resources metallib 경로는 초기 8bit 실험과 같다. 네 조건을 새 프로세스로 한 번씩 실행했다. 실행 순서는 명시 한도 없음 → 4096MB → 1024MB → 256MB다. 각 실행 직전에 `pgrep -fl vitest`를 검사했고 네 번 모두 출력 없이 종료 코드 1이었다. 검사 기록은 `tts-spike/cache-limits/vitest-checks.json`이다.
+
+시간과 시스템 메모리는 `/usr/bin/time -l`로 쟀다. 시간에는 프로세스 시작·모델 로드·생성·WAV 저장·종료가 모두 들어간다. whisper 실행은 네 조건의 TTS 측정이 끝난 뒤 시작했다. OS 파일 캐시는 비우지 않았다.
+
+| 캐시 한도 | 전체 시간 | 최대 RSS | peak memory footprint | whisper 문자 일치율 | 60초 기준 |
+|---|---|---|---|---|---|
+| 명시 한도 없음(MLX 기본 22.8 GiB) | 25.45초 | 3.021 GiB | 17.585 GiB | 97.21% | 통과 |
+| 4096MB(4 GiB) | 22.43초 | 3.021 GiB | 10.182 GiB | 97.21% | 통과 |
+| 1024MB(1 GiB) | 19.38초 | 3.020 GiB | 7.175 GiB | 97.21% | 통과 |
+| **256MB(0.25 GiB)** | **19.30초** | **3.021 GiB** | **6.433 GiB** | **97.21%** | **통과** |
+
+| 캐시 한도 | 로드 시간 | 생성·저장 시간 합계 | MLX 활성 메모리 최대 | MLX 캐시 관측 최대 | 종료 직전 활성 메모리 |
+|---|---|---|---|---|---|
+| 명시 한도 없음 | 3.80초 | 21.59초 | 5.937 GiB | 13.879 GiB | 2.990 GiB |
+| 4096MB | 3.88초 | 18.47초 | 6.055 GiB | 4.081 GiB | 2.990 GiB |
+| 1024MB | 0.77초 | 18.56초 | 6.055 GiB | 1.074 GiB | 2.990 GiB |
+| 256MB | 0.77초 | 18.47초 | 6.055 GiB | 0.330 GiB | 2.990 GiB |
+
+원시 최대 RSS는 순서대로 3,244,130,304 / 3,243,294,720 / 3,243,147,264 / 3,243,835,392 bytes다. footprint는 18,881,907,856 / 10,933,226,664 / 7,703,973,032 / 6,906,858,592 bytes다.
+
+네 조건의 출력 음성은 각각 42.88초다. 장면별 길이는 7.36 / 8.72 / 5.36 / 6.64 / 5.20 / 9.60초다. 각 조건의 WAV는 같은 장면끼리 SHA-256이 일치했다. 초기 사용자 청취용 8bit WAV와도 6개 모두 SHA-256이 일치했다. 캐시 한도로 출력 음성은 바뀌지 않았다. 각 조건을 별도로 whisper에 넣었고 네 조건 모두 기준 179자에 대한 편집 거리가 5였다. 일치율 계산법은 아래 whisper 비교 절과 같다.
+
+로드 시간이 뒤의 두 조건에서 줄었으므로 전체 시간 차이를 캐시 한도의 효과만으로 설명하지 않는다. 한 번씩 측정한 결과로 일반적인 속도 우위를 확정하지 않는다. 이번 추천의 근거는 60초 기준 통과와 실제 측정한 footprint다.
+
+### footprint의 원인과 추천
+
+큰 footprint의 주원인은 재사용 버퍼 캐시다. 명시 한도가 없는 조건은 종료 직전 활성 메모리가 2.990 GiB인데 캐시가 13.748 GiB 남았다. 캐시 관측 최대는 13.879 GiB였다. 캐시 한도를 256MB로 줄이면 활성 메모리 최대는 약 6.055 GiB로 유지되지만 캐시 관측 최대는 0.330 GiB로 줄었다. 동시에 시스템의 peak footprint는 17.585 → 6.433 GiB로 **63.42% 감소**했다.
+
+256MB 조건에서도 생성 중 활성 메모리는 6.055 GiB까지 올라간다. 캐시 축소로 이 활성 메모리까지 없애지는 못한다. MLX 활성 최대·캐시 관측 최대·OS footprint 최대는 서로 다른 시점과 범위의 값이다. 각 최대값을 단순히 더해 시스템 최대값과 같다고 보지 않는다.
+
+추천 조건은 **1.7B 8bit + `--cache-limit-mb 256`**, memory limit는 MLX 기본값이다. 이 조건은 비교한 조건 중 footprint가 가장 작다. 60초 기준과 기존 출력 음성을 유지한다. 캐시를 더 줄인 조건이나 memory limit를 바꾼 조건은 측정하지 않았다. 따라서 모든 가능한 한도 중 최적값을 확정한 결과는 아니다.
+
+측정 WAV는 `/Volumes/X31/.cache/u3/tts-spike/cache-limits/<조건>/scene-N.wav`다. 조건 폴더는 `default`, `4096mb`, `1024mb`, `256mb`이며 `N`은 1~6이다. 각 폴더에는 `request.json`, `events.jsonl`, `time.log`, `exit.json`, whisper 입력·전사도 있다. 전체 수치와 MLX 스냅샷은 `cache-limits/measurement-summary.json`, WAV 해시는 `wav-sha256.json`에 보관했다. 실행·분석 스크립트는 `U3_BUILD_CACHE/040-cache-benchmark.mjs`, `040-analyze-cache.mjs`다.
+
+검증은 도우미 release 빌드, 잘못된 옵션 5개에 대한 오류 JSONL, 네 조건 전체 생성, 시험용 번들의 실행 파일 검사, `pnpm verify`가 모두 통과했다. 최신 빌드·검증 로그는 `U3_BUILD_CACHE/040-cache-build.log`, `040-cache-verify.log`다. `pnpm verify`의 마지막 줄은 `✓ verify passed`다.
 
 ## 환경과 Metal Toolchain
 
@@ -189,7 +247,7 @@ Resources 위치의 metallib를 사용한 전체 TTS 생성을 확인했다. 진
 
 전체 측정·전사·편집 거리는 `tts-spike/measurement-summary.json`에 있다. 모델별 `whisper-inputs/scene-N.wav.txt`에 전사문을 남겼다. 분석 스크립트와 로그는 `U3_BUILD_CACHE/040-analyze-tts.mjs`, `040-analyze-tts.log`다.
 
-사용자 청취 판정과 OS·다른 앱을 제외한 실제 여유 메모리는 미측정이다. 네트워크를 차단한 상태의 합성은 별도로 실행하지 않았다. `HF_HUB_OFFLINE=1` 설정만으로 이를 검증했다고 보지 않는다. 실제 Tauri 패키징·서명·공증은 S1 뒤의 범위라 실행하지 않았다.
+사용자 청취 판정은 세 모델 모두 통과했다. OS·다른 앱을 제외한 실제 여유 메모리는 미측정이다. 네트워크를 차단한 상태의 합성은 별도로 실행하지 않았다. `HF_HUB_OFFLINE=1` 설정만으로 이를 검증했다고 보지 않는다. 실제 Tauri 패키징·서명·공증은 이번 실험의 범위 밖이라 실행하지 않았다.
 
 ## 검증과 보관
 
@@ -204,4 +262,4 @@ Resources 위치의 metallib를 사용한 전체 TTS 생성을 확인했다. 진
 
 검증 명령에는 AGENTS.md의 캐시 환경 변수를 붙였다. `pnpm verify`에는 `CARGO_TARGET_DIR=/Volumes/X31/.cache/u3/build/040-cargo-target`도 지정했다. 빌드 로그와 검증 로그는 `U3_BUILD_CACHE/040-build-tts.log`, `040-verify.log`다. Swift 빌드 산출물은 `U3_BUILD_CACHE/u3-tts/` 아래에 있다. 패키징용 복사본은 git에서 제외되는 `src-tauri/binaries/u3-tts-aarch64-apple-darwin`, `src-tauri/resources/tts/default.metallib`다.
 
-이번 후속 커밋은 `native/u3-tts/`의 개발용 tokenizer 준비·비교 도구와 이 기록만 고친다. `src/` 앱 코드·제품 결정·계획은 고치지 않았다. Python·모델·생성 tokenizer·빌드 산출물·WAV는 커밋하지 않는다. 다른 워크트리 수정, main 병합, push는 하지 않았다.
+이번 캐시 실험 커밋은 `native/u3-tts/`의 한도 옵션·메모리 기록과 이 문서만 고친다. 기본 모델에 대한 사용자 결정은 이 문서에 기록했다. `src/` 앱 코드·계획·결정 문서는 고치지 않았다. Python·모델·생성 tokenizer·빌드 산출물·WAV는 커밋하지 않는다. 다른 워크트리 수정, main 병합, push는 하지 않았다.
