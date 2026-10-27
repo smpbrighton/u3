@@ -30,3 +30,10 @@
 - `index.md`
 - 작업자 모델 설정 변경 `bfe5091`과 테스트 선행·서식·계획·결정 기록만 포함하는 커밋은 별도 반영할 페이지가 없다. 나머지 구현은 관련 기능별 페이지에 묶었다.
 - 실제 릴리스·공증·설치, Jev 키 화면 저장·삭제 및 실제 Keychain 시험은 해당 변경의 검증에서 미실행 또는 미검증이다. `git:20d60d0` `git:19fcc96`
+
+## [2026-10-27] ingest | release 0.2.0 및 W70 설치본 Jev 키
+- `pages/concept-updates.md`
+- `pages/entity-desktop-app.md`
+- `index.md`
+- 범위의 커밋에 `architecture/changes/` 문서 변경은 없다. `git:0782e6a` `git:6f4b047` `git:8e6e624`
+- 0.2.0 릴리스와 W70 테스트·수정은 관련 페이지에 반영했다. 수정된 설치본의 실제 Keychain·설정 화면 검증과 수정 포함 릴리스는 확인하지 못했다. `git:6f4b047` `git:8e6e624`
