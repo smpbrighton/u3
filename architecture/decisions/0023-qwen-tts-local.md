@@ -15,4 +15,4 @@ Source: changes/040-qwen-tts/spec.md
 - 목소리 복제(Base 모델)는 쓰지 않는다.
 
 ## 결과
-스파이크 S1(`docs/spikes/qwen-tts.md`)이 1.7B 로드·속도를 확인한다. 실패하면 0.6B CustomVoice 로 내리고 이 결정을 새 결정으로 대체한다.
+스파이크 S1(`docs/spikes/qwen-tts.md`)을 통과했다. 모델은 mlx-community `Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit` 다. 모델 레포에 `tokenizer.json` 이 없어서, 빌드 때 원본 토크나이저 파일로 만든 `tokenizer.json` 을 앱 리소스에 넣는다. `u3-tts` 는 MLX 캐시 한도 256MB 로 돈다(6장면 19.3초, peak footprint 6.4 GiB). 사용자는 음질을 "아주 자연스럽지는 않지만 쓸 수 있다"고 판정했다.

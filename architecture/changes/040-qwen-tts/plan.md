@@ -12,6 +12,15 @@
 8. **AI 음성 표시(우려 5):** **추천:** 이번 변경에서는 표시 기능을 넣지 않는다. **이유:** 앱에 업로드 기능이 없다.
 9. **병합 순서:** 039-script-voice 를 먼저 병합한다. 040 은 039 의 `src/core/script-style.ts` 이모지 정의를 쓰고 `Settings.tsx` 를 함께 고친다. 장부 `depends_on` 에 적었다.
 
+## S1 결과와 계획 보완
+S1 은 통과했다. 기록은 `docs/spikes/qwen-tts.md` 다. 아래는 S1 뒤 사용자 답과 감독자 결정이며, 아래 「바꿀 파일」「순서」보다 우선한다.
+- 사용자 청취 판정: "셋다 비슷한거 같은데 성조라던가 이런건 셋다 엄청 자연스럽진 못하네 아무거나 써도 될거같고" → 통과.
+- 모델: mlx-community `Qwen3-TTS-12Hz-1.7B-CustomVoice-8bit`(S1 기록의 고정 revision, Apache-2.0). 감독자 결정. 이유: 세 모델 중 가장 빠르고 받기 용량이 가장 작다.
+- tokenizer.json: 사용자 답 "tokenizer.json 만 넣기". 공식·MLX 레포에 없고 swift-transformers 가 요구한다. 빌드 단계(`scripts/build-tts.sh`)가 U3_BUILD_CACHE 의 일회용 venv(`native/u3-tts/spike/requirements.txt` 고정 버전)와 `native/u3-tts/spike/prepare-tokenizers.py` 로 고정 revision 의 `vocab.json`·`merges.txt`·`tokenizer_config.json` 에서 만들고, SHA-256 `09267689b8362020b9763b65dd5be7e086b31e28d72e02837a9e781de9a91bc7` 와 같은지 검사한 뒤 `src-tauri/resources/tts/tokenizer.json` 에 둔다. 이 파일은 커밋하지 않는다(모델 파일 규칙). 엔진은 모델을 받은 뒤 이 파일을 모델 폴더에 복사한다. 앱에는 Python 을 넣지 않는다.
+- MLX 캐시 한도: 엔진은 `u3-tts` 를 `--cache-limit-mb 256` 으로 부른다. S1: 19.30초, peak footprint 6.433 GiB(한도 없음 17.585 GiB), 출력 WAV 해시 동일.
+- 라이선스 파일: `scripts/fetch-resources.ts` 에 Qwen3-TTS Apache-2.0 고지를 tokenizer.json 출처로 함께 적는다.
+- 039 는 병합됐다. 이모지 정의는 main 의 `src/core/script-style.ts` 를 쓴다.
+
 ## 바꿀 파일
 - `native/u3-tts/` (new): Swift 패키지. swift-qwen3-tts 를 고정 커밋으로 의존한다. `main.swift` 가 표준 입력 JSON 을 읽고 wav 와 진행 이벤트를 낸다. metallib 경로는 인자로 받는다.
 - `scripts/build-tts.sh` (new): `native/u3-tts` 를 release 로 빌드한다. 빌드 산출물은 `U3_BUILD_CACHE` 에 둔다. 결과를 `src-tauri/binaries/u3-tts-aarch64-apple-darwin` 과 `src-tauri/resources/tts/default.metallib` 로 복사한다. 시스템 밖 dylib 의존이 있으면 실패한다(`scripts/build-whisper.sh` 와 같은 검사).
