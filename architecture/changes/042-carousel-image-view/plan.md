@@ -10,6 +10,8 @@ Track: lite.
 1. **이미지가 표시되지 않는다(일반·영상 캐러셀 공통).** `src/ui/api.ts:86` 의 `carouselFileUrl` 이 `http://127.0.0.1:<엔진 포트>/carousels/<id>/<파일>` 을 만든다. 엔진 API 서버에는 이 경로가 없다. `/carousels/<id>/...` 는 별도 포트의 미디어 서버(`src/engine/pipeline/media-server.ts`) 경로다. 엔진에는 토큰을 확인하고 미디어 서버로 넘기는 `/api/media/carousels/:id/*`(`src/engine/routes/media.ts:38`)가 이미 있다. 다른 미디어 URL 함수(`mediaUrl`·`libraryMediaUrl`·`brandMediaUrl`)는 모두 `/api/media/...` 를 쓴다. 이 함수 하나만 다르다(W40, `314a6ad` 부터).
 2. **오른쪽 패널 요소가 패널 밖으로 넘친다(영상 캐러셀).** 넘치는 요소는 배경 절(`BackgroundSection`)의 슬라이더·「프레임 다시 뽑기」·강조 형태·색 선택기다. 제목·본문 입력은 넘치지 않는다. `.carousel-inspector` 는 세로 flex 이고, 자식 `.carousel-background-section` 은 열 폭을 정하지 않은 grid 다(`src/ui/styles.css:289-294`). 그래서 안쪽 요소 하나의 min-content 폭이 패널 폭(330px − 안쪽 여백)보다 크면 절 전체가 넓어지는 것으로 추정한다. 어느 요소의 min-content 가 큰지는 구현 때 브라우저에서 확인한다.
 
+3. **가운데 미리보기가 비어 있다(구현 중 발견).** URL 을 고친 뒤에도 Remotion Player 미리보기만 비어 있었다. `Carousels.tsx` 는 `imageUrl` 을 빈 문자열로 시작하고 비동기로 채운다. 첫 렌더에서 `CarouselSlide` 의 Remotion `<Img src="">` 가 `No "src" prop was passed to <Img>.` 를 던지고, Player 는 그 뒤 URL 이 와도 비어 있다. 수정: `CarouselSlide` 는 `imageUrl` 이 비어 있으면 `<Img>` 를 그리지 않는다. 바꿀 파일에 `src/remotion/CarouselSlide.tsx`, 테스트에 `tests/remotion/carousel-slide.test.tsx` 를 더한다.
+
 ## 대조
 - 결정: 0017·0019(캐러셀 범위·비율)와 충돌 없음. 화면 표시만 고친다.
 - 진행 중인 변경: 039-script-voice(`Settings.tsx`·`Script.tsx`·`styles.css`), 040-qwen-tts(`Settings.tsx`·`Timeline.tsx`). `styles.css` 가 039 와 겹친다. 겹치는 줄은 다르다(039 는 `.script-voice-field-review`, 이 변경은 `.carousel-*`).
