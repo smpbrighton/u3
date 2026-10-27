@@ -52,6 +52,12 @@ async function readCodexModels(bin: string | null) {
 }
 
 export function registerSystemRoutes(app: Hono, context: AppContext): void {
+  app.get("/api/system/busy", c => {
+    const jobs = context.jobs.list().filter(job => job.status === "queued" || job.status === "running" || job.stopping)
+      .map(({ id, kind, label, status, stopping }) => ({ id, kind, label, status, stopping }));
+    return c.json({ busy: jobs.length > 0, jobs });
+  });
+
   app.get("/api/system/brand", async c => {
     const settings = await context.store.readSettings();
     const parsed = BrandSettings.safeParse(settings.brand);

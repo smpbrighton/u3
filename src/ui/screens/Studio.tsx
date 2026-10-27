@@ -29,6 +29,7 @@ import { studioShortcut } from "../studio/shortcuts";
 import { deleteStudioSelection } from "../studio/delete-selection";
 import { decideNewLaneDrop } from "../studio/library-drop";
 import { audioGroupForRow, nextSfxLane, sfxLane, sfxRowId } from "../../core/timeline/sfx-lanes";
+import { useBeforeUpdateRestart } from "../update-save";
 import { resolveLibraryDropPosition, resolvePointerDropTarget } from "../studio/library-drop";
 
 interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
@@ -141,6 +142,11 @@ export function Studio(props: {
     } catch (error) { props.onError(error instanceof Error ? error.message : String(error)); return false; }
     finally { setSaving(false); }
   }
+
+  useBeforeUpdateRestart(async () => {
+    if (recording) throw new Error("녹음을 마친 뒤 다시 시작해 주세요.");
+    if (!await save()) throw new Error("프로젝트를 저장하지 못했어요.");
+  });
 
   function addVideo(inputId: string, at = videoDuration(timeline)) {
     const input = props.project.inputs.find((item) => item.id === inputId);

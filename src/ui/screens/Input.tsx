@@ -10,6 +10,7 @@ import type { Input as ProjectInput, Project } from "../types";
 import { inputDisplayName } from "../../core/input";
 import { ArrowLeft01Icon, ArrowUp01Icon, ArrowDown01Icon, FileUploadIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
+import { useBeforeUpdateRestart } from "../update-save";
 
 const VIDEO = new Set(["mp4", "mov", "m4v"]);
 const PHOTO = new Set(["jpg", "jpeg", "png", "heic", "webp"]);
@@ -95,6 +96,8 @@ export function Input(props: {
     props.onProject(next);
     return next;
   }
+
+  useBeforeUpdateRestart(async () => { await persistName(); });
 
   async function chooseFiles() {
     try {

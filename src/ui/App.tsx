@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
 import { api } from "./api";
 import { Video01Icon, CarouselHorizontalIcon, Settings02Icon } from "@hugeicons/core-free-icons";
@@ -16,6 +16,10 @@ import { SideNavigationProvider, SideNavigationRoot, SideNavigationHeader, SideN
 import { SnackbarProvider, Snackbar, useSnackbarAdapter } from "../../seed-design/ui/snackbar";
 import { Carousels } from "./screens/Carousels";
 import type { Carousel } from "../core/carousel";
+import { RestartController, RestartSaves, checkUpdateNow, restartUpdate, subscribeUpdates, updateReceiver, type UpdateSnapshot } from "./updater";
+import { RestartSaveContext } from "./update-save";
+import { UpdateSidebar } from "./UpdateControls";
+import { AlertDialogRoot, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from "../../seed-design/ui/alert-dialog";
 
 type Screen = "home" | "input" | "script" | "studio" | "settings" | "carousel";
 type Connection = { port: number; token: string };
@@ -36,6 +40,40 @@ export function App() {
   const [error, setError] = useState<string | null>(null);
   const [snackbar, setSnackbar] = useState<string | null>(null);
   const dismissSnackbar = useCallback(() => setSnackbar(null), []);
+  const [update, setUpdate] = useState<UpdateSnapshot | null>(null);
+  const [restarting, setRestarting] = useState(false);
+  const [confirmRestart, setConfirmRestart] = useState(false);
+  const saves = useRef(new RestartSaves()).current;
+  const restart = useRef(new RestartController({ getBusy: () => api<{ busy: boolean }>("GET", "/api/system/busy"), saves, restart: restartUpdate })).current;
+  const receiveUpdate = useRef(updateReceiver(setUpdate, setSnackbar)).current;
+
+  useEffect(() => {
+    let active = true;
+    let stop: (() => void) | undefined;
+    void subscribeUpdates(status => { if (active) receiveUpdate(status); }).then(unsubscribe => {
+      if (active) stop = unsubscribe; else unsubscribe();
+    }).catch(reason => { if (active) setSnackbar(String(reason)); });
+    return () => { active = false; stop?.(); };
+  }, [receiveUpdate]);
+
+  async function requestRestart(confirmed = false) {
+    if (restarting) return;
+    setConfirmRestart(false);
+    setRestarting(true);
+    try {
+      const result = await restart.request(confirmed);
+      if (result === "confirm") setConfirmRestart(true);
+      if (result !== "restarting") setRestarting(false);
+    } catch (reason) {
+      setRestarting(false);
+      setSnackbar(`다시 시작하지 못했어요. ${reason instanceof Error ? reason.message : String(reason)}`);
+    }
+  }
+
+  async function checkNow() {
+    try { receiveUpdate(await checkUpdateNow()); }
+    catch (reason) { setSnackbar(String(reason)); }
+  }
 
   useEffect(() => {
     let active = true;
@@ -82,15 +120,17 @@ export function App() {
     <Studio project={project} onProject={setProject} onBack={() => go("script")} onSnackbar={setSnackbar} onError={setSnackbar} onCarouselCreated={openCarousel} />
   ) : screen === "carousel" ? (
     <Carousels initialCarousel={carouselToOpen} onSnackbar={setSnackbar} onError={setSnackbar} />
-  ) : <Settings onSnackbar={setSnackbar} onError={setSnackbar} />;
+  ) : <Settings onSnackbar={setSnackbar} onError={setSnackbar} update={update} onCheckUpdate={() => void checkNow()} />;
 
   return (
     <SnackbarProvider>
-    <div className={`app-shell${screen === "studio" ? " app-shell--studio" : ""}`} data-engine-connected={Boolean(connection)}>
+    <RestartSaveContext.Provider value={saves}>
+    <div className={`app-shell${screen === "studio" ? " app-shell--studio" : ""}`} data-engine-connected={Boolean(connection)} inert={restarting} aria-busy={restarting}>
       <SideNavigationProvider>
         <SideNavigationRoot className="sidebar" aria-label="주 메뉴">
           <SideNavigationHeader><p className="brand">U3</p></SideNavigationHeader>
           <SideNavigationContent><SideNavigationGroup items={NAVIGATION.map(item => ({ key: item.screen, label: item.label, prefixIcon: <HugeiconsIcon icon={item.icon} size={20} />, current: (item.screen === "home" ? screen === "home" : screen === item.screen), onClick: () => go(item.screen) }))} /></SideNavigationContent>
+          <UpdateSidebar status={update} disabled={restarting} onRestart={() => void requestRestart()} />
         </SideNavigationRoot>
       </SideNavigationProvider>
       <main className="main-column">
@@ -99,6 +139,8 @@ export function App() {
       </main>
       <SnackbarPresenter message={snackbar} onClose={dismissSnackbar} />
     </div>
+    <AlertDialogRoot open={confirmRestart} onOpenChange={setConfirmRestart}><AlertDialogContent><AlertDialogHeader><AlertDialogTitle>작업을 중단하고 다시 시작할까요?</AlertDialogTitle><AlertDialogDescription>진행 중인 생성·렌더·받아 적기·음성 분리·모델 받기 작업이 중단돼요. 편집 중인 프로젝트를 저장한 뒤 다시 시작해요.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><ActionButton variant="neutralWeak" onClick={() => setConfirmRestart(false)}>취소</ActionButton><ActionButton variant="brandSolid" onClick={() => void requestRestart(true)}>저장하고 다시 시작</ActionButton></AlertDialogFooter></AlertDialogContent></AlertDialogRoot>
+    </RestartSaveContext.Provider>
     </SnackbarProvider>
   );
 }

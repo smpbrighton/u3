@@ -14,6 +14,8 @@ import { DEFAULT_SCRIPT_PROMPT, SCRIPT_PROMPT_MAX_LENGTH } from "../../core/scri
 import { DEFAULT_SCRIPT_REVIEW_PROMPT } from "../../core/script-review";
 import { DEFAULT_BRAND_SETTINGS, type BrandSettings } from "../../core/schema";
 import { BrandPreview } from "../settings/BrandPreview";
+import { AppInfo } from "../UpdateControls";
+import type { UpdateSnapshot } from "../updater";
 
 type ModelStatus = {
   bgeM3: { available: boolean; ranking: "embedding" | "rules" };
@@ -29,7 +31,7 @@ type IntroSfxSetting = { enabled: boolean; ref: string; atSec: number; title: st
 const DEFAULT_SCRIPT_VOICE: ScriptVoiceSettings = { tone: "", persona: "", review: DEFAULT_SCRIPT_REVIEW_PROMPT };
 type ImageOptions = { model: "flare" | "sunburst"; quality: "low" | "medium" | "high" | "auto"; aspect: "4:5" | "1:1" | "9:16" | "16:9"; concurrency: number };
 
-export function Settings(props: { onSnackbar: (message: string) => void; onError: (message: string) => void }) {
+export function Settings(props: { onSnackbar: (message: string) => void; onError: (message: string) => void; update: UpdateSnapshot | null; onCheckUpdate: () => void }) {
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [models, setModels] = useState<ModelStatus | null>(null);
   const [codexCatalog, setCodexCatalog] = useState<CodexModelCatalog>({ source: "fallback", models: [] });
@@ -273,6 +275,7 @@ export function Settings(props: { onSnackbar: (message: string) => void; onError
       <header className="screen-header"><div><h1 id="settings-title" className="screen-title">설정</h1></div></header>
       {error ? <div className="page-banner-wrap"><PageBanner tone="warning" variant="weak" description={error} /></div> : null}
       <div className="settings-grid">
+        <AppInfo status={props.update} onCheck={props.onCheckUpdate} />
         <div className="settings-columns">
           <div className="settings-column settings-column-a">
             <section className="section-card settings-card" aria-labelledby="watermark-title">

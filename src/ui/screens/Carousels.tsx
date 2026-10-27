@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
+import { useBeforeUpdateRestart } from "../update-save";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Player } from "@remotion/player";
 import type { Carousel, CarouselSlide as Slide } from "../../core/carousel";
@@ -128,6 +129,14 @@ function CarouselWorkspace(props: { carousel: Carousel; jobs: Job[]; onBack: () 
   const size = carouselCanvasSize(props.carousel.aspect);
   const unfinished = props.carousel.slides.some(item => slideStatus(item) !== "done" || !slideImage(item));
   const selectedJob = props.jobs.find(job => job.projectId === props.carousel.id && job.sceneIndex === props.carousel.slides.findIndex(item => item.id === slide?.id));
+
+  useBeforeUpdateRestart(async () => {
+    if (!current || !slide || !edited) return;
+    const updated = await api<Carousel>("PATCH", `/api/carousels/${props.carousel.id}/slides/${slide.id}`, {
+      title: current.title, body: current.body, textPlacement: current.textPlacement, imagePrompt: current.imagePrompt,
+    });
+    props.onUpdate(updated);
+  });
 
   useEffect(() => { setEdited(null); }, [slide?.id, slide?.title, slide?.body, slide?.textPlacement, slide?.imagePrompt, slide?.background]);
   useEffect(() => { setHighlightChoice(slide?.background.kind === "frame" ? slide.background.highlight?.style ?? "border" : "border"); }, [slide?.id, slide?.background]);
