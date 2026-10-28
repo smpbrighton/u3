@@ -1,10 +1,38 @@
 import { ActionButton } from "../../seed-design/ui/action-button";
+import { HugeiconsIcon } from "@hugeicons/react";
+import { RefreshIcon } from "@hugeicons/core-free-icons";
+import { Button } from "./components/ui/button";
+import { Progress } from "./components/ui/progress";
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip";
+import { cn } from "./components/ui/utils";
 import { updateLine, type UpdateSnapshot } from "./updater";
 
-export function UpdateSidebar(props: { status: UpdateSnapshot | null; disabled: boolean; onRestart: () => void }) {
+export function UpdateSidebar(props: { status: UpdateSnapshot | null; collapsed?: boolean; disabled: boolean; onRestart: () => void }) {
   const line = updateLine(props.status);
   if (!line) return null;
-  return <div className="update-status" role="status"><span>{line}</span>{props.status?.status === "ready" ? <><span aria-hidden="true"> · </span><ActionButton variant="ghost" size="small" disabled={props.disabled} onClick={props.onRestart}>다시 시작</ActionButton></> : null}</div>;
+  const restartButton = <Button variant="secondary" size={props.collapsed ? "icon-sm" : "sm"} aria-label="다시 시작" disabled={props.disabled} onClick={props.onRestart} className={props.collapsed ? undefined : "w-full"}>
+    <HugeiconsIcon icon={RefreshIcon} aria-hidden="true" className="size-4" />
+    {!props.collapsed && "다시 시작"}
+  </Button>;
+  return (
+    <div data-slot="update-sidebar" role="status" aria-label={line} className={cn("mt-auto flex w-full flex-col gap-2 border-t border-border pt-3 text-xs", props.collapsed ? "items-center" : "px-2.5")}>
+      {props.status?.status === "downloading" ? <>
+        <span className={cn("w-full whitespace-nowrap tabular-nums", props.collapsed ? "text-center" : "flex justify-between")}>
+          {!props.collapsed && <span className="text-muted-foreground">업데이트 받는 중 </span>}
+          <span>{props.status.percent}%</span>
+        </span>
+        <Progress value={props.status.percent} aria-label="업데이트 다운로드" />
+      </> : <>
+        <span className={props.collapsed ? "sr-only" : undefined}>{line}</span>
+        {props.collapsed ? <TooltipProvider>
+          <Tooltip>
+            <TooltipTrigger asChild>{restartButton}</TooltipTrigger>
+            <TooltipContent side="right" sideOffset={8}>다시 시작</TooltipContent>
+          </Tooltip>
+        </TooltipProvider> : restartButton}
+      </>}
+    </div>
+  );
 }
 
 export function AppInfo(props: { status: UpdateSnapshot | null; onCheck: () => void }) {
