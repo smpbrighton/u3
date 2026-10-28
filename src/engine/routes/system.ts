@@ -1,13 +1,12 @@
 import type { Hono } from "hono";
 import { TTS_SPEAKERS, ttsSettingsOf } from "../../core/tts-clips";
 import path from "node:path";
-import { execFile } from "node:child_process";
-import { promisify } from "node:util";
 import { copyFile, mkdir, rm } from "node:fs/promises";
 import { z } from "zod";
 import type { AppContext } from "../app";
 import { HttpError, parseJson } from "../http";
 import { codexLoginStatus } from "../pipeline/codex-path";
+import { codexSelection, readCodexModels } from "../codex-settings";
 import { readUsage } from "../pipeline/usage";
 import { DEFAULT_SCRIPT_PROMPT, SCRIPT_PROMPT_MAX_LENGTH } from "../../core/script-prompt";
 import { formatScriptInputGuidePreview } from "../pipeline/script-validation";
@@ -25,35 +24,8 @@ const IntroSfx = z.object({ enabled: z.boolean(), ref: z.string().min(1), atSec:
 const DEFAULT_INTRO_SFX = { enabled: true, ref: "u3-library:sfx/notify/sfx-mum36456-06c20f.mp3", atSec: 3 };
 const pathRelativeLibrary = (file: string, root: string) => path.relative(path.basename(root) === "library" ? root : path.join(root, "library"), file);
 
-const execFileAsync = promisify(execFile);
-const DEFAULT_CODEX_MODELS = [{ slug: "gpt-6-luna", displayName: "GPT-6-Luna", efforts: ["low", "medium", "high"] }];
 const ImageOptions = z.object({ model: z.enum(["flare", "sunburst"]), quality: z.enum(["low", "medium", "high", "auto"]), aspect: z.enum(["4:5", "1:1", "9:16", "16:9"]), concurrency: z.number().int().min(1).max(10) });
 const DEFAULT_IMAGE_OPTIONS = { model: "flare" as const, quality: "auto" as const, aspect: "4:5" as const, concurrency: 3 };
-
-type CodexCatalog = { models?: Array<{ slug?: unknown; display_name?: unknown; visibility?: unknown; supported_reasoning_levels?: Array<{ effort?: unknown }> }> };
-
-// codex 최신 목록(서버에서 갱신)을 먼저 읽고, 실패하면 실행 파일에 든 목록(--bundled)을 쓴다.
-// 다른 제공자 slug(anthropic/… 처럼 / 가 든 것)는 codex 설정이 붙인 경로라 뺀다(결정 0018).
-async function readCodexCatalog(bin: string, args: string[]) {
-  const { stdout } = await execFileAsync(bin, ["debug", "models", ...args], { timeout: 8_000, maxBuffer: 32 * 1024 * 1024 });
-  const catalog = JSON.parse(stdout) as CodexCatalog;
-  return catalog.models?.flatMap(model => {
-    if (typeof model.slug !== "string" || model.visibility !== "list" || model.slug.includes("/")) return [];
-    const efforts = model.supported_reasoning_levels?.flatMap(item => typeof item.effort === "string" ? [item.effort] : []) ?? [];
-    return [{ slug: model.slug, displayName: typeof model.display_name === "string" ? model.display_name : model.slug, efforts }];
-  }) ?? [];
-}
-
-async function readCodexModels(bin: string | null) {
-  if (!bin) return { source: "fallback" as const, models: DEFAULT_CODEX_MODELS };
-  for (const args of [[], ["--bundled"]]) {
-    try {
-      const models = await readCodexCatalog(bin, args);
-      if (models.length) return { source: "codex-cli" as const, models };
-    } catch { /* 다음 목록으로 넘어간다 */ }
-  }
-  return { source: "fallback" as const, models: DEFAULT_CODEX_MODELS };
-}
 
 export function registerSystemRoutes(app: Hono, context: AppContext): void {
   const enginePlatform = (): Platform => process.platform === "darwin" ? "mac" : "win";
@@ -197,7 +169,7 @@ export function registerSystemRoutes(app: Hono, context: AppContext): void {
 
   app.get("/api/system", async c => {
     const bin = await context.codexPath();
-    const codex = bin ? await codexLoginStatus(bin) : { installed: false, loggedIn: false };
+    const codex = bin ? await codexLoginStatus(bin) : { installed: false, loggedIn: false, version: null, outdated: false };
     return c.json({
       codex,
       jev: await jevStatus(),
@@ -237,8 +209,8 @@ export function registerSystemRoutes(app: Hono, context: AppContext): void {
   });
 
   app.get("/api/system/codex-settings", async c => {
-    const settings = await context.store.readSettings();
-    return c.json({ model: typeof settings.codexModel === "string" ? settings.codexModel : "gpt-6-luna", effort: typeof settings.codexEffort === "string" ? settings.codexEffort : "medium" });
+    const { model, effort, resolved } = await codexSelection(context);
+    return c.json({ model, effort, resolved });
   });
 
   app.get("/api/system/codex-models", async c => c.json(await readCodexModels(await context.codexPath())));

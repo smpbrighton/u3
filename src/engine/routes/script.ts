@@ -13,6 +13,9 @@ import { formatScriptInputGuide, validateScriptForInputs } from "../pipeline/scr
 import { buildScriptPrompt, DEFAULT_SCRIPT_PROMPT } from "../../core/script-prompt";
 import { checkScriptStyle } from "../../core/script-style";
 import { escapeCaptionStars } from "../../core/captions";
+import { CODEX_MIN_VERSION, isCodexOutdated } from "../../core/codex-model";
+import { codexVersion } from "../pipeline/codex-path";
+import { codexModelSwitchMessage, codexSelection, withCodexModelFallback } from "../codex-settings";
 
 export function registerScriptRoutes(app: Hono, context: AppContext): void {
   app.get("/api/projects/:id/script", async c => {
@@ -47,6 +50,8 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
     if (mode === "direct" && !userPrompt) throw new HttpError(400, "invalid", "직접 쓰기 모드에는 사용자 요청이 필요합니다");
     const bin = await context.codexPath();
     if (!bin) throw new HttpError(503, "codex-not-found", "Codex CLI를 찾지 못했습니다");
+    const version = await codexVersion(bin);
+    if (isCodexOutdated(version)) throw new HttpError(503, "codex-outdated", `codex 업데이트가 필요해요 (현재 ${version}, ${CODEX_MIN_VERSION} 이상 필요)`);
 
     const job = context.jobs.enqueue("대본 추천", async ({ signal, progress }) => {
       progress(0.1, "Codex 실행 중");
@@ -63,11 +68,12 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
         const count = counts[index]!;
         return Array.from({ length: count }, (_, frameIndex) => `${(((frameIndex + 0.5) / count) * input.durationSec!).toFixed(1)}초`);
       });
-      const runner = codexCliRunner({ bin, model: typeof settings.codexModel === "string" ? settings.codexModel : "gpt-6-luna", effort: typeof settings.codexEffort === "string" ? settings.codexEffort : "medium" });
+      const { effort } = await codexSelection(context);
+      let switchMessage: string | undefined;
       const preparedImages: string[] = [];
       const runAndRecord = async (prompt: string, images?: readonly string[], includeTranscription = false) => {
         try {
-          const result = await runner.runScript({
+          const attempt = await withCodexModelFallback(context, model => codexCliRunner({ bin, model, effort }).runScript({
             images,
             prompt,
             signal,
@@ -79,6 +85,7 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
               })),
             } : {}),
             prepareImages: async () => {
+              if (preparedImages.length && !images?.length) return [...preparedImages];
               if (images?.length) {
                 preparedImages.splice(0, preparedImages.length, ...images);
                 return [...images];
@@ -98,7 +105,9 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
               preparedImages.splice(0, preparedImages.length, ...files);
               return files;
             },
-          });
+          }));
+          switchMessage = codexModelSwitchMessage(attempt) ?? switchMessage;
+          const result = attempt.value;
           const tokenCount = Object.values(result.usage).reduce((total, amount) => total + amount, 0);
           if (tokenCount > 0) await recordUsage(context.store.root, "codex", tokenCount);
           return result;
@@ -141,8 +150,8 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
         ...(scene.subCaption !== undefined ? { subCaption: escapeCaptionStars(scene.subCaption) } : {}) })) };
       await mkdir(context.store.projectDir(project.id), { recursive: true });
       await writeFile(path.join(context.store.projectDir(project.id), "script.json"), `${JSON.stringify(script, null, 2)}\n`);
-      progress(1, "대본 추천 완료");
-      return { script, draft, styleWarnings, transcriptWarnings: result.transcriptWarnings };
+      progress(1, ["대본 추천 완료", switchMessage].filter(Boolean).join(" · "));
+      return { script, draft, styleWarnings, transcriptWarnings: result.transcriptWarnings, ...(switchMessage ? { message: switchMessage } : {}) };
     });
     return c.json(job, 202);
   });

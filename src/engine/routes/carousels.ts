@@ -8,7 +8,8 @@ import type { AppContext } from "../app";
 import { HttpError, parseJson } from "../http";
 import { fileUsageLog, makeUsageEntry } from "../pipeline/usage";
 import { codexCliRunner } from "../pipeline/codex";
-import { runCodexImage } from "../pipeline/codex-image";
+import { runCodexImage, type CodexImageOptions } from "../pipeline/codex-image";
+import { codexModelSwitchMessage, codexSelection, withCodexModelFallback } from "../codex-settings";
 import { Carousel, CarouselBox, CarouselTexts, CarouselLogo, defaultTexts, newSlide, carouselFolderName, nextCarouselFolderName, receivedSlideFileName } from "../../core/carousel";
 import { CodexScript, BrandSettings, DEFAULT_BRAND_SETTINGS, captionLayersOf } from "../../core/schema";
 import { sceneFrameSec } from "../../core/carousel-frame";
@@ -133,7 +134,7 @@ export function registerCarouselRoutes(app: Hono, context: AppContext): void {
         sceneNumber: slide.sceneNumber, background: { kind: "frame", sec: slide.sec, cropY: 0.5, status: "idle", highlight: { style: "border", target: slide.target } },
       })),
     });
-    return c.json({ carousel }, 201);
+    return c.json({ carousel, ...(plan.message ? { message: plan.message } : {}) }, 201);
   });
 
   app.post("/api/carousels/:id/slides/:slideId/frame", async c => {
@@ -178,11 +179,11 @@ export function registerCarouselRoutes(app: Hono, context: AppContext): void {
       const output = path.join(store.carouselDir(id), "images", `${slideId}-outline-working.png`);
       await store.updateSlideEngineFields(id, slideId, { background: { status: "running", error: undefined } });
       try {
-        const settings = await context.store.readSettings();
-        const generated = await runCodexImage({ bin: (await context.codexPath()) ?? (() => { throw new Error("Codex CLI를 찾지 못했습니다"); })(), model: stringSetting(settings.codexModel, "gpt-6-luna"), effort: stringSetting(settings.codexEffort, "medium"), imageModel: imageOptions.model, quality: imageOptions.quality, aspect: carousel.aspect, prompt: "", style: "", referenceImage: path.join(store.carouselDir(id), referenceFrame), instruction: `원본의 사람·상품·글자를 그대로 두고 ${input.target}에만 흰 윤곽 테두리를 추가한다.`, output, signal: jobContext.signal });
+        const attempt = await runCarouselImage(context, { imageModel: imageOptions.model, quality: imageOptions.quality, aspect: carousel.aspect, prompt: "", style: "", referenceImage: path.join(store.carouselDir(id), referenceFrame), instruction: `원본의 사람·상품·글자를 그대로 두고 ${input.target}에만 흰 윤곽 테두리를 추가한다.`, output, signal: jobContext.signal });
+        const generated = attempt.value, message = codexModelSwitchMessage(attempt);
         const saved = await store.saveHighlightImageVersion(id, slideId, await readFile(generated.output)); await rm(generated.output, { force: true });
         await recordCodexUsage(context.store.root, generated.usage, carousel.source.kind === "project" ? carousel.source.projectId : id);
-        return { kind: "done", result: saved.slides.find(item => item.id === slideId)?.background };
+        return { kind: "done", result: saved.slides.find(item => item.id === slideId)?.background, ...(message ? { message } : {}) };
       } catch (error) {
         await rm(output, { force: true });
         await store.updateSlideEngineFields(id, slideId, { background: { status: "failed", error: error instanceof Error ? error.message : String(error) } }).catch(() => undefined);
@@ -194,14 +195,17 @@ export function registerCarouselRoutes(app: Hono, context: AppContext): void {
 
   app.post("/api/carousels/refine", async c => {
     const input = await parseJson(c, z.object({ topic: z.string().trim().min(1).max(1000) }));
+    let message: string | undefined;
     let result: { candidates: Array<{ topic: string; angle: string }>; usage: Record<string, number> };
     if (context.carouselServices) result = await context.carouselServices.refine(input);
     else {
-      const bin = await context.codexPath(); if (!bin) throw new HttpError(503, "codex-not-found", "Codex CLI를 찾지 못했습니다");
-      result = await codexCliRunner(await codexRunnerOptions(context, bin)).run({ schema: RefineSchema, prompt: `사용자 주제에 맞는 캐러셀 기획 후보를 정확히 3개 제안하세요. 각 후보는 고친 주제와 한 줄 각도를 포함합니다.\n주제: ${input.topic}` }).then(out => ({ ...out.output, usage: out.usage }));
+      const selection = await codexRunnerOptions(context);
+      const attempt = await withCodexModelFallback(context, model => codexCliRunner({ ...selection, model }).run({ schema: RefineSchema, prompt: `사용자 주제에 맞는 캐러셀 기획 후보를 정확히 3개 제안하세요. 각 후보는 고친 주제와 한 줄 각도를 포함합니다.\n주제: ${input.topic}` }));
+      result = { ...attempt.value.output, usage: attempt.value.usage };
+      message = codexModelSwitchMessage(attempt);
     }
     const parsed = RefineSchema.parse({ candidates: result.candidates }); await recordCodexUsage(context.store.root, result.usage, null);
-    return c.json(parsed);
+    return c.json({ ...parsed, ...(message ? { message } : {}) });
   });
 
   app.post("/api/carousels/:id/plan", async c => {
@@ -212,21 +216,24 @@ export function registerCarouselRoutes(app: Hono, context: AppContext): void {
     if (carousel.source.kind === "project") {
       const project = await context.store.requireProject(carousel.source.projectId);
       const plan = await planDerivedCarousel(context, project, count);
-      return c.json(await store.replacePlan(id, plan), 202);
+      return c.json({ ...await store.replacePlan(id, plan), ...(plan.message ? { message: plan.message } : {}) }, 202);
     }
     const topic = input.topic ?? carousel.topic ?? "";
+    let message: string | undefined;
     let result: Awaited<ReturnType<NonNullable<AppContext["carouselServices"]>["plan"]>>;
     if (context.carouselServices) result = await context.carouselServices.plan({ topic, count, ...(carousel.style === undefined ? {} : { style: carousel.style }) });
     else {
-      const bin = await context.codexPath(); if (!bin) throw new HttpError(503, "codex-not-found", "Codex CLI를 찾지 못했습니다");
+      const selection = await codexRunnerOptions(context);
       const prompt = `주제로 정확히 ${count}장의 캐러셀을 기획하세요. 장마다 제목, 본문, 이미지 지시문과 공통 화풍을 정하고 게시 캡션(caption, 최대 2000자)을 작성하세요. 대본 프롬프트는 쓰지 마세요.\n주제: ${topic}${carousel.style ? `\n요청 화풍: ${carousel.style}` : ""}`;
-      result = await codexCliRunner(await codexRunnerOptions(context, bin)).run({ schema: PlanSchema, prompt }).then(out => ({ ...out.output, usage: out.usage }));
+      const attempt = await withCodexModelFallback(context, model => codexCliRunner({ ...selection, model }).run({ schema: PlanSchema, prompt }));
+      result = { ...attempt.value.output, usage: attempt.value.usage };
+      message = codexModelSwitchMessage(attempt);
     }
     const parsed = PlanSchema.safeParse(result);
     if (!parsed.success || parsed.data.slides.length !== count) throw new HttpError(502, "invalid-plan", "Codex 기획 결과가 요청한 장 수와 맞지 않습니다");
     const updated = await store.replacePlan(id, { topic: result.topic ?? topic, ...parsed.data });
     await recordCodexUsage(context.store.root, result.usage, id);
-    return c.json(updated, 202);
+    return c.json({ ...updated, ...(message ? { message } : {}) }, 202);
   });
 
   app.post("/api/carousels/:id/generate", async c => {
@@ -254,17 +261,17 @@ export function registerCarouselRoutes(app: Hono, context: AppContext): void {
       await store.updateSlideEngineFields(id, slide.id, { status: "running", error: undefined }); jobContext.progress(0.05, "이미지 생성 중");
       try {
         const output = path.join(store.carouselDir(id), "images", `${slide.id}-working.png`);
-        const settings = await context.store.readSettings();
+        let message: string | undefined;
         const generated = context.carouselServices
           ? await context.carouselServices.generateImage({ prompt: slide.imagePrompt ?? "", style: carousel.style ?? "", model: imageOptions.model, quality: imageOptions.quality, aspect: carousel.aspect, output, signal: jobContext.signal })
-          : await runCodexImage({ bin: (await context.codexPath()) ?? (() => { throw new Error("Codex CLI를 찾지 못했습니다"); })(), model: stringSetting(settings.codexModel, "gpt-6-luna"), effort: stringSetting(settings.codexEffort, "medium"), imageModel: imageOptions.model, quality: imageOptions.quality, aspect: carousel.aspect, prompt: slide.imagePrompt ?? "", style: carousel.style ?? "", output, signal: jobContext.signal });
+          : await runCarouselImage(context, { imageModel: imageOptions.model, quality: imageOptions.quality, aspect: carousel.aspect, prompt: slide.imagePrompt ?? "", style: carousel.style ?? "", output, signal: jobContext.signal }).then(attempt => { message = codexModelSwitchMessage(attempt); return attempt.value; });
         jobContext.signal.throwIfAborted();
         const file = Buffer.isBuffer(generated) ? generated : await readFile(generated.output);
         const saved = await store.saveImageVersion(id, slide.id, file);
         if (!Buffer.isBuffer(generated)) await rm(generated.output, { force: true });
         if (!Buffer.isBuffer(generated)) await recordCodexUsage(context.store.root, generated.usage, id);
         jobContext.progress(1, "이미지 생성 완료");
-        return { kind: "done" as const, result: saved.slides.find(item => item.id === slide.id)?.image };
+        return { kind: "done" as const, result: saved.slides.find(item => item.id === slide.id)?.image, ...(message ? { message } : {}) };
       } catch (error) {
         await rm(path.join(store.carouselDir(id), "images", `${slide.id}-working.png`), { force: true }).catch(() => undefined);
         await store.updateSlideEngineFields(id, slide.id, { status: "failed", error: error instanceof Error ? error.message : String(error) }).catch(() => undefined);
@@ -313,12 +320,16 @@ export function registerCarouselRoutes(app: Hono, context: AppContext): void {
   });
 }
 
-async function codexRunnerOptions(context: AppContext, bin: string) {
-  const settings = await context.store.readSettings();
-  return { bin, model: stringSetting(settings.codexModel, "gpt-6-luna"), effort: stringSetting(settings.codexEffort, "medium") };
+async function codexRunnerOptions(context: AppContext) {
+  const { bin, effort } = await codexSelection(context);
+  if (!bin) throw new HttpError(503, "codex-not-found", "Codex CLI를 찾지 못했습니다");
+  return { bin, effort };
 }
-function stringSetting(value: unknown, fallback: string): string { return typeof value === "string" && value ? value : fallback; }
 
+async function runCarouselImage(context: AppContext, options: Omit<CodexImageOptions, "bin" | "model" | "effort">) {
+  const selection = await codexRunnerOptions(context);
+  return withCodexModelFallback(context, model => runCodexImage({ ...selection, ...options, model }));
+}
 
 async function readProjectScript(context: AppContext, id: string) {
   const raw = await readFile(path.join(context.store.projectDir(id), "script.json"), "utf8").catch(() => {
@@ -340,16 +351,19 @@ async function planDerivedCarousel(context: AppContext, project: import("../../c
     title: project.timeline.brand?.titleBar?.text ?? script.title ?? "", videoDurationSec: videoOne.durationSec ?? timelineVideoDuration(project.timeline),
   };
   const prompt = `영상 내용으로 정확히 ${count}장의 파생 캐러셀을 기획하세요. 장면 번호·제목·본문·강조 대상과 게시 캡션(caption, 최대 2000자)을 작성하세요. 프레임 이미지를 입력하지 않았으므로 화면을 단정하지 말고 장면 자막의 짧은 대상 문장을 쓰세요.\n자료: ${JSON.stringify(material)}`;
+  let message: string | undefined;
   let result: Awaited<ReturnType<NonNullable<NonNullable<AppContext["carouselServices"]>["derivePlan"]>>>;
   if (context.carouselServices?.derivePlan) result = await context.carouselServices.derivePlan({ projectId: project.id, count, prompt });
   else {
-    const bin = await context.codexPath(); if (!bin) throw new HttpError(503, "codex-not-found", "Codex CLI를 찾지 못했습니다");
-    result = await codexCliRunner(await codexRunnerOptions(context, bin)).run({ schema: DerivedPlanSchema, prompt }).then(out => ({ ...out.output, usage: out.usage }));
+    const selection = await codexRunnerOptions(context);
+    const attempt = await withCodexModelFallback(context, model => codexCliRunner({ ...selection, model }).run({ schema: DerivedPlanSchema, prompt }));
+    result = { ...attempt.value.output, usage: attempt.value.usage };
+    message = codexModelSwitchMessage(attempt);
   }
   const parsed = DerivedPlanSchema.safeParse(result);
   if (!parsed.success || parsed.data.slides.length !== count || parsed.data.slides.some(slide => slide.sceneNumber > script.scenes.length)) throw new HttpError(502, "invalid-plan", "Codex 파생 기획 결과의 장 수나 대본 장면 번호가 맞지 않습니다");
   await recordCodexUsage(context.store.root, result.usage, project.id);
-  return { caption: parsed.data.caption, slides: parsed.data.slides.map(slide => ({
+  return { message, caption: parsed.data.caption, slides: parsed.data.slides.map(slide => ({
     ...slide, sec: sceneFrameSec(script.scenes, project.timeline, slide.sceneNumber, sourceInputs[script.scenes[slide.sceneNumber - 1]!.inputIndex - 1]?.id),
   })) };
 }
