@@ -13,6 +13,7 @@ import type { Project, SystemStatus } from "./types";
 import { projectOpenScreen } from "./project-screen";
 import { Carousels } from "./screens/Carousels";
 import type { Carousel } from "../core/carousel";
+import { DEFAULT_STUDIO_SHORTCUTS, type StudioShortcutTable } from "../core/studio-shortcuts";
 import { RestartController, RestartSaves, checkUpdateNow, restartUpdate, subscribeUpdates, updateLine, updateReceiver, type UpdateSnapshot } from "./updater";
 import { RestartSaveContext } from "./update-save";
 import { Sidebar } from "./components/u3/Sidebar";
@@ -38,6 +39,7 @@ export function App() {
   const openCarousel = useCallback((carousel: Carousel) => { setCarouselToOpen(carousel); setScreen("carousel"); }, []);
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [connection, setConnection] = useState<Connection | null>(null);
+  const [shortcuts, setShortcuts] = useState<StudioShortcutTable>(DEFAULT_STUDIO_SHORTCUTS);
   const [engineError, setEngineError] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(true);
   const [connectionAttempt, setConnectionAttempt] = useState(0);
@@ -97,6 +99,9 @@ export function App() {
         setConnection(endpoint);
         setStatus(nextStatus);
         setEngineError(null);
+        void api<{ bindings: StudioShortcutTable }>("GET", "/api/system/studio-shortcuts", undefined, controller.signal)
+          .then(({ bindings }) => { if (active) setShortcuts(bindings); })
+          .catch(() => { if (active) setShortcuts(DEFAULT_STUDIO_SHORTCUTS); });
       } catch (reason) {
         if (active) {
           setConnection(null);
@@ -134,10 +139,10 @@ export function App() {
   ) : screen === "script" && project ? (
     <Script project={project} status={status} onProject={setProject} onStudio={() => { setStudioFromScript(true); go("studio"); }} onBack={() => go("input")} onSnackbar={notify} onError={notifyError} onSettings={() => go("settings")} onNotices={setStudioNotices} />
   ) : screen === "studio" && project ? (
-    <Studio project={project} onProject={setProject} onBack={() => go("script")} onSnackbar={notify} onError={notifyError} onCarouselCreated={openCarousel} initialTab={studioFromScript ? "scenes" : undefined} notifications={studioNotices} onOpenSettings={() => go("settings")} />
+    <Studio project={project} shortcuts={shortcuts} onProject={setProject} onBack={() => go("script")} onSnackbar={notify} onError={notifyError} onCarouselCreated={openCarousel} initialTab={studioFromScript ? "scenes" : undefined} notifications={studioNotices} onOpenSettings={() => go("settings")} />
   ) : screen === "carousel" ? (
     <Carousels initialCarousel={carouselToOpen} onSnackbar={notify} onError={notifyError} onSettings={() => go("settings")} />
-  ) : <Settings onSnackbar={notify} onError={notifyError} update={update} onCheckUpdate={() => void checkNow()} />;
+  ) : <Settings shortcuts={shortcuts} onShortcuts={setShortcuts} onSnackbar={notify} onError={notifyError} update={update} onCheckUpdate={() => void checkNow()} />;
 
   return (
     <RestartSaveContext.Provider value={saves}>

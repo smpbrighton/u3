@@ -6,7 +6,7 @@ import { Button } from "../components/ui/button";
 import { BusyButton } from "../components/u3/BusyButton";
 import { Toolbar } from "../components/u3/Toolbar";
 import { Popover } from "radix-ui";
-import { Notification03Icon } from "@hugeicons/core-free-icons";
+import { Notification03Icon, KeyboardIcon } from "@hugeicons/core-free-icons";
 import { captionLayersOf } from "../../core/schema";
 import { extendStudioSelection, studioTrackForClip } from "../studio/selection";
 import type { StudioTab } from "../studio/LibraryPanel";
@@ -33,6 +33,9 @@ import { canGroupVideoClips, groupVideoClips, selectVideoRange, ungroupVideoClip
 import { timelineToRender } from "../../core/timeline/to-render";
 import { clampTimeToLastFrame } from "../studio/preview-seek";
 import { studioShortcut } from "../studio/shortcuts";
+import { DEFAULT_STUDIO_SHORTCUTS, formatChord, type StudioShortcutTable } from "../../core/studio-shortcuts";
+import { uiPlatform } from "../platform";
+import { ShortcutList } from "../studio/ShortcutList";
 import { deleteStudioSelection } from "../studio/delete-selection";
 import { libraryDropRows, decideNewLaneDrop } from "../studio/library-drop";
 import { audioGroupForRow, nextSfxLane, sfxLane, sfxRowId } from "../../core/timeline/sfx-lanes";
@@ -44,6 +47,7 @@ interface SfxItem { id: string; category: string; title: string; file: string; r
 
 export function Studio(props: {
   project: Project;
+  shortcuts?: StudioShortcutTable;
   initialTab?: StudioTab;
   notifications?: string[];
   onOpenSettings?: () => void;
@@ -53,6 +57,7 @@ export function Studio(props: {
   onError: (message: string) => void;
   onCarouselCreated: (carousel: Carousel) => void;
 }) {
+  const shortcuts = props.shortcuts ?? DEFAULT_STUDIO_SHORTCUTS;
   const [loopCaption, setLoopCaption] = useState(false);
   const [processingBusy, setProcessingBusy] = useState(false);
   const savedTimeline = useRef(JSON.stringify(props.project.timeline));
@@ -161,7 +166,7 @@ export function Studio(props: {
         targetType: (event.target as HTMLInputElement | null)?.type,
         targetRole: (event.target as HTMLElement | null)?.closest("[role]")?.getAttribute("role") ?? undefined,
         targetIsContentEditable: (event.target as HTMLElement | null)?.isContentEditable,
-      });
+      }, shortcuts);
       if (event.key === "Escape" && !(event.target as HTMLElement | null)?.closest("input, textarea, [contenteditable=true], [role=dialog]")) { setSelected({ id: null, track: null }); setSelectedIds([]); return; }
       if (shortcut === "undo" || shortcut === "redo") {
         event.preventDefault(); moveHistory(shortcut); return;
@@ -199,7 +204,7 @@ export function Studio(props: {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [moveHistory, timeline, selected, selectedIds, edit, props.onSnackbar, recording]);
+  }, [moveHistory, timeline, selected, selectedIds, edit, props.onSnackbar, recording, shortcuts]);
 
   async function save(): Promise<boolean> {
     setSaving(true);
@@ -366,8 +371,7 @@ export function Studio(props: {
         className="studio-history-button"
         variant="ghost"
         size="icon-sm"
-        aria-label="실행 취소"
-        title="실행 취소 ⌘Z"
+        aria-label={`실행 취소 ${formatChord(shortcuts.undo, uiPlatform())}`}
         disabled={!history.past.length}
         onClick={() => moveHistory("undo")}
       >
@@ -377,8 +381,7 @@ export function Studio(props: {
         className="studio-history-button"
         variant="ghost"
         size="icon-sm"
-        aria-label="다시 실행"
-        title="다시 실행 ⇧⌘Z"
+        aria-label={`다시 실행 ${formatChord(shortcuts.redo, uiPlatform())}`}
         disabled={!history.future.length}
         onClick={() => moveHistory("redo")}
       >
@@ -388,10 +391,14 @@ export function Studio(props: {
       <label className="flex items-center gap-2 text-xs text-muted-foreground">세이프존<StudioSwitch label="세이프존" checked={safeZone} onChange={setSafeZone} /></label>
       <label className="flex items-center gap-2 text-xs text-muted-foreground">스냅<StudioSwitch label="스냅" checked={snap} onChange={setSnap} /></label>
       <label className="studio-zoom"><span>가로 확대</span><span className="studio-zoom-slider"><StudioSlider label="가로 확대" min={1} max={10} step={0.1} value={zoom} onChange={setZoom} /></span><output>{zoom.toFixed(1)}×</output></label>
+      <Popover.Root>
+        <Popover.Trigger asChild><Button variant="ghost" size="icon-sm" aria-label="단축키"><HugeiconsIcon icon={KeyboardIcon} size={16} /></Button></Popover.Trigger>
+        <Popover.Portal><Popover.Content className="u3-shell z-50 w-72 rounded-lg border border-border bg-popover p-4 text-foreground shadow-lg" align="end" sideOffset={8} aria-label="단축키 목록"><ShortcutList shortcuts={shortcuts} /></Popover.Content></Popover.Portal>
+      </Popover.Root>
     </Toolbar>
     <div className="studio-timeline-drop">
       {libraryDropGuide ? <div className="studio-library-drop-guide" style={{ left: libraryDropGuide.x, top: libraryDropGuide.top, height: libraryDropGuide.height }} /> : null}
-      <Timeline timeline={timeline} inputs={props.project.inputs} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} selectedIds={selectedIds} onGenerateTts={() => void generateTts()} onCancelTts={() => void cancelTts()} ttsBusy={ttsBusy} ttsJob={ttsJob} onSelect={(id, track, shift) => {
+      <Timeline shortcuts={shortcuts} timeline={timeline} inputs={props.project.inputs} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} selectedIds={selectedIds} onGenerateTts={() => void generateTts()} onCancelTts={() => void cancelTts()} ttsBusy={ttsBusy} ttsJob={ttsJob} onSelect={(id, track, shift) => {
         if (!id) { setSelected({ id: null, track: null }); setSelectedIds([]); return; }
         const range = shift && selected.id && selected.track === track && (track === "video" || /^video-/.test(track ?? "")) ? selectVideoRange(timeline, track ?? "", selected.id, id).map(item => item.id) : [];
         const ids = extendStudioSelection(selectedIds, id, Boolean(shift), range);

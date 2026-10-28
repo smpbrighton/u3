@@ -17,6 +17,7 @@ import { moveVideoGroup } from "../../core/timeline/video-groups";
 import { decideActionMove, isUnchangedTimeline, resolveVideoTrackAtPointer, shouldResetNewTrackDrop, VIDEO_TRACK_EDIT_GRID_SELECTOR } from "./video-track-drop";
 import { timelinePointerSeconds } from "./timeline-zoom";
 import { studioShortcut } from "./shortcuts";
+import type { StudioShortcutTable } from "../../core/studio-shortcuts";
 import { audioGroupForRow, normalizeSfxLanes } from "../../core/timeline/sfx-lanes";
 import { timelineTrackLabels, withNewVideoTrackRow } from "./timeline-track-labels";
 import { TrackHeader } from "../components/u3/TrackHeader";
@@ -32,6 +33,7 @@ function blurTimelineControlFocus() {
 
 export function Timeline(props: {
   timeline: TimelineData;
+  shortcuts?: StudioShortcutTable;
   inputs?: readonly Input[];
   playhead: number;
   zoom: number;
@@ -175,7 +177,7 @@ export function Timeline(props: {
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
       const target = event.target instanceof Element ? event.target : null;
-      const shortcut = studioShortcut({ key: event.key, code: event.code, metaKey: event.metaKey, ctrlKey: event.ctrlKey, altKey: event.altKey, shiftKey: event.shiftKey, isComposing: event.isComposing, keyCode: event.keyCode, targetTagName: target?.tagName, targetType: (target as HTMLInputElement | null)?.type, targetRole: target?.closest("[role]")?.getAttribute("role") ?? undefined, targetIsContentEditable: (target as HTMLElement | null)?.isContentEditable });
+      const shortcut = studioShortcut({ key: event.key, code: event.code, metaKey: event.metaKey, ctrlKey: event.ctrlKey, altKey: event.altKey, shiftKey: event.shiftKey, isComposing: event.isComposing, keyCode: event.keyCode, targetTagName: target?.tagName, targetType: (target as HTMLInputElement | null)?.type, targetRole: target?.closest("[role]")?.getAttribute("role") ?? undefined, targetIsContentEditable: (target as HTMLElement | null)?.isContentEditable }, props.shortcuts);
       if (shortcut !== "split-pointer" && shortcut !== "split-playhead") return;
       let targetId: string | undefined;
       let atSec: number | undefined;
@@ -204,7 +206,7 @@ export function Timeline(props: {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [props.timeline, props.playhead, props.selectedId, starts, props.onEdit, props.onError, displayRows]);
+  }, [props.timeline, props.playhead, props.selectedId, starts, props.onEdit, props.onError, displayRows, props.shortcuts]);
 
   const selectedTrack = (rowId: string) => rowId;
   const resetEditor = () => {

@@ -6,6 +6,13 @@ type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 let connectionPromise: Promise<EngineConnection> | null = null;
 
+export class ApiError extends Error {
+  constructor(message: string, readonly code?: string, readonly details: Record<string, unknown> = {}) {
+    super(message);
+    this.name = "ApiError";
+  }
+}
+
 async function connection(): Promise<EngineConnection> {
   if (connectionPromise) return connectionPromise;
   connectionPromise = isTauri()
@@ -33,7 +40,7 @@ function requestHeaders(engine: EngineConnection): Headers {
   return headers;
 }
 
-export async function api<T>(method: Method, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
+export async function api<T = void>(method: Method, path: string, body?: unknown, signal?: AbortSignal): Promise<T> {
   const [engine, url] = await Promise.all([connection(), apiUrl(path)]);
   const headers = requestHeaders(engine);
   const init: RequestInit = { method, headers, signal };
@@ -54,8 +61,9 @@ export async function api<T>(method: Method, path: string, body?: unknown, signa
   const text = await response.text();
   const data = text ? JSON.parse(text) as unknown : null;
   if (!response.ok) {
-    const message = (data as { error?: { message?: string } } | null)?.error?.message;
-    throw new Error(message ?? `요청에 실패했습니다 (${response.status})`);
+    const error = (data as { error?: { message?: string; code?: string; [key: string]: unknown } } | null)?.error;
+    const { message, code, ...details } = error ?? {};
+    throw new ApiError(message ?? `요청에 실패했습니다 (${response.status})`, code, details);
   }
   return data as T;
 }

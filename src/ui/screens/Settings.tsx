@@ -21,6 +21,7 @@ import { cn } from "../components/ui/utils";
 import { AppInfo } from "../UpdateControls";
 import type { UpdateSnapshot } from "../updater";
 import { useBeforeUpdateRestart } from "../update-save";
+import type { StudioShortcutTable } from "../../core/studio-shortcuts";
 
 type ModelStatus = {
   bgeM3: { available: boolean; ranking: "embedding" | "rules" };
@@ -40,7 +41,7 @@ type ImageOptions = { model: "flare" | "sunburst"; quality: "low" | "medium" | "
 const SECTIONS = [["screen", "화면"], ["brand", "브랜드"], ["script", "대본"], ["meme", "짤"], ["voice", "음성"], ["imagegen", "이미지 생성"], ["sound", "알림음"], ["about", "앱 정보"]] as const;
 type SettingsSection = typeof SECTIONS[number][0];
 
-export function Settings(props: { onSnackbar: (message: string) => void; onError: (message: string) => void; update: UpdateSnapshot | null; onCheckUpdate: () => void }) {
+export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?: (bindings: StudioShortcutTable) => void; onSnackbar: (message: string) => void; onError: (message: string) => void; update: UpdateSnapshot | null; onCheckUpdate: () => void }) {
   const [section, setSection] = useState<SettingsSection>("screen");
   const [status, setStatus] = useState<SystemStatus | null>(null);
   const [jevStatus, setJevStatus] = useState<SystemStatus["jev"] | null>(null);
