@@ -19,7 +19,10 @@ fi
 node -e 'const fs=require("node:fs"),crypto=require("node:crypto"); if(crypto.createHash("sha256").update(fs.readFileSync(process.argv[1])).digest("hex")!=="ff1a9053feb509ff9d7729703355541ae9690073a6b1c40eb692c962e0dc1720") { console.error("Whisper archive SHA-256 오류"); process.exit(1); }' "$ARCHIVE"
 if [[ ! -f "$SOURCE/CMakeLists.txt" ]]; then
   mkdir -p "$SOURCE"
-  tar -xzf "$ARCHIVE" --strip-components=1 -C "$SOURCE"
+  # Git Bash 의 GNU tar 는 "D:/..." 의 콜론을 원격 호스트로 해석한다. --force-local 로 로컬 경로로 고정한다.
+  TAR_LOCAL=()
+  if tar --version 2>/dev/null | grep -q "GNU tar"; then TAR_LOCAL=(--force-local); fi
+  tar "${TAR_LOCAL[@]}" -xzf "$ARCHIVE" --strip-components=1 -C "$SOURCE"
 fi
 if [[ "$PLATFORM" == darwin ]]; then
   cmake -S "$SOURCE" -B "$BUILD" -DBUILD_SHARED_LIBS=OFF -DGGML_METAL=ON
