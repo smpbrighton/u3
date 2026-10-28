@@ -18,6 +18,6 @@ export function CodexWarning({ status, onSettings }: { status: SystemStatus | nu
   return <Alert className="flex items-center gap-2.5 px-3 py-2.5">
     <HugeiconsIcon icon={AlertCircleIcon} aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
     <span className="min-w-0 flex-1 text-sm font-bold">{message}</span>
-    <Button variant="outline" size="sm" disabled={!onSettings} onClick={onSettings}>{status?.codex.installed ? "설정 열기" : "실행 파일 지정"}</Button>
+    <Button variant="outline" size="sm" disabled={!onSettings} onClick={onSettings}>설정 열기</Button>
   </Alert>;
 }

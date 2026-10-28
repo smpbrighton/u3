@@ -8,7 +8,7 @@ function orderedModels(catalogSlugs: readonly string[]): string[] {
 }
 
 export function resolveCodexModel(saved: unknown, catalogSlugs: readonly string[]): string {
-  if (typeof saved === "string" && catalogSlugs.includes(saved)) return saved;
+  if (typeof saved === "string" && saved && (!catalogSlugs.length || catalogSlugs.includes(saved))) return saved;
   return orderedModels(catalogSlugs)[0] ?? CODEX_MODEL_PREFERENCE[0];
 }
 
