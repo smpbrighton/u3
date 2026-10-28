@@ -1,3 +1,6 @@
+import { createHash } from "node:crypto";
+import { DEFAULT_CAROUSEL_TOPIC_PROMPT, DEFAULT_CAROUSEL_VIDEO_PROMPT } from "../../src/core/carousel-prompt";
+import type { PromptDefaults } from "../../src/core/default-prompts";
 import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
@@ -10,11 +13,11 @@ import { DEFAULT_SCRIPT_PROMPT } from "../../src/core/script-prompt";
 const roots: string[] = [];
 afterEach(async () => Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))));
 
-async function appAt() {
+async function appAt(promptDefaults?: () => Promise<PromptDefaults>) {
   const root = await mkdtemp(path.join(os.tmpdir(), "u3-script-prompt-"));
   roots.push(root);
   const store = new Store(root);
-  const app = createApp({ store, jobs: new Jobs(), token: "test-token", codexPath: async () => null, jevKey: async () => null });
+  const app = createApp({ promptDefaults, store, jobs: new Jobs(), token: "test-token", codexPath: async () => null, jevKey: async () => null });
   return { app, store };
 }
 
@@ -69,5 +72,33 @@ describe("script prompt settings API", () => {
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({ isDefault: true });
     expect(await store.readSettings()).toEqual({ codexModel: "keep" });
+  });
+});
+
+const remoteDefaults: PromptDefaults = { schema: 1, revision: 2, script: "원격 대본", carouselTopic: DEFAULT_CAROUSEL_TOPIC_PROMPT, carouselVideo: DEFAULT_CAROUSEL_VIDEO_PROMPT };
+const hash = (text: string) => createHash("sha256").update(text).digest("hex");
+describe("대본의 원격 기본값", () => {
+  it("미수정 사용자는 갱신한 기본값을 따르고 PUT은 현재 기본값과 기준 hash를 반환한다", async () => {
+    let defaults = remoteDefaults;
+    const { app, store } = await appAt(async () => defaults);
+    const get = async () => (await app.request("/api/system/script-prompt", { headers })).json();
+    const put = async (prompt: string) => (await app.request("/api/system/script-prompt", { method: "PUT", headers, body: JSON.stringify({ prompt }) })).json();
+    expect(await get()).toMatchObject({ prompt: defaults.script, defaultPrompt: defaults.script, isDefault: true, newerDefault: false });
+    defaults = { ...defaults, revision: 3, script: "갱신한 원격 대본" };
+    expect(await get()).toMatchObject({ prompt: defaults.script, defaultPrompt: defaults.script });
+    expect(await put("  고친 대본  ")).toMatchObject({ prompt: "고친 대본", defaultPrompt: defaults.script, isDefault: false, newerDefault: false, rulesPreview: expect.any(String) });
+    expect(await store.readSettings()).toEqual({ scriptPrompt: "고친 대본", scriptPromptBaseHash: hash(defaults.script) });
+    defaults = { ...defaults, revision: 4, script: "다시 갱신한 원격 대본" };
+    expect(await get()).toMatchObject({ prompt: "고친 대본", defaultPrompt: defaults.script, newerDefault: true });
+    expect(await put(" ")).toMatchObject({ prompt: defaults.script, isDefault: true, newerDefault: false });
+    expect(await store.readSettings()).toEqual({});
+    await put("고친 대본");
+    await put(defaults.script);
+    expect(await store.readSettings()).toEqual({});
+  });
+  it("이전 버전에서 저장한 본문에 base hash가 없으면 표시하지 않는다", async () => {
+    const { app, store } = await appAt(async () => remoteDefaults);
+    await store.saveSettings({ scriptPrompt: DEFAULT_SCRIPT_PROMPT });
+    expect(await (await app.request("/api/system/script-prompt", { headers })).json()).toMatchObject({ prompt: DEFAULT_SCRIPT_PROMPT, defaultPrompt: remoteDefaults.script, isDefault: false, newerDefault: false });
   });
 });

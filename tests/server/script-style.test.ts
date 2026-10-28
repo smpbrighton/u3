@@ -1,3 +1,4 @@
+import type { PromptDefaults } from "../../src/core/default-prompts";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -27,15 +28,15 @@ function result(output: CodexScript, warnings = [{ inputId: "video", warning: "�
   return { output, usage: { input_tokens: 10, output_tokens: 5 }, transcriptWarnings: warnings };
 }
 
-async function recommend() {
+async function recommend(defaults?: PromptDefaults) {
   const root = await mkdtemp(path.join(os.tmpdir(), "u3-script-style-"));
   roots.push(root);
   const store = new Store(root);
   const project = await store.createProject("대본");
   await store.saveProject({ ...project, inputs: [{ id: "video", kind: "video", file: "input.mp4", durationSec: 3 }] });
-  await store.saveSettings({ scriptPrompt: "저장한 기본 지침", scriptTone: "말투 설정", scriptPersona: "성격 설정", scriptReview: "읽지 않을 옛 검수 설정" });
+  await store.saveSettings({ scriptPrompt: defaults ? undefined : "저장한 기본 지침", scriptTone: "말투 설정", scriptPersona: "성격 설정", scriptReview: "읽지 않을 옛 검수 설정" });
   const jobs = new Jobs();
-  const app = createApp({ store, jobs, token: "token", codexPath: async () => "fake-codex", jevKey: async () => null, resourceDir: path.join(root, "resources"), transcribeInput: async () => ({ text: "" }) });
+  const app = createApp({ promptDefaults: defaults ? async () => defaults : undefined, store, jobs, token: "token", codexPath: async () => "fake-codex", jevKey: async () => null, resourceDir: path.join(root, "resources"), transcribeInput: async () => ({ text: "" }) });
   const response = await app.request(`/api/projects/${project.id}/script/recommend`, {
     method: "POST", headers: { authorization: "Bearer token", "content-type": "application/json" },
     body: JSON.stringify({ mode: "direct", prompt: "사용자 요청", images: ["frame.png"] }),
@@ -125,4 +126,10 @@ describe("대본 검사와 한 번 재생성", () => {
     expect(done.result.styleWarnings).toContainEqual(expect.stringContaining("입력 항목 번호"));
     expect(done.saved).toEqual(draft);
   });
+});
+
+it("대본 생성은 주입한 현재 기본값으로 시작한다", async () => {
+  runScript.mockResolvedValue(result(script("직접 써 봤어. 너는 어때? 😊")));
+  await recommend({ schema: 1, revision: 2, script: "원격 대본 지침", carouselTopic: "원격 주제", carouselVideo: "원격 영상" });
+  expect(runScript.mock.calls[0]![0].prompt.startsWith("원격 대본 지침\n\n")).toBe(true);
 });

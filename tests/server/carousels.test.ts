@@ -33,18 +33,18 @@ async function appAt(composeCarouselSlide?: (carousel: import("../../src/core/ca
 }
 
 describe("carousels API", () => {
-  it.each([undefined, "저장한 주제 기획 지침"])("주제 기획은 기본값 또는 저장한 본문 뒤에 장수와 주제와 화풍을 붙인다: %s", async saved => {
+  it.each([undefined, "저장한 주제 기획 지침", "remote"])("주제 기획은 기본값 또는 저장한 본문 뒤에 장수와 주제와 화풍을 붙인다: %s", async saved => {
     const root = await mkdtemp(path.join(os.tmpdir(), "u3-carousel-topic-prompt-")); roots.push(root);
     const store = new Store(root);
-    await store.saveSettings({ carouselTopicPrompt: saved, scriptPrompt: "섞지 않을 대본 지침", scriptTone: "섞지 않을 말투" });
+    await store.saveSettings({ carouselTopicPrompt: saved === "remote" ? undefined : saved, scriptPrompt: "섞지 않을 대본 지침", scriptTone: "섞지 않을 말투" });
     runner.run.mockReset().mockResolvedValue({ output: { caption: "게시 캡션", slides: Array.from({ length: 2 }, () => ({ title: "제목", body: "본문", imagePrompt: "이미지" })) }, usage: {} });
-    const app = createApp({ store, jobs: new Jobs(), token: "test-token", codexPath: async () => path.join(root, "fake-codex"), jevKey: async () => null });
+    const app = createApp({ promptDefaults: saved === "remote" ? async () => ({ schema: 1, revision: 2, script: "대본", carouselTopic: "원격 주제 지침", carouselVideo: "영상" }) : undefined, store, jobs: new Jobs(), token: "test-token", codexPath: async () => path.join(root, "fake-codex"), jevKey: async () => null });
     const created = await app.request("/api/carousels", { method: "POST", headers, body: JSON.stringify({ topic: "바다", style: "수채화", slideCount: 2 }) });
     const { id } = await created.json() as { id: string };
     const planned = await app.request(`/api/carousels/${id}/plan`, { method: "POST", headers, body: JSON.stringify({ topic: "하늘" }) });
     expect(planned.status).toBe(202);
     expect(runner.run).toHaveBeenCalledOnce();
-    expect(runner.run.mock.calls[0]![0].prompt).toBe(`${saved ?? DEFAULT_CAROUSEL_TOPIC_PROMPT}\n\n요청 장수: 2\n주제: 하늘\n요청 화풍: 수채화`);
+    expect(runner.run.mock.calls[0]![0].prompt).toBe(`${saved === "remote" ? "원격 주제 지침" : saved ?? DEFAULT_CAROUSEL_TOPIC_PROMPT}\n\n요청 장수: 2\n주제: 하늘\n요청 화풍: 수채화`);
   });
 
   it("saves and validates image options and applies concurrency to the image queue", async () => {

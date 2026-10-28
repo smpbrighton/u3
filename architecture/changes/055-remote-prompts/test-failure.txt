@@ -1,0 +1,56 @@
+구현 전 실패 확인. 종료 코드: 1.
+가짜 fetch를 사용하며 실제 네트워크는 사용하지 않는다.
+
+> vitest run tests/core/default-prompts.test.ts tests/engine/prompt-defaults.test.ts tests/server/script-prompt.test.ts tests/server/carousel-prompts.test.ts tests/server/script-style.test.ts tests/server/carousels.test.ts tests/server/carousel-derived.test.ts tests/ui/settings-autosave.test.tsx tests/ui/settings-carousel-prompts.test.tsx tests/scripts/publish-prompts.test.ts
+ FAIL  tests/core/default-prompts.test.ts [ tests/core/default-prompts.test.ts ]
+Error: Cannot find module '../../src/core/default-prompts' imported from /Volumes/X31/workspace/smp_workspace/u3-055-remote-prompts/tests/core/default-prompts.test.ts
+ FAIL  tests/engine/prompt-defaults.test.ts [ tests/engine/prompt-defaults.test.ts ]
+Error: Cannot find module '../../src/core/default-prompts' imported from /Volumes/X31/workspace/smp_workspace/u3-055-remote-prompts/tests/engine/prompt-defaults.test.ts
+ FAIL  tests/scripts/publish-prompts.test.ts [ tests/scripts/publish-prompts.test.ts ]
+Error: Cannot find module '../../src/core/default-prompts' imported from /Volumes/X31/workspace/smp_workspace/u3-055-remote-prompts/tests/scripts/publish-prompts.test.ts
+ FAIL  tests/server/carousel-derived.test.ts > video derived carousel API > 영상 기획과 재기획은 기본값 또는 저장한 본문 뒤에 장수와 자료를 붙인다: remote
+AssertionError: expected false to be true // Object.is equality
+ FAIL  tests/server/carousel-prompts.test.ts > 캐러셀 기획 프롬프트 설정 API > 두 기본 프롬프트를 반환한다
+AssertionError: expected { topic: { …(2) }, video: { …(2) } } to deeply equal { topic: { …(4) }, video: { …(4) } }
+ FAIL  tests/server/carousel-prompts.test.ts > 캐러셀 기획 프롬프트 설정 API > 주제만 저장하면 공백을 제거하고 영상 기본값과 다른 설정을 보존한다
+AssertionError: expected { …(2) } to deeply equal { …(2) }
+ FAIL  tests/server/carousel-prompts.test.ts > 캐러셀 기획 프롬프트 설정 API > 영상만 저장하면 저장된 주제와 다른 설정을 보존한다
+AssertionError: expected { …(2) } to deeply equal { …(2) }
+ FAIL  tests/server/carousel-prompts.test.ts > 캐러셀 기획 프롬프트 설정 API > topic의 빈 값과 기본값은 해당 키만 삭제한다
+AssertionError: expected { topic: { …(2) }, video: { …(2) } } to deeply equal { topic: { …(4) }, video: { …(4) } }
+ FAIL  tests/server/carousel-prompts.test.ts > 캐러셀 기획 프롬프트 설정 API > video의 빈 값과 기본값은 해당 키만 삭제한다
+AssertionError: expected { …(2) } to deeply equal { video: { …(4) }, topic: { …(4) } }
+ FAIL  tests/server/carousel-prompts.test.ts > 캐러셀 기획 프롬프트 설정 API > 두 키를 함께 저장하고 빈 요청은 현재 값을 유지한다
+AssertionError: expected { topic: { prompt: '주제', …(1) }, …(1) } to deeply equal { topic: { prompt: '주제', …(3) }, …(1) }
+ FAIL  tests/server/carousel-prompts.test.ts > 캐러셀 기획 프롬프트 설정 API > 저장된 설정이 빈 문자열이거나 문자열이 아니면 기본값을 반환한다
+AssertionError: expected { topic: { …(2) }, video: { …(2) } } to deeply equal { topic: { …(4) }, video: { …(4) } }
+ FAIL  tests/server/carousel-prompts.test.ts > 캐러셀의 원격 기본값 > 세 프롬프트 중 바뀐 본문의 수정 사용자에게만 표시하고 초기화는 기준 hash도 지운다
+AssertionError: expected { topic: { …(2) }, video: { …(2) } } to deeply equal { …(2) }
+ FAIL  tests/server/carousels.test.ts > carousels API > 주제 기획은 기본값 또는 저장한 본문 뒤에 장수와 주제와 화풍을 붙인다: remote
+AssertionError: expected '주제를 독자에게 건네는 일관된 편집 글로 구성하여 캐러셀을 기획한다…' to be '원격 주제 지침\n\n요청 장수: 2\n주제: 하늘\n요청 화풍: …' // Object.is equality
+ FAIL  tests/server/script-prompt.test.ts > 대본의 원격 기본값 > 미수정 사용자는 갱신한 기본값을 따르고 PUT은 현재 기본값과 기준 hash를 반환한다
+AssertionError: expected { …(3) } to match object { prompt: '원격 대본', …(3) }
+ FAIL  tests/server/script-prompt.test.ts > 대본의 원격 기본값 > 이전 버전에서 저장한 본문에 base hash가 없으면 표시하지 않는다
+AssertionError: expected { …(3) } to match object { …(4) }
+ FAIL  tests/server/script-style.test.ts > 대본 생성은 주입한 현재 기본값으로 시작한다
+AssertionError: expected false to be true // Object.is equality
+ FAIL  tests/ui/settings-autosave.test.tsx > 여러 줄 설정의 자동 저장 > 대본 프롬프트 저장 중 기본값으로 바꾸면 마지막 요청도 기본값이다
+AssertionError: expected last "vi.fn()" call to have been called with [ 'PUT', …(2) ]
+ FAIL  tests/ui/settings-autosave.test.tsx > 대본을 바꾸지 않은 blur는 저장하지 않는다
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+ FAIL  tests/ui/settings-autosave.test.tsx > 대본의 서버 기본값과 새 기본값 표시를 사용한다
+AssertionError: Target cannot be null or undefined.
+ FAIL  tests/ui/settings-carousel-prompts.test.tsx > 캐러셀 기획 프롬프트 설정 > topic 저장 중 기본값으로 바꾸면 마지막 요청도 기본값이다
+AssertionError: expected last "vi.fn()" call to have been called with [ 'PUT', …(2) ]
+ FAIL  tests/ui/settings-carousel-prompts.test.tsx > 캐러셀 기획 프롬프트 설정 > video 저장 중 기본값으로 바꾸면 마지막 요청도 기본값이다
+AssertionError: expected last "vi.fn()" call to have been called with [ 'PUT', …(2) ]
+ FAIL  tests/ui/settings-carousel-prompts.test.tsx > topic 본문을 바꾸지 않은 blur는 저장하지 않는다
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+ FAIL  tests/ui/settings-carousel-prompts.test.tsx > video 본문을 바꾸지 않은 blur는 저장하지 않는다
+AssertionError: expected "vi.fn()" to not be called at all, but actually been called 1 times
+ FAIL  tests/ui/settings-carousel-prompts.test.tsx > 바뀐 프롬프트에만 표시하고 초기화 응답의 최신 기본값을 반영한다
+AssertionError: Target cannot be null or undefined.
+ Test Files  10 failed (10)
+      Tests  21 failed | 38 passed (59)
+   Duration  2.07s (import 59%, tests 32%, transform 9%)
+ ELIFECYCLE  Test failed. See above for more details.

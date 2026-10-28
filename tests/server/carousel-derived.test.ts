@@ -11,7 +11,7 @@ const roots: string[] = [];
 const headers = { authorization: "Bearer test-token", "content-type": "application/json" };
 afterEach(async () => Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))));
 
-async function setup(jevEnabled = true) {
+async function setup(jevEnabled = true, remote = false) {
   const root = await mkdtemp(path.join(os.tmpdir(), "u3-derived-carousel-")); roots.push(root);
   const store = new Store(root); await store.init();
   const fixture = JSON.parse(await readFile(path.join(process.cwd(), "tests/fixtures/project/project.json"), "utf8"));
@@ -28,7 +28,7 @@ async function setup(jevEnabled = true) {
     expect(prompt).not.toContain("data:image");
     return { caption: "영상 게시 캡션", slides: Array.from({ length: count }, (_, i) => ({ sceneNumber: i + 1, title: `제목 ${i + 1}`, body: `본문 ${i + 1}`, target: "상품" })), usage: {} };
   });
-  const app = createApp({ store, jobs, token: "test-token", codexPath: async () => null, jevKey: async () => "fixture-jev-key",
+  const app = createApp({ promptDefaults: remote ? async () => ({ schema: 1, revision: 2, script: "대본", carouselTopic: "주제", carouselVideo: "원격 영상 지침" }) : undefined, store, jobs, token: "test-token", codexPath: async () => null, jevKey: async () => "fixture-jev-key",
     carouselServices: {
       refine: async () => ({ candidates: [], usage: {} }), plan: async () => ({ style: "", slides: [], usage: {} }), generateImage: async () => Buffer.from([]),
       derivePlan,
@@ -40,16 +40,16 @@ async function setup(jevEnabled = true) {
 }
 
 describe("video derived carousel API", () => {
-  it.each([undefined, "저장한 영상 기획 지침"])("영상 기획과 재기획은 기본값 또는 저장한 본문 뒤에 장수와 자료를 붙인다: %s", async saved => {
-    const { app, store, project, derivePlan } = await setup();
-    await store.saveSettings({ ...await store.readSettings(), carouselVideoPrompt: saved, scriptPrompt: "섞지 않을 대본 지침", scriptPersona: "섞지 않을 성격" });
+  it.each([undefined, "저장한 영상 기획 지침", "remote"])("영상 기획과 재기획은 기본값 또는 저장한 본문 뒤에 장수와 자료를 붙인다: %s", async saved => {
+    const { app, store, project, derivePlan } = await setup(true, saved === "remote");
+    await store.saveSettings({ ...await store.readSettings(), carouselVideoPrompt: saved === "remote" ? undefined : saved, scriptPrompt: "섞지 않을 대본 지침", scriptPersona: "섞지 않을 성격" });
     const response = await app.request(`/api/projects/${project.id}/carousel`, { method: "POST", headers, body: JSON.stringify({ count: 2 }) });
     expect(response.status).toBe(201);
     const { carousel } = await response.json() as { carousel: { id: string } };
     const replanned = await app.request(`/api/carousels/${carousel.id}/plan`, { method: "POST", headers, body: "{}" });
     expect(replanned.status).toBe(202);
     expect(derivePlan).toHaveBeenCalledTimes(2);
-    const prefix = `${saved ?? DEFAULT_CAROUSEL_VIDEO_PROMPT}\n\n요청 장수: 2\n자료: `;
+    const prefix = `${saved === "remote" ? "원격 영상 지침" : saved ?? DEFAULT_CAROUSEL_VIDEO_PROMPT}\n\n요청 장수: 2\n자료: `;
     for (const [input] of derivePlan.mock.calls) {
       expect(input.prompt.startsWith(prefix)).toBe(true);
       expect(JSON.parse(input.prompt.slice(prefix.length))).toMatchObject({
