@@ -1,12 +1,32 @@
 import type { Hono } from "hono";
-import { access, mkdir } from "node:fs/promises";
+import { access, mkdir, readdir } from "node:fs/promises";
 import path from "node:path";
 import type { AppContext } from "../app";
 import { HttpError } from "../http";
 import { extractFrames, extractThumbnail, frameAllocation } from "../pipeline/frames";
+import { scriptFrameSecs } from "../../core/carousel-frame";
 import { mediaUrl } from "../pipeline/media-server";
 
 export function registerFrameRoutes(app: Hono, context: AppContext): void {
+  app.get("/api/projects/:id/frames/list", async c => {
+    const id = c.req.param("id"); const project = await context.store.requireProject(id);
+    const result: Array<{ inputId: string; frames: Array<{ file: string; url: string; sec: number }> }> = [];
+    for (const input of project.inputs.filter(item => item.id !== "placeholder")) {
+      const directory = path.join(context.store.projectDir(id), "input", ".frames", input.id);
+      const files = (await readdir(directory, { withFileTypes: true }).catch((error: NodeJS.ErrnoException) => {
+        if (error.code === "ENOENT") return [];
+        throw error;
+      })).filter(item => item.isFile() && /^frame-\d+\.jpg$/.test(item.name)).map(item => item.name).sort((a, b) => a.localeCompare(b, undefined, { numeric: true }));
+      if (!files.length) continue;
+      const secs = scriptFrameSecs(files.length, input.kind === "video" ? input.durationSec ?? 0 : 0);
+      result.push({ inputId: input.id, frames: files.map((name, index) => {
+        const file = path.join(directory, name), relative = path.relative(context.store.projectDir(id), file);
+        return { file, sec: secs[index]!, url: context.mediaServer?.url("projects", `${id}/${relative}`) ?? mediaUrl(id, relative, context.token, new URL(c.req.url).origin) };
+      }) });
+    }
+    return c.json(result);
+  });
+
   app.get("/api/projects/:id/inputs/:inputId/thumbnail", async c => {
     const id = c.req.param("id");
     const inputId = c.req.param("inputId");

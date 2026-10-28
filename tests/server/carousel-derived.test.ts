@@ -28,7 +28,7 @@ async function setup(jevEnabled = true) {
       refine: async () => ({ candidates: [], usage: {} }), plan: async () => ({ style: "", slides: [], usage: {} }), generateImage: async () => Buffer.from([]),
       derivePlan: async ({ count, prompt }) => {
         expect(prompt).not.toContain("data:image");
-        return { slides: Array.from({ length: count }, (_, i) => ({ sceneNumber: i + 1, title: `제목 ${i + 1}`, body: `본문 ${i + 1}`, target: "상품" })), usage: {} };
+        return { caption: "영상 게시 캡션", slides: Array.from({ length: count }, (_, i) => ({ sceneNumber: i + 1, title: `제목 ${i + 1}`, body: `본문 ${i + 1}`, target: "상품" })), usage: {} };
       },
       renderFrame: async ({ outputPath }) => { await mkdir(path.dirname(outputPath), { recursive: true }); await writeFile(outputPath, Buffer.from("png")); },
       askBox,
@@ -42,10 +42,12 @@ describe("video derived carousel API", () => {
     const { app, jobs, project } = await setup();
     for (const aspect of ["9:16", "16:9"] as const) {
       const response = await app.request(`/api/projects/${project.id}/carousel`, { method: "POST", headers, body: JSON.stringify({ count: 2, aspect }) });
-      expect(response.status).toBe(202);
-      const result = await response.json() as { carousel: { id: string; aspect: string }; job: { id: string } };
+      expect(response.status).toBe(201);
+      const result = await response.json() as { carousel: { id: string; aspect: string } };
       expect(result.carousel.aspect).toBe(aspect);
-      await jobs.wait(result.job.id);
+      const generation = await app.request(`/api/carousels/${result.carousel.id}/generate`, { method: "POST", headers, body: "{}" });
+    const started = await generation.json() as { jobs: Array<{ id: string }> };
+    await Promise.all(started.jobs.map(job => jobs.wait(job.id)));
       const saved = await app.request(`/api/carousels/${result.carousel.id}`, { headers });
       expect((await saved.json() as { aspect: string }).aspect).toBe(aspect);
     }
@@ -54,8 +56,10 @@ describe("video derived carousel API", () => {
   it("stores the original timeline duration on newly derived carousels", async () => {
     const { app, jobs, project } = await setup();
     const response = await app.request(`/api/projects/${project.id}/carousel`, { method: "POST", headers, body: JSON.stringify({ count: 2 }) });
-    const result = await response.json() as { carousel: { id: string; source: { durationSec?: number } }; job: { id: string } };
-    await jobs.wait(result.job.id);
+    const result = await response.json() as { carousel: { id: string; source: { durationSec?: number } } };
+    const generation = await app.request(`/api/carousels/${result.carousel.id}/generate`, { method: "POST", headers, body: "{}" });
+    const started = await generation.json() as { jobs: Array<{ id: string }> };
+    await Promise.all(started.jobs.map(job => jobs.wait(job.id)));
     const expectedDuration = project.timeline.video.reduce((sum, clip) => sum + ("durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec), 0);
 
     expect(result.carousel.source.durationSec).toBe(expectedDuration);
@@ -64,9 +68,11 @@ describe("video derived carousel API", () => {
   it("plans without frame images, extracts one frame and box per slide, and isolates a re-extract to one slide", async () => {
     const { app, store, jobs, project, askBox } = await setup();
     const response = await app.request(`/api/projects/${project.id}/carousel`, { method: "POST", headers, body: JSON.stringify({ count: 2 }) });
-    expect(response.status).toBe(202);
-    const result = await response.json() as { carousel: { id: string; slides: Array<{ id: string }> }; job: { id: string } };
-    await jobs.wait(result.job.id);
+    expect(response.status).toBe(201);
+    const result = await response.json() as { carousel: { id: string; slides: Array<{ id: string }> } };
+    const generation = await app.request(`/api/carousels/${result.carousel.id}/generate`, { method: "POST", headers, body: "{}" });
+    const started = await generation.json() as { jobs: Array<{ id: string }> };
+    await Promise.all(started.jobs.map(job => jobs.wait(job.id)));
     const carouselResponse = await app.request(`/api/carousels/${result.carousel.id}`, { headers });
     const carousel = await carouselResponse.json() as { slides: Array<{ id: string; background: { frame: { file: string }; highlight: { box: unknown } } }> };
     expect(carousel.slides).toHaveLength(2);
@@ -87,16 +93,20 @@ describe("video derived carousel API", () => {
   it("does not request Jev when its setting is disabled", async () => {
     const { app, jobs, project, askBox } = await setup(false);
     const response = await app.request(`/api/projects/${project.id}/carousel`, { method: "POST", headers, body: JSON.stringify({ count: 2 }) });
-    const result = await response.json() as { carousel: { id: string }; job: { id: string } };
-    await jobs.wait(result.job.id);
+    const result = await response.json() as { carousel: { id: string } };
+    const generation = await app.request(`/api/carousels/${result.carousel.id}/generate`, { method: "POST", headers, body: "{}" });
+    const started = await generation.json() as { jobs: Array<{ id: string }> };
+    await Promise.all(started.jobs.map(job => jobs.wait(job.id)));
     expect(askBox).not.toHaveBeenCalled();
   });
 
   it("saves the no-highlight choice without requesting a box", async () => {
     const { app, jobs, project, askBox } = await setup();
     const response = await app.request(`/api/projects/${project.id}/carousel`, { method: "POST", headers, body: JSON.stringify({ count: 2 }) });
-    const result = await response.json() as { carousel: { id: string; slides: Array<{ id: string }> }; job: { id: string } };
-    await jobs.wait(result.job.id);
+    const result = await response.json() as { carousel: { id: string; slides: Array<{ id: string }> } };
+    const generation = await app.request(`/api/carousels/${result.carousel.id}/generate`, { method: "POST", headers, body: "{}" });
+    const started = await generation.json() as { jobs: Array<{ id: string }> };
+    await Promise.all(started.jobs.map(job => jobs.wait(job.id)));
 
     const updated = await app.request(`/api/carousels/${result.carousel.id}/slides/${result.carousel.slides[0]!.id}/highlight`, { method: "POST", headers, body: JSON.stringify({ style: "none", target: "" }) });
 

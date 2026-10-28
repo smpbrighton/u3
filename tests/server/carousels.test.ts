@@ -17,7 +17,7 @@ async function appAt(composeCarouselSlide?: (carousel: import("../../src/core/ca
   const app = createApp({ store, jobs, token: "test-token", codexPath: async () => null, jevKey: async () => null,
     carouselServices: {
       refine: async () => ({ candidates: [{ topic: "주제 1", angle: "각도 1" }, { topic: "주제 2", angle: "각도 2" }, { topic: "주제 3", angle: "각도 3" }], usage: {} }),
-      plan: async ({ topic, count }: { topic: string; count: number }) => ({ style: "수채화", slides: Array.from({ length: count }, (_, i) => ({ title: `제목 ${i + 1}`, body: `본문 ${i + 1}`, imagePrompt: `이미지 ${i + 1}` })), topic, usage: {} }),
+      plan: async ({ topic, count }: { topic: string; count: number }) => ({ caption: "주제 게시 캡션", style: "수채화", slides: Array.from({ length: count }, (_, i) => ({ title: `제목 ${i + 1}`, body: `본문 ${i + 1}`, imagePrompt: `이미지 ${i + 1}` })), topic, usage: {} }),
       generateImage: async () => Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
     },
     composeCarouselSlide,
