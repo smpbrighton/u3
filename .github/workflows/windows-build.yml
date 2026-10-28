@@ -203,12 +203,14 @@ jobs:
       RELEASE_TAG: ${{ needs.inspect.outputs.tag }}
       RELEASE_SHA: ${{ needs.inspect.outputs.sha }}
       RELEASE_VERSION: ${{ needs.inspect.outputs.version }}
-      TMPDIR: ${{ runner.temp }}/tmp
-      CARGO_HOME: ${{ runner.temp }}/cargo
-      CARGO_TARGET_DIR: ${{ runner.temp }}/target
-      U3_BUILD_CACHE: ${{ runner.temp }}/u3-build
-      npm_config_cache: ${{ runner.temp }}/npm-cache
     steps:
+      - name: Runner 경로 설정
+        shell: bash
+        run: |
+          for pair in TMPDIR=tmp CARGO_HOME=cargo CARGO_TARGET_DIR=target U3_BUILD_CACHE=u3-build npm_config_cache=npm-cache; do
+            mkdir -p "$RUNNER_TEMP/${pair#*=}"
+            echo "${pair%%=*}=$RUNNER_TEMP/${pair#*=}" >> "$GITHUB_ENV"
+          done
       - uses: actions/checkout@v4
         with:
           ref: ${{ needs.inspect.outputs.sha }}
