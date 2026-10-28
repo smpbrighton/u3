@@ -128,7 +128,7 @@ export function App() {
   ) : screen === "input" && project ? (
     <Input project={project} onProject={setProject} onBack={() => go("home")} onNext={() => go("script")} onScript={() => go("script")} onStudio={() => go("studio")} onError={notifyError} />
   ) : screen === "script" && project ? (
-    <Script project={project} status={status} onProject={setProject} onStudio={() => go("studio")} onBack={() => go("input")} onSnackbar={notify} onError={notifyError} />
+    <Script project={project} status={status} onProject={setProject} onStudio={() => go("studio")} onBack={() => go("input")} onSnackbar={notify} onError={notifyError} onSettings={() => go("settings")} />
   ) : screen === "studio" && project ? (
     <Studio project={project} onProject={setProject} onBack={() => go("script")} onSnackbar={notify} onError={notifyError} onCarouselCreated={openCarousel} />
   ) : screen === "carousel" ? (
@@ -143,7 +143,7 @@ export function App() {
       {screen !== "studio" || updateLine(update) ? <Sidebar items={NAVIGATION} current={screen === "input" || screen === "script" || screen === "studio" ? "home" : screen} onNavigate={go} update={update} restarting={restarting} onRestart={() => void requestRestart()} /> : null}
       <main className="main-column flex min-w-0 flex-1 flex-col overflow-hidden">
         {engineError && <div className="shrink-0 px-10 pt-7 pb-5"><EngineConnectionBanner error={engineError} connecting={connecting} onRetry={() => setConnectionAttempt(attempt => attempt + 1)} /></div>}
-        {screen === "settings" ? page : <div data-u3-legacy={screen}>{page}</div>}
+        {screen === "studio" || screen === "carousel" ? <div data-u3-legacy={screen}>{page}</div> : page}
       </main>
     </div>
     <AlertDialog open={confirmRestart} onOpenChange={setConfirmRestart}>

@@ -8,7 +8,8 @@
 @source "./components";
 @source "./App.tsx";
 @source "./UpdateControls.tsx";
-@source "./screens/Settings.tsx";
+@source "./screens";
+@source "./studio";
 @source "./settings";
 @custom-variant dark (&:where(.dark, .dark *));
 
