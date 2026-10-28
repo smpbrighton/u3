@@ -120,7 +120,7 @@ describe("원격 기본 프롬프트", () => {
     await reading;
     expect(value).toEqual(delay < 3000 ? remote : bundled);
     await vi.advanceTimersByTimeAsync(Math.max(0, delay - 3000));
-    await vi.advanceTimersByTimeAsync(6 * 60 * 60 * 1000 - Math.max(delay, 3000));
+    await vi.advanceTimersByTimeAsync(6 * 60 * 60 * 1000 - delay);
     expect(fetchImpl).toHaveBeenCalledTimes(2);
     // 첫 받기가 끝났으면 주기 받기는 current를 지연하지 않는다.
     expect(await prompts.current()).toEqual(remote);
