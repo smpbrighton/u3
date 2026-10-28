@@ -20,5 +20,6 @@ describe("studio global input and edit toolbar", () => {
     expect(toolbar).toContain("다시 실행");
     expect(toolbar).toContain("스냅");
     expect(toolbar).toContain("확대");
+    expect(toolbar).toContain("단축키");
   });
 });
