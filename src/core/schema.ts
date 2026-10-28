@@ -9,6 +9,12 @@ export const Input = z.object({
 });
 export type Input = z.infer<typeof Input>;
 
+export const Speed = z.number().finite().min(0.5).max(2);
+export const AudioCacheEntry = z.object({ file: z.string().min(1), durationSec: z.number().positive(), version: z.string().min(1) });
+export type AudioCacheEntry = z.infer<typeof AudioCacheEntry>;
+export const AudioCache = z.record(z.string(), AudioCacheEntry);
+export type AudioCache = z.infer<typeof AudioCache>;
+
 export const Gain = z.object({ gain: z.number().min(0).max(1.5), muted: z.boolean() });
 export type Gain = z.infer<typeof Gain>;
 export const TimelineAudio = z.object({ source: Gain, voice: Gain, sfx: Gain, stems: z.record(z.string(), z.object({ voice: Gain, bg: Gain })).optional() });
@@ -34,6 +40,7 @@ export type ClipTransitionInput = z.input<typeof ClipTransition>;
 const DefaultClipTransition = ClipTransition.optional().default({ kind: { kind: "none" }, durationSec: 0.5 });
 
 const VideoClipProperties = {
+  speed: Speed.optional(),
   groupId: z.string().min(1).optional(),
   opacity: z.number().min(0).max(1).optional(),
   startTransition: DefaultClipTransition,
@@ -46,7 +53,8 @@ const VideoClipBase = z.union([
   z.object({ ...VideoClipProperties, id: z.string().min(1), kind: z.literal("meme"), memeId: z.string().min(1), durationSec: z.number().positive() }),
 ]);
 export const VideoClip = VideoClipBase.superRefine((clip, ctx) => {
-  const durationSec = "durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec;
+  if ("durationSec" in clip && (clip.speed ?? 1) !== 1) ctx.addIssue({ code: "custom", path: ["speed"], message: "사진과 짤은 배속을 지원하지 않습니다" });
+  const durationSec = "durationSec" in clip ? clip.durationSec : (clip.inEndSec - clip.inStartSec) / (clip.speed ?? 1);
   if ("inStartSec" in clip && clip.inEndSec <= clip.inStartSec) {
     ctx.addIssue({ code: "custom", path: ["inEndSec"], message: "inEndSec는 inStartSec보다 커야 합니다" });
   }
@@ -58,6 +66,7 @@ export const VideoClip = VideoClipBase.superRefine((clip, ctx) => {
   }
 });
 type VideoClipMetadata = {
+  speed?: number;
   groupId?: string;
   startTransition?: ClipTransitionInput;
   endTransition?: ClipTransitionInput;
@@ -69,6 +78,7 @@ export type VideoClip = VideoClipMetadata & { opacity?: number } & (
 );
 
 const OverlayProperties = {
+  speed: Speed.optional(),
   sceneIndex: z.number().int().min(0).optional(),
   groupId: z.string().min(1).optional(),
   opacity: z.number().min(0).max(1).optional(),
@@ -83,7 +93,8 @@ export const OverlayClip = z.union([
   }),
   OverlayBase.extend({ inputId: z.string().min(1), kind: z.literal("photo"), durationSec: z.number().positive() }),
 ]).superRefine((clip, ctx) => {
-  const durationSec = "durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec;
+  if ("durationSec" in clip && (clip.speed ?? 1) !== 1) ctx.addIssue({ code: "custom", path: ["speed"], message: "사진과 짤은 배속을 지원하지 않습니다" });
+  const durationSec = "durationSec" in clip ? clip.durationSec : (clip.inEndSec - clip.inStartSec) / (clip.speed ?? 1);
   for (const edge of ["startTransition", "endTransition"] as const) {
     const transition = clip[edge];
     if (transition && transition.kind.kind !== "none" && transition.durationSec > durationSec / 2) {
@@ -108,7 +119,7 @@ export const TextClip = z.object({ id: z.string().min(1), startSec: z.number().m
     if (clip.endSec <= clip.startSec) ctx.addIssue({ code: "custom", path: ["endSec"], message: "endSec는 startSec보다 커야 합니다" });
   });
 export type TextClip = z.infer<typeof TextClip>;
-export const AudioClip = z.object({ id: z.string().min(1), startSec: z.number().min(0), file: z.string().min(1), inStartSec: z.number().min(0), inEndSec: z.number().positive(), gain: z.number().min(0).max(1.5), lane: z.number().int().min(0).optional(), fadeOutSec: z.number().min(0).optional(), sceneIndex: z.number().int().min(0).optional() })
+export const AudioClip = z.object({ speed: Speed.optional(), id: z.string().min(1), startSec: z.number().min(0), file: z.string().min(1), inStartSec: z.number().min(0), inEndSec: z.number().positive(), gain: z.number().min(0).max(1.5), lane: z.number().int().min(0).optional(), fadeOutSec: z.number().min(0).optional(), sceneIndex: z.number().int().min(0).optional() })
   .superRefine((clip, ctx) => {
     if (clip.inEndSec <= clip.inStartSec) ctx.addIssue({ code: "custom", path: ["inEndSec"], message: "inEndSec는 inStartSec보다 커야 합니다" });
   });
@@ -153,6 +164,8 @@ export const Timeline = z.object({
     sfx: Gain,
     stems: z.record(z.string(), z.object({ voice: Gain, bg: Gain })).optional(),
   }),
+}).superRefine((timeline, ctx) => {
+  timeline.sfx.forEach((clip, index) => { if ((clip.speed ?? 1) !== 1) ctx.addIssue({ code: "custom", path: ["sfx", index, "speed"], message: "효과음은 배속을 지원하지 않습니다" }); });
 }).transform(({ captions, captionLayers, captionX, captionY, ...timeline }) => {
   const layers = captionLayers ?? [{ id: "caption-layer-1", name: "자막", x: captionX ?? 0.5, y: captionY === undefined ? 1555 / 1920 : Math.max(0, Math.min(1, (captionY + 105) / 1920)), style: { font: "pretendard" as const, mainSize: 56, subSize: 40, color: "#FFFFFF", textOpacity: 1, bar: true, barColor: "#000000", barOpacity: 0.62 }, main: captions ?? [], sub: [] }];
   const withSceneIndex = <T extends { id: string; sceneIndex?: number }>(clip: T): T => {
@@ -189,20 +202,22 @@ export class ProjectRecord {
   name: string;
   inputs: Input[];
   savedAt: string;
+  audioCache?: AudioCache;
   private timelineValue: CanonicalTimeline;
 
-  constructor(value: { id: string; name: string; inputs: Input[]; timeline: CanonicalTimeline; savedAt: string }) {
+  constructor(value: { id: string; name: string; inputs: Input[]; timeline: CanonicalTimeline; savedAt: string; audioCache?: AudioCache }) {
     this.id = value.id;
     this.name = value.name;
     this.inputs = value.inputs;
     this.savedAt = value.savedAt;
+    if (value.audioCache) this.audioCache = value.audioCache;
     this.timelineValue = value.timeline;
     Object.defineProperty(this, "timeline", { enumerable: true, configurable: false, get: () => this.timelineValue, set: (timeline: Timeline) => { this.timelineValue = Timeline.parse(timeline) as CanonicalTimeline; } });
   }
 
   get timeline(): CanonicalTimeline { return this.timelineValue; }
   set timeline(value: Timeline) { this.timelineValue = Timeline.parse(value) as CanonicalTimeline; }
-  toJSON() { return { id: this.id, name: this.name, inputs: this.inputs, timeline: this.timelineValue, savedAt: this.savedAt }; }
+  toJSON() { return { id: this.id, name: this.name, inputs: this.inputs, timeline: this.timelineValue, savedAt: this.savedAt, ...(this.audioCache ? { audioCache: this.audioCache } : {}) }; }
 }
 
 export const Project = z.object({
@@ -210,9 +225,10 @@ export const Project = z.object({
   name: z.string().min(1),
   inputs: z.array(Input).min(1).max(20),
   timeline: Timeline,
+  audioCache: AudioCache.optional(),
   savedAt: z.string().datetime(),
-}).transform((project) => new ProjectRecord(project as { id: string; name: string; inputs: Input[]; timeline: CanonicalTimeline; savedAt: string }));
-export type Project = { id: string; name: string; inputs: Input[]; timeline: Timeline; savedAt: string };
+}).transform((project) => new ProjectRecord(project as { id: string; name: string; inputs: Input[]; timeline: CanonicalTimeline; savedAt: string; audioCache?: AudioCache }));
+export type Project = { id: string; name: string; inputs: Input[]; timeline: Timeline; savedAt: string; audioCache?: AudioCache };
 
 export const WordStamp = z.object({ text: z.string(), start: z.number().min(0), end: z.number().min(0) });
 export type WordStamp = z.infer<typeof WordStamp>;
