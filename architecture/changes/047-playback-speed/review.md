@@ -1,5 +1,5 @@
 # Review: playback-speed
-Author: claude-opus-5-5[1m]. Status: draft. Round: 1.
+Author: claude-opus-5-5[1m]. Status: accepted. Round: 1.
 
 ## 대조한 것
 - 변경 문서: `architecture/changes/047-playback-speed/intent.md`, `architecture/changes/047-playback-speed/spec.md`
