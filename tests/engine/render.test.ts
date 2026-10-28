@@ -55,6 +55,7 @@ describe("render route", () => {
       expect(canceled.status).toBe(200);
       expect(aborted).toBe(true);
       expect(jobs.get(job.id)?.status).toBe("discarded");
+      await jobs.wait(job.id);
     } finally {
       await import("node:fs/promises").then(fs => fs.rm(root, { recursive: true, force: true }));
     }
