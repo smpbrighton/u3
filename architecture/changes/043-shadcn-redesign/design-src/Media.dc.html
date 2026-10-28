@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>1 미디어</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./u3.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="u3 t-{{theme}}" style="width: 1440px; height: 900px; display: flex; flex-direction: column; font-family: Pretendard, system-ui, sans-serif; color: var(--fg)">
+  <header class="stephead">
+    <button class="btn btn-ghost btn-icon" aria-label="영상 목록"><span class="i i-back"></span></button>
+    <div class="input" style="width: 240px">새 영상</div>
+    <div style="flex: 1; display: flex; justify-content: center">
+      <div class="steps">
+        <span class="on"><em>1</em>미디어</span><span class="i i-right"></span>
+        <span class="{{s.step2}}"><em>2</em>대본</span><span class="i i-right"></span>
+        <span class="off"><em>3</em>스튜디오</span>
+      </div>
+    </div>
+    <sc-if value="{{s.canNext}}" hint-placeholder-val="{{ true }}">
+      <button class="btn btn-solid">다음: 대본<span class="i i-right"></span></button>
+    </sc-if>
+    <sc-if value="{{s.noNext}}" hint-placeholder-val="{{ false }}">
+      <button class="btn btn-solid" disabled>다음: 대본<span class="i i-right"></span></button>
+    </sc-if>
+  </header>
+  <main style="flex: 1; min-height: 0; display: flex; justify-content: center; padding: 32px 40px; position: relative">
+    <div style="width: 880px; display: flex; flex-direction: column; gap: 16px">
+      <sc-if value="{{s.empty}}" hint-placeholder-val="{{ false }}">
+        <button style="flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 14px; border: 1.5px dashed var(--border); border-radius: 12px; background: var(--panel); cursor: pointer">
+          <span class="i i-xl i-upload" style="color: var(--fg2)"></span>
+          <b style="font-size: 15px">영상·사진 넣기</b>
+        </button>
+      </sc-if>
+      <sc-if value="{{s.compact}}" hint-placeholder-val="{{ true }}">
+        <button style="height: 72px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 20px; border: 1.5px dashed var(--border); border-radius: 12px; background: var(--panel); cursor: pointer; text-align: left">
+          <span class="i i-lg i-upload" style="color: var(--fg2)"></span>
+          <b style="flex: 1">영상·사진 넣기</b>
+          <span class="muted num sm">3 / 20</span>
+        </button>
+      </sc-if>
+      <sc-if value="{{s.importing}}" hint-placeholder-val="{{ false }}">
+        <div style="height: 72px; flex: none; display: flex; align-items: center; gap: 12px; padding: 0 20px; border: 1.5px solid var(--border); border-radius: 12px; background: var(--panel)">
+          <span class="spin"></span>
+          <b>넣는 중</b>
+          <div class="prog" style="flex: 1"><i style="width: 66%"></i></div>
+          <span class="muted num sm">2 / 3</span>
+        </div>
+      </sc-if>
+      <sc-if value="{{s.list}}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-direction: column; border: 1px solid var(--border); border-radius: 10px; overflow: hidden">
+          <sc-for list="{{items}}" as="it" hint-placeholder-count="3">
+            <div style="display: flex; align-items: center; gap: 12px; height: 80px; padding: 0 12px 0 8px; border-bottom: 1px solid var(--border); background: var(--bg)">
+              <span class="i i-grip" style="color: var(--fg3)"></span>
+              <b class="num" style="width: 16px; text-align: center">{{it.n}}</b>
+              <div class="libthumb"><img src="{{it.img}}" alt=""></div>
+              <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><b class="ell">{{it.name}}</b><span class="xs muted">{{it.meta}}</span></div>
+              <button class="btn btn-ghost btn-icon btn-sm" aria-label="위로" disabled="{{it.first}}"><span class="i i-up-arr"></span></button>
+              <button class="btn btn-ghost btn-icon btn-sm" aria-label="아래로" disabled="{{it.last}}"><span class="i i-dn-arr"></span></button>
+              <button class="btn btn-ghost btn-icon btn-sm" aria-label="빼기"><span class="i i-x"></span></button>
+            </div>
+          </sc-for>
+          <sc-if value="{{s.importing}}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; align-items: center; gap: 12px; height: 80px; padding: 0 12px 0 8px; background: var(--bg)">
+              <span style="width: 16px"></span><span style="width: 16px"></span>
+              <div class="skel" style="width: 36px; height: 64px"></div>
+              <div style="display: flex; flex-direction: column; gap: 6px"><div class="skel" style="width: 140px; height: 12px"></div><div class="skel" style="width: 80px; height: 10px"></div></div>
+            </div>
+          </sc-if>
+        </div>
+      </sc-if>
+    </div>
+    <sc-if value="{{s.error}}" hint-placeholder-val="{{ false }}">
+      <div class="toast err"><span class="i i-alert"></span>mp4·mov 영상이나 jpg·png·heic 사진만 넣을 수 있어요</div>
+    </sc-if>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"v":{"editor":"enum","options":["empty","items","importing","error"],"default":"items"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const v = this.props.v ?? 'items';
+    const all = [
+      { n: 1, name: 'IMG_3820.MOV', meta: '영상 · 9.7초', img: '/_blob/5ce65e4dc633e21d66634d3fb8c8619d' },
+      { n: 2, name: 'IMG_3821.MOV', meta: '영상 · 3.6초', img: '/_blob/34ed991c596f500b1b0deaa104ced48e' },
+      { n: 3, name: 'IMG_3823.MOV', meta: '영상 · 9.5초', img: '/_blob/1f805d4dd8d35283783679a989575d28' }
+    ];
+    const list = v === 'importing' ? all.slice(0, 2) : all;
+    const items = list.map((it, i) => ({ ...it, first: i === 0, last: i === list.length - 1 && v !== 'importing' }));
+    return {
+      theme: this.props.theme ?? 'dark',
+      items,
+      s: {
+        empty: v === 'empty',
+        compact: v === 'items' || v === 'error',
+        importing: v === 'importing',
+        list: v !== 'empty',
+        error: v === 'error',
+        canNext: v !== 'empty',
+        noNext: v === 'empty',
+        step2: v === 'empty' ? 'off' : ''
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

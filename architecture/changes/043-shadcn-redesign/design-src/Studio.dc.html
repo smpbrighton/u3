@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>스튜디오</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./u3.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="u3 t-{{theme}}" style="width: 1440px; height: 900px; display: flex; flex-direction: column; font-family: Pretendard, system-ui, sans-serif; color: var(--fg)">
+
+  <header class="sthead">
+    <button class="btn btn-ghost btn-icon" aria-label="2 대본"><span class="i i-back"></span></button>
+    <b>새 영상</b>
+    <span style="flex: 1"></span>
+    <div style="position: relative">
+      <button class="btn btn-ghost btn-icon" aria-label="알림"><span class="i i-bell"></span></button>
+      <sc-if value="{{s.bellBadge}}" hint-placeholder-val="{{ true }}"><span style="position: absolute; top: 4px; right: 4px; min-width: 14px; height: 14px; padding: 0 3px; border-radius: 7px; background: var(--solid); color: var(--solid-fg); font-size: 10px; font-weight: 700; display: flex; align-items: center; justify-content: center">3</span></sc-if>
+    </div>
+    <button class="btn btn-outline"><span class="i i-carousel"></span>캐러셀 만들기</button>
+    <div style="position: relative">
+      <button class="btn btn-secondary">저장</button>
+      <sc-if value="{{s.dirty}}" hint-placeholder-val="{{ false }}"><span class="dot" style="position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; box-shadow: 0 0 0 2px var(--panel)"></span></sc-if>
+    </div>
+    <button class="btn btn-primary"><span class="i i-download"></span>mp4 내보내기</button>
+  </header>
+
+  <div style="flex: 1 1 0; min-height: 0; display: flex">
+    <aside class="lib">
+      <div class="tabs"><span class="{{tab.media}}">미디어</span><span class="{{tab.meme}}">짤</span><span class="{{tab.sfx}}">효과음</span><span class="{{tab.voice}}">음성</span></div>
+      <div style="flex: 1; min-height: 0; overflow: hidden; padding: 12px; display: flex; flex-direction: column; gap: 10px">
+        <sc-if value="{{L.media}}" hint-placeholder-val="{{ true }}">
+          <div><button class="btn btn-outline btn-sm"><span class="i i-upload"></span>넣기</button></div>
+          <div style="display: flex; flex-direction: column; gap: 2px">
+            <div class="libitem"><div class="libthumb"><img src="/_blob/5ce65e4dc633e21d66634d3fb8c8619d" alt=""></div><div style="min-width: 0; display: flex; flex-direction: column; gap: 2px"><b class="sm ell">IMG_3820.MOV</b><span class="xs muted">영상 · 9.7초</span></div></div>
+            <div class="libitem"><div class="libthumb"><img src="/_blob/34ed991c596f500b1b0deaa104ced48e" alt=""></div><div style="min-width: 0; display: flex; flex-direction: column; gap: 2px"><b class="sm ell">IMG_3821.MOV</b><span class="xs muted">영상 · 3.6초</span></div></div>
+            <div class="libitem"><div class="libthumb"><img src="/_blob/1f805d4dd8d35283783679a989575d28" alt=""></div><div style="min-width: 0; display: flex; flex-direction: column; gap: 2px"><b class="sm ell">IMG_3823.MOV</b><span class="xs muted">영상 · 9.5초</span></div></div>
+          </div>
+        </sc-if>
+        <sc-if value="{{L.meme}}" hint-placeholder-val="{{ false }}">
+          <div class="input input-sm"><span class="i i-search" style="color: var(--fg2)"></span><span class="ph">검색</span></div>
+          <sc-if value="{{s.jevLoading}}" hint-placeholder-val="{{ false }}">
+            <div style="display: flex; align-items: center; gap: 8px" role="status"><span class="spin" style="width: 14px; height: 14px"></span><span class="sm">Jev 불러오는 중</span></div>
+            <div class="memegrid">
+              <div class="memetile skel"></div><div class="memetile skel"></div><div class="memetile skel"></div>
+              <div class="memetile skel"></div><div class="memetile skel"></div><div class="memetile skel"></div>
+              <div class="memetile skel"></div><div class="memetile skel"></div><div class="memetile skel"></div>
+            </div>
+          </sc-if>
+          <sc-if value="{{s.jevReady}}" hint-placeholder-val="{{ true }}">
+          <div style="display: flex; align-items: center; gap: 6px"><span class="badge"><span class="i i-sparkle" style="width: 12px; height: 12px; margin-right: 4px"></span>Jev 추천</span></div>
+          <div class="memegrid">
+            <div class="memetile"><span class="i i-lg i-image"></span></div>
+            <div class="memetile"><span class="i i-lg i-image"></span></div>
+            <div class="memetile"><span class="i i-lg i-play"></span><span>재생 중</span></div>
+            <div class="memetile"><span class="i i-lg i-image"></span></div>
+            <div class="memetile"><span class="i i-lg i-image"></span></div>
+            <div class="memetile"><span class="i i-lg i-image"></span></div>
+            <div class="memetile"><span class="i i-lg i-image"></span></div>
+            <div class="memetile"><span class="i i-lg i-image"></span></div>
+            <div class="memetile"><span class="i i-lg i-image"></span></div>
+          </div>
+          </sc-if>
+        </sc-if>
+        <sc-if value="{{L.sfx}}" hint-placeholder-val="{{ false }}">
+          <div class="input input-sm"><span class="i i-search" style="color: var(--fg2)"></span><span class="ph">검색</span></div>
+          <div style="display: flex; flex-direction: column; gap: 2px">
+            <sc-for list="{{sfxList}}" as="f" hint-placeholder-count="6">
+              <div class="libitem"><button class="btn btn-ghost btn-icon btn-sm" aria-label="미리 듣기"><span class="i i-play"></span></button><div style="min-width: 0; display: flex; flex-direction: column; gap: 1px"><b class="sm ell">{{f.t}}</b><span class="xs muted">{{f.m}}</span></div></div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{L.voice}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; align-items: center; gap: 8px">
+            <sc-if value="{{s.recording}}" hint-placeholder-val="{{ false }}">
+              <button class="btn btn-danger-text btn-sm"><span class="i i-stop"></span>멈추기</button>
+              <span class="rec"></span><span class="sm num">00:03.2</span>
+            </sc-if>
+            <sc-if value="{{s.notRecording}}" hint-placeholder-val="{{ true }}">
+              <button class="btn btn-outline btn-sm"><span class="i i-mic"></span>녹음</button>
+            </sc-if>
+          </div>
+          <button class="btn btn-outline btn-sm btn-block" style="justify-content: flex-start"><span class="i i-folder"></span>파일 불러오기</button>
+          <button class="btn btn-outline btn-sm btn-block" style="justify-content: flex-start"><span class="i i-sparkle"></span>자막으로 음성 만들기</button>
+          <div class="hr" style="margin: 4px 0"></div>
+          <div style="display: flex; flex-direction: column; gap: 2px">
+            <div class="libitem sel"><span class="i i-wave" style="color: var(--fg2)"></span><b class="sm grow ell">녹음 1</b><span class="xs muted num">3.2초</span></div>
+            <div class="libitem"><span class="i i-wave" style="color: var(--fg2)"></span><b class="sm grow ell">음성 1</b><span class="xs muted num">3.0초</span></div>
+          </div>
+          <div class="wavebox">
+            <sc-for list="{{wave}}" as="h" hint-placeholder-count="40"><i style="height: {{h}}px"></i></sc-for>
+          </div>
+        </sc-if>
+      </div>
+    </aside>
+
+    <section class="stage">
+      <div class="frame">
+        <sc-if value="{{pv.img}}" hint-placeholder-val="{{ true }}"><img class="bg" src="/_blob/5ce65e4dc633e21d66634d3fb8c8619d" alt=""></sc-if>
+        <sc-if value="{{pv.memeFull}}" hint-placeholder-val="{{ false }}">
+          <div style="position: absolute; inset: 0; background: #2a2a30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: #d4d4d8; font-size: 10px"><span class="i i-xl i-image"></span>giphy-26DN5pBQzhqgAufPq</div>
+        </sc-if>
+        <sc-if value="{{pv.safe}}" hint-placeholder-val="{{ false }}"><div class="safe" style="left: 6%; right: 6%; top: 12%; bottom: 20%"></div></sc-if>
+        <sc-if value="{{pv.memeOverlay}}" hint-placeholder-val="{{ false }}">
+          <div style="position: absolute; left: 50px; top: 76px; width: 149px; height: 113px; background: #2a2a30; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 4px; color: #d4d4d8; font-size: 9px"><span class="i i-lg i-image"></span>tenor-XFZIlZ8cVP4</div>
+          <div class="sel-box" style="left: 50px; top: 76px; width: 149px; height: 113px"><b class="tl"></b><b class="tr"></b><b class="bl"></b><b class="br"></b></div>
+        </sc-if>
+        <sc-if value="{{pv.wm}}" hint-placeholder-val="{{ false }}">
+          <div class="wm" style="left: 99px; top: 25px; width: 50px; height: 20px">[워터마크]</div>
+          <div class="sel-box" style="left: 99px; top: 25px; width: 50px; height: 20px"><b class="tl"></b><b class="tr"></b><b class="bl"></b><b class="br"></b></div>
+        </sc-if>
+        <sc-if value="{{pv.cap}}" hint-placeholder-val="{{ true }}">
+          <div class="cap" style="bottom: 16%">
+            <sc-if value="{{pv.capPlain}}" hint-placeholder-val="{{ true }}"><span class="m">{{pv.main}}</span></sc-if>
+            <sc-if value="{{pv.capEdit}}" hint-placeholder-val="{{ false }}"><span class="m" style="outline: 2px solid var(--accent); outline-offset: 2px">{{pv.main}}<span style="display: inline-block; width: 1.5px; height: 15px; background: #fff; vertical-align: -2px; margin-left: 1px"></span></span></sc-if>
+            <span class="s">{{pv.sub}}</span>
+          </div>
+          <sc-if value="{{pv.capSel}}" hint-placeholder-val="{{ false }}"><div class="sel-box" style="left: 14px; right: 14px; bottom: 64px; height: 66px; width: auto"></div></sc-if>
+        </sc-if>
+        <sc-if value="{{pv.empty}}" hint-placeholder-val="{{ false }}"><div style="position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; padding: 24px; text-align: center; color: #a1a1aa; font-size: 12px">타임라인에 미디어를 넣어 주세요</div></sc-if>
+        <sc-if value="{{pv.preparing}}" hint-placeholder-val="{{ false }}"><div style="position: absolute; inset: 0; background: #000; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; color: #a1a1aa; font-size: 12px"><span class="spin" style="border-color: #3f3f46; border-top-color: #e4e4e7"></span>미리보기 준비 중</div></sc-if>
+      </div>
+      <div class="ctrl">
+        <button class="btn btn-ghost btn-icon" aria-label="재생" disabled="{{s.recording}}"><span class="i i-play"></span></button>
+        <span class="sm num" style="width: 116px">{{pv.time}}</span>
+        <div class="scrub"><i style="width: {{pv.pct}}%"></i><b style="left: {{pv.pct}}%"></b></div>
+      </div>
+      <sc-if value="{{s.notif}}" hint-placeholder-val="{{ false }}">
+        <div class="menu" style="right: 8px; top: 4px; width: 340px; padding: 8px">
+          <div style="display: flex; align-items: center; justify-content: space-between; height: 32px; padding: 0 8px"><b>알림</b><span class="xs muted">대본 만들기 · 방금</span></div>
+          <div class="mi" style="height: auto; padding: 8px; white-space: normal; align-items: flex-start"><span class="i i-alert" style="color: var(--fg2); margin-top: 2px"></span><span>받아 적기 안내: [안내 내용]</span></div>
+          <div class="mi" style="height: auto; padding: 8px; white-space: normal; align-items: flex-start"><span class="i i-alert" style="color: var(--fg2); margin-top: 2px"></span><span>대본 말투 안내: [안내 내용]</span></div>
+          <div class="mi" style="height: auto; padding: 8px; white-space: normal; align-items: flex-start"><span class="i i-image" style="color: var(--fg2); margin-top: 2px"></span><span>짤을 넣지 못한 장면 2개</span></div>
+        </div>
+      </sc-if>
+    </section>
+
+    <aside class="insp">
+      <sc-if value="{{I.brand}}" hint-placeholder-val="{{ true }}">
+        <div class="insp-title">브랜드</div>
+        <sc-if value="{{s.inspErr}}" hint-placeholder-val="{{ false }}"><div class="errline" style="margin: -6px 0 6px"><span class="i i-alert"></span>음성 분리를 하지 못했어요</div></sc-if>
+        <div class="pstack">
+          <div class="psec-h"><span>워터마크</span><button class="btn btn-link">설정에서 이미지 선택</button></div>
+          <div class="prow nov"><span class="lb">켜기</span><div><span class="sw on"><i></i></span></div></div>
+          <div class="prow"><span class="lb">가로 위치</span><div class="sl"><i style="width: 50%"></i><b style="left: 50%"></b></div><span class="v">50%</span></div>
+          <div class="prow"><span class="lb">세로 위치</span><div class="sl"><i style="width: 8%"></i><b style="left: 8%"></b></div><span class="v">8%</span></div>
+          <div class="prow"><span class="lb">폭</span><div class="sl"><i style="width: 20%"></i><b style="left: 20%"></b></div><span class="v">20%</span></div>
+          <div class="prow"><span class="lb">투명도</span><div class="sl"><i style="width: 100%"></i><b style="left: 100%"></b></div><span class="v">100%</span></div>
+        </div>
+        <div class="psec pstack" style="margin-top: 8px">
+          <div class="psec-h"><span>타이틀 바</span></div>
+          <div class="prow nov"><span class="lb">켜기</span><div><span class="sw"><i></i></span></div></div>
+          <div class="prow nov"><span class="lb">종류</span><div class="seg seg-sm"><span class="on">글</span><span>이미지</span></div></div>
+          <div class="prow nov"><span class="lb">글</span><div style="display: flex; gap: 6px"><div class="input input-sm"></div><button class="btn btn-outline btn-icon btn-sm" aria-label="제목 다시 만들기"><span class="i i-refresh"></span></button></div></div>
+          <div class="prow"><span class="lb">높이</span><div class="sl"><i style="width: 21%"></i><b style="left: 21%"></b></div><span class="v">160px</span></div>
+          <div class="prow"><span class="lb">글자 크기</span><div class="sl"><i style="width: 23%"></i><b style="left: 23%"></b></div><span class="v">56px</span></div>
+          <div class="prow"><span class="lb">투명도</span><div class="sl"><i style="width: 62%"></i><b style="left: 62%"></b></div><span class="v">62%</span></div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{I.caption}}" hint-placeholder-val="{{ false }}">
+        <div class="insp-title">자막<span class="meta">레이어 1 · 3.2–8.1초</span></div>
+        <div style="display: flex; flex-direction: column; gap: 12px">
+          <div><label class="field-label">메인</label><div class="textarea" style="min-height: 60px">입구에 행사 매대가 보여서 뭐가 있나 구경했어.</div></div>
+          <div><label class="field-label">서브</label><div class="textarea" style="min-height: 60px">The sale display was right by the entrance,</div></div>
+          <div class="pstack">
+            <div class="prow"><span class="lb">시작</span><div class="input input-sm num">3.2</div><span class="v">초</span></div>
+            <div class="prow"><span class="lb">길이</span><div class="input input-sm num">4.9</div><span class="v">초</span></div>
+          </div>
+        </div>
+        <div class="psec" style="margin-top: 12px"><div class="psec-h"><span>레이어 스타일 · 레이어 1</span><span class="i i-right"></span></div></div>
+      </sc-if>
+
+      <sc-if value="{{I.layer}}" hint-placeholder-val="{{ false }}">
+        <div class="insp-title">레이어 스타일<span class="meta">레이어 1</span></div>
+        <div class="pstack">
+          <div class="prow nov"><span class="lb">이름</span><div class="input input-sm">레이어 1</div></div>
+          <div class="prow nov"><span class="lb">폰트</span><div class="select select-sm"><span>Pretendard</span><span class="i i-down"></span></div></div>
+          <div class="prow"><span class="lb">메인 크기</span><div class="sl"><i style="width: 45%"></i><b style="left: 45%"></b></div><span class="v">56</span></div>
+          <div class="prow"><span class="lb">서브 크기</span><div class="sl"><i style="width: 25%"></i><b style="left: 25%"></b></div><span class="v">32</span></div>
+          <div class="prow nov"><span class="lb">글자 색</span><div class="swatch"><i style="background: #ffffff"></i>#FFFFFF</div></div>
+          <div class="prow"><span class="lb">글자 투명도</span><div class="sl"><i style="width: 100%"></i><b style="left: 100%"></b></div><span class="v">100%</span></div>
+          <div class="prow nov"><span class="lb">자막바</span><div><span class="sw on"><i></i></span></div></div>
+          <div class="prow nov"><span class="lb">자막바 색</span><div class="swatch"><i style="background: #000000"></i>#000000</div></div>
+          <div class="prow"><span class="lb">자막바 투명도</span><div class="sl"><i style="width: 60%"></i><b style="left: 60%"></b></div><span class="v">60%</span></div>
+        </div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 10px">
+          <button class="btn btn-outline btn-sm"><span class="i i-swap"></span>메인·서브 바꾸기</button>
+          <button class="btn btn-outline btn-sm" disabled="{{s.subBusy}}"><span class="i i-sparkle"></span>서브 자막 만들기</button>
+        </div>
+        <sc-if value="{{s.subBusy}}" hint-placeholder-val="{{ false }}">
+          <div class="jobline"><span class="spin"></span><span>서브 자막 만드는 중</span><div class="prog"><i style="width: 30%"></i></div><button class="btn btn-outline btn-xs">취소</button></div>
+        </sc-if>
+        <div style="display: flex; gap: 6px; margin-top: 8px; padding-top: 10px; border-top: 1px solid var(--border)">
+          <button class="btn btn-ghost btn-sm"><span class="i i-plus"></span>레이어 더하기</button>
+          <button class="btn btn-ghost btn-sm" disabled><span class="i i-trash"></span>레이어 지우기</button>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{I.video1}}" hint-placeholder-val="{{ false }}">
+        <div class="insp-title">영상 클립<span class="meta">IMG_3820.MOV · 0.0–9.7초</span></div>
+        <div class="pstack">
+          <div class="prow"><span class="lb">투명도</span><div class="sl"><i style="width: 100%"></i><b style="left: 100%"></b></div><span class="v">100%</span></div>
+          <div class="prow"><span class="lb">원본 시작</span><div class="input input-sm num">0.0</div><span class="v">초</span></div>
+          <div class="prow"><span class="lb">원본 끝</span><div class="input input-sm num">9.7</div><span class="v">초</span></div>
+          <div class="prow nov"><span class="lb">Start Transition</span><div class="select select-sm"><span>없음</span><span class="i i-down"></span></div></div>
+          <div class="prow nov"><span class="lb">End Transition</span><div class="select select-sm"><span>디졸브 · 0.5초</span><span class="i i-down"></span></div></div>
+        </div>
+        <div class="psec" style="margin-top: 8px">
+          <div class="prow nov"><span class="lb">묶음</span><div style="display: flex; align-items: center; justify-content: space-between"><span class="sm"><span class="i i-link" style="width: 14px; height: 14px; vertical-align: -3px; margin-right: 4px"></span>2개</span><button class="btn btn-outline btn-xs">묶음 풀기</button></div></div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{I.transition}}" hint-placeholder-val="{{ false }}">
+        <div class="insp-title">영상 클립<span class="meta">IMG_3820.MOV · 0.0–9.7초</span></div>
+        <div class="pstack">
+          <div class="prow"><span class="lb">투명도</span><div class="sl"><i style="width: 100%"></i><b style="left: 100%"></b></div><span class="v">100%</span></div>
+          <div class="prow"><span class="lb">원본 시작</span><div class="input input-sm num">0.0</div><span class="v">초</span></div>
+          <div class="prow"><span class="lb">원본 끝</span><div class="input input-sm num">9.7</div><span class="v">초</span></div>
+          <div class="prow nov"><span class="lb">Start Transition</span><div class="select select-sm"><span>없음</span><span class="i i-down"></span></div></div>
+        </div>
+        <div class="psec pstack" style="margin-top: 8px; position: relative">
+          <div class="psec-h"><span>End Transition</span><span class="i i-down"></span></div>
+          <div role="radiogroup" aria-label="종류" style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 6px; margin-bottom: 6px">
+            <sc-for list="{{tKinds}}" as="tk" hint-placeholder-count="7">
+              <button role="radio" aria-checked="{{tk.on}}" style="display: flex; flex-direction: column; align-items: center; gap: 4px; padding: 6px 4px 5px; border-radius: 8px; border: 1px solid {{tk.border}}; background: {{tk.bg}}; cursor: pointer">
+                <span style="position: relative; width: 40px; height: 22px; border-radius: 3px; overflow: hidden; background: var(--c-vid)">
+                  <span style="position: absolute; {{tk.fx}}"></span>
+                </span>
+                <span class="xs" style="font-weight: {{tk.w}}; white-space: nowrap">{{tk.name}}</span>
+              </button>
+            </sc-for>
+          </div>
+          <div class="prow nov"><span class="lb">방향</span><div class="seg seg-sm"><span class="on">왼쪽</span><span>오른쪽</span><span>위</span><span>아래</span></div></div>
+          <div class="prow"><span class="lb">길이</span><div class="sl"><i style="width: 21%"></i><b style="left: 21%"></b></div><span class="v">0.5초</span></div>
+          <div class="noteline"><span class="i i-alert"></span>뒤 클립의 Start Transition 을 써요</div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{I.meme1}}" hint-placeholder-val="{{ false }}">
+        <div class="insp-title">짤<span class="meta ell">giphy-26DN5pBQzhqgAufPq · 9.7–11.7초</span></div>
+        <div class="pstack">
+          <div class="prow"><span class="lb">투명도</span><div class="sl"><i style="width: 100%"></i><b style="left: 100%"></b></div><span class="v">100%</span></div>
+          <div class="prow"><span class="lb">길이</span><div class="sl"><i style="width: 43%"></i><b style="left: 43%"></b></div><span class="v">2.0초</span></div>
+          <div class="prow nov"><span class="lb">순서</span><div style="display: flex; gap: 6px"><button class="btn btn-outline btn-sm" style="flex: 1">앞으로</button><button class="btn btn-outline btn-sm" style="flex: 1">뒤로</button></div></div>
+          <div class="prow nov"><span class="lb">Start Transition</span><div class="select select-sm"><span>없음</span><span class="i i-down"></span></div></div>
+          <div class="prow nov"><span class="lb">End Transition</span><div class="select select-sm"><span>없음</span><span class="i i-down"></span></div></div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{I.overlay}}" hint-placeholder-val="{{ false }}">
+        <div class="insp-title">겹친 영상<span class="meta ell">tenor-XFZIlZ8cVP4</span></div>
+        <div class="pstack">
+          <div class="prow"><span class="lb">투명도</span><div class="sl"><i style="width: 100%"></i><b style="left: 100%"></b></div><span class="v">100%</span></div>
+          <div class="prow"><span class="lb">시작</span><div class="input input-sm num">0.0</div><span class="v">초</span></div>
+          <div class="prow"><span class="lb">길이</span><div class="input input-sm num">3.2</div><span class="v">초</span></div>
+          <div class="prow"><span class="lb">가로 위치</span><div class="sl"><i style="width: 50%"></i><b style="left: 50%"></b></div><span class="v">50%</span></div>
+          <div class="prow"><span class="lb">세로 위치</span><div class="sl"><i style="width: 30%"></i><b style="left: 30%"></b></div><span class="v">30%</span></div>
+          <div class="prow"><span class="lb">폭</span><div class="sl"><i style="width: 56%"></i><b style="left: 56%"></b></div><span class="v">60%</span></div>
+          <div class="prow nov"><span class="lb">Start Transition</span><div class="select select-sm"><span>없음</span><span class="i i-down"></span></div></div>
+          <div class="prow nov"><span class="lb">End Transition</span><div class="select select-sm"><span>디졸브 · 0.3초</span><span class="i i-down"></span></div></div>
+        </div>
+        <div style="margin-top: 12px"><button class="btn btn-danger-text btn-sm"><span class="i i-trash"></span>삭제</button></div>
+      </sc-if>
+
+      <sc-if value="{{I.original}}" hint-placeholder-val="{{ false }}">
+        <div class="insp-title">원본 소리</div>
+        <div class="pstack">
+          <div class="prow"><span class="lb">볼륨</span><div class="sl"><i style="width: 67%"></i><b style="left: 67%"></b></div><span class="v">100%</span></div>
+          <div class="prow nov"><span class="lb">음소거</span><div><span class="sw"><i></i></span></div></div>
+        </div>
+        <div style="position: relative; margin-top: 8px">
+          <button class="btn btn-outline btn-sm btn-block" disabled><span class="i i-layers"></span>음성 분리</button>
+          <div class="tip" style="left: 30px; top: 34px">다른 작업이 끝난 뒤 시작할 수 있어요</div>
+        </div>
+        <div class="psec pstack" style="margin-top: 40px">
+          <div class="psec-h"><span>받아 적기</span></div>
+          <div class="prow nov"><span class="lb">대상</span><div class="seg seg-sm"><span class="on">원본 소리</span><span>음성</span></div></div>
+          <button class="btn btn-outline btn-sm btn-block" style="margin-top: 6px" disabled>자막 만들기</button>
+          <div class="jobline"><span class="spin"></span><span>받아 적는 중</span><div class="prog"><i style="width: 46%"></i></div><span class="num">46%</span><button class="btn btn-outline btn-xs">취소</button></div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{I.separated}}" hint-placeholder-val="{{ false }}">
+        <div class="insp-title">분리한 소리</div>
+        <div class="pstack">
+          <div class="prow"><span class="lb">목소리 볼륨</span><div class="sl"><i style="width: 67%"></i><b style="left: 67%"></b></div><span class="v">100%</span></div>
+          <div class="prow nov"><span class="lb">목소리 음소거</span><div><span class="sw"><i></i></span></div></div>
+          <div class="prow"><span class="lb">배경 볼륨</span><div class="sl"><i style="width: 27%"></i><b style="left: 27%"></b></div><span class="v">40%</span></div>
+          <div class="prow nov"><span class="lb">배경 음소거</span><div><span class="sw"><i></i></span></div></div>
+        </div>
+        <div style="margin-top: 8px"><button class="btn btn-outline btn-sm btn-block"><span class="i i-undo"></span>분리 되돌리기</button></div>
+        <div class="psec pstack" style="margin-top: 12px">
+          <div class="psec-h"><span>받아 적기</span></div>
+          <div class="prow nov"><span class="lb">대상</span><div class="seg seg-sm"><span class="on">목소리</span><span>음성</span></div></div>
+          <button class="btn btn-outline btn-sm btn-block" style="margin-top: 6px">자막 만들기</button>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{I.voice}}" hint-placeholder-val="{{ false }}">
+        <div class="insp-title">음성<span class="meta">음성 3 · 8.1–16.4초</span></div>
+        <div class="pstack">
+          <div class="prow"><span class="lb">트랙 볼륨</span><div class="sl"><i style="width: 67%"></i><b style="left: 67%"></b></div><span class="v">100%</span></div>
+          <div class="prow nov"><span class="lb">트랙 음소거</span><div><span class="sw"><i></i></span></div></div>
+          <div class="prow"><span class="lb">클립 볼륨</span><div class="sl"><i style="width: 67%"></i><b style="left: 67%"></b></div><span class="v">100%</span></div>
+        </div>
+        <div class="noteline" style="margin-top: 4px"><span class="i i-alert"></span>다음 음성과 겹쳐요</div>
+        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 6px; margin-top: 4px">
+          <button class="btn btn-outline btn-sm"><span class="i i-refresh"></span>다시 만들기</button>
+          <button class="btn btn-outline btn-sm" disabled>자막 만들기</button>
+        </div>
+        <div class="jobline"><span class="spin"></span><span>받아 적는 중</span><div class="prog"><i style="width: 20%"></i></div><span class="num">20%</span><button class="btn btn-outline btn-xs">취소</button></div>
+      </sc-if>
+
+      <sc-if value="{{I.sfx}}" hint-placeholder-val="{{ false }}">
+        <div class="insp-title">효과음<span class="meta">8.1–9.4초</span></div>
+        <div class="pstack">
+          <div class="prow"><span class="lb">트랙 볼륨</span><div class="sl"><i style="width: 53%"></i><b style="left: 53%"></b></div><span class="v">80%</span></div>
+          <div class="prow nov"><span class="lb">트랙 음소거</span><div><span class="sw"><i></i></span></div></div>
+          <div class="prow"><span class="lb">클립 볼륨</span><div class="sl"><i style="width: 67%"></i><b style="left: 67%"></b></div><span class="v">100%</span></div>
+          <div class="prow nov"><span class="lb">효과음</span><div class="select select-sm"><span>VINE BOOM SOUND</span><span class="i i-down"></span></div></div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{I.watermark}}" hint-placeholder-val="{{ false }}">
+        <div class="insp-title">워터마크</div>
+        <div class="pstack">
+          <div class="prow nov"><span class="lb">켜기</span><div><span class="sw on"><i></i></span></div></div>
+          <div class="prow"><span class="lb">가로 위치</span><div class="sl"><i style="width: 50%"></i><b style="left: 50%"></b></div><span class="v">50%</span></div>
+          <div class="prow"><span class="lb">세로 위치</span><div class="sl"><i style="width: 8%"></i><b style="left: 8%"></b></div><span class="v">8%</span></div>
+          <div class="prow"><span class="lb">폭</span><div class="sl"><i style="width: 20%"></i><b style="left: 20%"></b></div><span class="v">20%</span></div>
+          <div class="prow"><span class="lb">투명도</span><div class="sl"><i style="width: 100%"></i><b style="left: 100%"></b></div><span class="v">100%</span></div>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{I.multi}}" hint-placeholder-val="{{ false }}">
+        <div class="insp-title">선택 2개</div>
+        <div class="pstack">
+          <div class="prow"><span class="lb">투명도</span><div class="sl"><i style="width: 100%"></i><b style="left: 100%"></b></div><span class="v">100%</span></div>
+        </div>
+        <div style="margin-top: 12px"><button class="btn btn-danger-text btn-sm"><span class="i i-trash"></span>삭제</button></div>
+      </sc-if>
+    </aside>
+  </div>
+
+  <div class="toolbar">
+    <button class="btn btn-ghost btn-icon" aria-label="실행 취소" disabled="{{s.noUndo}}"><span class="i i-undo"></span></button>
+    <button class="btn btn-ghost btn-icon" aria-label="다시 실행" disabled><span class="i i-redo"></span></button>
+    <span style="flex: 1"></span>
+    <span class="lbl">세이프존<span class="sw {{s.safeCls}}"><i></i></span></span>
+    <span class="lbl">스냅<span class="sw on"><i></i></span></span>
+    <span class="lbl">가로 확대<div class="sl" style="width: 120px"><i style="width: 33%"></i><b style="left: 33%"></b></div><span class="num" style="width: 32px; color: var(--fg)">4.0×</span></span>
+  </div>
+
+  <sc-if value="{{s.tts}}" hint-placeholder-val="{{ false }}">
+    <div style="height: 32px; flex: none; display: flex; align-items: center; gap: 10px; padding: 0 12px; border-bottom: 1px solid var(--border); background: var(--panel); font-size: 12px">
+      <span class="spin"></span><span>음성 만드는 중 3 / 5</span><div class="prog" style="width: 200px"><i style="width: 60%"></i></div><button class="btn btn-outline btn-xs">취소</button>
+    </div>
+  </sc-if>
+
+  <div class="tl" style="flex: none; max-height: 305px; overflow: hidden">
+    <div class="tl-heads">
+      <sc-for list="{{rows}}" as="r" hint-placeholder-count="9">
+        <div class="th {{r.thCls}}">
+          <span class="n">{{r.name}}</span>
+          <sc-if value="{{r.hasMute}}" hint-placeholder-val="{{ false }}"><button class="btn btn-ghost btn-icon btn-xs" aria-label="음소거"><span class="i {{r.muteIcon}}"></span></button></sc-if>
+        </div>
+      </sc-for>
+    </div>
+    <div class="tl-body">
+      <div class="ruler">
+        <sc-for list="{{ticks}}" as="k" hint-placeholder-count="22"><span style="left: {{k.x}}px">{{k.t}}</span></sc-for>
+      </div>
+      <sc-for list="{{rows}}" as="r" hint-placeholder-count="9">
+        <div class="trk {{r.rowCls}}">
+          <sc-for list="{{r.clips}}" as="c" hint-placeholder-count="3">
+            <div class="clip {{c.cls}}" style="left: {{c.l}}px; width: {{c.w}}px; background: var({{c.bg}})">
+              <sc-if value="{{c.warn}}" hint-placeholder-val="{{ false }}"><span class="warn" title="다음 음성과 겹쳐요">!</span></sc-if>
+              <sc-if value="{{c.link}}" hint-placeholder-val="{{ false }}"><span class="i i-link"></span></sc-if>
+              <sc-if value="{{c.rec}}" hint-placeholder-val="{{ false }}"><span class="rec"></span></sc-if>
+              <span>{{c.label}}</span>
+              <sc-if value="{{c.edit}}" hint-placeholder-val="{{ false }}"><span style="width: 1.5px; height: 14px; background: var(--fg); flex: none"></span></sc-if>
+            </div>
+          </sc-for>
+          <sc-for list="{{r.marks}}" as="m" hint-placeholder-count="1"><span class="trans" style="left: {{m.x}}px; border-color: {{m.color}}"></span></sc-for>
+        </div>
+      </sc-for>
+      <sc-if value="{{s.drag}}" hint-placeholder-val="{{ false }}">
+        <div class="guide" style="left: 368px"></div>
+        <div class="memetile" style="position: absolute; left: 374px; top: 60px; width: 56px; height: 96px; opacity: .85; box-shadow: var(--shadow); z-index: 8"><span class="i i-image"></span></div>
+      </sc-if>
+      <sc-if value="{{s.ph}}" hint-placeholder-val="{{ true }}"><div class="ph-line" style="left: {{phx}}px"></div></sc-if>
+      <sc-if value="{{s.tlScroll}}" hint-placeholder-val="{{ false }}"><div aria-hidden="true" style="position: absolute; right: 3px; top: 28px; width: 6px; height: {{tlThumb}}px; border-radius: 3px; background: var(--fg3); opacity: .6; z-index: 9"></div></sc-if>
+    </div>
+  </div>
+
+  <sc-if value="{{d.whisper}}" hint-placeholder-val="{{ false }}">
+    <div class="scrim"><div class="dlg">
+      <h3>STT 모델을 받을까요?</h3>
+      <p class="muted">574 MB</p>
+      <div class="foot"><button class="btn btn-outline">취소</button><button class="btn btn-solid"><span class="i i-download"></span>받기</button></div>
+    </div></div>
+  </sc-if>
+  <sc-if value="{{d.replace}}" hint-placeholder-val="{{ false }}">
+    <div class="scrim"><div class="dlg">
+      <h3>기존 자막을 바꿀까요?</h3>
+      <div class="foot"><button class="btn btn-outline">취소</button><button class="btn btn-solid">바꾸기</button></div>
+    </div></div>
+  </sc-if>
+  <sc-if value="{{d.export}}" hint-placeholder-val="{{ false }}">
+    <div class="scrim"><div class="dlg" style="width: 460px">
+      <h3>mp4 내보내기</h3>
+      <div style="display: flex; flex-direction: column; gap: 6px">
+        <label class="field-label" style="margin: 0">저장 위치</label>
+        <div style="display: flex; gap: 6px"><div class="input" style="opacity: {{d.pathOpacity}}"><span class="ell">~/Movies/U3/새 영상.mp4</span></div><button class="btn btn-outline" disabled="{{d.lock}}">바꾸기</button></div>
+        <sc-if value="{{d.overwrite}}" hint-placeholder-val="{{ false }}"><div class="noteline"><span class="i i-alert"></span>덮어써요</div></sc-if>
+        <span class="xs muted num">1080×1920 · 30fps · 0:21.6</span>
+      </div>
+      <sc-if value="{{d.prog}}" hint-placeholder-val="{{ false }}">
+        <div class="jobline"><span class="spin"></span><span>영상 만드는 중</span><div class="prog"><i style="width: 62%"></i></div><span class="num">62%</span></div>
+      </sc-if>
+      <sc-if value="{{d.done}}" hint-placeholder-val="{{ false }}">
+        <div class="noteline" style="color: var(--fg)"><span class="i i-check"></span>내보냈어요</div>
+      </sc-if>
+      <sc-if value="{{d.fail}}" hint-placeholder-val="{{ false }}">
+        <div class="errline"><span class="i i-alert"></span>내보내지 못했어요: ffmpeg 종료 코드 1</div>
+      </sc-if>
+      <div class="foot">
+        <sc-if value="{{d.ready}}" hint-placeholder-val="{{ true }}"><button class="btn btn-outline">닫기</button><button class="btn btn-primary"><span class="i i-download"></span>내보내기</button></sc-if>
+        <sc-if value="{{d.prog}}" hint-placeholder-val="{{ false }}"><button class="btn btn-outline">취소</button></sc-if>
+        <sc-if value="{{d.done}}" hint-placeholder-val="{{ false }}"><button class="btn btn-outline">닫기</button><button class="btn btn-solid"><span class="i i-folder"></span>Finder 에서 보기</button></sc-if>
+        <sc-if value="{{d.fail}}" hint-placeholder-val="{{ false }}"><button class="btn btn-outline">닫기</button><button class="btn btn-primary"><span class="i i-download"></span>내보내기</button></sc-if>
+      </div>
+    </div></div>
+  </sc-if>
+  <sc-if value="{{d.cancelToast}}" hint-placeholder-val="{{ false }}">
+    <div class="toast"><span class="i i-x"></span>내보내기를 취소했어요</div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"v":{"editor":"enum","options":["brand","caption","capinline","capinlinetl","layer","layersub","video1","transition","meme1","overlay","original","separated","voice","sfx","watermark","multi","error","libmeme","libmemeload","manytracks","libsfx","libvoice","notif","drag","empty","preparing","whisper","replace","exready","exprog","exdone","exfail","excancel"],"default":"brand"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const v = this.props.v ?? 'brand';
+    const is = (...a) => a.includes(v);
+    const X = (t) => Math.round(8 + t * 60);
+    const mk = (a, bg) => ({ l: X(a[0]), w: Math.max(6, Math.round((a[1] - a[0]) * 60) - 2), label: a[2], bg, cls: '', warn: false, link: false, edit: false, rec: false });
+
+    const C = [[0, 3.2, '올리브영에 잠깐 들르려다 발길이 길어졌어'], [3.2, 8.1, '입구에 행사 매대가 보여서 뭐가 있나 구경했어.'], [8.1, 15.6, '안으로 들어가니 매대가 계속 보여서 구경만 하려던 마음이 흔들리더라.'], [15.6, 19.9, '나오는 길에도 간판이 눈에 들어와 그냥 지나치기 어렵더라.'], [19.9, 21.6, '바로']];
+    const S = [[0, 3.2, 'I meant to pop into Olive Young'], [3.2, 8.1, 'The sale display was right by the entrance,'], [8.1, 15.6, 'Once I went inside, the displays kept going,'], [15.6, 19.9, 'On the way out, another sign caught my eye,'], [19.9, 21.6, 'Then']];
+    const M = [[0, 3.2, 'tenor-XFZIlZ8cVP4'], [12.7, 15.6, 'giphy-cL4QO0DWnyXL1Rtlgy'], [17.9, 19.9, 'tenor-B7z_31m7pvo']];
+    const V = is('meme1')
+      ? [[0, 9.7, 'IMG_3820.MOV'], [9.7, 11.7, 'giphy-26DN5pBQzhqgAufPq', 1], [11.7, 15.3, 'IMG_3821.MOV'], [15.3, 21.6, 'IMG_3823.MOV']]
+      : [[0, 9.7, 'IMG_3820.MOV'], [9.7, 13.3, 'IMG_3821.MOV'], [13.3, 21.6, 'IMG_3823.MOV']];
+    const A = [[0, 9.7], [9.7, 13.3], [13.3, 21.6]];
+    const F1 = [[0, 1.0, 'whoosh sfx'], [8.1, 9.4, 'VINE BOOM SOUND'], [15.6, 16.9, 'slap hard'], [21.0, 21.3, 'Pop SFX']];
+    const F2 = [[5.1, 6.5, 'Shocked sound']];
+    let VO = [];
+    if (is('voice')) VO = [[0, 3.0, '음성 1'], [3.2, 7.9, '음성 2'], [8.1, 16.4, '음성 3'], [16.4, 19.6, '음성 4'], [19.9, 21.2, '음성 5']];
+    if (is('libvoice')) VO = [[4.0, 7.2, '녹음 중']];
+
+    const sep = is('separated');
+    let rows = [
+      { id: 'capm', name: '자막 메인', clips: C.map(a => mk(a, '--c-cap')) },
+      { id: 'caps', name: '자막 서브', clips: S.map(a => mk(a, '--c-cap')) },
+      { id: 'new', name: '새 영상 트랙', clips: [] },
+      { id: 'v2', name: '영상 2', clips: M.map(a => mk(a, '--c-meme')) },
+      { id: 'v1', name: '영상 1', clips: V.map(a => mk(a, a[3] ? '--c-meme' : '--c-vid')), marks: [{ x: X(9.7), color: is('transition') ? 'var(--accent)' : 'var(--fg2)' }] }
+    ];
+    if (sep) {
+      rows.push({ id: 'voc', name: '목소리', mute: true, clips: A.map(a => mk([a[0], a[1], '목소리'], '--c-aud')) });
+      rows.push({ id: 'bgm', name: '배경', mute: true, clips: A.map(a => mk([a[0], a[1], '배경'], '--c-aud')) });
+    } else {
+      rows.push({ id: 'aud', name: '원본 소리', mute: true, clips: A.map(a => mk([a[0], a[1], '원본 소리'], '--c-aud')) });
+    }
+    rows.push({ id: 'voice', name: '음성', mute: true, clips: VO.map(a => mk(a, '--c-voice')) });
+    rows.push({ id: 'sfx1', name: '효과음 1', mute: true, clips: F1.map(a => mk(a, '--c-sfx')) });
+    rows.push({ id: 'sfx2', name: '효과음 2', mute: true, clips: F2.map(a => mk(a, '--c-sfx')) });
+
+    if (is('manytracks')) {
+      rows[0].name = '자막 1 메인';
+      rows[1].name = '자막 1 서브';
+      rows.splice(2, 0,
+        { id: 'capm2', name: '자막 2 메인', clips: [[0, 3.2, '[레이어 2 자막]'], [8.1, 15.6, '[레이어 2 자막]']].map(a => mk(a, '--c-cap')) },
+        { id: 'caps2', name: '자막 2 서브', clips: [] });
+      rows.splice(5, 0, { id: 'v3', name: '영상 3', clips: [[5.0, 7.0, 'giphy-3o6Zt4HU9uwXmXSAuI']].map(a => mk(a, '--c-meme')) });
+      rows.push({ id: 'sfx3', name: '효과음 3', mute: true, clips: [[17.9, 20.0, 'sitcom laugh']].map(a => mk(a, '--c-sfx')) });
+    }
+    const row = (id) => rows.find(r => r.id === id);
+    const sel = (id, i, extra) => { const c = row(id).clips[i]; c.cls = 'sel'; Object.assign(c, extra || {}); };
+    if (is('caption', 'capinline')) sel('capm', 1);
+    if (is('capinlinetl')) sel('capm', 1, { cls: 'sel edit', edit: true });
+    if (is('video1')) { sel('v1', 0, { link: true }); sel('sfx1', 0, { link: true }); }
+    if (is('transition')) sel('v1', 0);
+    if (is('meme1')) sel('v1', 1);
+    if (is('overlay')) sel('v2', 0);
+    if (is('original')) sel('aud', 0);
+    if (is('separated')) sel('voc', 0);
+    if (is('voice')) { sel('voice', 2, { warn: true }); }
+    if (is('libvoice')) { row('voice').clips[0].rec = true; }
+    if (is('sfx')) sel('sfx1', 1);
+    if (is('multi')) { sel('v2', 1); sel('sfx1', 1); }
+    if (is('empty')) rows = rows.map(r => ({ ...r, clips: [], marks: [] }));
+
+    const layerSel = is('layer', 'layersub');
+    const outRows = rows.map(r => ({
+      name: r.name,
+      clips: r.clips,
+      marks: r.marks || [],
+      hasMute: !!r.mute,
+      muteIcon: (is('libvoice') && r.id === 'aud') ? 'i-mute' : 'i-vol',
+      thCls: (layerSel && (r.id === 'capm' || r.id === 'caps')) ? 'sel' : '',
+      rowCls: (is('drag') && r.id === 'new') ? 'drop' : ''
+    }));
+
+    const ticks = [];
+    for (let t = 0; t <= 21; t++) ticks.push({ x: X(t), t: t % 2 === 0 ? '0:' + String(t).padStart(2, '0') : '' });
+
+    const tNow = is('overlay') ? 1.5 : is('meme1') ? 10.5 : 4.0;
+    const capIdx = is('overlay') ? 0 : is('meme1') ? 2 : 1;
+    const fmt = (t) => '00:' + t.toFixed(1).padStart(4, '0');
+
+    const insp = is('caption', 'capinline', 'capinlinetl') ? 'caption'
+      : is('layer', 'layersub') ? 'layer'
+      : is('video1') ? 'video1' : is('transition') ? 'transition' : is('meme1') ? 'meme1'
+      : is('overlay') ? 'overlay' : is('original') ? 'original' : is('separated') ? 'separated'
+      : is('voice') ? 'voice' : is('sfx') ? 'sfx' : is('watermark') ? 'watermark' : is('multi') ? 'multi' : 'brand';
+    const I = {};
+    ['brand', 'caption', 'layer', 'video1', 'transition', 'meme1', 'overlay', 'original', 'separated', 'voice', 'sfx', 'watermark', 'multi'].forEach(k => { I[k] = insp === k; });
+
+    const lib = is('libmeme', 'libmemeload', 'drag') ? 'meme' : is('libsfx') ? 'sfx' : is('libvoice') ? 'voice' : 'media';
+    const L = { media: lib === 'media', meme: lib === 'meme', sfx: lib === 'sfx', voice: lib === 'voice' };
+    const tab = { media: lib === 'media' ? 'on' : '', meme: lib === 'meme' ? 'on' : '', sfx: lib === 'sfx' ? 'on' : '', voice: lib === 'voice' ? 'on' : '' };
+
+    const exp = is('exready', 'exprog', 'exdone', 'exfail');
+    const wave = [];
+    for (let i = 0; i < 44; i++) wave.push(6 + Math.round(Math.abs(Math.sin(i * 0.9) * Math.cos(i * 0.37)) * 34));
+
+    const tKinds = [
+      ['없음', ''],
+      ['디졸브', 'inset: 0; background: var(--c-meme); opacity: .55'],
+      ['검은 화면 페이드', 'inset: 0; background: linear-gradient(90deg, transparent, #000)'],
+      ['밀기', 'top: 0; bottom: 0; left: 45%; right: -10%; background: var(--c-meme); box-shadow: -3px 0 0 var(--fg2)'],
+      ['와이프', 'top: 0; bottom: 0; left: 50%; right: 0; background: var(--c-meme)'],
+      ['원형 열기', 'left: 12px; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: var(--c-meme)'],
+      ['확대 전환', 'left: 8px; top: 5px; right: 8px; bottom: 5px; border-radius: 2px; background: var(--c-meme); box-shadow: 0 0 0 3px rgba(127,127,127,.35)']
+    ].map(([name, fx]) => {
+      const on = name === '밀기';
+      return { name, fx, on, border: on ? 'var(--accent)' : 'var(--border)', bg: on ? 'var(--accent-soft)' : 'var(--input)', w: on ? 700 : 400 };
+    });
+    return {
+      theme: this.props.theme ?? 'dark',
+      tKinds,
+      rows: outRows,
+      tlThumb: Math.round(277 * Math.min(1, 10 / outRows.length)),
+      ticks,
+      phx: X(tNow),
+      wave,
+      sfxList: [
+        { t: 'whoosh sfx', m: 'whoosh · 1.0초' }, { t: 'Pop SFX', m: 'pop · 0.3초' }, { t: 'slap hard', m: 'impact · 1.3초' },
+        { t: 'sitcom laugh', m: 'laugh · 7.4초' }, { t: 'VINE BOOM SOUND', m: 'reveal · 1.3초' }, { t: 'Shocked sound', m: 'shock · 1.4초' }
+      ],
+      I, L, tab,
+      s: {
+        bellBadge: !is('empty'),
+        dirty: is('caption', 'capinline', 'capinlinetl', 'layer', 'layersub', 'video1', 'transition', 'meme1', 'overlay', 'multi'),
+        tlScroll: rows.length > 10,
+        jevLoading: is('libmemeload'),
+        jevReady: !is('libmemeload'),
+        recording: is('libvoice'),
+        notRecording: !is('libvoice'),
+        subBusy: is('layersub'),
+        inspErr: is('error'),
+        notif: is('notif'),
+        drag: is('drag'),
+        tts: is('original'),
+        ph: !is('empty'),
+        noUndo: is('empty', 'preparing'),
+        safeCls: is('overlay') ? 'on' : ''
+      },
+      pv: {
+        img: !is('empty', 'meme1'),
+        memeFull: is('meme1'),
+        memeOverlay: is('overlay'),
+        safe: is('overlay'),
+        wm: is('watermark'),
+        cap: !is('empty'),
+        capPlain: !is('capinline'),
+        capEdit: is('capinline'),
+        capSel: is('caption', 'capinline', 'capinlinetl'),
+        main: C[capIdx][2],
+        sub: S[capIdx][2],
+        empty: is('empty'),
+        preparing: is('preparing'),
+        time: (is('empty') ? '00:00.0 / 00:00.0' : fmt(tNow) + ' / 00:21.6'),
+        pct: is('empty') ? 0 : Math.round(tNow / 21.6 * 100)
+      },
+      d: {
+        whisper: is('whisper'),
+        replace: is('replace'),
+        export: exp,
+        ready: is('exready'),
+        prog: is('exprog'),
+        done: is('exdone'),
+        fail: is('exfail'),
+        overwrite: is('exready'),
+        lock: is('exprog'),
+        pathOpacity: is('exprog') ? '0.6' : '1',
+        cancelToast: is('excancel')
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

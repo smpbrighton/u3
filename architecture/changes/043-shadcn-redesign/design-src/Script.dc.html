@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>2 대본</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./u3.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="u3 t-{{theme}}" style="width: 1440px; height: 900px; display: flex; flex-direction: column; font-family: Pretendard, system-ui, sans-serif; color: var(--fg)">
+  <header class="stephead">
+    <button class="btn btn-ghost btn-icon" aria-label="1 미디어"><span class="i i-back"></span></button>
+    <b style="width: 240px; padding-left: 4px">새 영상</b>
+    <div style="flex: 1; display: flex; justify-content: center">
+      <div class="steps">
+        <span><em>1</em>미디어</span><span class="i i-right"></span>
+        <span class="on"><em>2</em>대본</span><span class="i i-right"></span>
+        <span class="off"><em>3</em>스튜디오</span>
+      </div>
+    </div>
+    <span style="width: 120px"></span>
+  </header>
+  <main style="flex: 1; min-height: 0; display: flex; justify-content: center; padding: 28px 40px 0; position: relative">
+    <div style="width: 880px; display: flex; flex-direction: column; gap: 16px; min-height: 0">
+      <sc-if value="{{s.err}}" hint-placeholder-val="{{ false }}">
+        <div class="alert"><span class="i i-alert"></span><div class="grow"><b>대본을 만들지 못했어요</b><span class="muted sm ell">codex 종료 코드 1</span></div><button class="btn btn-outline btn-sm"><span class="i i-refresh"></span>다시 시도</button></div>
+      </sc-if>
+      <sc-if value="{{s.codex}}" hint-placeholder-val="{{ false }}">
+        <div class="alert"><span class="i i-alert"></span><div class="grow"><b>codex 로그인이 필요해요</b></div><button class="btn btn-outline btn-sm">설정 열기</button></div>
+      </sc-if>
+      <div style="display: flex; align-items: center; justify-content: space-between">
+        <div class="seg" style="width: 280px; opacity: {{s.segOpacity}}"><span class="{{s.tabAi}}">AI 추천</span><span class="{{s.tabManual}}">직접 쓰기</span></div>
+        <sc-if value="{{s.showCount}}" hint-placeholder-val="{{ true }}"><span class="sm muted num">프레임 24장</span></sc-if>
+      </div>
+
+      <sc-if value="{{s.frames}}" hint-placeholder-val="{{ true }}">
+        <div style="display: flex; flex-direction: column; gap: 20px; opacity: {{s.framesOpacity}}">
+          <sc-for list="{{groups}}" as="g" hint-placeholder-count="3">
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <div style="display: flex; align-items: center; gap: 8px" class="sm"><b class="num">{{g.n}}</b><span>{{g.name}}</span><span class="muted">{{g.len}}</span></div>
+              <div style="display: flex; gap: 8px">
+                <sc-for list="{{g.frames}}" as="f" hint-placeholder-count="4">
+                  <div style="display: flex; flex-direction: column; gap: 4px; align-items: center">
+                    <div class="thumb" style="width: 64px; height: 114px; border-radius: 6px"><img src="{{g.img}}" alt=""></div>
+                    <span class="xs muted num">{{f}}</span>
+                  </div>
+                </sc-for>
+              </div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{s.loading}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; gap: 20px">
+          <sc-for list="{{skelGroups}}" as="g" hint-placeholder-count="3">
+            <div style="display: flex; flex-direction: column; gap: 8px">
+              <div class="skel" style="width: 180px; height: 12px"></div>
+              <div style="display: flex; gap: 8px"><div class="skel" style="width: 72px; height: 128px"></div><div class="skel" style="width: 72px; height: 128px"></div><div class="skel" style="width: 72px; height: 128px"></div><div class="skel" style="width: 72px; height: 128px"></div></div>
+            </div>
+          </sc-for>
+        </div>
+      </sc-if>
+
+      <sc-if value="{{s.noframes}}" hint-placeholder-val="{{ false }}">
+        <div class="empty"><span class="i i-image"></span><p>이미지가 없어요</p></div>
+      </sc-if>
+
+      <sc-if value="{{s.manual}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; flex-direction: column; flex: 1; min-height: 0">
+          <label class="field-label">간략한 대본</label>
+          <div class="textarea" style="flex: 1; border-color: var(--fg3); box-shadow: 0 0 0 3px var(--hover)"></div>
+        </div>
+      </sc-if>
+
+      <div style="height: 72px; flex: none; margin-top: auto; display: flex; align-items: center; justify-content: flex-end; gap: 12px; border-top: 1px solid var(--border)">
+        <sc-if value="{{s.generating}}" hint-placeholder-val="{{ false }}">
+          <div style="flex: 1; display: flex; align-items: center; gap: 12px">
+            <span class="spin"></span>
+            <span>codex 실행 중</span>
+            <div class="prog" style="flex: 1"><i style="width: 40%"></i></div>
+            <span class="num sm muted">40%</span>
+          </div>
+          <button class="btn btn-outline">취소</button>
+        </sc-if>
+        <sc-if value="{{s.makeOn}}" hint-placeholder-val="{{ true }}">
+          <button class="btn btn-primary"><span class="i i-sparkle"></span>대본 만들기</button>
+        </sc-if>
+        <sc-if value="{{s.makeOff}}" hint-placeholder-val="{{ false }}">
+          <button class="btn btn-primary" disabled><span class="i i-sparkle"></span>대본 만들기</button>
+        </sc-if>
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"v":{"editor":"enum","options":["ailoading","noframes","ai","manual","generating","error","codex"],"default":"ai"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const v = this.props.v ?? 'ai';
+    const is = (...a) => a.includes(v);
+    return {
+      theme: this.props.theme ?? 'dark',
+      groups: [
+        ['1', 'IMG_3820.MOV', 9.7, '/_blob/5ce65e4dc633e21d66634d3fb8c8619d'],
+        ['2', 'IMG_3821.MOV', 3.6, '/_blob/34ed991c596f500b1b0deaa104ced48e'],
+        ['3', 'IMG_3823.MOV', 9.5, '/_blob/1f805d4dd8d35283783679a989575d28']
+      ].map(([n, name, dur, img]) => {
+        const count = Math.min(10, Math.max(3, Math.ceil(dur)));
+        const frames = Array.from({ length: count }, (_, i) => (((i + 0.5) / count) * dur).toFixed(1) + '초');
+        return { n, name, img, frames, len: dur.toFixed(1) + '초 · ' + count + '장' };
+      }),
+      skelGroups: [1, 2, 3],
+      s: {
+        err: is('error'),
+        codex: is('codex'),
+        tabAi: is('manual') ? '' : 'on',
+        tabManual: is('manual') ? 'on' : '',
+        segOpacity: is('generating') ? '0.42' : '1',
+        showCount: is('ai', 'generating', 'error', 'codex'),
+        frames: is('ai', 'generating', 'error', 'codex'),
+        framesOpacity: is('generating') ? '0.5' : '1',
+        loading: is('ailoading'),
+        noframes: is('noframes'),
+        manual: is('manual'),
+        generating: is('generating'),
+        makeOn: is('ai', 'manual', 'error', 'noframes'),
+        makeOff: is('ailoading', 'codex')
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

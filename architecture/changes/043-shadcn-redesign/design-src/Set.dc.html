@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>설정</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./u3.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="u3 t-{{theme}} screen" style="width: 1440px; height: 900px; font-family: Pretendard, system-ui, sans-serif; color: var(--fg)">
+  <aside class="side">
+    <div class="side-top">
+      <img src="/_blob/b6f306898b83434ab364a3e4080deacc" alt="U3">
+      <button class="btn btn-ghost btn-icon btn-sm" aria-label="사이드바 접기"><span class="i i-panel"></span></button>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <button class="nav"><span class="i i-video"></span><span class="t">영상</span></button>
+      <button class="nav"><span class="i i-carousel"></span><span class="t">캐러셀</span></button>
+      <button class="nav on"><span class="i i-settings"></span><span class="t">설정</span></button>
+    </div>
+  </aside>
+  <main class="page" style="gap: 24px">
+    <div class="page-h"><h1>설정</h1></div>
+    <sc-if value="{{s.err}}" hint-placeholder-val="{{ false }}">
+      <div class="alert"><span class="i i-alert"></span><div class="grow"><b>설정을 저장하지 못했어요</b><span class="muted sm ell">Load failed</span></div></div>
+    </sc-if>
+    <div style="flex: 1; min-height: 0; display: flex; gap: 40px">
+      <nav class="setnav">
+        <sc-for list="{{nav}}" as="n" hint-placeholder-count="8"><span class="{{n.cls}}">{{n.t}}</span></sc-for>
+      </nav>
+      <div class="setbody" style="max-width: {{s.bodyMax}}px">
+
+        <sc-if value="{{S.screen}}" hint-placeholder-val="{{ true }}">
+          <div class="setgroup">
+            <h2>테마</h2>
+            <div style="display: flex; gap: 12px">
+              <div class="themecard sel">
+                <div class="pv" style="background: #0e0e10; border: 1px solid #2a2a2e"><span style="width: 30%; background: #151517; border-right: 1px solid #2a2a2e"></span><span style="flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 6px"><i style="height: 8px; width: 60%; background: #3f3f46; border-radius: 2px"></i><i style="height: 8px; width: 40%; background: #ff8a3d; border-radius: 2px"></i></span></div>
+                <div class="lbl"><span class="i i-moon"></span>다크</div>
+              </div>
+              <div class="themecard">
+                <div class="pv" style="background: #ffffff; border: 1px solid #e4e4e7"><span style="width: 30%; background: #f7f7f8; border-right: 1px solid #e4e4e7"></span><span style="flex: 1; padding: 12px; display: flex; flex-direction: column; gap: 6px"><i style="height: 8px; width: 60%; background: #d4d4d8; border-radius: 2px"></i><i style="height: 8px; width: 40%; background: #c2410c; border-radius: 2px"></i></span></div>
+                <div class="lbl"><span class="i i-sun"></span>라이트</div>
+              </div>
+              <div class="themecard">
+                <div class="pv" style="border: 1px solid var(--border)"><span style="flex: 1; background: #0e0e10"></span><span style="flex: 1; background: #ffffff"></span></div>
+                <div class="lbl"><span class="i i-monitor"></span>시스템 설정 따르기</div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{S.brand}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; gap: 32px">
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 20px">
+              <div class="setgroup">
+                <h2>워터마크</h2>
+                <div class="srow"><span class="lb">이미지</span><span class="sm muted">없음</span><button class="btn btn-outline btn-sm">선택</button></div>
+                <div class="srow"><span class="lb">가로 위치</span><div class="sl"><i style="width: 50%"></i><b style="left: 50%"></b></div><span class="v">50%</span></div>
+                <div class="srow"><span class="lb">세로 위치</span><div class="sl"><i style="width: 8%"></i><b style="left: 8%"></b></div><span class="v">8%</span></div>
+                <div class="srow"><span class="lb">폭</span><div class="sl"><i style="width: 20%"></i><b style="left: 20%"></b></div><span class="v">20%</span></div>
+                <div class="srow"><span class="lb">투명도</span><div class="sl"><i style="width: 100%"></i><b style="left: 100%"></b></div><span class="v">100%</span></div>
+              </div>
+              <div class="setgroup">
+                <h2>타이틀 바</h2>
+                <div class="srow"><span class="lb">종류</span><div class="seg seg-sm" style="width: 200px"><span class="on">글</span><span>이미지</span></div><span></span></div>
+                <div class="srow"><span class="lb">기본 글</span><div class="input input-sm"></div><span class="v num">0/30</span></div>
+                <div class="srow"><span class="lb">높이</span><div class="sl"><i style="width: 21%"></i><b style="left: 21%"></b></div><span class="v">160px</span></div>
+                <div class="srow"><span class="lb">배경 색</span><div class="swatch" style="width: 140px"><i style="background: #000000"></i>#000000</div><span></span></div>
+                <div class="srow"><span class="lb">배경 투명도</span><div class="sl"><i style="width: 62%"></i><b style="left: 62%"></b></div><span class="v">62%</span></div>
+                <div class="srow"><span class="lb">폰트</span><div class="select select-sm" style="width: 200px"><span>Pretendard</span><span class="i i-down"></span></div><span></span></div>
+                <div class="srow"><span class="lb">글자 크기</span><div class="sl"><i style="width: 23%"></i><b style="left: 23%"></b></div><span class="v">56px</span></div>
+                <div class="srow"><span class="lb">글자 색</span><div class="swatch" style="width: 140px"><i style="background: #ffffff"></i>#FFFFFF</div><span></span></div>
+              </div>
+            </div>
+            <div style="width: 270px; flex: none; display: flex; flex-direction: column; gap: 6px; padding-top: 34px">
+              <div style="position: relative; width: 270px; height: 480px; border-radius: 6px; overflow: hidden; background: #000">
+                <img src="/_blob/5ce65e4dc633e21d66634d3fb8c8619d" alt="" style="width: 100%; height: 100%; object-fit: cover; opacity: .7">
+                <div style="position: absolute; left: 0; right: 0; top: 0; height: 40px; background: rgba(0,0,0,.62)"></div>
+                <div class="wm" style="left: 108px; top: 26px; width: 54px; height: 22px; font-size: 9px">[워터마크]</div>
+              </div>
+            </div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{S.script}}" hint-placeholder-val="{{ false }}">
+          <div class="setgroup">
+            <h2>codex</h2>
+            <sc-if value="{{s.codexMissing}}" hint-placeholder-val="{{ false }}">
+              <div class="alert" style="margin-bottom: 4px"><span class="i i-alert"></span><div class="grow"><b>codex 설치가 필요해요</b></div><button class="btn btn-outline btn-sm"><span class="i i-folder"></span>실행 파일 지정</button><button class="btn btn-ghost btn-sm"><span class="i i-refresh"></span>다시 확인</button></div>
+            </sc-if>
+            <div class="srow"><span class="lb">모델</span><div class="select select-sm" style="width: 240px"><span>gpt-6-luna</span><span class="i i-down"></span></div><span></span></div>
+            <div class="srow"><span class="lb">추론 강도</span><div class="seg seg-sm" style="width: 240px"><span>low</span><span class="on">medium</span><span>high</span></div><span></span></div>
+            <div class="modelrow"><span class="lb sm muted" style="font-size: 13px">STT 모델</span>
+              <sc-if value="{{s.codexOk}}" hint-placeholder-val="{{ true }}"><span class="status ok"><span class="d"></span>준비됨 · 574 MB</span><span></span></sc-if>
+              <sc-if value="{{s.codexMissing}}" hint-placeholder-val="{{ false }}"><div style="display: flex; align-items: center; gap: 10px"><div class="prog" style="flex: 1"><i style="width: 37%"></i></div><span class="sm num muted">212 / 574 MB</span></div><button class="btn btn-outline btn-xs">취소</button></sc-if>
+            </div>
+          </div>
+          <div class="setgroup">
+            <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px"><h2 style="margin: 0">대본 프롬프트</h2><button class="btn btn-ghost btn-xs">기본값으로</button></div>
+            <div class="textarea" style="height: 112px; overflow: hidden; font-size: 12px">영상과 사진을 보고 장면별 대본을 추천해 주세요. 입력 영상 장면의 caption에 표시할 자연스러운 한국어 자막을 작성합니다.
+
+# 쇼츠 대본 작성</div>
+            <div class="count num">9,312/20,000</div>
+          </div>
+          <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px">
+            <div class="setgroup"><div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px"><h2 style="margin: 0">말투</h2><button class="btn btn-ghost btn-xs">기본값으로</button></div><div class="textarea" style="height: 64px; color: var(--fg3)">친구에게 말하듯 짧은 반말</div></div>
+            <div class="setgroup"><div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px"><h2 style="margin: 0">성격</h2><button class="btn btn-ghost btn-xs">기본값으로</button></div><div class="textarea" style="height: 64px; color: var(--fg3)">솔직하고 장난기 있는 20대 직장인</div></div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{S.meme}}" hint-placeholder-val="{{ false }}">
+          <div class="setgroup">
+            <h2>Jev</h2>
+            <div class="srow"><span class="lb">API 키</span>
+              <div class="input input-sm num">{{s.keyText}}</div>
+              <div style="display: flex; gap: 6px"><button class="btn btn-solid btn-sm" disabled>저장</button><button class="btn btn-ghost btn-sm">지우기</button></div>
+            </div>
+          </div>
+          <div class="setgroup">
+            <h2>짤 검색</h2>
+            <div class="modelrow"><span class="lb" style="font-size: 13px; color: var(--fg2)">짤 검색 모델</span><span class="status"><span class="d"></span>받지 않음</span><button class="btn btn-outline btn-sm"><span class="i i-download"></span>받기</button></div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{S.voice}}" hint-placeholder-val="{{ false }}">
+          <div class="setgroup">
+            <h2>음성</h2>
+            <div class="srow"><span class="lb">화자</span><div class="select select-sm" style="width: 200px"><span>Sohee</span><span class="i i-down"></span></div><span></span></div>
+            <div class="srow"><span class="lb">말투 지시</span><div class="input input-sm"></div><span></span></div>
+            <div class="modelrow"><span class="lb" style="font-size: 13px; color: var(--fg2)">음성 만들기 모델</span><div style="display: flex; align-items: center; gap: 10px"><div class="prog" style="flex: 1"><i style="width: 37%"></i></div><span class="sm num muted">1.1 / 3.1 GB</span></div><button class="btn btn-outline btn-xs">취소</button></div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{S.imagegen}}" hint-placeholder-val="{{ false }}">
+          <div class="setgroup">
+            <h2>이미지 생성</h2>
+            <div class="srow"><span class="lb">모델</span><div class="seg seg-sm" style="width: 300px"><span class="on">Flare · 빠름</span><span>Sunburst · 고품질</span></div><span></span></div>
+            <div class="srow"><span class="lb">퀄리티</span><div class="seg seg-sm" style="width: 300px"><span>low</span><span class="on">medium</span><span>high</span><span>auto</span></div><span></span></div>
+            <div class="srow"><span class="lb">비율</span><div class="seg seg-sm" style="width: 300px"><span class="on">4:5</span><span>1:1</span><span>9:16</span><span>16:9</span></div><span></span></div>
+            <div class="srow"><span class="lb">동시 실행 수</span><div class="stepper" style="width: 120px"><em>−</em><span>3</span><em>+</em></div><span></span></div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{S.sound}}" hint-placeholder-val="{{ false }}">
+          <div class="setgroup">
+            <h2>알림음</h2>
+            <div class="srow"><span class="lb">켜기</span><div><span class="sw on"><i></i></span></div><span></span></div>
+            <div class="srow"><span class="lb">소리</span><div style="display: flex; gap: 6px; align-items: center"><div class="select select-sm" style="width: 240px"><span>iPhone Notification</span><span class="i i-down"></span></div><button class="btn btn-outline btn-icon btn-sm" aria-label="미리 듣기"><span class="i i-play"></span></button></div><span></span></div>
+            <div class="srow"><span class="lb">재생 시작 딜레이</span><div class="sl"><i style="width: 0%"></i><b style="left: 0%"></b></div><span class="v">0.0초</span></div>
+          </div>
+        </sc-if>
+
+        <sc-if value="{{S.about}}" hint-placeholder-val="{{ false }}">
+          <div class="setgroup">
+            <h2>앱 정보</h2>
+            <div class="srow"><span class="lb">현재 버전</span><span class="num">0.2.2</span><span></span></div>
+            <div class="srow"><span class="lb">마지막 확인</span><span class="muted">12분 전</span><button class="btn btn-outline btn-sm"><span class="i i-refresh"></span>지금 확인</button></div>
+          </div>
+        </sc-if>
+
+      </div>
+    </div>
+  </main>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"v":{"editor":"enum","options":["screen","brand","script","scriptmissing","meme","voice","imagegen","sound","about","error"],"default":"screen"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const v = this.props.v ?? 'screen';
+    const sec = v === 'scriptmissing' ? 'script' : v === 'error' ? 'meme' : v;
+    const names = [['screen', '화면'], ['brand', '브랜드'], ['script', '대본'], ['meme', '짤'], ['voice', '음성'], ['imagegen', '이미지 생성'], ['sound', '알림음'], ['about', '앱 정보']];
+    const S = {};
+    names.forEach(([k]) => { S[k] = sec === k; });
+    return {
+      theme: this.props.theme ?? 'dark',
+      nav: names.map(([k, t]) => ({ t, cls: sec === k ? 'on' : '' })),
+      S,
+      s: {
+        err: v === 'error',
+        bodyMax: sec === 'brand' ? 960 : 640,
+        codexOk: v !== 'scriptmissing',
+        codexMissing: v === 'scriptmissing',
+        jevOk: v !== 'error',
+        jevNone: v === 'error',
+        keyText: v === 'error' ? '' : '•••• 7f3c'
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>

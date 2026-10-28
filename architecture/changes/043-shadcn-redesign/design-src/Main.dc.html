@@ -1,0 +1,95 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>U3 디자인 원칙</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./u3.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="u3 t-dark" style="width: 1440px; height: 900px; padding: 72px 80px; display: flex; flex-direction: column; gap: 40px">
+  <div style="display: flex; align-items: flex-end; justify-content: space-between">
+    <div style="display: flex; align-items: center; gap: 20px">
+    <img src="/_blob/99dc6c98f9723348b7092d54770b612c" alt="U3 앱 아이콘" style="width: 96px; height: 96px; margin: -10px">
+    <div style="display: flex; flex-direction: column; gap: 10px">
+      <h1 style="font-size: 44px; line-height: 1.1">U3 디자인</h1>
+      <p class="muted" style="font-size: 15px">shadcn/ui · Radix · Tailwind v4 · Pretendard 400·700 · 다크 기본, 라이트·시스템 설정 따르기</p>
+    </div>
+    </div>
+    <div style="display: flex; gap: 8px">
+      <span class="badge">보드 왼쪽 다크</span>
+      <span class="badge">보드 오른쪽 라이트</span>
+      <span class="badge">보드 옆 메모 = 핵심 명세</span>
+    </div>
+  </div>
+  <div class="hr"></div>
+  <div style="display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px; flex: 1">
+    <section style="display: flex; flex-direction: column; gap: 14px">
+      <h2 style="font-size: 16px">화면 글</h2>
+      <div style="display: flex; flex-direction: column; gap: 8px">
+        <span class="muted sm">지운다</span>
+        <p>입력 위·아래 설명문</p>
+        <p>도움말 문장</p>
+        <p>「예: …」 placeholder</p>
+        <p>대화상자 설명문</p>
+        <p>카드 제목과 같은 토글 라벨</p>
+      </div>
+      <div style="display: flex; flex-direction: column; gap: 8px; margin-top: 8px">
+        <span class="muted sm">남긴다</span>
+        <p>짧은 명사 라벨 · 값 · 상태</p>
+        <p>오류 한 줄</p>
+        <p>되돌릴 수 없는 결과 한 줄</p>
+        <p>아이콘 버튼의 툴팁 이름</p>
+      </div>
+    </section>
+    <section style="display: flex; flex-direction: column; gap: 14px">
+      <h2 style="font-size: 16px">주황은 세 곳만</h2>
+      <div style="display: flex; flex-direction: column; gap: 12px">
+        <div style="display: flex; align-items: center; gap: 12px"><span class="btn btn-primary">mp4 내보내기</span><span class="muted">주요 동작 하나</span></div>
+        <div style="display: flex; align-items: center; gap: 12px"><span style="width: 120px; height: 22px; border-radius: 4px; background: var(--c-cap); box-shadow: inset 0 0 0 2px var(--accent)"></span><span class="muted">선택 상태</span></div>
+        <div style="display: flex; align-items: center; gap: 12px"><span style="width: 2px; height: 28px; background: var(--accent); margin: 0 59px"></span><span class="muted">재생 헤드</span></div>
+      </div>
+      <p class="muted" style="margin-top: 8px">스위치·슬라이더·탭·진행 막대는 무채색</p>
+      <h2 style="font-size: 16px; margin-top: 20px">밀도</h2>
+      <div class="pstack" style="max-width: 360px">
+        <div class="prow"><span class="lb">컨트롤</span><span>32px</span><span class="v"></span></div>
+        <div class="prow"><span class="lb">속성 한 줄</span><span>라벨 — 컨트롤 — 값</span><span class="v">32px</span></div>
+        <div class="prow"><span class="lb">본문</span><span>13px</span><span class="v"></span></div>
+        <div class="prow"><span class="lb">모서리</span><span>6px</span><span class="v"></span></div>
+      </div>
+    </section>
+    <section style="display: flex; flex-direction: column; gap: 14px">
+      <h2 style="font-size: 16px">선택과 저장</h2>
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <p>대상 하나를 고르면 그 대상의 속성이 맨 위</p>
+        <p>대상이 속한 묶음은 아래에 접어 둔다</p>
+        <p>타임라인과 미리보기는 같은 선택</p>
+        <p>빈 곳 · Esc → 선택 해제</p>
+        <p>Shift+클릭 → 모든 트랙에서 더하기</p>
+      </div>
+      <div class="hr" style="margin: 8px 0"></div>
+      <div style="display: flex; flex-direction: column; gap: 10px">
+        <p>설정: 바뀌면 바로 저장 (Jev 키만 「저장」)</p>
+        <p>스튜디오: 「저장」 + 저장 안 한 변경 점</p>
+        <p>캐러셀 글: 포커스를 잃으면 저장</p>
+      </div>
+    </section>
+  </div>
+  <p class="muted sm">기준 문서: architecture/changes/043-shadcn-redesign/pages.md · spec.md · 결정 0025</p>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return {};
+  }
+}
+</script>
+</body>
+</html>

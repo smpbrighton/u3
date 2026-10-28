@@ -1,0 +1,191 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>부품</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./u3.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="display: flex; gap: 80px; width: 2960px; height: 1640px">
+  <sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+    <div class="u3 {{t.cls}}" style="width: 1440px; height: 1640px; padding: 48px 56px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 40px 48px; align-content: start">
+
+      <section style="display: flex; flex-direction: column; gap: 12px">
+        <h2 style="font-size: 14px">Button</h2>
+        <div style="display: flex; flex-wrap: wrap; gap: 8px">
+          <button class="btn btn-primary">mp4 내보내기</button>
+          <button class="btn btn-solid">저장</button>
+          <button class="btn btn-secondary">캐러셀 만들기</button>
+          <button class="btn btn-outline">취소</button>
+          <button class="btn btn-ghost">다시 시도</button>
+          <button class="btn btn-danger">삭제</button>
+          <button class="btn btn-danger-text">삭제</button>
+          <button class="btn btn-solid" disabled>대본 만들기</button>
+        </div>
+        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 8px">
+          <button class="btn btn-outline btn-sm"><span class="i i-upload"></span>넣기</button>
+          <button class="btn btn-outline btn-xs">취소</button>
+          <button class="btn btn-ghost btn-icon" aria-label="실행 취소"><span class="i i-undo"></span></button>
+          <button class="btn btn-ghost btn-icon btn-sm" aria-label="더 보기"><span class="i i-more"></span></button>
+          <button class="btn btn-ghost btn-icon btn-xs" aria-label="음소거"><span class="i i-vol"></span></button>
+          <button class="btn btn-link">설정에서 이미지 선택</button>
+        </div>
+        <p class="xs muted">주황 default · solid · secondary · outline · ghost · destructive · 크기 32/28/24</p>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 12px">
+        <h2 style="font-size: 14px">Input · Select · Textarea</h2>
+        <div class="input">새 영상</div>
+        <div class="input focused">새 영상</div>
+        <div class="select"><span>Pretendard</span><span class="i i-down"></span></div>
+        <div class="input"><span class="i i-search" style="color: var(--fg2)"></span><span class="ph">검색</span></div>
+        <div class="textarea">입구에 행사 매대가 보여서 뭐가 있나 구경했어.</div>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 4px">
+        <h2 style="font-size: 14px; margin-bottom: 8px">PropertyRow · 32px</h2>
+        <div class="prow"><span class="lb">투명도</span><div class="sl"><i style="width: 80%"></i><b style="left: 80%"></b></div><span class="v">80%</span></div>
+        <div class="prow"><span class="lb">켜기</span><div><span class="sw on"><i></i></span></div><span class="v"></span></div>
+        <div class="prow"><span class="lb">폰트</span><div class="select select-sm"><span>Pretendard</span><span class="i i-down"></span></div><span class="v"></span></div>
+        <div class="prow"><span class="lb">종류</span><div class="seg seg-sm"><span class="on">글</span><span>이미지</span></div><span class="v"></span></div>
+        <div class="prow"><span class="lb">시작</span><div class="input input-sm num">3.2</div><span class="v">초</span></div>
+        <div class="prow"><span class="lb">글자 색</span><div class="swatch"><i style="background: #ffffff"></i>#FFFFFF</div><span class="v"></span></div>
+        <div class="prow"><span class="lb">장 수</span><div class="stepper"><em>−</em><span>5</span><em>+</em></div><span class="v"></span></div>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 12px">
+        <h2 style="font-size: 14px">PropertySection</h2>
+        <div style="border: 1px solid var(--border); border-radius: 8px; padding: 0 12px; background: var(--panel)">
+          <div class="psec" style="border-top: 0"><div class="psec-h"><span>레이어 스타일</span><span class="i i-right"></span></div></div>
+          <div class="psec">
+            <div class="psec-h"><span>워터마크</span><span class="i i-down"></span></div>
+            <div class="prow"><span class="lb">폭</span><div class="sl"><i style="width: 20%"></i><b style="left: 20%"></b></div><span class="v">20%</span></div>
+          </div>
+        </div>
+        <h2 style="font-size: 14px; margin-top: 8px">Tabs · Segmented</h2>
+        <div class="tabs" style="padding: 0"><span class="on">미디어</span><span>짤</span><span>효과음</span><span>음성</span></div>
+        <div class="seg"><span class="on">AI 추천</span><span>직접 쓰기</span></div>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 12px">
+        <h2 style="font-size: 14px">상태 표시</h2>
+        <div style="display: flex; gap: 8px; align-items: center"><span class="badge">대본 전</span><span class="badge">영상에서</span><span class="badge">Jev 추천</span><span class="status ok"><span class="d"></span>준비됨</span><span class="status bad"><span class="d"></span>로그인 필요</span></div>
+        <div class="jobline"><span class="spin"></span><span>받아 적는 중</span><div class="prog"><i style="width: 46%"></i></div><span class="num">46%</span><button class="btn btn-outline btn-xs">취소</button></div>
+        <div class="errline"><span class="i i-alert"></span>서브 자막을 만들지 못했어요</div>
+        <div style="display: flex; gap: 8px"><div class="skel" style="width: 80px; height: 120px"></div><div class="skel" style="width: 80px; height: 120px"></div><div style="display: flex; flex-direction: column; gap: 6px"><div class="skel" style="width: 120px; height: 12px"></div><div class="skel" style="width: 80px; height: 10px"></div></div></div>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 12px">
+        <h2 style="font-size: 14px">경고 한 줄</h2>
+        <div class="alert"><span class="i i-alert"></span><div class="grow"><b>엔진에 연결하지 못했어요</b><span class="muted sm ell">Load failed</span></div><button class="btn btn-outline btn-sm">다시 연결</button></div>
+        <div class="alert"><span class="i i-alert"></span><div class="grow"><b>codex 로그인이 필요해요</b></div><button class="btn btn-outline btn-sm">설정 열기</button></div>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 12px; position: relative; height: 230px">
+        <h2 style="font-size: 14px">DropdownMenu · Tooltip</h2>
+        <div class="menu" style="position: relative; width: 200px">
+          <div class="mi">이름 바꾸기</div>
+          <div class="mi hl">캐러셀 만들기</div>
+          <div class="sep"></div>
+          <div class="mi danger">삭제</div>
+        </div>
+        <div class="tip" style="left: 230px; top: 48px">실행 취소 <span class="kbd">⌘Z</span></div>
+        <div class="tip" style="left: 230px; top: 92px">다른 작업이 끝난 뒤 시작할 수 있어요</div>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 12px; position: relative; height: 230px">
+        <h2 style="font-size: 14px">Toast(Sonner)</h2>
+        <div class="toast" style="position: relative; right: auto; bottom: auto"><span class="i i-check"></span>저장했어요</div>
+        <div class="toast err" style="position: relative; right: auto; bottom: auto"><span class="i i-alert"></span>다시 시작하지 못했어요</div>
+        <p class="xs muted">한 번에 하나 · 5초 · 오른쪽 아래</p>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 12px">
+        <h2 style="font-size: 14px">Dialog</h2>
+        <div class="dlg" style="width: 100%">
+          <h3>‘새 영상’을 삭제할까요?</h3>
+          <p class="muted">되돌릴 수 없어요</p>
+          <div class="foot"><button class="btn btn-outline">취소</button><button class="btn btn-danger">삭제</button></div>
+        </div>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 12px">
+        <h2 style="font-size: 14px">사이드바 · 단계</h2>
+        <div style="display: flex; gap: 16px; align-items: flex-start">
+          <div style="display: flex; flex-direction: column; gap: 2px; width: 200px">
+            <div class="side-top" style="margin-bottom: 8px"><img src="/_blob/b6f306898b83434ab364a3e4080deacc" alt="U3"><button class="btn btn-ghost btn-icon btn-sm" aria-label="사이드바 접기"><span class="i i-panel"></span></button></div>
+            <button class="nav on"><span class="i i-video"></span><span class="t">영상</span></button>
+            <button class="nav"><span class="i i-carousel"></span><span class="t">캐러셀</span></button>
+            <button class="nav"><span class="i i-settings"></span><span class="t">설정</span></button>
+          </div>
+          <div class="side collapsed" style="height: auto; padding: 0; border: 0; background: transparent; gap: 2px">
+            <div class="side-top" style="margin-bottom: 8px"><img src="/_blob/b6f306898b83434ab364a3e4080deacc" alt="U3"><button class="btn btn-ghost btn-icon btn-sm" aria-label="사이드바 펼치기"><span class="i i-panel"></span></button></div>
+            <button class="nav on" aria-label="영상"><span class="i i-video"></span><span class="t">영상</span></button>
+            <button class="nav" aria-label="캐러셀"><span class="i i-carousel"></span><span class="t">캐러셀</span></button>
+            <button class="nav" aria-label="설정"><span class="i i-settings"></span><span class="t">설정</span></button>
+          </div>
+        </div>
+        <div class="steps"><span class="on"><em>1</em>미디어</span><span class="i i-right"></span><span><em>2</em>대본</span><span class="i i-right"></span><span class="off"><em>3</em>스튜디오</span></div>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 12px; grid-column: span 2">
+        <h2 style="font-size: 14px">TrackHeader · Clip · 재생 헤드</h2>
+        <div style="display: flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden">
+          <div style="width: 120px; flex: none; background: var(--panel); border-right: 1px solid var(--border)">
+            <div class="th"><span class="n">자막 메인</span></div>
+            <div class="th sel"><span class="n">영상 1</span></div>
+            <div class="th"><span class="n">음성</span><button class="btn btn-ghost btn-icon btn-xs" aria-label="음소거"><span class="i i-vol"></span></button></div>
+            <div class="th" style="border-bottom: 0"><span class="n">효과음 1</span><button class="btn btn-ghost btn-icon btn-xs" aria-label="음소거 해제"><span class="i i-mute"></span></button></div>
+          </div>
+          <div class="tl-body" style="background: var(--bg)">
+            <div class="trk"><div class="clip" style="left: 8px; width: 220px; background: var(--c-cap)"><span>입구에 행사 매대가 보여서 뭐가 있나 구경했어.</span></div><div class="clip sel" style="left: 232px; width: 260px; background: var(--c-cap)"><span>안으로 들어가니 매대가 계속 보여서</span></div></div>
+            <div class="trk"><div class="clip" style="left: 8px; width: 300px; background: var(--c-vid)"><span class="i i-link"></span><span>IMG_3820.MOV</span></div><div class="trans" style="left: 308px"></div><div class="clip" style="left: 310px; width: 180px; background: var(--c-vid)"><span>IMG_3821.MOV</span></div><div class="clip" style="left: 494px; width: 120px; background: var(--c-meme)"><span>tenor-B7z_31m7pvo</span></div></div>
+            <div class="trk"><div class="clip" style="left: 8px; width: 200px; background: var(--c-voice)"><span class="warn">!</span><span>음성 3</span></div></div>
+            <div class="trk" style="border-bottom: 0"><div class="clip" style="left: 60px; width: 70px; background: var(--c-sfx)"><span>whoosh sfx</span></div></div>
+            <div class="ph-line" style="left: 260px"></div>
+          </div>
+        </div>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 12px">
+        <h2 style="font-size: 14px">로고 · 앱 아이콘</h2>
+        <div style="display: flex; align-items: center; gap: 24px">
+          <img src="/_blob/99dc6c98f9723348b7092d54770b612c" alt="U3 앱 아이콘" style="width: 112px; height: 112px">
+          <img src="/_blob/99dc6c98f9723348b7092d54770b612c" alt="" style="width: 32px; height: 32px">
+          <img src="/_blob/99dc6c98f9723348b7092d54770b612c" alt="" style="width: 16px; height: 16px">
+          <img src="/_blob/b6f306898b83434ab364a3e4080deacc" alt="U3 로고" style="height: 40px">
+          <img src="/_blob/b6f306898b83434ab364a3e4080deacc" alt="" style="height: 24px">
+        </div>
+        <p class="xs muted">앱 아이콘 1024 · 32 · 16 / 사이드바 로고 40 · 24</p>
+      </section>
+
+      <section style="display: flex; flex-direction: column; gap: 12px">
+        <h2 style="font-size: 14px">아이콘(Hugeicons 선)</h2>
+        <div style="display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 14px; color: var(--fg)">
+          <span class="i i-lg i-back"></span><span class="i i-lg i-more"></span><span class="i i-lg i-plus"></span><span class="i i-lg i-play"></span><span class="i i-lg i-pause"></span><span class="i i-lg i-undo"></span><span class="i i-lg i-redo"></span><span class="i i-lg i-bell"></span>
+          <span class="i i-lg i-video"></span><span class="i i-lg i-carousel"></span><span class="i i-lg i-settings"></span><span class="i i-lg i-search"></span><span class="i i-lg i-mic"></span><span class="i i-lg i-stop"></span><span class="i i-lg i-upload"></span><span class="i i-lg i-trash"></span>
+          <span class="i i-lg i-vol"></span><span class="i i-lg i-mute"></span><span class="i i-lg i-check"></span><span class="i i-lg i-x"></span><span class="i i-lg i-image"></span><span class="i i-lg i-music"></span><span class="i i-lg i-folder"></span><span class="i i-lg i-alert"></span>
+          <span class="i i-lg i-refresh"></span><span class="i i-lg i-sparkle"></span><span class="i i-lg i-download"></span><span class="i i-lg i-swap"></span><span class="i i-lg i-layers"></span><span class="i i-lg i-link"></span><span class="i i-lg i-pen"></span><span class="i i-lg i-square"></span>
+        </div>
+      </section>
+
+    </div>
+  </sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2960,"height":1640}}'>
+class Component extends DCLogic {
+  renderVals() {
+    return { themes: [{ cls: 't-dark' }, { cls: 't-light' }] };
+  }
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>토큰</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./u3.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div style="display: flex; gap: 80px; width: 2960px; height: 1000px">
+  <sc-for list="{{themes}}" as="t" hint-placeholder-count="2">
+    <div class="u3 {{t.cls}}" style="width: 1440px; height: 1000px; padding: 48px 56px; display: flex; flex-direction: column; gap: 32px">
+      <div style="display: flex; align-items: baseline; gap: 12px">
+        <h1 style="font-size: 24px">{{t.name}}</h1>
+        <span class="muted">src/ui/theme.css · {{t.sel}}</span>
+      </div>
+      <div style="display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px">
+        <sc-for list="{{t.colors}}" as="c" hint-placeholder-count="16">
+          <div style="display: flex; align-items: center; gap: 12px; padding: 8px; border: 1px solid var(--border); border-radius: 8px">
+            <span style="width: 40px; height: 40px; border-radius: 6px; border: 1px solid var(--border); flex: none; background: var({{c.v}})"></span>
+            <div style="display: flex; flex-direction: column; min-width: 0">
+              <b class="sm">{{c.n}}</b>
+              <span class="xs muted num">{{c.hex}}</span>
+            </div>
+          </div>
+        </sc-for>
+      </div>
+      <div style="display: grid; grid-template-columns: 1.3fr 1fr 1fr; gap: 40px">
+        <section style="display: flex; flex-direction: column; gap: 12px">
+          <h2 style="font-size: 14px">글자 · Pretendard 400·700</h2>
+          <div style="display: flex; align-items: baseline; gap: 16px"><span class="xs muted num" style="width: 64px">20 / 700</span><span style="font-size: 20px; font-weight: 700">영상</span><span class="xs muted">화면 제목</span></div>
+          <div style="display: flex; align-items: baseline; gap: 16px"><span class="xs muted num" style="width: 64px">16 / 700</span><span style="font-size: 16px; font-weight: 700">이름 바꾸기</span><span class="xs muted">대화상자 제목</span></div>
+          <div style="display: flex; align-items: baseline; gap: 16px"><span class="xs muted num" style="width: 64px">14 / 700</span><span style="font-size: 14px; font-weight: 700">워터마크</span><span class="xs muted">구역 제목</span></div>
+          <div style="display: flex; align-items: baseline; gap: 16px"><span class="xs muted num" style="width: 64px">13 / 400</span><span style="font-size: 13px">입구에 행사 매대가 보여서</span><span class="xs muted">본문·컨트롤</span></div>
+          <div style="display: flex; align-items: baseline; gap: 16px"><span class="xs muted num" style="width: 64px">12 / 400</span><span style="font-size: 12px; color: var(--fg2)">투명도</span><span class="xs muted">속성 라벨·값</span></div>
+          <div style="display: flex; align-items: baseline; gap: 16px"><span class="xs muted num" style="width: 64px">11 / 400</span><span style="font-size: 11px; color: var(--fg2)">장면 7 · 12시간 전</span><span class="xs muted">보조 정보·클립 이름표</span></div>
+        </section>
+        <section style="display: flex; flex-direction: column; gap: 12px">
+          <h2 style="font-size: 14px">간격 · 모서리</h2>
+          <div style="display: flex; align-items: flex-end; gap: 10px">
+            <sc-for list="{{space}}" as="s" hint-placeholder-count="8">
+              <div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><span style="width: {{s}}px; height: {{s}}px; background: var(--fg2); border-radius: 2px"></span><span class="xs muted num">{{s}}</span></div>
+            </sc-for>
+          </div>
+          <div style="display: flex; gap: 12px; margin-top: 12px">
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><span style="width: 48px; height: 32px; border: 1.5px solid var(--fg2); border-radius: 4px"></span><span class="xs muted">4 클립</span></div>
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><span style="width: 48px; height: 32px; border: 1.5px solid var(--fg2); border-radius: 6px"></span><span class="xs muted">6 컨트롤</span></div>
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><span style="width: 48px; height: 32px; border: 1.5px solid var(--fg2); border-radius: 8px"></span><span class="xs muted">8 카드·메뉴</span></div>
+            <div style="display: flex; flex-direction: column; align-items: center; gap: 6px"><span style="width: 48px; height: 32px; border: 1.5px solid var(--fg2); border-radius: 12px"></span><span class="xs muted">12 대화상자</span></div>
+          </div>
+        </section>
+        <section style="display: flex; flex-direction: column; gap: 8px">
+          <h2 style="font-size: 14px; margin-bottom: 4px">높이</h2>
+          <div class="prow"><span class="lb">컨트롤</span><span class="sm">기본 · 작게 · 아주 작게</span><span class="v">32·28·24</span></div>
+          <div class="prow"><span class="lb">속성 한 줄</span><span class="sm">라벨 — 컨트롤 — 값</span><span class="v">32</span></div>
+          <div class="prow"><span class="lb">설정 한 줄</span><span class="sm">라벨 — 컨트롤</span><span class="v">40</span></div>
+          <div class="prow"><span class="lb">트랙</span><span class="sm">클립 22</span><span class="v">28</span></div>
+          <div class="prow"><span class="lb">머리줄</span><span class="sm">스튜디오 · 단계</span><span class="v">48·56</span></div>
+          <h2 style="font-size: 14px; margin: 12px 0 4px">대비</h2>
+          <div class="prow"><span class="lb">주황 위 글자</span><span class="sm"><span class="btn btn-primary btn-xs">만들기</span></span><span class="v">{{t.cAccent}}</span></div>
+          <div class="prow"><span class="lb">보조 글자</span><span class="sm muted">패널 위</span><span class="v">{{t.cMuted}}</span></div>
+        </section>
+      </div>
+    </div>
+  </sc-for>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"$preview":{"width":2960,"height":1000}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const names = [
+      ['background', '--bg'], ['card · sidebar · popover', '--panel'], ['muted · secondary', '--raised'], ['accent(hover)', '--hover'],
+      ['border · input', '--border'], ['foreground', '--fg'], ['muted-foreground', '--fg2'], ['ring · placeholder', '--fg3'],
+      ['primary(주황)', '--accent'], ['primary-foreground', '--accent-fg'], ['u3 solid', '--solid'], ['destructive', '--danger-bg'],
+      ['clip 자막', '--c-cap'], ['clip 영상', '--c-vid'], ['clip 짤', '--c-meme'], ['clip 소리', '--c-aud'],
+      ['clip 음성', '--c-voice'], ['clip 효과음', '--c-sfx'], ['미리보기 바탕', '--stage'], ['툴팁', '--tip']
+    ];
+    const dark = ['#0e0e10','#151517','#1d1d20','#26262a','#2a2a2e','#f4f4f5','#a1a1aa','#8b8b94','#ff8a3d','#1a0b00','#f4f4f5','#dc2626','#34343a','#2b3a55','#3f2f5c','#1f4630','#4a3d1f','#57263f','#000000','#f4f4f5'];
+    const light = ['#ffffff','#f7f7f8','#efeff1','#e6e6e9','#e4e4e7','#09090b','#52525b','#6b6b74','#c2410c','#ffffff','#18181b','#b91c1c','#e4e4e7','#dbe5f5','#e9ddfa','#d6eedd','#f3e7c8','#f8dbe8','#18181b','#18181b'];
+    const mk = (hexes) => names.map((n, i) => ({ n: n[0], v: n[1], hex: n[1] + ' · ' + hexes[i] }));
+    return {
+      themes: [
+        { cls: 't-dark', name: '다크(기본)', sel: '.dark', colors: mk(dark), cAccent: '8.2:1', cMuted: '7.1:1' },
+        { cls: 't-light', name: '라이트', sel: ':root', colors: mk(light), cAccent: '5.2:1', cMuted: '7.2:1' }
+      ],
+      space: [4, 8, 12, 16, 20, 24, 32, 40]
+    };
+  }
+}
+</script>
+</body>
+</html>

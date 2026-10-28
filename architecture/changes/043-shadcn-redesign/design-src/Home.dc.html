@@ -1,0 +1,169 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<title>영상 목록</title>
+<script src="./support.js"></script>
+<link rel="stylesheet" href="./u3.css">
+</head>
+<body>
+<x-dc>
+<helmet>
+<style>
+body{margin:0}
+</style>
+</helmet>
+<div class="u3 t-{{theme}} screen" style="width: 1440px; height: 900px; font-family: Pretendard, system-ui, sans-serif; color: var(--fg)">
+  <aside class="side {{s.sideCls}}" style="position: relative">
+    <div class="side-top">
+      <img src="/_blob/b6f306898b83434ab364a3e4080deacc" alt="U3">
+      <button class="btn btn-ghost btn-icon btn-sm" aria-label="{{s.sideToggle}}"><span class="i i-panel"></span></button>
+    </div>
+    <div style="display: flex; flex-direction: column; gap: 2px">
+      <button class="nav on" aria-label="영상"><span class="i i-video"></span><span class="t">영상</span></button>
+      <button class="nav" aria-label="캐러셀"><span class="i i-carousel"></span><span class="t">캐러셀</span></button>
+      <button class="nav" aria-label="설정"><span class="i i-settings"></span><span class="t">설정</span></button>
+    </div>
+    <sc-if value="{{s.collapsed}}" hint-placeholder-val="{{ false }}">
+      <div class="tip" style="left: 58px; top: 143px">캐러셀</div>
+    </sc-if>
+    <sc-if value="{{s.updating}}" hint-placeholder-val="{{ false }}">
+      <div class="side-foot">
+        <div style="display: flex; justify-content: space-between" class="sm"><span class="muted">업데이트 받는 중</span><span class="num">42%</span></div>
+        <div class="prog"><i style="width: 42%"></i></div>
+      </div>
+    </sc-if>
+    <sc-if value="{{s.updateReady}}" hint-placeholder-val="{{ false }}">
+      <div class="side-foot">
+        <span class="sm">새 버전 0.3.0</span>
+        <button class="btn btn-secondary btn-sm btn-block"><span class="i i-refresh"></span>다시 시작</button>
+      </div>
+    </sc-if>
+  </aside>
+  <main class="page">
+    <sc-if value="{{s.engine}}" hint-placeholder-val="{{ false }}">
+      <div class="alert"><span class="i i-alert"></span><div class="grow"><b>엔진에 연결하지 못했어요</b><span class="muted sm ell">Load failed</span></div><button class="btn btn-outline btn-sm"><span class="i i-refresh"></span>다시 연결</button></div>
+    </sc-if>
+    <sc-if value="{{s.codex}}" hint-placeholder-val="{{ false }}">
+      <div class="alert"><span class="i i-alert"></span><div class="grow"><b>codex 로그인이 필요해요</b></div><button class="btn btn-outline btn-sm">설정 열기</button></div>
+    </sc-if>
+    <div class="page-h">
+      <h1>영상</h1>
+      <sc-if value="{{s.showNew}}" hint-placeholder-val="{{ true }}">
+        <button class="btn btn-primary"><span class="i i-plus"></span>새 영상</button>
+      </sc-if>
+    </div>
+    <sc-if value="{{s.cards}}" hint-placeholder-val="{{ true }}">
+      <div style="display: flex; gap: 24px; flex-wrap: wrap">
+        <div style="width: 200px; display: flex; flex-direction: column; gap: 8px">
+          <div class="thumb" style="width: 200px; height: 356px"><img src="/_blob/5ce65e4dc633e21d66634d3fb8c8619d" alt=""><span class="dur num">0:21</span></div>
+          <div style="display: flex; align-items: flex-start; gap: 4px">
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><b class="ell">새 영상</b><span class="xs muted">장면 7 · 12시간 전</span></div>
+            <button class="btn btn-ghost btn-icon btn-sm" aria-label="더 보기"><span class="i i-more"></span></button>
+          </div>
+        </div>
+        <div style="width: 200px; display: flex; flex-direction: column; gap: 8px">
+          <div class="thumb" style="width: 200px; height: 356px"><img src="/_blob/5ce65e4dc633e21d66634d3fb8c8619d" alt=""></div>
+          <div style="display: flex; align-items: flex-start; gap: 4px">
+            <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px"><div style="display: flex; align-items: center; gap: 6px"><b class="ell">새 영상</b><span class="badge">대본 전</span></div><span class="xs muted">미디어 3 · 방금</span></div>
+            <button class="btn btn-ghost btn-icon btn-sm" aria-label="더 보기"><span class="i i-more"></span></button>
+          </div>
+        </div>
+      </div>
+    </sc-if>
+    <sc-if value="{{s.loading}}" hint-placeholder-val="{{ false }}">
+      <div style="display: flex; gap: 24px">
+        <div style="width: 200px; display: flex; flex-direction: column; gap: 10px"><div class="skel" style="height: 356px"></div><div class="skel" style="height: 14px; width: 120px"></div><div class="skel" style="height: 10px; width: 80px"></div></div>
+        <div style="width: 200px; display: flex; flex-direction: column; gap: 10px"><div class="skel" style="height: 356px"></div><div class="skel" style="height: 14px; width: 120px"></div><div class="skel" style="height: 10px; width: 80px"></div></div>
+        <div style="width: 200px; display: flex; flex-direction: column; gap: 10px"><div class="skel" style="height: 356px"></div><div class="skel" style="height: 14px; width: 120px"></div><div class="skel" style="height: 10px; width: 80px"></div></div>
+      </div>
+    </sc-if>
+    <sc-if value="{{s.empty}}" hint-placeholder-val="{{ false }}">
+      <div class="empty">
+        <span class="i i-video"></span>
+        <p>아직 영상이 없어요</p>
+        <button class="btn btn-primary"><span class="i i-plus"></span>새 영상</button>
+      </div>
+    </sc-if>
+    <sc-if value="{{s.menu}}" hint-placeholder-val="{{ false }}">
+      <div class="menu" style="left: 60px; top: 486px">
+        <div class="mi">이름 바꾸기</div>
+        <div class="mi hl">캐러셀 만들기</div>
+        <div class="sep"></div>
+        <div class="mi danger">삭제</div>
+      </div>
+    </sc-if>
+  </main>
+
+  <sc-if value="{{s.rename}}" hint-placeholder-val="{{ false }}">
+    <div class="scrim"><div class="dlg">
+      <h3>이름 바꾸기</h3>
+      <div class="input focused">새 영상</div>
+      <div class="foot"><button class="btn btn-outline">취소</button><button class="btn btn-solid">저장</button></div>
+    </div></div>
+  </sc-if>
+  <sc-if value="{{s.del}}" hint-placeholder-val="{{ false }}">
+    <div class="scrim"><div class="dlg">
+      <h3>‘새 영상’을 삭제할까요?</h3>
+      <p class="muted">되돌릴 수 없어요</p>
+      <div class="foot"><button class="btn btn-outline">취소</button><button class="btn btn-danger">삭제</button></div>
+    </div></div>
+  </sc-if>
+  <sc-if value="{{s.fromvideo}}" hint-placeholder-val="{{ false }}">
+    <div class="scrim"><div class="dlg">
+      <h3>캐러셀 만들기</h3>
+      <div class="pstack">
+        <div class="prow nov"><span class="lb">장 수</span><div class="stepper" style="width: 120px"><em>−</em><span>5</span><em>+</em></div></div>
+        <div class="prow nov"><span class="lb">비율</span><div class="seg seg-sm"><span class="on">4:5</span><span>1:1</span><span>9:16</span><span>16:9</span></div></div>
+      </div>
+      <div class="foot"><button class="btn btn-outline">취소</button><button class="btn btn-primary">만들기</button></div>
+    </div></div>
+  </sc-if>
+  <sc-if value="{{s.restart}}" hint-placeholder-val="{{ false }}">
+    <div class="scrim"><div class="dlg">
+      <h3>작업을 중단하고 다시 시작할까요?</h3>
+      <p class="muted">진행 중인 작업이 중단돼요</p>
+      <div class="foot"><button class="btn btn-outline">취소</button><button class="btn btn-solid">저장하고 다시 시작</button></div>
+    </div></div>
+  </sc-if>
+  <sc-if value="{{s.restarting}}" hint-placeholder-val="{{ false }}">
+    <div class="scrim"><div style="display: flex; align-items: center; gap: 10px; padding: 12px 16px; border-radius: 10px; background: var(--panel); border: 1px solid var(--border)"><span class="spin"></span><span>다시 시작하는 중</span></div></div>
+  </sc-if>
+  <sc-if value="{{s.restartfail}}" hint-placeholder-val="{{ false }}">
+    <div class="toast err"><span class="i i-alert"></span>다시 시작하지 못했어요</div>
+  </sc-if>
+</div>
+</x-dc>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"v":{"editor":"enum","options":["list","collapsed","loading","empty","codex","menu","rename","delete","fromvideo","engine","updating","update","restart","restarting","restartfail"],"default":"list"},"$preview":{"width":1440,"height":900}}'>
+class Component extends DCLogic {
+  renderVals() {
+    const v = this.props.v ?? 'list';
+    const is = (...a) => a.includes(v);
+    return {
+      theme: this.props.theme ?? 'dark',
+      s: {
+        collapsed: is('collapsed'),
+        sideCls: is('collapsed') ? 'collapsed' : '',
+        sideToggle: is('collapsed') ? '사이드바 펼치기' : '사이드바 접기',
+        cards: is('list', 'collapsed', 'codex', 'menu', 'rename', 'delete', 'fromvideo', 'updating', 'update', 'restart', 'restarting', 'restartfail'),
+        loading: is('loading'),
+        empty: is('empty'),
+        engine: is('engine'),
+        codex: is('codex'),
+        menu: is('menu'),
+        showNew: !is('empty'),
+        updating: is('updating'),
+        updateReady: is('update', 'restart', 'restarting', 'restartfail'),
+        rename: is('rename'),
+        del: is('delete'),
+        fromvideo: is('fromvideo'),
+        restart: is('restart'),
+        restarting: is('restarting'),
+        restartfail: is('restartfail')
+      }
+    };
+  }
+}
+</script>
+</body>
+</html>
