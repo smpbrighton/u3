@@ -1,3 +1,4 @@
+import { BUNDLED_PROMPT_DEFAULTS, type PromptDefaults } from "../core/default-prompts";
 // Hono 앱 조립. uUu src/server/app.ts의 공용 컨텍스트·오류 처리·미들웨어 조립 방식을 따른다.
 import { Hono } from "hono";
 import type { Store } from "./store";
@@ -33,6 +34,7 @@ import type { downloadQwenTts, qwenTtsReady } from "./pipeline/models";
 import type { runTts } from "./pipeline/tts";
 
 export interface AppContext {
+  promptDefaults?: () => Promise<PromptDefaults>;
   store: Store;
   jobs: Jobs;
   token: string;
@@ -63,6 +65,7 @@ export interface AppContext {
 }
 
 export function createApp(context: AppContext) {
+  context.promptDefaults ??= async () => BUNDLED_PROMPT_DEFAULTS;
   context.imageQueue ??= new ImageQueue();
   context.carouselStore ??= new CarouselStore(context.store.root, id => context.jobs.hasActiveForProject(id));
   const app = new Hono();

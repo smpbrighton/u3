@@ -10,7 +10,7 @@ import { recordUsage } from "../pipeline/usage";
 import { extractFrames, frameAllocation, frameInputsWithDuration } from "../pipeline/frames";
 import { listMemes } from "../pipeline/library";
 import { formatScriptInputGuide, validateScriptForInputs } from "../pipeline/script-validation";
-import { buildScriptPrompt, DEFAULT_SCRIPT_PROMPT } from "../../core/script-prompt";
+import { buildScriptPrompt } from "../../core/script-prompt";
 import { checkScriptStyle } from "../../core/script-style";
 import { escapeCaptionStars } from "../../core/captions";
 import { CODEX_MIN_VERSION, isCodexOutdated } from "../../core/codex-model";
@@ -121,7 +121,7 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
       };
       const prompt = buildScriptPrompt({
         mode,
-        basePrompt: typeof settings.scriptPrompt === "string" && settings.scriptPrompt.trim() ? settings.scriptPrompt : DEFAULT_SCRIPT_PROMPT,
+        basePrompt: typeof settings.scriptPrompt === "string" && settings.scriptPrompt.trim() ? settings.scriptPrompt : (await context.promptDefaults!()).script,
         userPrompt,
         voice,
         formatRules: formatScriptInputGuide(inputs, frameTimes, emotions),

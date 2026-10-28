@@ -1,3 +1,4 @@
+import { createPromptDefaults } from "./prompt-defaults";
 import { createInterface } from "node:readline";
 import { serve } from "@hono/node-server";
 import { Store } from "./store";
@@ -37,6 +38,8 @@ async function readToken(): Promise<string> {
 const token = await readToken();
 if (!token) throw new Error("U3_TOKEN이 비어 있습니다");
 const store = new Store(); await store.init();
+const prompts = createPromptDefaults({ dataDir: store.root, env: process.env, fetchImpl: fetch });
+const stopPrompts = prompts.start();
 const tauriOrigin = process.env.TAURI_ORIGIN ?? "tauri://localhost";
 const resourceRoot = process.env.U3_RESOURCE_DIR ?? path.join(process.cwd(), "resources");
 const configuredLibraryRoot = process.env.U3_LIBRARY_DIR ?? path.join(resourceRoot, "library");
@@ -86,6 +89,7 @@ const transcribeInput = async ({ file, signal }: { file: string; inputId: string
 const jobs = new Jobs();
 const index = memeIndex(store.root, bgeM3Embedder({ cacheDir: path.join(store.root, "cache/models") }), () => import("./pipeline/library").then(({ listMemes }) => listMemes(libraryRoot)));
 const app = createApp({
+  promptDefaults: () => prompts.current(),
   store,
   jobs,
   token,
@@ -126,6 +130,7 @@ let serverClose: Promise<void> | null = null;
 installEngineShutdown({
   jobs,
   stopAccepting: () => {
+    stopPrompts();
     serverClose ??= new Promise<void>(resolve => server.close(() => resolve()));
   },
   close: async () => {
