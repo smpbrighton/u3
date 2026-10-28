@@ -1,12 +1,13 @@
 import type { Input, OverlayClip, Timeline, VideoClip } from "../schema";
-import { clipDuration, videoStartTimes, VIDEO_TRACK_REQUIRED_MESSAGE } from "./ops";
+import { clipDuration, overlayDuration, videoStartTimes, VIDEO_TRACK_REQUIRED_MESSAGE } from "./ops";
 import { findOverlayInLayers, placeOverlayAtLayer, placeOverlayInLowestLayer, removeOverlayFromLayers } from "./overlay-layers";
 
-const overlayDuration = (clip: OverlayClip) => "durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec;
+import { sourceAt } from "./speed";
 const overlayBox = { x: 0.5, y: 0.5, width: 0.6 };
 
 function videoClipToOverlay(clip: VideoClip, startSec: number, inputs: readonly Input[]): OverlayClip {
   const metadata = {
+    ...(clip.speed !== undefined ? { speed: clip.speed } : {}),
     ...(clip.groupId ? { groupId: clip.groupId } : {}),
     ...(clip.opacity !== undefined ? { opacity: clip.opacity } : {}),
     ...(clip.startTransition ? { startTransition: clip.startTransition } : {}),
@@ -46,7 +47,7 @@ export function moveOverlayClipToVideo1(timeline: Timeline, clipId: string, atSe
   const insert = (): VideoClip => "memeId" in clip
     ? { id: clip.id, kind: "meme", memeId: clip.memeId, durationSec: duration, ...(clip.groupId ? { groupId: clip.groupId } : {}), ...(clip.opacity !== undefined ? { opacity: clip.opacity } : {}), ...(clip.startTransition ? { startTransition: clip.startTransition } : {}), ...(clip.endTransition ? { endTransition: clip.endTransition } : {}) }
     : clip.kind === "video"
-      ? { id: clip.id, kind: "main", inputId: clip.inputId, inStartSec: clip.inStartSec, inEndSec: clip.inEndSec, ...(clip.groupId ? { groupId: clip.groupId } : {}), ...(clip.opacity !== undefined ? { opacity: clip.opacity } : {}), ...(clip.startTransition ? { startTransition: clip.startTransition } : {}), ...(clip.endTransition ? { endTransition: clip.endTransition } : {}) }
+      ? { id: clip.id, kind: "main", inputId: clip.inputId, inStartSec: clip.inStartSec, inEndSec: clip.inEndSec, ...(clip.speed !== undefined ? { speed: clip.speed } : {}), ...(clip.groupId ? { groupId: clip.groupId } : {}), ...(clip.opacity !== undefined ? { opacity: clip.opacity } : {}), ...(clip.startTransition ? { startTransition: clip.startTransition } : {}), ...(clip.endTransition ? { endTransition: clip.endTransition } : {}) }
       : { id: clip.id, kind: "main", inputId: clip.inputId, durationSec: duration, ...(clip.groupId ? { groupId: clip.groupId } : {}), ...(clip.opacity !== undefined ? { opacity: clip.opacity } : {}), ...(clip.startTransition ? { startTransition: clip.startTransition } : {}), ...(clip.endTransition ? { endTransition: clip.endTransition } : {}) };
   const video: VideoClip[] = [];
   const starts = videoStartTimes(timeline);
@@ -57,9 +58,9 @@ export function moveOverlayClipToVideo1(timeline: Timeline, clipId: string, atSe
     if (!inserted && at > start && at < end) {
       if (existing.kind === "main" && "inStartSec" in existing) {
         const offset = at - start;
-        video.push({ ...existing, id: splitIds[0], inEndSec: existing.inStartSec + offset });
+        video.push({ ...existing, id: splitIds[0], inEndSec: sourceAt(existing, offset) });
         video.push(insert());
-        video.push({ ...existing, id: splitIds[1], inStartSec: existing.inStartSec + offset });
+        video.push({ ...existing, id: splitIds[1], inStartSec: sourceAt(existing, offset) });
       } else if (existing.kind === "meme") {
         const offset = at - start;
         video.push({ ...existing, id: splitIds[0], durationSec: offset });

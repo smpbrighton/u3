@@ -1,10 +1,12 @@
-import { captionLayersOf, withCaptionLayers, type AudioClip, type OverlayClip, type TextClip, type Timeline, type VideoClip } from "../schema";
+import { captionLayersOf, withCaptionLayers, Speed, type AudioClip, type OverlayClip, type TextClip, type Timeline, type VideoClip } from "../schema";
 import { findOverlayInLayers, removeOverlayFromLayers, updateOverlayInLayers } from "./overlay-layers";
+
+import { audioClipLength, clipSpeed, playLength, sourceAt } from "./speed";
 
 export const VIDEO_TRACK_REQUIRED_MESSAGE = "영상 1에는 클립이 하나 이상 있어야 합니다";
 
 export function clipDuration(clip: VideoClip): number {
-  return "durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec;
+  return "durationSec" in clip ? clip.durationSec : playLength(clip.inStartSec, clip.inEndSec, clipSpeed(clip));
 }
 
 export function videoStartTimes(timeline: Timeline): Record<string, number> {
@@ -22,7 +24,7 @@ export function videoDuration(timeline: Timeline): number {
 }
 
 export function overlayDuration(clip: OverlayClip): number {
-  return "durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec;
+  return "durationSec" in clip ? clip.durationSec : playLength(clip.inStartSec, clip.inEndSec, clipSpeed(clip));
 }
 
 export function moveOverlayClip(timeline: Timeline, clipId: string, startSec: number): Timeline {
@@ -41,9 +43,11 @@ export function trimOverlayClip(timeline: Timeline, clipId: string, edge: "start
   const overlays = updateOverlayInLayers(timeline.overlays, clipId, (item) => {
     if ("durationSec" in item) return edge === "start" ? { ...item, startSec: toSec, durationSec: end - toSec } : { ...item, durationSec: toSec - item.startSec };
     return edge === "start"
-      ? { ...item, startSec: toSec, inStartSec: item.inStartSec + toSec - item.startSec }
-      : { ...item, inEndSec: item.inStartSec + toSec - item.startSec };
+      ? { ...item, startSec: toSec, inStartSec: sourceAt(item, toSec - item.startSec) }
+      : { ...item, inEndSec: sourceAt(item, toSec - item.startSec) };
   });
+  const result = overlays.flat().find(c => c.id === clipId)!;
+  requireFrames(result.startSec, overlayDuration(result));
   return { ...timeline, overlays };
 }
 
@@ -53,14 +57,14 @@ export function splitOverlayClip(timeline: Timeline, clipId: string, atSec: numb
   const clip = found.clip;
   const duration = overlayDuration(clip);
   const offset = atSec - clip.startSec;
-  if (!(offset > 0 && offset < duration)) throw new RangeError("자르기 위치는 겹친 영상 클립 안쪽이어야 합니다");
+  if (!(offset > 0 && offset < duration) || Math.round(atSec * 30) <= Math.round((atSec - offset) * 30) || Math.round(atSec * 30) >= Math.round((atSec - offset + duration) * 30)) throw new RangeError("자르기 위치는 겹친 영상 클립 안쪽이어야 합니다");
   const transitionSplit = clip.startTransition || clip.endTransition ? {
     left: { endTransition: { kind: { kind: "none" as const }, durationSec: 0.5 } },
     right: { startTransition: { kind: { kind: "none" as const }, durationSec: 0.5 } },
   } : { left: {}, right: {} };
   const pieces: [OverlayClip, OverlayClip] = "durationSec" in clip
     ? [{ ...clip, id: ids[0], durationSec: offset, ...transitionSplit.left }, { ...clip, id: ids[1], startSec: atSec, durationSec: duration - offset, ...transitionSplit.right }]
-    : [{ ...clip, id: ids[0], inEndSec: clip.inStartSec + offset, ...transitionSplit.left }, { ...clip, id: ids[1], startSec: atSec, inStartSec: clip.inStartSec + offset, ...transitionSplit.right }];
+    : [{ ...clip, id: ids[0], inEndSec: sourceAt(clip, offset), ...transitionSplit.left }, { ...clip, id: ids[1], startSec: atSec, inStartSec: sourceAt(clip, offset), ...transitionSplit.right }];
   delete pieces[1].sceneIndex;
   const overlays = timeline.overlays.map((layer, index) => index === found.layer ? layer.flatMap((item) => item.id === clipId ? pieces : [item]) : layer);
   return { ...timeline, overlays };
@@ -82,7 +86,7 @@ export function splitVideoClip(timeline: Timeline, clipId: string, atSec: number
   const start = videoStartTimes(timeline)[clipId]!;
   const offset = atSec - start;
   const duration = clipDuration(clip);
-  if (!(offset > 0 && offset < duration)) throw new RangeError("자르기 위치는 클립 안쪽이어야 합니다");
+  if (!(offset > 0 && offset < duration) || Math.round(atSec * 30) <= Math.round((atSec - offset) * 30) || Math.round(atSec * 30) >= Math.round((atSec - offset + duration) * 30)) throw new RangeError("자르기 위치는 클립 안쪽이어야 합니다");
   const transitionSplit = clip.startTransition || clip.endTransition ? {
     left: { endTransition: { kind: { kind: "none" as const }, durationSec: 0.5 } },
     right: { startTransition: { kind: { kind: "none" as const }, durationSec: 0.5 } },
@@ -90,8 +94,8 @@ export function splitVideoClip(timeline: Timeline, clipId: string, atSec: number
   const pieces: [VideoClip, VideoClip] = "durationSec" in clip
     ? [{ ...clip, id: ids[0], durationSec: offset, ...transitionSplit.left }, { ...clip, id: ids[1], durationSec: duration - offset, ...transitionSplit.right }]
     : [
-        { ...clip, id: ids[0], inEndSec: clip.inStartSec + offset, ...transitionSplit.left },
-        { ...clip, id: ids[1], inStartSec: clip.inStartSec + offset, ...transitionSplit.right },
+        { ...clip, id: ids[0], inEndSec: sourceAt(clip, offset), ...transitionSplit.left },
+        { ...clip, id: ids[1], inStartSec: sourceAt(clip, offset), ...transitionSplit.right },
       ];
   if (clip.kind === "meme" && pieces.some((piece) => "durationSec" in piece && (piece.durationSec < 0.5 || piece.durationSec > 4))) {
     throw new RangeError("짤 길이는 0.5~4초여야 합니다");
@@ -105,15 +109,15 @@ export function trimVideoClip(timeline: Timeline, clipId: string, edge: "start" 
   const start = videoStartTimes(timeline)[clipId]!;
   const duration = clipDuration(clip);
   const remaining = edge === "start" ? start + duration - toSec : toSec - start;
-  if (!(remaining > 0)) throw new RangeError("트림 결과 길이는 0보다 커야 합니다");
+  if (!(remaining > 0) || Math.round((edge === "start" ? toSec : start) * 30) >= Math.round((edge === "start" ? start + duration : toSec) * 30)) throw new RangeError("트림 결과 길이는 0보다 커야 합니다");
   if ("durationSec" in clip) {
     if (clip.kind === "meme" && (remaining < 0.5 || remaining > 4)) throw new RangeError("짤 길이는 0.5~4초여야 합니다");
     const video = timeline.video.map((item) => item.id === clipId ? { ...clip, durationSec: remaining } : item);
     return { ...timeline, video };
   }
   if (inputDurationSec === undefined || !Number.isFinite(inputDurationSec) || inputDurationSec <= 0) throw new RangeError("영상 원본 길이가 필요합니다");
-  const nextStart = edge === "start" ? clip.inStartSec + (toSec - start) : clip.inStartSec;
-  const nextEnd = edge === "end" ? clip.inStartSec + remaining : clip.inEndSec;
+  const nextStart = edge === "start" ? sourceAt(clip, toSec - start) : clip.inStartSec;
+  const nextEnd = edge === "end" ? sourceAt(clip, remaining) : clip.inEndSec;
   if (nextStart < 0 || nextEnd > inputDurationSec) throw new RangeError("영상 구간이 원본 길이를 넘습니다");
   if (nextStart < 0 || nextEnd <= nextStart) throw new RangeError("원본 구간이 올바르지 않습니다");
   return { ...timeline, video: timeline.video.map((item) => item.id === clipId ? { ...clip, inStartSec: nextStart, inEndSec: nextEnd } : item) };
@@ -180,7 +184,7 @@ export function setCaptionRange(timeline: Timeline, clipId: string, startSec: nu
   const { layer, row, clip } = captionRow(timeline, clipId);
   const others = layer[row].filter(item => item.id !== clipId);
   const lower = Math.max(0, ...others.filter(item => item.startSec < clip.startSec).map(item => item.endSec));
-  const upper = Math.min(videoDuration(timeline), ...others.filter(item => item.startSec >= clip.startSec).map(item => item.startSec));
+  const upper = Math.min(projectDuration(timeline), ...others.filter(item => item.startSec >= clip.startSec).map(item => item.startSec));
   if (upper - lower < 0.1 - 1e-9) return timeline;
   const start = Math.max(lower, Math.min(upper - 0.1, startSec));
   const end = Math.max(start + 0.1, Math.min(upper, endSec));
@@ -203,7 +207,7 @@ export function addCaptionClip(timeline: Timeline, layerId: string, row: "main" 
   const layer = layers.find(item => item.id === layerId);
   if (!layer) throw new Error(`자막 레이어를 찾을 수 없습니다: ${layerId}`);
   if (!Number.isFinite(startSec) || !Number.isFinite(maxSec) || startSec < 0 || layer[row].some(c => c.startSec <= startSec && c.endSec > startSec)) return null;
-  const endSec = Math.min(startSec + Math.min(3, maxSec), videoDuration(timeline), ...layer[row].filter(c => c.startSec > startSec).map(c => c.startSec));
+  const endSec = Math.min(startSec + Math.min(3, maxSec), projectDuration(timeline), ...layer[row].filter(c => c.startSec > startSec).map(c => c.startSec));
   if (endSec - startSec < 0.3 - 1e-9) return null;
   const clip: TextClip = { id: `caption-${crypto.randomUUID()}`, startSec, endSec, text: "" };
   return withCaptionLayers(timeline, layers.map(item => item.id === layerId ? { ...item, [row]: [...item[row], clip].sort((a, b) => a.startSec - b.startSec) } : item));
@@ -222,16 +226,16 @@ export function moveCaptionClip(timeline: Timeline, clipId: string, startSec: nu
 export function trimAudioClip(clips: readonly AudioClip[], clipId: string, edge: "start" | "end", toSec: number, fileDurationSec: number): AudioClip[] {
   const clip = requireClip(clips, clipId, "audio");
   if (!Number.isFinite(fileDurationSec) || fileDurationSec <= 0) throw new RangeError("오디오 파일 길이가 필요합니다");
-  const duration = clip.inEndSec - clip.inStartSec;
   const offset = toSec - clip.startSec;
   let next: AudioClip;
   if (edge === "start") {
     const delta = offset;
-    next = { ...clip, startSec: toSec, inStartSec: clip.inStartSec + delta };
+    next = { ...clip, startSec: toSec, inStartSec: sourceAt(clip, delta) };
   } else {
-    next = { ...clip, inEndSec: clip.inStartSec + offset };
+    next = { ...clip, inEndSec: sourceAt(clip, offset) };
   }
   if (next.startSec < 0 || next.inStartSec < 0 || next.inEndSec <= next.inStartSec || next.inEndSec > fileDurationSec) throw new RangeError("오디오 구간이 파일 길이를 넘거나 올바르지 않습니다");
+  requireFrames(next.startSec, audioClipLength(next));
   return clips.map((item) => item.id === clipId ? next : item);
 }
 
@@ -249,4 +253,66 @@ export function deleteCaptionClip(clips: readonly TextClip[], clipId: string): T
 export function deleteAudioClip(clips: readonly AudioClip[], clipId: string): AudioClip[] {
   requireClip(clips, clipId, "audio");
   return clips.filter((clip) => clip.id !== clipId);
+}
+
+
+export function projectDuration(timeline: Timeline): number {
+  return Math.max(videoDuration(timeline), ...captionLayersOf(timeline).flatMap(l => [...l.main, ...l.sub]).map(c => c.endSec), ...[...timeline.voice, ...timeline.sfx].map(c => c.startSec + audioClipLength(c)));
+}
+
+function requireFrames(start: number, length: number): void {
+  if (!Number.isFinite(length) || Math.round((start + length) * 30) <= Math.round(start * 30)) throw new RangeError("클립 길이는 1프레임 이상이어야 합니다");
+}
+
+function clampTransitions<T extends VideoClip | OverlayClip>(clip: T, duration: number): T {
+  const next = { ...clip };
+  for (const edge of ["startTransition", "endTransition"] as const) {
+    const effect = clip[edge];
+    if (effect && effect.kind.kind !== "none") {
+      if (duration / 2 < 0.1) delete next[edge];
+      else next[edge] = { ...effect, durationSec: Math.min(effect.durationSec ?? 0.5, duration / 2) };
+    }
+  }
+  return next;
+}
+
+function cropOverlay(clip: OverlayClip, startSec: number, length: number): OverlayClip {
+  requireFrames(startSec, length);
+  const next = "durationSec" in clip ? { ...clip, startSec, durationSec: length } : { ...clip, startSec, inEndSec: sourceAt(clip, length) };
+  return clampTransitions(next, length);
+}
+
+export function setVideoClipSpeed(timeline: Timeline, clipId: string, speed: number): Timeline {
+  Speed.parse(speed);
+  const clip = requireClip(timeline.video, clipId, "video");
+  if ("durationSec" in clip) throw new RangeError("영상 클립만 배속을 지원합니다");
+  if (clipSpeed(clip) === speed) return timeline;
+  const length = playLength(clip.inStartSec, clip.inEndSec, speed);
+  requireFrames(videoStartTimes(timeline)[clipId]!, length);
+  const next = { ...timeline, video: timeline.video.map(c => c.id === clipId ? clampTransitions({ ...clip, speed }, length) : c) };
+  const end = videoDuration(next);
+  return { ...next, overlays: next.overlays.map(layer => layer.map(c => {
+    const duration = overlayDuration(c);
+    if (c.startSec + duration <= end) return c;
+    return cropOverlay(c, Math.max(0, end - duration), Math.min(end, duration));
+  })) };
+}
+
+export function setOverlayClipSpeed(timeline: Timeline, clipId: string, speed: number): Timeline {
+  Speed.parse(speed);
+  const found = findOverlayInLayers(timeline.overlays, clipId);
+  if (!found || !("inStartSec" in found.clip)) throw new RangeError("영상 클립만 배속을 지원합니다");
+  if (clipSpeed(found.clip) === speed) return timeline;
+  const clip = { ...found.clip, speed };
+  const length = Math.min(overlayDuration(clip), videoDuration(timeline) - clip.startSec);
+  const next = cropOverlay(clip, clip.startSec, length);
+  return { ...timeline, overlays: updateOverlayInLayers(timeline.overlays, clipId, () => next) };
+}
+
+export function setAudioClipSpeed(timeline: Timeline, clipId: string, speed: number): Timeline {
+  Speed.parse(speed);
+  const clip = requireClip(timeline.voice, clipId, "voice");
+  if (clipSpeed(clip) === speed) return timeline;
+  requireFrames(clip.startSec, playLength(clip.inStartSec, clip.inEndSec, speed));
+  return { ...timeline, voice: timeline.voice.map(c => c.id === clipId ? { ...clip, speed } : c) };
 }

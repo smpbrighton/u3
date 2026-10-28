@@ -1,6 +1,8 @@
 import type { CodexScript, Timeline, VideoClip } from "./schema";
 import { clipDuration, videoStartTimes } from "./timeline/ops";
 
+import { sourceAt, timelineOffsetOf } from "./timeline/speed";
+
 export function sourceAtTimelineSec(timeline: Timeline, sec: number): { clip: Extract<VideoClip, { kind: "main" }>; sourceSec: number } | null {
   const starts = videoStartTimes(timeline);
   const clip = timeline.video.find((item): item is Extract<VideoClip, { kind: "main" }> => {
@@ -11,7 +13,7 @@ export function sourceAtTimelineSec(timeline: Timeline, sec: number): { clip: Ex
   const offset = sec - starts[clip.id]!;
   const duration = clipDuration(clip);
   const safeOffset = Math.min(offset, Math.max(0, duration - 0.01));
-  return { clip, sourceSec: "durationSec" in clip ? safeOffset : clip.inStartSec + safeOffset };
+  return { clip, sourceSec: "durationSec" in clip ? safeOffset : sourceAt(clip, safeOffset) };
 }
 
 function sourceRange(clip: VideoClip): { start: number; end: number } | null {
@@ -34,13 +36,13 @@ export function sceneFrameSec(scenes: CodexScript["scenes"], timeline: Timeline,
     const range = sourceRange(clip)!;
     return center >= range.start && center <= range.end;
   });
-  if (atSource && center !== null) return starts[atSource.id]! + center - sourceRange(atSource)!.start;
+  if (atSource && center !== null) return starts[atSource.id]! + ("inStartSec" in atSource ? timelineOffsetOf(atSource, center) : center);
 
   // 장면 시각이 짤/삭제된 구간이면 가장 가까운 본 화면 클립의 가운데 프레임을 고른다.
   const candidates = main.map(clip => ({
-    sec: starts[clip.id]! + Math.max(0, Math.min(clipDuration(clip), center === null ? clipDuration(clip) / 2 : center - sourceRange(clip)!.start)),
+    sec: starts[clip.id]! + Math.max(0, Math.min(clipDuration(clip), center === null ? clipDuration(clip) / 2 : "inStartSec" in clip ? timelineOffsetOf(clip, center) : center)),
     distance: center === null ? Infinity : Math.min(
-      Math.abs(center - sourceRange(clip)!.start), Math.abs(center - sourceRange(clip)!.end),
+      Math.abs("inStartSec" in clip ? timelineOffsetOf(clip, center) : center), Math.abs(center - sourceRange(clip)!.end),
     ),
   }));
   if (!candidates.length) throw new Error("영상 1 본 화면 클립이 없습니다");

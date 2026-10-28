@@ -2,7 +2,7 @@ import { plainCaptionText } from "../captions";
 import { captionLayersOf, type AudioClip, type CodexScript, type MemeMeta, type OverlayClip, type SfxMeta, type TextClip, type Timeline } from "../schema";
 import { SCENE_SFX_MAX_SEC } from "../sfx";
 import { DEFAULT_CHARS_PER_SEC, DEFAULT_PHOTO_MIN_SEC, memeClipPlacement } from "./from-script";
-import { videoDuration } from "./ops";
+import { projectDuration } from "./ops";
 import { placeOverlayInLowestLayer, removeOverlayFromLayers, updateOverlayInLayers } from "./overlay-layers";
 
 type MemeClip = Extract<OverlayClip, { memeId: string }>;
@@ -37,7 +37,7 @@ function sceneRange(timeline: Timeline, script: CodexScript, index: number) {
   if (row.sec === null) return null;
   const duration = row.captions.length ? Math.max(...row.captions.map(clip => clip.endSec)) - row.sec
     : Math.max(DEFAULT_PHOTO_MIN_SEC, [...plainCaptionText(script.scenes[index]!.caption)].length / DEFAULT_CHARS_PER_SEC);
-  return { startSec: row.sec, durationSec: Math.min(duration, videoDuration(timeline) - row.sec) };
+  return { startSec: row.sec, durationSec: Math.min(duration, projectDuration(timeline) - row.sec) };
 }
 
 function requireSceneMeme(timeline: Timeline, sceneIndex: number, clipId: string): MemeClip {
@@ -89,7 +89,7 @@ export function removeSceneSfx(timeline: Timeline, sceneIndex: number, clipId: s
   return { ...timeline, sfx: timeline.sfx.filter(clip => clip.id !== clipId) };
 }
 
-export function insertSceneSfx(timeline: Timeline, script: CodexScript, sceneIndex: number, sfx: SfxMeta, videoEnd = videoDuration(timeline)): Timeline {
+export function insertSceneSfx(timeline: Timeline, script: CodexScript, sceneIndex: number, sfx: SfxMeta, videoEnd = projectDuration(timeline)): Timeline {
   const row = sceneClips(timeline, script)[sceneIndex];
   if (!row) throw new RangeError("장면을 찾을 수 없습니다");
   if (row.sec === null) return timeline;

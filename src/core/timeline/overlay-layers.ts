@@ -1,9 +1,10 @@
+import { clipSpeed, playLength } from "./speed";
 import type { OverlayClip } from "../schema";
 
 export type OverlayLayers = OverlayClip[][];
 
 function duration(clip: OverlayClip): number {
-  return "durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec;
+  return "durationSec" in clip ? clip.durationSec : playLength(clip.inStartSec, clip.inEndSec, clipSpeed(clip));
 }
 
 function overlaps(a: OverlayClip, b: OverlayClip): boolean {

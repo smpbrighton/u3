@@ -1,5 +1,5 @@
 import type { Input, OverlayClip, Timeline, VideoClip } from "../schema";
-import { clipDuration, deleteVideoSelection, videoDuration, videoStartTimes, VIDEO_TRACK_REQUIRED_MESSAGE } from "./ops";
+import { clipDuration, overlayDuration, deleteVideoSelection, videoDuration, videoStartTimes, VIDEO_TRACK_REQUIRED_MESSAGE } from "./ops";
 import { placeOverlayAtLayer, removeOverlayFromLayers } from "./overlay-layers";
 import { moveOverlayClipToVideo1 } from "./video-track-edits";
 
@@ -93,6 +93,7 @@ export function deleteVideoGroup(timeline: Timeline, groupId: string): Timeline 
 
 function videoToOverlay(clip: VideoClip, startSec: number, inputs: readonly Input[]): OverlayClip {
   const common = {
+    ...(clip.speed !== undefined ? { speed: clip.speed } : {}),
     id: clip.id, startSec, x: 0.5, y: 0.5, width: 0.6,
     ...(clip.groupId ? { groupId: clip.groupId } : {}),
     ...(clip.startTransition ? { startTransition: clip.startTransition } : {}),
@@ -106,6 +107,7 @@ function videoToOverlay(clip: VideoClip, startSec: number, inputs: readonly Inpu
 
 function overlayToVideo(clip: OverlayClip): VideoClip {
   const common = {
+    ...(clip.speed !== undefined ? { speed: clip.speed } : {}),
     id: clip.id,
     ...(clip.groupId ? { groupId: clip.groupId } : {}),
     ...(clip.startTransition ? { startTransition: clip.startTransition } : {}),
@@ -149,7 +151,7 @@ export function moveVideoGroup(timeline: Timeline, groupId: string, target: Vide
     let overlays = timeline.overlays;
     for (const clip of moved) {
       const layer = overlays[targetLayer];
-      if (layer?.some((item) => item.startSec < clip.startSec + ("durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec) && item.startSec + ("durationSec" in item ? item.durationSec : item.inEndSec - item.inStartSec) > clip.startSec)) {
+      if (layer?.some((item) => item.startSec < clip.startSec + overlayDuration(clip) && item.startSec + overlayDuration(item) > clip.startSec)) {
         throw new RangeError("묶음 클립이 대상 영상 트랙의 다른 클립과 겹칩니다.");
       }
       overlays = placeOverlayAtLayer(overlays, clip, targetLayer);
@@ -166,14 +168,14 @@ export function moveVideoGroup(timeline: Timeline, groupId: string, target: Vide
       const clip = ordered[index]!;
       next = moveOverlayClipToVideo1(next, clip.id, insertAt, [`${groupId}-split-${index}-a`, `${groupId}-split-${index}-b`]);
       next = { ...next, video: next.video.map((item) => item.id === clip.id ? overlayToVideo(clip) : item) };
-      insertAt += "durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec;
+      insertAt += overlayDuration(clip);
     }
     return next;
   }
 
   const firstStart = Math.min(...overlayMembers.map(({ clip }) => clip.startSec));
   const delta = sourceTrack === target.track ? target.startSec - firstStart : 0;
-  const duration = (clip: OverlayClip) => "durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec;
+  const duration = overlayDuration;
   const videoLength = videoDuration(timeline);
   const moved = overlayMembers.map(({ clip }) => ({ ...clip, startSec: clip.startSec + delta }));
   if (moved.some((clip) => clip.startSec < 0 || clip.startSec + duration(clip) > videoLength)) throw new RangeError("묶음은 본 영상 길이 안에서 이동해야 합니다.");
