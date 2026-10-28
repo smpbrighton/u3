@@ -1,6 +1,47 @@
 import type { WordStamp } from "./schema";
 import type { Measurer, TextStyle } from "./measure";
 
+export interface CaptionRun { text: string; highlight: boolean }
+
+/** 이스케이프한 별표는 글자이며, 비어 있지 않은 별표 쌍만 단어 색 표기다. */
+export function captionRuns(text: string): CaptionRun[] {
+  const tokens: { text: string; star: boolean }[] = [];
+  for (let i = 0; i < text.length; i++) {
+    if (text[i] === "\\" && text[i + 1] === "*") {
+      tokens.push({ text: "*", star: false });
+      i++;
+    } else tokens.push({ text: text[i]!, star: text[i] === "*" });
+  }
+  const runs: CaptionRun[] = [];
+  const append = (value: string, highlight: boolean) => {
+    const last = runs.at(-1);
+    if (last?.highlight === highlight) last.text += value;
+    else if (value) runs.push({ text: value, highlight });
+  };
+  for (let i = 0; i < tokens.length; i++) {
+    const token = tokens[i]!;
+    if (token.star) {
+      let end = i + 1;
+      while (end < tokens.length && !tokens[end]!.star) end++;
+      if (end < tokens.length && end > i + 1) {
+        append(tokens.slice(i + 1, end).map(item => item.text).join(""), true);
+        i = end;
+        continue;
+      }
+    }
+    append(token.text, false);
+  }
+  return runs;
+}
+
+export function plainCaptionText(text: string): string {
+  return captionRuns(text).map(run => run.text).join("");
+}
+
+export function escapeCaptionStars(text: string): string {
+  return text.replace(/\\\*|\*/g, star => star === "*" ? "\\*" : star);
+}
+
 export interface CaptionLine {
   text: string;
   /** 안전 여유를 곱한 측정 폭(px) */

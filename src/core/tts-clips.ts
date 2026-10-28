@@ -1,5 +1,6 @@
 import { captionLayersOf, type Timeline } from "./schema";
 import { EMOJI } from "./script-style";
+import { plainCaptionText } from "./captions";
 
 export const TTS_SPEAKERS = ["Sohee", "Vivian", "Serena", "Uncle_Fu", "Dylan", "Eric", "Ryan", "Aiden", "Ono_Anna"] as const;
 export type TtsSpeaker = typeof TTS_SPEAKERS[number];
@@ -13,7 +14,7 @@ export function ttsSettingsOf(settings: Record<string, unknown>) {
 }
 
 export function ttsText(text: string): string {
-  const segments = new Intl.Segmenter("ko", { granularity: "grapheme" }).segment(text);
+  const segments = new Intl.Segmenter("ko", { granularity: "grapheme" }).segment(plainCaptionText(text));
   return [...segments].filter(({ segment }) => !EMOJI.test(segment) && !segment.includes("\u20E3"))
     .map(({ segment }) => segment).join("").replace(/[\uFE0F\u20E3\u200D\p{Emoji_Modifier}]/gu, "")
     .replace(/\s+/gu, " ").trim();

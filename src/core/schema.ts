@@ -69,6 +69,7 @@ export type VideoClip = VideoClipMetadata & { opacity?: number } & (
 );
 
 const OverlayProperties = {
+  sceneIndex: z.number().int().min(0).optional(),
   groupId: z.string().min(1).optional(),
   opacity: z.number().min(0).max(1).optional(),
   startTransition: ClipTransitionValue.optional(),
@@ -90,18 +91,24 @@ export const OverlayClip = z.union([
     }
   }
 });
-export type OverlayClip = VideoClipMetadata & { opacity?: number } & (
+export type OverlayClip = VideoClipMetadata & { opacity?: number; sceneIndex?: number } & (
   | { id: string; startSec: number; x: number; y: number; width: number; memeId: string; durationSec: number }
   | { id: string; startSec: number; x: number; y: number; width: number; inputId: string; kind: "video"; inStartSec: number; inEndSec: number }
   | { id: string; startSec: number; x: number; y: number; width: number; inputId: string; kind: "photo"; durationSec: number }
 );
 
-export const TextClip = z.object({ id: z.string().min(1), startSec: z.number().min(0), endSec: z.number().positive(), text: z.string(), opacity: z.number().min(0).max(1).optional() })
+export const CAPTION_HIGHLIGHT_DEFAULT = "#FFB020";
+export const CaptionClipStyle = z.object({
+  color: z.string().optional(), sizeScale: z.number().min(0.5).max(2).optional(),
+  animation: z.enum(["none", "pop", "rise", "shake"]).optional(), highlightColor: z.string().optional(),
+});
+export type CaptionClipStyle = z.infer<typeof CaptionClipStyle>;
+export const TextClip = z.object({ id: z.string().min(1), startSec: z.number().min(0), endSec: z.number().positive(), text: z.string(), opacity: z.number().min(0).max(1).optional(), style: CaptionClipStyle.optional(), sceneIndex: z.number().int().min(0).optional() })
   .superRefine((clip, ctx) => {
     if (clip.endSec <= clip.startSec) ctx.addIssue({ code: "custom", path: ["endSec"], message: "endSec는 startSec보다 커야 합니다" });
   });
 export type TextClip = z.infer<typeof TextClip>;
-export const AudioClip = z.object({ id: z.string().min(1), startSec: z.number().min(0), file: z.string().min(1), inStartSec: z.number().min(0), inEndSec: z.number().positive(), gain: z.number().min(0).max(1.5), lane: z.number().int().min(0).optional(), fadeOutSec: z.number().min(0).optional() })
+export const AudioClip = z.object({ id: z.string().min(1), startSec: z.number().min(0), file: z.string().min(1), inStartSec: z.number().min(0), inEndSec: z.number().positive(), gain: z.number().min(0).max(1.5), lane: z.number().int().min(0).optional(), fadeOutSec: z.number().min(0).optional(), sceneIndex: z.number().int().min(0).optional() })
   .superRefine((clip, ctx) => {
     if (clip.inEndSec <= clip.inStartSec) ctx.addIssue({ code: "custom", path: ["inEndSec"], message: "inEndSec는 inStartSec보다 커야 합니다" });
   });
@@ -148,7 +155,12 @@ export const Timeline = z.object({
   }),
 }).transform(({ captions, captionLayers, captionX, captionY, ...timeline }) => {
   const layers = captionLayers ?? [{ id: "caption-layer-1", name: "자막", x: captionX ?? 0.5, y: captionY === undefined ? 1555 / 1920 : Math.max(0, Math.min(1, (captionY + 105) / 1920)), style: { font: "pretendard" as const, mainSize: 56, subSize: 40, color: "#FFFFFF", textOpacity: 1, bar: true, barColor: "#000000", barOpacity: 0.62 }, main: captions ?? [], sub: [] }];
-  const normalized = { ...timeline, captionLayers: layers, captions: layers[0]?.main ?? [] };
+  const withSceneIndex = <T extends { id: string; sceneIndex?: number }>(clip: T): T => {
+    const match = /^scene-(\d+)-(caption|sub-caption|meme-(before|after)|sfx)$/.exec(clip.id);
+    return clip.sceneIndex === undefined && match ? { ...clip, sceneIndex: Number(match[1]) } : clip;
+  };
+  const indexedLayers = layers.map(layer => ({ ...layer, main: layer.main.map(withSceneIndex), sub: layer.sub.map(withSceneIndex) }));
+  const normalized = { ...timeline, overlays: timeline.overlays.map(layer => layer.map(withSceneIndex)), voice: timeline.voice.map(withSceneIndex), sfx: timeline.sfx.map(withSceneIndex), captionLayers: indexedLayers, captions: indexedLayers[0]?.main ?? [] };
   Object.defineProperty(normalized, "toJSON", { enumerable: false, value() { const { captions: _legacyCaptions, ...canonical } = this as typeof normalized; return canonical; } });
   return normalized;
 });
