@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { Carousel, CarouselSlide, type Carousel as CarouselData } from "../core/carousel";
+import { Carousel, CarouselSlide, defaultTexts, newSlide, type Carousel as CarouselData } from "../core/carousel";
 import { HttpError } from "./http";
 
 async function writeAtomic(file: string, data: string | Buffer): Promise<void> {
@@ -17,10 +17,10 @@ async function writeAtomic(file: string, data: string | Buffer): Promise<void> {
   }
 }
 
-type NewSlide = Omit<CarouselSlide, "error" | "status" | "background" | "imagePrompt"> & { status?: CarouselSlide["status"]; background?: CarouselSlide["background"]; imagePrompt?: string };
-type NewCarousel = { id?: string; name: string; source?: CarouselData["source"]; topic?: string; refinedTopic?: string; aspect: "4:5" | "1:1" | "9:16" | "16:9"; style?: string; slides: NewSlide[] };
+type NewSlide = Pick<CarouselSlide, "id" | "texts"> & Partial<Omit<CarouselSlide, "id" | "texts">>;
+type NewCarousel = { id?: string; name: string; source?: CarouselData["source"]; topic?: string; refinedTopic?: string; aspect: CarouselData["aspect"]; style?: string; caption?: string; stage?: "review"; slides: NewSlide[] };
 type UserHighlightFields = Partial<NonNullable<Extract<CarouselSlide["background"], { kind: "frame" }>["highlight"]>>;
-type UserSlideFields = Partial<Pick<CarouselSlide, "title" | "body" | "textPlacement" | "imagePrompt">> & { background?: { kind?: "frame"; sec?: number; cropY?: number; highlight?: UserHighlightFields } };
+type UserSlideFields = Partial<Pick<CarouselSlide, "texts" | "logo" | "brightness" | "shade" | "sceneNumber" | "imagePrompt">> & { background?: { kind?: "frame"; sec?: number; cropY?: number; highlight?: UserHighlightFields } };
 type EngineSlideFields = Partial<Pick<CarouselSlide, "image" | "status" | "error">> & { background?: { frame?: Extract<CarouselSlide["background"], { kind: "frame" }>["frame"]; status?: "queued" | "running" | "done" | "failed" | "idle"; error?: string; highlight?: UserHighlightFields } };
 
 export class CarouselStore {
@@ -109,7 +109,7 @@ export class CarouselStore {
   async createCarousel(input: NewCarousel): Promise<CarouselData> {
     const now = this.now();
     const id = input.id ?? `${now.getTime().toString(36)}-${randomBytes(4).toString("hex")}`;
-    const value = Carousel.parse({ ...input, slides: input.slides.map(slide => ({
+    const value = Carousel.parse({ ...input, stage: input.stage ?? "review", slides: input.slides.map(slide => ({
       ...slide,
       background: slide.background ?? (input.source?.kind === "project" ? { kind: "frame", sec: 0, cropY: 0.5 } : { kind: "generated", ...(slide.image ? { image: slide.image } : {}) }),
     })), id, createdAt: now.toISOString(), savedAt: now.toISOString() });
@@ -125,7 +125,7 @@ export class CarouselStore {
     return this.updateCarouselFields(id, { name });
   }
 
-  async updateCarouselFields(id: string, fields: { name?: string; topic?: string; refinedTopic?: string }): Promise<CarouselData> {
+  async updateCarouselFields(id: string, fields: { name?: string; topic?: string; refinedTopic?: string; caption?: string; style?: string }): Promise<CarouselData> {
     return this.lock(id, async () => {
       const current = await this.readRaw(id);
       if (!current) throw new HttpError(404, "not-found", `캐러셀이 없습니다: ${id}`);
@@ -135,23 +135,86 @@ export class CarouselStore {
     });
   }
 
-  async replacePlan(id: string, plan: { topic: string; style: string; slides: Array<{ title: string; body: string; imagePrompt: string }> }): Promise<CarouselData> {
+  async replacePlan(id: string, plan: { topic?: string; style?: string; caption?: string; slides: Array<{ title: string; body: string; imagePrompt?: string; sceneNumber?: number; sec?: number; target?: string }> }): Promise<CarouselData> {
     return this.lock(id, async () => {
       const current = await this.readRaw(id);
       if (!current) throw new HttpError(404, "not-found", `캐러셀이 없습니다: ${id}`);
       if (this.hasActiveForCarousel(id)) throw new HttpError(409, "active-job", "이미지 생성 중에는 기획을 바꿀 수 없습니다");
-      const slides = current.slides.map((slide, index) => ({
-        id: slide.id,
-        title: plan.slides[index]!.title,
-        body: plan.slides[index]!.body,
-        imagePrompt: plan.slides[index]!.imagePrompt,
-        textPlacement: slide.textPlacement,
-        status: "idle" as const,
-      }));
-      const next = Carousel.parse({ ...current, topic: plan.topic, style: plan.style, slides, savedAt: this.now().toISOString() });
+      if (plan.slides.length !== current.slides.length) throw new HttpError(400, "plan-count", "기획의 장 수가 맞지 않습니다");
+      const slides = current.slides.map((slide, index) => {
+        const item = plan.slides[index]!;
+        return {
+          ...slide, texts: defaultTexts(current.aspect).map(text => ({ ...text, text: text.role === "title" ? item.title : item.body })),
+          imagePrompt: item.imagePrompt ?? slide.imagePrompt, sceneNumber: item.sceneNumber ?? slide.sceneNumber,
+          background: slide.background.kind === "frame" ? {
+            ...slide.background, sec: item.sec ?? slide.background.sec,
+            ...(item.target !== undefined ? { highlight: { ...slide.background.highlight, style: slide.background.highlight?.style ?? "border", target: item.target } } : {}),
+          } : slide.background,
+        };
+      });
+      const next = Carousel.parse({ ...current, ...Object.fromEntries(Object.entries(plan).filter(([key, value]) => key !== "slides" && value !== undefined)), slides, savedAt: this.now().toISOString() });
       await this.write(next);
-      for (const slide of current.slides) if (slide.image?.file) await rm(path.join(this.carouselDir(id), slide.image.file), { force: true });
       return next;
+    });
+  }
+
+  private async changeReviewSlides(id: string, change: (current: CarouselData) => CarouselSlide[]): Promise<CarouselData> {
+    return this.lock(id, async () => {
+      const current = await this.readRaw(id);
+      if (!current) throw new HttpError(404, "not-found", `캐러셀이 없습니다: ${id}`);
+      if (current.stage !== "review") throw new HttpError(409, "review-only", "검토 단계에서만 장 수와 순서를 바꿀 수 있습니다");
+      if (this.hasActiveForCarousel(id)) throw new HttpError(409, "active-job", "생성 중에는 장 수와 순서를 바꿀 수 없습니다");
+      const slides = change(current);
+      if (slides.length < 2 || slides.length > 10) throw new HttpError(409, "slide-count", "장은 2–10개여야 합니다");
+      const next = Carousel.parse({ ...current, slides, savedAt: this.now().toISOString() });
+      await this.write(next);
+      return next;
+    });
+  }
+
+  async addSlide(id: string, sec?: number): Promise<CarouselData> {
+    return this.changeReviewSlides(id, current => {
+      const slide = newSlide(current.source, current.slides.at(-1));
+      slide.id = `slide-${randomBytes(8).toString("hex")}`;
+      slide.texts = defaultTexts(current.aspect);
+      if (sec !== undefined && slide.background.kind === "frame") slide.background.sec = sec;
+      return [...current.slides, slide];
+    });
+  }
+
+  async removeSlide(id: string, slideId: string): Promise<CarouselData> {
+    return this.changeReviewSlides(id, current => {
+      if (!current.slides.some(slide => slide.id === slideId)) throw new HttpError(404, "slide-not-found", "장이 없습니다");
+      return current.slides.filter(slide => slide.id !== slideId);
+    });
+  }
+
+  async reorderSlides(id: string, slideIds: string[]): Promise<CarouselData> {
+    return this.changeReviewSlides(id, current => {
+      if (slideIds.length !== current.slides.length || new Set(slideIds).size !== slideIds.length ||
+          slideIds.some(slideId => !current.slides.some(slide => slide.id === slideId))) throw new HttpError(400, "invalid-order", "모든 장 id를 한 번씩 보내야 합니다");
+      return slideIds.map(slideId => current.slides.find(slide => slide.id === slideId)!);
+    });
+  }
+
+  async setStage(id: string, stage: "images"): Promise<CarouselData> {
+    return this.lock(id, async () => {
+      const current = await this.readRaw(id);
+      if (!current) throw new HttpError(404, "not-found", "캐러셀이 없습니다");
+      const next = Carousel.parse({ ...current, stage, savedAt: this.now().toISOString() });
+      await this.write(next);
+      return next;
+    });
+  }
+
+  async copyLogo(id: string, srcPath: string): Promise<string> {
+    return this.lock(id, async () => {
+      if (!(await this.readRaw(id))) throw new HttpError(404, "not-found", "캐러셀이 없습니다");
+      const ext = path.extname(srcPath).toLowerCase().replace(".jpeg", ".jpg");
+      if (![".png", ".jpg", ".webp"].includes(ext)) throw new HttpError(400, "logo-format", "로고 형식이 맞지 않습니다");
+      const file = `logos/logo${ext}`;
+      await writeAtomic(path.join(this.carouselDir(id), file), await readFile(srcPath));
+      return file;
     });
   }
 
@@ -173,7 +236,7 @@ export class CarouselStore {
       const input = fields as UserSlideFields & EngineSlideFields;
       const allowed = engine
         ? { image: input.image, status: input.status, error: input.error }
-        : { title: input.title, body: input.body, textPlacement: input.textPlacement, imagePrompt: input.imagePrompt };
+        : { texts: input.texts, logo: input.logo, brightness: input.brightness, shade: input.shade, sceneNumber: input.sceneNumber, imagePrompt: input.imagePrompt };
       let background = currentSlide.background;
       if (input.background && background.kind === "frame") {
         if (engine) {
