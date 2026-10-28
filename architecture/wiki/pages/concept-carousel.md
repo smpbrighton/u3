@@ -27,6 +27,8 @@
 - 캐러셀 편집 화면은 글·배경·강조를 제공한다. 긴 제목의 카드 레이아웃 테스트가 있다. `src/ui/screens/carousel/CarouselEdit.tsx` `tests/ui/carousel-card-layout.test.tsx` `git:13a60c5:`
 - 주제 기획은 저장된 주제 프롬프트 또는 기본 본문 뒤에 장수·주제·선택 화풍을 붙인다. 영상 기획은 영상 프롬프트 뒤에 장수와 자막·장면 등 자료 JSON을 붙인다. 주제 기획의 주입된 `carouselServices.plan` 경로는 이 프롬프트를 사용하지 않는다. `src/core/carousel-prompt.ts` `src/engine/routes/carousels.ts` `git:19649af:`
 - 기본 본문은 주제와 영상용으로 나뉜다. 영상용 본문은 제공되지 않은 프레임 내용을 단정하지 않도록 지시한다. `src/core/carousel-prompt.ts` `git:9147c6f:`
+- 기본 주제·영상 프롬프트는 각 카드의 독립적인 의미와 카드 사이의 생각 진행을 함께 점검하도록 지시한다. 영상용은 제공된 장면 번호와 자막에 근거해 강조 대상을 고르도록 지시한다. 본문 2~4줄은 렌더링 보장이 아닌 가독성 참고다. `src/core/carousel-prompt.ts` `git:4087bdb:`
+- 변경된 기본 프롬프트에 맞춰 core 테스트를 수정했다. 이 커밋의 테스트 실행 출력과 실제 캐러셀 기획 검증 증거는 코드에서 못 찾음. `tests/core/carousel-prompt.test.ts` `git:4087bdb:`
 - 054의 core·서버·UI 테스트가 추가됐다. 실패 테스트 실행 출력과 `pnpm verify` 실행 출력은 코드에서 못 찾음. 설치본 0.3.5의 설정 저장·기본값 복원과 주제 기획 실행 증거도 코드에서 못 찾음. `tests/core/carousel-prompt.test.ts` `tests/server/carousel-prompts.test.ts` `tests/server/carousels.test.ts` `tests/server/carousel-derived.test.ts` `tests/ui/settings-carousel-prompts.test.tsx` `architecture/changes/054-carousel-prompts/plan.md` `git:be31984:`
 ## 관계
 - [Codex 호환성](concept-codex-compat.md)

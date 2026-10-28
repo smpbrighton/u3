@@ -119,3 +119,10 @@
 - `index.md`
 - 계획·실패 테스트·구현 커밋은 캐러셀과 설정 페이지에 함께 반영했으며 별도 페이지는 없다. `git:2d50706:` `git:1b2661f:` `git:9147c6f:` `git:b78cf38:` `git:19649af:` `git:f840816:` `git:be31984:`
 - release 0.3.4 버전 변경은 릴리스 페이지에 반영했으며 별도 페이지는 없다. `git:e95368c:`
+
+## [2026-10-28] ingest | 기본 대본·캐러셀 기획 프롬프트 및 release 0.3.5
+- `pages/concept-timeline-editing.md`
+- `pages/concept-carousel.md`
+- `pages/concept-updates.md`
+- `index.md`
+- 두 커밋은 기존 페이지에 반영했으며 별도 페이지는 없다. `git:4087bdb:` `git:c4f6223:`
