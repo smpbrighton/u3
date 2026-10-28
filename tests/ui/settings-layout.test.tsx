@@ -40,6 +40,12 @@ describe("설정 구역", () => {
       expect(region).toContain("w-[270px]");
     }
     if (section !== "meme") expect(region).not.toContain(">저장</button>");
+    if (section === "imagegen") {
+      expect(region).toContain("캐러셀 기획 프롬프트 · 주제로");
+      expect(region).toContain("캐러셀 기획 프롬프트 · 영상으로");
+      expect(region.indexOf("동시 실행 수")).toBeLessThan(region.indexOf("캐러셀 기획 프롬프트"));
+      expect(region).not.toContain("placeholder=");
+    } else expect(region).not.toContain("캐러셀 기획 프롬프트");
   });
 });
 
