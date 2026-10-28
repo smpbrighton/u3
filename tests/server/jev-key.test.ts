@@ -57,6 +57,10 @@ process.stdin.on("end", () => {
   const file = path.join(root, "fake-key");
   if (command[0] === "add-generic-password") {
     if (args[0] !== "-i" || !command.includes("-U")) process.exit(2);
+    // 실제 security 의 getopt 는 첫 위치 인자(키체인 이름) 뒤의 옵션을 받지 않는다. 키체인 이름이 -w 앞에 오면 usage 오류다.
+    const keychainIndex = command.findIndex((word, index) => index > 0 && !word.startsWith("-") && !["-a", "-s", "-w", "-X"].includes(command[index - 1]));
+    const passwordIndex = Math.max(command.indexOf("-w"), command.indexOf("-X"));
+    if (keychainIndex > 0 && passwordIndex > keychainIndex) process.exit(2);
     const key = command.includes("-X") ? Buffer.from(option("-X"), "hex").toString() : option("-w");
     fs.writeFileSync(file, key);
   } else if (command[0] === "find-generic-password") {
