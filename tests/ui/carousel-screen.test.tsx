@@ -1,0 +1,51 @@
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { describe, expect, it, vi } from "vitest";
+import { Carousel, newSlide } from "../../src/core/carousel";
+
+vi.mock("../../src/ui/api", () => ({ api: vi.fn(), carouselFileUrl: vi.fn(), watchJobs: vi.fn() }));
+vi.mock("../../src/remotion/CarouselSlide", () => ({ CarouselSlide: () => null }));
+vi.mock("@remotion/player", () => ({ Player: () => <div data-player="true" /> }));
+vi.mock("../../src/ui/update-save", () => ({ useBeforeUpdateRestart: () => undefined }));
+
+function carousel(stage: "review" | "images") {
+  return Carousel.parse({ id: "test", name: "캐러셀 검증", topic: "주제", source: { kind: "topic" }, stage, aspect: "4:5",
+    caption: "게시할 캡션", createdAt: "2026-10-28T00:00:00Z", savedAt: "2026-10-28T00:00:00Z",
+    slides: [1, 2, 3].map(n => ({ ...newSlide({ kind: "topic" }, "4:5"), id: `slide-${n}`,
+      texts: newSlide({ kind: "topic" }, "4:5").texts.map(t => ({ ...t, text: t.role === "title" ? "제목 글" : "본문 글", ...(t.role === "body" ? { x: 0.22, fontSize: 52 } : {}) })) })),
+  });
+}
+
+describe("캐러셀 화면", () => {
+  it("검토 단계에서만 장 더하기·지우기·순서 바꾸기를 제공한다", async () => {
+    const { CarouselWorkspace } = await import("../../src/ui/screens/carousel/CarouselWorkspace");
+    const review = renderToStaticMarkup(<CarouselWorkspace carousel={carousel("review")} jobs={[]} onBack={vi.fn()} onUpdate={vi.fn()} onSnackbar={vi.fn()} onError={vi.fn()} />);
+    expect(review).toContain("장 더하기");
+    expect(review).toContain("장 지우기");
+    expect(review).toContain("순서 바꾸기");
+    expect(review).toContain("이미지 만들기");
+    const images = renderToStaticMarkup(<CarouselWorkspace carousel={carousel("images")} jobs={[]} onBack={vi.fn()} onUpdate={vi.fn()} onSnackbar={vi.fn()} onError={vi.fn()} />);
+    for (const label of ["장 더하기", "장 지우기", "순서 바꾸기", "다시 기획"]) expect(images).not.toContain(label);
+    expect(images).toContain("글 더하기");
+    expect(images).toContain("carousel-player");
+  });
+
+  it("고른 글 객체의 글과 속성을 인스펙터 맨 위에 표시한다", async () => {
+    const { CarouselTextInspector } = await import("../../src/ui/screens/carousel/CarouselTextInspector");
+    const slide = carousel("images").slides[0]!;
+    const html = renderToStaticMarkup(<CarouselTextInspector texts={slide.texts} selectedId="body" onSelect={vi.fn()} onChange={vi.fn()} />);
+    expect(html.indexOf("본문 글")).toBeLessThan(html.indexOf("제목 글"));
+    expect(html).toContain('aria-label="가로 위치"');
+    expect(html).toContain("22%");
+    expect(html).toContain("52px");
+    expect(html).toContain('data-slot="property-row"');
+  });
+
+  it("넘친 글 경고를 표시하고 정상인 장에서는 숨긴다", async () => {
+    const { CarouselOverflowNotice, textOverflowsCanvas } = await import("../../src/ui/screens/carousel/CarouselOverflow");
+    expect(textOverflowsCanvas({ left: 80, top: 900, width: 900, height: 600 }, { width: 1080, height: 1350 })).toBe(true);
+    expect(textOverflowsCanvas({ left: 80, top: 90, width: 900, height: 60 }, { width: 1080, height: 1350 })).toBe(false);
+    expect(renderToStaticMarkup(<CarouselOverflowNotice count={2} />)).toContain("넘친 글이 있는 장 2개");
+    expect(renderToStaticMarkup(<CarouselOverflowNotice count={0} />)).toBe("");
+  });
+});
