@@ -1,12 +1,13 @@
 import { Audio, Video } from "@remotion/media";
-import { AbsoluteFill, Img, Loop, Sequence, useCurrentFrame } from "remotion";
+import { AbsoluteFill, Img, Loop, Sequence, interpolate, useCurrentFrame, useVideoConfig } from "remotion";
 import { useMemo } from "react";
 import { CAPTION_LINE_HEIGHT, CAPTION_PAD_X, CAPTION_PAD_Y, stackCaptionRows } from "../core/layout";
 import { captionWeight, measureCaption } from "./caption-measure";
 import { ensureFonts, useFontRevision } from "./fonts";
 import { CAPTION_FONT_FAMILY } from "../core/fonts";
 import type { U3ShortProps } from "./types";
-import type { ClipTransition } from "../core/schema";
+import { CAPTION_HIGHLIGHT_DEFAULT, type ClipTransition } from "../core/schema";
+import { captionRuns, type CaptionRun } from "../core/captions";
 import type { RenderAudioLayer, RenderCaption, RenderTransition, RenderVideoSequence } from "../core/timeline/to-render";
 import { transitionProgressAt, transitionStyleAt, type TransitionStyle } from "../core/timeline/transitions";
 import { overlayMediaStyle } from "./overlay-style";
@@ -104,11 +105,47 @@ function audioVolume(layer: RenderAudioLayer, localFrame: number): number {
   return layer.volume * multiplier;
 }
 
+function measureRenderCaption(caption: RenderCaption) {
+  const scale = caption.clipStyle?.sizeScale ?? 1;
+  // RenderCaption의 합성 크기에서 레이어 크기를 복원하고, 맞춤 뒤에 배율을 한 번 적용한다.
+  return measureCaption(caption.text, { ...caption.style, mainSize: caption.style.mainSize / scale, subSize: caption.style.subSize / scale }, caption.row, scale);
+}
+
+function captionLineRuns(text: string, lines: string[]): CaptionRun[][] {
+  const characters: CaptionRun[] = [];
+  for (const run of captionRuns(text.normalize("NFC"))) {
+    for (const char of run.text) {
+      const value = /\s/u.test(char) ? " " : char;
+      if (value === " " && (!characters.length || characters.at(-1)!.text === " ")) continue;
+      characters.push({ text: value, highlight: run.highlight });
+    }
+  }
+  let cursor = 0;
+  return lines.map(line => {
+    while (characters[cursor]?.text === " ") cursor++;
+    const runs: CaptionRun[] = [];
+    for (const character of characters.slice(cursor, cursor + [...line].length)) {
+      const last = runs.at(-1);
+      if (last?.highlight === character.highlight) last.text += character.text;
+      else runs.push({ ...character });
+    }
+    cursor += [...line].length;
+    return runs;
+  });
+}
+
 export const SceneCaption: React.FC<{ caption: RenderCaption; partner?: RenderCaption }> = ({ caption, partner }) => {
   const { text, style, row } = caption;
+  const localFrame = useCurrentFrame();
+  const { fps } = useVideoConfig();
   const fontRevision = useFontRevision();
-  const layout = useMemo(() => measureCaption(text, style, row), [text, style, row, fontRevision]);
-  const partnerLayout = useMemo(() => partner ? measureCaption(partner.text, partner.style, partner.row) : undefined, [partner?.text, partner?.style, partner?.row, fontRevision]);
+  const layout = useMemo(() => measureRenderCaption(caption), [text, style, row, caption.clipStyle?.sizeScale, fontRevision]);
+  const partnerLayout = useMemo(() => partner ? measureRenderCaption(partner) : undefined, [partner?.text, partner?.style, partner?.row, partner?.clipStyle?.sizeScale, fontRevision]);
+  const lines = useMemo(() => captionLineRuns(text, layout.lines), [text, layout.lines]);
+  const progress = interpolate(localFrame, [0, 0.3 * fps], [0, 1], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const effect = caption.animation === "pop" ? ` scale(${0.8 + 0.2 * progress})`
+    : caption.animation === "rise" ? ` translateY(${24 * (1 - progress)}px)`
+    : caption.animation === "shake" ? ` translateX(${progress === 1 ? 0 : 6 * (1 - progress) * Math.sin(progress * Math.PI * 6)}px)` : "";
   const frame = stackCaptionRows(caption.y * 1920, { [row]: layout.height, ...(partner && partnerLayout ? { [partner.row]: partnerLayout.height } : {}) })[row]!;
   const width = Math.max(layout.width, partnerLayout?.width ?? 0);
   const borderRadius = !partner ? 20 : row === "main" ? "20px 20px 0 0" : "0 0 20px 20px";
@@ -119,7 +156,7 @@ export const SceneCaption: React.FC<{ caption: RenderCaption; partner?: RenderCa
       top: frame.top,
       width,
       height: frame.height,
-      transform: "translateX(-50%)",
+      transform: `translateX(-50%)${effect}`,
       boxSizing: "border-box",
       backgroundColor: style.bar ? colorWithAlpha(style.barColor, caption.clipOpacity * caption.layerOpacity * caption.barOpacity) : "transparent",
       borderRadius,
@@ -134,7 +171,8 @@ export const SceneCaption: React.FC<{ caption: RenderCaption; partner?: RenderCa
       flexDirection: "column",
       justifyContent: "center",
     }}>
-      {layout.lines.map((line, index) => <div key={index} style={{ whiteSpace: "pre", opacity: caption.opacity ?? 1 }}>{line}</div>)}
+      {lines.map((runs, index) => <div key={index} style={{ whiteSpace: "pre", opacity: caption.opacity ?? 1 }}>{runs.map((run, i) => run.highlight
+        ? <span key={i} style={{ color: caption.clipStyle?.highlightColor ?? CAPTION_HIGHLIGHT_DEFAULT }}>{run.text}</span> : run.text)}</div>)}
     </div>
   );
 };

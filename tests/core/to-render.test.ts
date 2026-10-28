@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import type { Timeline } from "../../src/core/schema";
-import { timelineToRender } from "../../src/core/timeline/to-render";
+import { CAPTION_HIGHLIGHT_DEFAULT, DEFAULT_CAPTION_STYLE, type Timeline } from "../../src/core/schema";
+import { effectiveCaptionStyle, timelineToRender } from "../../src/core/timeline/to-render";
 
 const timeline: Timeline = {
   overlays: [],
@@ -19,6 +19,14 @@ const timeline: Timeline = {
 };
 
 describe("timelineToRender", () => {
+  it("클립 색·배율을 레이어 위에 합치고 단어 색 기본값을 둔다", () => {
+    expect(effectiveCaptionStyle(DEFAULT_CAPTION_STYLE)).toEqual({ ...DEFAULT_CAPTION_STYLE, highlightColor: CAPTION_HIGHLIGHT_DEFAULT });
+    expect(effectiveCaptionStyle(DEFAULT_CAPTION_STYLE, { color: "#112233", sizeScale: 1.5, highlightColor: "#445566" })).toMatchObject({ color: "#112233", mainSize: 84, subSize: 60, highlightColor: "#445566", barOpacity: 0.62 });
+    expect(DEFAULT_CAPTION_STYLE.mainSize).toBe(56);
+    const result = timelineToRender({ ...timeline, captions: [{ ...timeline.captions[0]!, style: { color: "#123456", sizeScale: 2, animation: "rise" } }] });
+    expect(result.captions[0]).toMatchObject({ style: { color: "#123456", mainSize: 112, subSize: 80 }, clipStyle: { sizeScale: 2 }, animation: "rise", clipStartSec: 1 });
+    expect(timelineToRender(timeline).captions[0]).toMatchObject({ clipStartSec: 1, style: { color: "#FFFFFF", mainSize: 56 } });
+  });
   it("30fps 시퀀스와 자막·오디오 프레임을 만들고 순서를 반영한다", () => {
     const render = timelineToRender(timeline);
     expect(render.fps).toBe(30);

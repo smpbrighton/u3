@@ -1,4 +1,4 @@
-import type { CaptionStyle, ClipTransition, ClipTransitionInput, OverlayClip, Timeline, TransitionKind } from "../schema";
+import { CAPTION_HIGHLIGHT_DEFAULT, type CaptionClipStyle, type CaptionStyle, type ClipTransition, type ClipTransitionInput, type OverlayClip, type Timeline, type TransitionKind } from "../schema";
 import { clipDuration, overlayDuration } from "./ops";
 
 export const RENDER_FPS = 30;
@@ -51,6 +51,15 @@ export interface RenderCaption {
   textOpacity: number;
   barOpacity: number;
   style: CaptionStyle;
+  clipStyle?: CaptionClipStyle;
+  animation?: CaptionClipStyle["animation"];
+  clipStartSec: number;
+}
+
+export function effectiveCaptionStyle(style: CaptionStyle, clip?: CaptionClipStyle): CaptionStyle & { highlightColor: string } {
+  const scale = clip?.sizeScale ?? 1;
+  return { ...style, color: clip?.color ?? style.color, mainSize: style.mainSize * scale, subSize: style.subSize * scale,
+    highlightColor: clip?.highlightColor ?? CAPTION_HIGHLIGHT_DEFAULT };
 }
 
 export interface RenderOverlay {
@@ -163,10 +172,12 @@ export function timelineToRender(timeline: Timeline, brand?: RenderBrandSettings
   }
 
   const layers = timeline.captionLayers ?? [{ id: "caption-layer-1", name: "자막", x: 0.5, y: 1555 / 1920, style: { font: "pretendard" as const, mainSize: 56, subSize: 40, color: "#FFFFFF", textOpacity: 1, bar: true, barColor: "#000000", barOpacity: 0.62 }, main: timeline.captions ?? [], sub: [] }];
-  const captions = layers.flatMap((layer, layerIndex) => [
-    ...layer.main.map((clip) => ({ id: clip.id, layerId: layer.id, layer: layerIndex, row: "main" as const, startFrame: frame(clip.startSec), durationInFrames: frame(clip.endSec) - frame(clip.startSec), text: clip.text, x: layer.x, y: layer.y, opacity: (clip.opacity ?? 1) * (layer.opacity ?? 1) * layer.style.textOpacity, clipOpacity: clip.opacity ?? 1, layerOpacity: layer.opacity ?? 1, textOpacity: layer.style.textOpacity, barOpacity: layer.style.barOpacity, style: layer.style })),
-    ...layer.sub.map((clip) => ({ id: clip.id, layerId: layer.id, layer: layerIndex, row: "sub" as const, startFrame: frame(clip.startSec), durationInFrames: frame(clip.endSec) - frame(clip.startSec), text: clip.text, x: layer.x, y: layer.y, opacity: (clip.opacity ?? 1) * (layer.opacity ?? 1) * layer.style.textOpacity, clipOpacity: clip.opacity ?? 1, layerOpacity: layer.opacity ?? 1, textOpacity: layer.style.textOpacity, barOpacity: layer.style.barOpacity, style: layer.style })),
-  ]);
+  const captions = layers.flatMap((layer, layerIndex) => (["main", "sub"] as const).flatMap(row => layer[row].map((clip): RenderCaption => ({
+    id: clip.id, layerId: layer.id, layer: layerIndex, row, startFrame: frame(clip.startSec), durationInFrames: frame(clip.endSec) - frame(clip.startSec),
+    clipStartSec: clip.startSec, text: clip.text, x: layer.x, y: layer.y, opacity: (clip.opacity ?? 1) * (layer.opacity ?? 1) * layer.style.textOpacity,
+    clipOpacity: clip.opacity ?? 1, layerOpacity: layer.opacity ?? 1, textOpacity: layer.style.textOpacity, barOpacity: layer.style.barOpacity,
+    style: effectiveCaptionStyle(layer.style, clip.style), ...(clip.style ? { clipStyle: clip.style, animation: clip.style.animation } : {}),
+  }))));
   const overlay = timeline.overlays.flatMap((layer, layerIndex) => layer.map((clip: OverlayClip): RenderOverlay => ({
     id: clip.id,
     layer: layerIndex,
