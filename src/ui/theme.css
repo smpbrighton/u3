@@ -1,7 +1,4 @@
-/* 공존 순서: 기존 화면은 SEED를 유지하고 새 부품의 utilities가 나중에 적용된다. */
-@layer seed, legacy, theme, base, components, utilities;
-@import "@seed-design/css/all.css" layer(seed);
-@import "./styles.css" layer(legacy);
+@layer theme, base, components, utilities;
 @import "tailwindcss/theme.css" layer(theme);
 @import "tailwindcss/utilities.css" layer(utilities) source(none);
 @import "tw-animate-css";
@@ -182,8 +179,18 @@
 }
 
 /* Tailwind preflight는 import하지 않는다. Portal의 Content도 u3-shell로 표시한다.
-   미리보기와 아직 SEED인 화면의 경계 및 자손은 초기화에서 제외한다. */
+   미리보기 경계와 자손은 초기화에서 제외한다. */
 @layer base {
+  :root {
+    color: var(--foreground);
+    background: var(--background);
+    font-family: var(--font-sans);
+    font-synthesis: none;
+    text-rendering: optimizeLegibility;
+  }
+
+  body { min-width: 760px; min-height: 100vh; margin: 0; }
+
   :where(.u3-shell) {
     font-family: var(--font-sans);
     font-size: 13px;
@@ -197,29 +204,7 @@
 
   :where(.dark .u3-shell) { color-scheme: dark; }
 
-  /* 셸의 글자·모양 상속을 끊어 기존 :root의 SEED 화면 값을 유지한다. */
-  :where([data-u3-legacy]) {
-    min-width: 0;
-    min-height: 0;
-    flex: 1;
-    overflow-y: auto;
-    font-family: var(--seed-font-family);
-    font-size: 16px;
-    font-weight: 400;
-    line-height: normal;
-    color: var(--seed-color-fg-neutral);
-    background: var(--seed-color-bg-layer-default);
-    color-scheme: normal;
-  }
-
-  :where([data-u3-legacy="studio"]) {
-    display: flex;
-    flex-direction: column;
-    overflow: hidden;
-  }
-
-
-  :where(.u3-shell, .u3-shell *):not(:where(.carousel-player, .carousel-player *, .studio-preview-area, .studio-preview-area *, .studio-preview-player, .studio-preview-player *, [data-u3-preview], [data-u3-preview] *, [data-u3-legacy], [data-u3-legacy] *)) {
+  :where(.u3-shell, .u3-shell *):not(:where(.carousel-player, .carousel-player *, .studio-preview-area, .studio-preview-area *, .studio-preview-player, .studio-preview-player *, [data-u3-preview], [data-u3-preview] *)) {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
@@ -227,7 +212,7 @@
     &::before, &::after { box-sizing: border-box; border: 0 solid var(--border); }
   }
 
-  :where(.u3-shell) :where(button, input, textarea, select):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *, [data-u3-legacy], [data-u3-legacy] *)) {
+  :where(.u3-shell) :where(button, input, textarea, select):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *)) {
     font: inherit;
     color: inherit;
     letter-spacing: inherit;
@@ -235,14 +220,14 @@
     border-radius: 0;
   }
 
-  :where(.u3-shell) :where(button, [role="button"]):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *, [data-u3-legacy], [data-u3-legacy] *)) { cursor: pointer; }
-  :where(.u3-shell) :where(button:disabled, [aria-disabled="true"]):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *, [data-u3-legacy], [data-u3-legacy] *)) { cursor: default; }
-  :where(.u3-shell) :where(input, textarea):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *, [data-u3-legacy], [data-u3-legacy] *))::placeholder { color: var(--placeholder); opacity: 1; }
-  :where(.u3-shell) :where(h1, h2, h3, h4, h5, h6):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *, [data-u3-legacy], [data-u3-legacy] *)) { font-size: inherit; font-weight: 700; }
-  :where(.u3-shell) :where(b, strong):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *, [data-u3-legacy], [data-u3-legacy] *)) { font-weight: 700; }
-  :where(.u3-shell) :where(a):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *, [data-u3-legacy], [data-u3-legacy] *)) { color: inherit; text-decoration: inherit; }
-  :where(.u3-shell) :where(ol, ul, menu):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *, [data-u3-legacy], [data-u3-legacy] *)) { list-style: none; }
-  :where(.u3-shell) :where(img, svg, video, canvas):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *, [data-u3-legacy], [data-u3-legacy] *)) { display: block; vertical-align: middle; }
-  :where(.u3-shell) :where(textarea):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *, [data-u3-legacy], [data-u3-legacy] *)) { resize: vertical; }
-  :where(.u3-shell) :where([hidden]:not([hidden="until-found"])):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *, [data-u3-legacy], [data-u3-legacy] *)) { display: none !important; }
+  :where(.u3-shell) :where(button, [role="button"]):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *)) { cursor: pointer; }
+  :where(.u3-shell) :where(button:disabled, [aria-disabled="true"]):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *)) { cursor: default; }
+  :where(.u3-shell) :where(input, textarea):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *))::placeholder { color: var(--placeholder); opacity: 1; }
+  :where(.u3-shell) :where(h1, h2, h3, h4, h5, h6):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *)) { font-size: inherit; font-weight: 700; }
+  :where(.u3-shell) :where(b, strong):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *)) { font-weight: 700; }
+  :where(.u3-shell) :where(a):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *)) { color: inherit; text-decoration: inherit; }
+  :where(.u3-shell) :where(ol, ul, menu):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *)) { list-style: none; }
+  :where(.u3-shell) :where(img, svg, video, canvas):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *)) { display: block; vertical-align: middle; }
+  :where(.u3-shell) :where(textarea):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *)) { resize: vertical; }
+  :where(.u3-shell) :where([hidden]:not([hidden="until-found"])):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *)) { display: none !important; }
 }

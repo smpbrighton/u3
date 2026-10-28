@@ -1,6 +1,6 @@
 /* B5의 화면 경로만 추가한다. 공통 theme.css는 감독자가 관리한다. */
 @reference "../theme.css";
-@import "@xzdarcy/react-timeline-editor/dist/react-timeline-editor.css" layer(legacy);
+@import "@xzdarcy/react-timeline-editor/dist/react-timeline-editor.css" layer(components.vendor);
 @import "tailwindcss/utilities.css" layer(utilities) source(none);
 @source "./";
 @source "../screens/Studio.tsx";

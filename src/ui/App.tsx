@@ -143,9 +143,9 @@ export function App() {
     <RestartSaveContext.Provider value={saves}>
     <TooltipProvider>
     <Toaster />
-    <div className={`u3-shell app-shell${screen === "studio" ? " app-shell--studio" : ""}`} data-engine-connected={Boolean(connection)} inert={restarting} aria-busy={restarting}>
+    <div className="u3-shell flex h-screen min-h-0 w-full items-stretch overflow-hidden" data-engine-connected={Boolean(connection)} inert={restarting} aria-busy={restarting}>
       {screen !== "studio" || updateLine(update) ? <Sidebar items={NAVIGATION} current={screen === "input" || screen === "script" || screen === "studio" ? "home" : screen} onNavigate={go} update={update} restarting={restarting} onRestart={() => void requestRestart()} /> : null}
-      <main className="main-column flex min-w-0 flex-1 flex-col overflow-hidden">
+      <main className="flex h-full min-h-0 min-w-0 flex-1 flex-col overflow-hidden">
         {engineError && <div className="shrink-0 px-10 pt-7 pb-5"><EngineConnectionBanner error={engineError} connecting={connecting} onRetry={() => setConnectionAttempt(attempt => attempt + 1)} /></div>}
         {page}
       </main>
