@@ -32,5 +32,9 @@ plan mode 산출물. 구현이 계획에서 벗어나면 같은 커밋에서 이
 2. 3단계 실제 `security` 종료 코드 0.
 3. 배포 뒤 사용자가 설정에서 키 저장 성공(미검증이면 그렇게 적는다).
 
+## 실행 기록
+- 1단계: 가짜 security 에 순서 검사를 넣자 저장 테스트 6개 실패(커밋 `47c808c`). 2단계: `-w` 를 키체인 이름 앞으로 옮기자 19개 통과.
+- 3단계: 실제 `/usr/bin/security -i` 에 `add-generic-password -U -a u3-test -s u3-jev-test -w "k\"q\\x" "login.keychain-db"` → 종료 0, `find-generic-password` 로 `k"q\x` 읽힘, 테스트 항목 삭제.
+
 ## 롤백
 데이터 변경 없음. 커밋 되돌리기.

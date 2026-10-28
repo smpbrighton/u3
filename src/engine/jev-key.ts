@@ -65,7 +65,8 @@ export function createJevKeyStore(options: {
     saveJevKey: key => sequential(async () => {
       if (!key || key.length > 4000 || /[\x00-\x1f\x7f]/.test(key)) throw new Error("Keychain에 저장할 키 형식을 확인해 주세요");
       // -w 프롬프트(getpass)는 128자로 잘린다. -i 명령은 stdin으로 전달한다.
-      const command = `add-generic-password -U ${identity.join(" ")} ${quote(path.basename(keychainPath))} -w ${quote(key)}`;
+      // security 의 getopt 는 첫 위치 인자(키체인 이름) 뒤의 옵션을 받지 않는다. -w 를 키체인 이름 앞에 둔다.
+      const command = `add-generic-password -U ${identity.join(" ")} -w ${quote(key)} ${quote(path.basename(keychainPath))}`;
       // SecurityTool의 MAX_LINE_LEN=4096. 잘림과 다음 명령 해석을 실행 전에 막는다.
       if (Buffer.byteLength(command) >= 4095) throw new Error("Keychain에 저장할 키 길이를 확인해 주세요");
       const result = await run(["-i"], `${command}\n`);
