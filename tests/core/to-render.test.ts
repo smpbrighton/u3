@@ -98,3 +98,12 @@ describe("짧아진 클립 전환 렌더 길이", () => {
     expect(render.overlay[0]?.startTransition?.durationSec).toBe(0.2);
   });
 });
+
+describe("047 측정한 오디오의 절대 프레임 경계", () => {
+  it("시작 시각을 먼저 반올림해서 측정 길이의 마지막 프레임을 잃지 않는다", () => {
+    const t: Timeline = { ...timeline, video: [], overlays: [], captions: [], sfx: [], voice: [{ id: "a", file: "a.wav", startSec: 0.014, inStartSec: 0, inEndSec: 1, speed: 2, gain: 1 }] };
+    const rendered = timelineToRender(t, undefined, { "a.wav:2": { file: "cache/audio/a.wav", durationSec: 0.483, version: "v" } });
+    expect(rendered.audio[0]).toMatchObject({ startFrame: 0, durationInFrames: 15 });
+    expect(rendered.durationInFrames).toBe(15);
+  });
+});
