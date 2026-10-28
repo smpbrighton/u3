@@ -136,3 +136,8 @@
 - `index.md`
 - 055의 승인·검토·계획·실패 테스트·구현 커밋은 원격 기본 프롬프트 페이지에 묶었으며 별도 페이지는 없다. import 위치 조정도 별도 페이지가 없다. `git:36b53a7:` `git:ff42053:` `git:a3d6599:` `git:189fa06:` `git:d8f6816:` `git:b02e479:` `git:6ec21ef:` `git:efcea52:` `git:d660c5d:` `git:3d1e7ee:`
 - release 0.3.6은 릴리스 페이지에 반영했으며 별도 페이지는 없다. `git:a5c6d92:`
+
+## [2026-10-29] ingest | 055 원격 파일 404 판정
+- `pages/concept-remote-prompts.md`
+- `index.md`
+- `e48f3a4` 테스트와 `4d172e6` 구현을 같은 페이지에 반영했다. `git:e48f3a4:` `git:4d172e6:`
