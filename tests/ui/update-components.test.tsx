@@ -4,7 +4,7 @@ import { describe, expect, it, vi } from "vitest";
 import { UpdateSidebar, AppInfo } from "../../src/ui/UpdateControls";
 import type { UpdateSnapshot } from "../../src/ui/updater";
 
-// Node SSR에서는 SEED의 CSS import만 제외하고 버튼의 disabled·내용을 검사한다.
+// AppInfo는 B2에서 옮긴다. 그 SEED 버튼만 제외하고 셸은 실제 shadcn 부품을 검사한다.
 vi.mock("../../seed-design/ui/action-button", () => ({
   ActionButton: (props: { disabled?: boolean; children: React.ReactNode }) => <button disabled={props.disabled}>{props.children}</button>,
 }));
@@ -16,9 +16,27 @@ describe("업데이트 화면", () => {
     expect(sidebar(idle)).toBe("");
     expect(sidebar({ ...idle, checking: true })).toBe("");
     expect(sidebar({ ...idle, status: "downloading", percent: 42 })).toContain("업데이트 받는 중 42%");
+    expect(sidebar({ ...idle, status: "downloading", percent: 42 })).toContain('role="progressbar"');
+    expect(sidebar({ ...idle, status: "downloading", percent: 42 })).toContain('aria-valuenow="42"');
     const ready = sidebar({ ...idle, status: "ready", version: "0.2.1" });
     expect(ready).toContain("새 버전 0.2.1");
     expect(ready).toContain("다시 시작");
+    expect(ready).toContain('data-slot="button"');
+  });
+
+  it("다시 시작 중에는 업데이트 버튼을 비활성화한다", () => {
+    const ready = renderToStaticMarkup(<UpdateSidebar status={{ ...idle, status: "ready", version: "0.2.1" }} disabled onRestart={() => undefined} />);
+    expect(ready).toContain("다시 시작");
+    expect(ready).toContain("disabled");
+  });
+
+  it("접힌 사이드바에도 진행률과 접근 이름을 가진 다시 시작 버튼을 표시한다", () => {
+    const download = renderToStaticMarkup(<UpdateSidebar status={{ ...idle, status: "downloading", percent: 42 }} collapsed disabled={false} onRestart={() => undefined} />);
+    expect(download).toContain("42%");
+    expect(download).toContain('aria-label="업데이트 받는 중 42%"');
+    const ready = renderToStaticMarkup(<UpdateSidebar status={{ ...idle, status: "ready", version: "0.2.1" }} collapsed disabled={false} onRestart={() => undefined} />);
+    expect(ready).toContain('aria-label="다시 시작"');
+    expect(ready).toContain("새 버전 0.2.1");
   });
 
   it("앱 정보는 현재 버전·마지막 확인 시각·지금 확인을 표시한다", () => {
