@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# release.sh <버전> [--dry-run] [--signature-file <공개 .sig>] [--output-dir <X31 경로>]
-# dry-run은 제공한 서명으로 latest.json만 만든다. 실제 릴리스는 깨끗한 main에서 실행한다.
+# release.sh [--mac-only] <버전> [--dry-run] [--signature-file <공개 .sig>] [--output-dir <X31 경로>]
+# dry-run은 제공한 서명으로 fragment(또는 --mac-only latest.json)를 만든다. 실제 릴리스는 깨끗한 main에서 실행한다.
 set +x
 set +a
 set -euo pipefail
@@ -12,6 +12,8 @@ export HOMEBREW_CACHE=/Volumes/X31/.cache/homebrew
 export npm_config_cache=/Volumes/X31/.cache/npm
 
 HERE=$(cd "$(dirname "$0")/.." && pwd)
+MAC_ONLY=0
+if [[ "${1:-}" == --mac-only ]]; then MAC_ONLY=1; shift; fi
 VERSION=${1:?usage: release.sh <버전> [--dry-run] [--signature-file <file>] [--output-dir <dir>]}
 shift
 DRY_RUN=0
@@ -21,6 +23,7 @@ IDENTITY='Developer ID Application: BRIGHTON AI HOLDINGS PTY LTD (47RAD569PH)'
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --dry-run) DRY_RUN=1; shift ;;
+    --mac-only) MAC_ONLY=1; shift ;;
     --signature-file) SIGNATURE_FILE=${2:?서명 파일 경로가 필요합니다}; shift 2 ;;
     --output-dir) OUT=${2:?출력 경로가 필요합니다}; shift 2 ;;
     *) echo "알 수 없는 옵션: $1" >&2; exit 1 ;;
@@ -38,10 +41,10 @@ for value in sys.argv[2:]:
         sys.exit('레포·산출물·캐시·임시 경로는 X31 안에 있어야 합니다')
 PY
 
-write_latest() {
-  python3 -I - "$VERSION" "$SIGNATURE_FILE" "$OUT" <<'PY'
-import base64, datetime, json, pathlib, re, sys
-version, sigfile, out = sys.argv[1:]
+write_metadata() {
+  python3 -I - "$VERSION" "$SIGNATURE_FILE" "$OUT" "$1" "${COMMIT_SHA:-0000000000000000000000000000000000000000}" "$DRY_RUN" <<'PY'
+import base64, datetime, hashlib, json, pathlib, re, sys
+version, sigfile, out, mode, commit, dry_run = sys.argv[1:]
 try:
     signature = pathlib.Path(sigfile).read_text().strip()
     lines = base64.b64decode(signature, validate=True).decode('utf-8').splitlines()
@@ -64,14 +67,21 @@ manifest = {
 }
 destination = pathlib.Path(out)
 destination.mkdir(parents=True, exist_ok=True)
-(destination / 'latest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n')
+if mode == 'latest':
+    (destination / 'latest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n')
+else:
+    names = ['U3.app.tar.gz', 'U3.app.tar.gz.sig', f'U3-{version}-arm64.dmg']
+    assets = {name: hashlib.sha256((destination / name).read_bytes()).hexdigest() for name in names} if dry_run != '1' else {}
+    fragment = {'version': version, 'commit': commit, 'platform': 'darwin-aarch64', 'asset': 'U3.app.tar.gz', 'signature': signature, 'assets': assets}
+    if dry_run == '1': fragment['dryRun'] = True
+    (destination / 'darwin.fragment.json').write_text(json.dumps(fragment, ensure_ascii=False, indent=2) + '\n')
 PY
 }
 
 if [[ "$DRY_RUN" == 1 ]]; then
   SIGNATURE_FILE=${SIGNATURE_FILE:-$OUT/U3.app.tar.gz.sig}
-  write_latest
-  echo "✓ dry-run passed: $OUT/latest.json"
+  if [[ "$MAC_ONLY" == 1 ]]; then write_metadata latest; else write_metadata fragment; fi
+  echo "✓ dry-run passed: $OUT"
   exit 0
 fi
 
@@ -123,6 +133,12 @@ conf.write_text(json.dumps(tj, ensure_ascii=False, indent=2) + '\n')
 cargo.write_text(ct)
 lock.write_text(cl)
 PY
+
+git diff --check
+git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
+git commit -m "release $VERSION"
+COMMIT_SHA=$(git rev-parse HEAD)
+git push origin main
 
 if [[ ! -d node_modules ]]; then pnpm install --frozen-lockfile --store-dir /Volumes/X31/.cache/pnpm/store; fi
 pnpm verify
@@ -180,12 +196,27 @@ notarize "$DMG" "$OUT/notary-dmg.json"
 xcrun stapler staple "$DMG"
 xcrun stapler validate "$DMG"
 spctl -a -t open --context context:primary-signature -v "$DMG"
-write_latest
-shasum -a 256 "$DMG" "$TARBALL" "$OUT/latest.json"
-git diff --check
-git add package.json src-tauri/tauri.conf.json src-tauri/Cargo.toml src-tauri/Cargo.lock
-git commit -m "release $VERSION"
-git tag -a "v$VERSION" -m "U3 $VERSION"
-git push --atomic origin main "v$VERSION"
-gh release create "v$VERSION" "$DMG" "$TARBALL" "$SIGNATURE_FILE" "$OUT/latest.json" --repo smpbrighton/u3 --verify-tag --title "U3 $VERSION" --generate-notes --latest
-echo "✓ release published: v$VERSION"
+if [[ "$MAC_ONLY" == 1 ]]; then
+  write_metadata latest
+  python3 -I - "$OUT" <<'PYMAC'
+import hashlib, pathlib, sys
+out = pathlib.Path(sys.argv[1])
+files = sorted(path for path in out.iterdir() if path.name.endswith(('.dmg', '.tar.gz', '.sig')) or path.name == 'latest.json')
+(out / 'SHA256SUMS.txt').write_text(''.join(hashlib.sha256(path.read_bytes()).hexdigest() + '  ' + path.name + '\n' for path in files))
+(out / 'release-notes.md').write_text('이 릴리스에는 Windows 설치본이 포함되지 않습니다.\n')
+PYMAC
+  git tag -a "v$VERSION" -m "U3 $VERSION"
+  git push origin "v$VERSION"
+  gh release create "v$VERSION" "$DMG" "$TARBALL" "$SIGNATURE_FILE" "$OUT/latest.json" "$OUT/SHA256SUMS.txt" --repo smpbrighton/u3 --verify-tag --title "U3 $VERSION" --generate-notes --notes-file "$OUT/release-notes.md" --latest
+  echo "✓ release published: v$VERSION"
+else
+  write_metadata fragment
+  python3 -I - "$HERE/scripts/release-notes-windows.md" "$OUT/release-notes.md" "$VERSION" <<'PYNOTES'
+import pathlib, sys
+pathlib.Path(sys.argv[2]).write_text(pathlib.Path(sys.argv[1]).read_text().replace('<version>', sys.argv[3]))
+PYNOTES
+  gh release create "v$VERSION" "$DMG" "$TARBALL" "$SIGNATURE_FILE" "$OUT/darwin.fragment.json" --repo smpbrighton/u3 --draft --target "$COMMIT_SHA" --title "U3 $VERSION" --notes-file "$OUT/release-notes.md"
+  git tag -a "v$VERSION" -m "U3 $VERSION"
+  git push origin "v$VERSION"
+  echo "✓ release drafted: v$VERSION"
+fi

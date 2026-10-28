@@ -1,0 +1,242 @@
+name: Windows build
+on:
+  pull_request:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: '재빌드할 기존 버전 태그 (예: v0.4.0)'
+        required: true
+        type: string
+
+permissions:
+  contents: read
+concurrency:
+  group: windows-${{ github.event.pull_request.number || inputs.tag || github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  inspect:
+    if: github.event_name != 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    outputs:
+      build: ${{ steps.meta.outputs.build }}
+      tag: ${{ steps.meta.outputs.tag }}
+      sha: ${{ steps.meta.outputs.sha }}
+      version: ${{ steps.meta.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ inputs.tag || github.ref }}
+          fetch-depth: 0
+      - id: meta
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ inputs.tag || github.ref_name }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$RELEASE_TAG" =~ ^v(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$ ]]
+          sha=$(git rev-parse "$RELEASE_TAG^{commit}")
+          [[ "$(git rev-parse HEAD)" == "$sha" ]]
+          git merge-base --is-ancestor "$sha" origin/main
+          version=${RELEASE_TAG#v}
+          python3 - "$version" <<'PY'
+          import json, pathlib, re, sys
+          version = sys.argv[1]
+          assert json.loads(pathlib.Path('package.json').read_text())['version'] == version
+          assert json.loads(pathlib.Path('src-tauri/tauri.conf.json').read_text())['version'] == version
+          assert re.search(r'(?m)^version = "([^"]+)"', pathlib.Path('src-tauri/Cargo.toml').read_text())[1] == version
+          assert re.search(r'name = "u3"\nversion = "([^"]+)"', pathlib.Path('src-tauri/Cargo.lock').read_text())[1] == version
+          PY
+          draft=$(gh release view "$RELEASE_TAG" --repo smpbrighton/u3 --json isDraft --jq .isDraft)
+          echo "tag=$RELEASE_TAG" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+          if [[ "$draft" == true ]]; then
+            echo 'build=true' >> "$GITHUB_OUTPUT"
+          else
+            echo 'build=false' >> "$GITHUB_OUTPUT"
+            echo '공개된 Release는 변경하지 않습니다. Mac 전용 릴리스와 공개 후 재실행은 Windows 작업을 건너뜁니다.' >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+  verify-pr:
+    if: github.event_name == 'pull_request'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    env:
+      GH_TOKEN: ${{ github.token }}
+      U3_RESOURCE_VERSION: ${{ vars.U3_RESOURCE_VERSION }}
+      U3_RESOURCE_SHA256: ${{ vars.U3_RESOURCE_SHA256 }}
+      U3_WINDOWS_UPDATER_PUBLIC_KEY: ${{ vars.U3_WINDOWS_UPDATER_PUBLIC_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.13.0'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.33.0'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - name: Runner 경로 설정
+        shell: pwsh
+        run: |
+          $paths = @{ TMP='tmp'; TEMP='tmp'; TMPDIR='tmp'; CARGO_HOME='cargo'; CARGO_TARGET_DIR='cargo-target'; U3_BUILD_CACHE='u3-build'; npm_config_cache='npm-cache' }
+          foreach ($entry in $paths.GetEnumerator()) {
+            $path = (Join-Path $env:RUNNER_TEMP $entry.Value).Replace('\', '/')
+            New-Item -ItemType Directory -Force $path | Out-Null
+            "$($entry.Key)=$path" | Add-Content $env:GITHUB_ENV
+          }
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/cargo/registry
+            ${{ runner.temp }}/u3-build
+            ${{ runner.temp }}/pnpm-store
+          key: windows-${{ runner.arch }}-whisper-1.9.5-${{ hashFiles('pnpm-lock.yaml', 'src-tauri/Cargo.lock', 'scripts/build-whisper.sh') }}
+      - name: 도구·잠금 파일 설치
+        shell: pwsh
+        run: |
+          cmake --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm install --frozen-lockfile --store-dir "$env:RUNNER_TEMP/pnpm-store"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: 검증과 비밀 없는 패키징
+        shell: pwsh
+        run: ./scripts/windows-build.ps1 -AllowNoResources
+      - uses: actions/upload-artifact@v4
+        with:
+          name: windows-pr-${{ github.sha }}
+          path: out/windows-release/*
+          if-no-files-found: ignore
+
+  windows-release:
+    needs: inspect
+    if: needs.inspect.outputs.build == 'true'
+    runs-on: windows-latest
+    timeout-minutes: 60
+    environment: release
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ needs.inspect.outputs.tag }}
+      RELEASE_SHA: ${{ needs.inspect.outputs.sha }}
+      RELEASE_VERSION: ${{ needs.inspect.outputs.version }}
+      U3_RESOURCE_VERSION: ${{ vars.U3_RESOURCE_VERSION }}
+      U3_RESOURCE_SHA256: ${{ vars.U3_RESOURCE_SHA256 }}
+      U3_WINDOWS_UPDATER_PUBLIC_KEY: ${{ vars.U3_WINDOWS_UPDATER_PUBLIC_KEY }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.inspect.outputs.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.13.0'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.33.0'
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: x86_64-pc-windows-msvc
+      - name: Runner 경로 설정
+        shell: pwsh
+        run: |
+          $paths = @{ TMP='tmp'; TEMP='tmp'; TMPDIR='tmp'; CARGO_HOME='cargo'; CARGO_TARGET_DIR='cargo-target'; U3_BUILD_CACHE='u3-build'; npm_config_cache='npm-cache' }
+          foreach ($entry in $paths.GetEnumerator()) {
+            $path = (Join-Path $env:RUNNER_TEMP $entry.Value).Replace('\', '/')
+            New-Item -ItemType Directory -Force $path | Out-Null
+            "$($entry.Key)=$path" | Add-Content $env:GITHUB_ENV
+          }
+          if (-not $env:U3_WINDOWS_UPDATER_PUBLIC_KEY) { throw 'Windows updater 공개키를 등록하세요' }
+          $mac = (Get-Content -Raw src-tauri/tauri.conf.json | ConvertFrom-Json).plugins.updater.pubkey
+          if ($mac -eq $env:U3_WINDOWS_UPDATER_PUBLIC_KEY) { throw 'Mac updater 키를 Windows에 재사용할 수 없습니다' }
+      - uses: actions/cache@v4
+        with:
+          path: |
+            ${{ runner.temp }}/cargo/registry
+            ${{ runner.temp }}/u3-build
+            ${{ runner.temp }}/pnpm-store
+          key: windows-${{ runner.arch }}-whisper-1.9.5-${{ hashFiles('pnpm-lock.yaml', 'src-tauri/Cargo.lock', 'scripts/build-whisper.sh') }}
+      - name: 도구·잠금 파일 설치
+        shell: pwsh
+        run: |
+          cmake --version
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm install --frozen-lockfile --store-dir "$env:RUNNER_TEMP/pnpm-store"
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: 패키징·native·설치 검증
+        shell: pwsh
+        run: ./scripts/windows-build.ps1
+      - name: Windows updater 서명과 fragment
+        shell: pwsh
+        env:
+          TAURI_SIGNING_PRIVATE_KEY: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY }}
+          TAURI_SIGNING_PRIVATE_KEY_PASSWORD: ${{ secrets.TAURI_SIGNING_PRIVATE_KEY_PASSWORD }}
+        run: |
+          if (-not $env:TAURI_SIGNING_PRIVATE_KEY) { throw 'Windows updater 개인키를 등록하세요' }
+          pnpm --silent tauri signer sign --app-version $env:RELEASE_VERSION $env:U3_WINDOWS_SETUP_FILE > $null
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+          pnpm exec tsx scripts/publish-release.ts fragment windows-x86_64 $env:RELEASE_VERSION $env:RELEASE_SHA $env:U3_WINDOWS_RELEASE_DIR
+          if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+      - name: Draft 자산 업로드
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(gh release view "$RELEASE_TAG" --repo smpbrighton/u3 --json isDraft --jq .isDraft)" == true ]]
+          gh release upload "$RELEASE_TAG" "$U3_WINDOWS_SETUP_FILE" "$U3_WINDOWS_SETUP_FILE.sig" "$U3_WINDOWS_RELEASE_DIR/windows.fragment.json" --repo smpbrighton/u3 --clobber
+
+  publish:
+    needs: [inspect, windows-release]
+    if: needs.windows-release.result == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    permissions:
+      contents: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      RELEASE_TAG: ${{ needs.inspect.outputs.tag }}
+      RELEASE_SHA: ${{ needs.inspect.outputs.sha }}
+      RELEASE_VERSION: ${{ needs.inspect.outputs.version }}
+      TMPDIR: ${{ runner.temp }}/tmp
+      CARGO_HOME: ${{ runner.temp }}/cargo
+      CARGO_TARGET_DIR: ${{ runner.temp }}/target
+      U3_BUILD_CACHE: ${{ runner.temp }}/u3-build
+      npm_config_cache: ${{ runner.temp }}/npm-cache
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.inspect.outputs.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24.13.0'
+      - uses: pnpm/action-setup@v4
+        with:
+          version: '10.33.0'
+      - name: 잠금 파일 설치
+        run: |
+          mkdir -p "$TMPDIR"
+          pnpm install --frozen-lockfile --store-dir "$RUNNER_TEMP/pnpm-store"
+      - name: 두 플랫폼 검증과 최종 공개
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$(git rev-parse "$RELEASE_TAG^{commit}")" == "$RELEASE_SHA" ]]
+          [[ "$(gh release view "$RELEASE_TAG" --repo smpbrighton/u3 --json isDraft --jq .isDraft)" == true ]]
+          mkdir -p out/publish
+          gh release download "$RELEASE_TAG" --repo smpbrighton/u3 --dir out/publish
+          pnpm exec tsx scripts/publish-release.ts publish "$RELEASE_VERSION" "$RELEASE_SHA" out/publish
+          python3 - "$RELEASE_VERSION" <<'PY'
+          import pathlib, sys
+          text = pathlib.Path('scripts/release-notes-windows.md').read_text().replace('<version>', sys.argv[1])
+          pathlib.Path('out/publish/release-notes.md').write_text(text)
+          PY
+          [[ "$(gh release view "$RELEASE_TAG" --repo smpbrighton/u3 --json isDraft --jq .isDraft)" == true ]]
+          gh release upload "$RELEASE_TAG" out/publish/latest.json out/publish/SHA256SUMS.txt --repo smpbrighton/u3 --clobber
+          gh release edit "$RELEASE_TAG" --repo smpbrighton/u3 --draft=false --latest --notes-file out/publish/release-notes.md

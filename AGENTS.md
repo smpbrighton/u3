@@ -7,7 +7,8 @@
 - 개발: `pnpm dev`
 - 패키징: `pnpm package` — ad-hoc `.app`과 `.dmg`를 만든다.
 - 프롬프트 공개: `scripts/publish-prompts.sh` — 깨끗한 main의 기본 프롬프트를 `prompts` prerelease에 올린다. 정상 출력: `✓ prompts published: schema 1 revision 1`.
-- 릴리스: `scripts/release.sh <버전>` — 깨끗한 main에서 서명·공증 뒤 GitHub Releases에 배포한다. 정상 출력: `✓ release published: v<버전>`.
+- 릴리스: `scripts/release.sh <버전>` — 깨끗한 main에서 Mac 자산을 draft에 올린다. Actions가 Windows 검증 후 공개한다. 정상 출력: `✓ release drafted: v<버전>`.
+- 긴급 Mac 릴리스: `scripts/release.sh --mac-only <버전>` — Windows 미포함으로 바로 공개한다. 정상 출력: `✓ release published: v<버전>`.
 
 완료 전 검증 명령을 실행하고 출력을 보고한다. 실패하면 코드를 고친다.
 
