@@ -284,12 +284,12 @@ mod bundled_engine_tests {
             ("U3_RESOURCE_DIR", ""), ("U3_FONT_DIR", "assets/fonts"), ("U3_LIBRARY_DIR", "library"),
             ("U3_MRX_MODEL", "models/mrx.int8.onnx"),
             ("U3_SILERO_MODEL", "models/ggml-silero-v6.2.0.bin"), ("U3_REMOTION_BUNDLE", "remotion-bundle"),
-            ("U3_CHROME_EXECUTABLE", "chrome/chrome-headless-shell"),
-
         ] {
             let expected = if relative.is_empty() { resources.clone() } else { resources.join(relative) };
             assert_eq!(env.get(key).unwrap(), &expected.to_string_lossy());
         }
+        // chrome 경로는 코드가 join 을 두 번 하므로 OS 구분자로 이어진다. 기대값도 같은 방식으로 만든다.
+        assert_eq!(env.get("U3_CHROME_EXECUTABLE").unwrap(), &resources.join("chrome").join("chrome-headless-shell").to_string_lossy());
         assert_eq!(env.get("U3_WHISPER_CLI").unwrap(), &resources.join(format!("bin/whisper-cli{}", platform::EXE_SUFFIX)).to_string_lossy());
         for (key, name) in [("FFMPEG_BIN", "ffmpeg"), ("FFPROBE_BIN", "ffprobe")] {
             assert_eq!(env.get(key).unwrap(), &resources.join(format!("node_modules/{}/{}{}", platform::COMPOSITOR, name, platform::EXE_SUFFIX)).to_string_lossy());
