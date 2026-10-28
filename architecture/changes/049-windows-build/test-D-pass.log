@@ -1,0 +1,9 @@
+
+ RUN  v5.0.5 /Volumes/X31/workspace/smp_workspace/u3-049-windows-build
+
+
+ Test Files  1 passed (1)
+      Tests  3 passed (3)
+   Start at  20:25:59
+   Duration  239ms (tests 36%, import 29%, worker 19%, transform 15%)
+

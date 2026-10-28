@@ -149,6 +149,7 @@ try {
   await checkDylibs(join(onnxDir, "libonnxruntime.1.22.0.dylib"), onnxDir);
   } else {
     await mkdir(join(resources, "bin"), { recursive: true });
+    await cp(join(root, "scripts/install-vc-runtime.ps1"), join(resources, "bin/u3-install-vc-runtime.ps1"));
     const helperTarget = join(cache, "key-store-target");
     execFileSync("cargo", ["build", "--release", "--manifest-path", join(root, "native/u3-key-store/Cargo.toml"), "--target-dir", helperTarget], { stdio: "inherit", windowsHide: true });
     await cp(join(helperTarget, "release/u3-key-store.exe"), join(resources, "bin/u3-key-store.exe"));
