@@ -16,6 +16,38 @@ describe("스튜디오 단축키", () => {
     expect(studioShortcut({ key: "Process", code: "", keyCode: 229 })).toBeNull();
   });
 
+  it.each(["button", "tab", "switch", "checkbox", "radio"])("%s 포커스에서는 Space만 막고 편집 단축키를 허용한다", targetRole => {
+    expect(studioShortcut({ key: "ㅊ", code: "KeyC", targetRole })).toBe("split-pointer");
+    expect(studioShortcut({ key: "ㄴ", code: "KeyS", targetRole })).toBe("split-playhead");
+    expect(studioShortcut({ key: "Delete", code: "Delete", targetRole })).toBe("delete");
+    expect(studioShortcut({ key: "Backspace", code: "Backspace", targetRole })).toBe("delete");
+    expect(studioShortcut({ key: "m", code: "KeyM", metaKey: true, targetRole })).toBe("group");
+    expect(studioShortcut({ key: "z", code: "KeyZ", ctrlKey: true, targetRole })).toBe("undo");
+    expect(studioShortcut({ key: " ", code: "Space", targetRole })).toBeNull();
+    expect(studioShortcut({ key: " ", targetRole })).toBeNull();
+  });
+
+  it("role이 없는 기본 버튼에서도 Space만 막는다", () => {
+    expect(studioShortcut({ key: "c", code: "KeyC", targetTagName: "BUTTON" })).toBe("split-pointer");
+    expect(studioShortcut({ key: " ", code: "Space", targetTagName: "BUTTON" })).toBeNull();
+  });
+
+  it("글 입력 밖에서는 조합 중이어도 물리 키 코드로 판정한다", () => {
+    expect(studioShortcut({ key: "ㅊ", code: "KeyC", isComposing: true })).toBe("split-pointer");
+    expect(studioShortcut({ key: "ㄴ", code: "KeyS", isComposing: true, keyCode: 229, targetRole: "tab" })).toBe("split-playhead");
+    expect(studioShortcut({ key: "Process", code: "KeyC", keyCode: 229 })).toBe("split-pointer");
+    expect(studioShortcut({ key: "c", isComposing: true })).toBeNull();
+    expect(studioShortcut({ key: "ㅊ", code: "KeyC", isComposing: true, targetTagName: "INPUT" })).toBeNull();
+    expect(studioShortcut({ key: "ㅊ", code: "KeyC", isComposing: true, targetIsContentEditable: true })).toBeNull();
+  });
+
+  it.each(["slider", "combobox", "listbox", "option", "textbox", "searchbox", "spinbutton"])("%s 입력에서는 물리 키 코드가 있어도 단축키를 막는다", targetRole => {
+    expect(studioShortcut({ key: "c", code: "KeyC", targetRole })).toBeNull();
+    expect(studioShortcut({ key: "ㅊ", code: "KeyC", isComposing: true, targetRole })).toBeNull();
+    expect(studioShortcut({ key: "Delete", code: "Delete", targetRole })).toBeNull();
+    expect(studioShortcut({ key: "z", code: "KeyZ", metaKey: true, targetRole })).toBeNull();
+  });
+
   it("수정 키, 입력 요소와 select 안에서 금지된 단축키를 막는다", () => {
     expect(studioShortcut({ key: "c", code: "KeyC", ctrlKey: true })).toBeNull();
     expect(studioShortcut({ key: "s", code: "KeyS", altKey: true })).toBeNull();
