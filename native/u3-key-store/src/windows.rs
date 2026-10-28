@@ -48,6 +48,10 @@ fn crypt(input: &mut [u8], protect: bool) -> Result<Vec<u8>> { unsafe {
     } else {
         CryptUnprotectData(&data, None, None, None, None, CRYPTPROTECT_UI_FORBIDDEN, &mut output)?;
     }
+    if output.pbData.is_null() || output.cbData == 0 {
+        if !output.pbData.is_null() { let _ = LocalFree(Some(HLOCAL(output.pbData.cast()))); }
+        return Err("empty data".into());
+    }
     let result = std::slice::from_raw_parts(output.pbData, output.cbData as usize).to_vec();
     std::ptr::write_bytes(output.pbData, 0, output.cbData as usize);
     let _ = LocalFree(Some(HLOCAL(output.pbData.cast())));
