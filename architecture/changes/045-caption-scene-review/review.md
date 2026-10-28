@@ -1,5 +1,5 @@
 # Review: caption-scene-review
-Author: claude-opus-5-5. Status: draft. Round: 1.
+Author: claude-opus-5-5. Status: accepted. Round: 1.
 
 ## 대조한 것
 - 이 변경: `architecture/changes/045-caption-scene-review/intent.md`, `spec.md`. 앞선 라운드 review 는 없다(템플릿 상태였다).
