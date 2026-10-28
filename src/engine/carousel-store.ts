@@ -174,9 +174,8 @@ export class CarouselStore {
 
   async addSlide(id: string, sec?: number): Promise<CarouselData> {
     return this.changeReviewSlides(id, current => {
-      const slide = newSlide(current.source, current.slides.at(-1));
+      const slide = newSlide(current.source, current.aspect, current.slides.at(-1));
       slide.id = `slide-${randomBytes(8).toString("hex")}`;
-      slide.texts = defaultTexts(current.aspect);
       if (sec !== undefined && slide.background.kind === "frame") slide.background.sec = sec;
       return [...current.slides, slide];
     });

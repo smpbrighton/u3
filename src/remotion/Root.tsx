@@ -2,6 +2,7 @@ import { Composition } from "remotion";
 import { U3Short } from "./U3Short";
 import type { U3ShortProps } from "./types";
 import { CarouselSlide, type CarouselSlideProps } from "./CarouselSlide";
+import { defaultTexts } from "../core/carousel";
 import { carouselCanvasSize } from "./carousel-layout";
 
 export const RemotionRoot: React.FC = () => (
@@ -19,7 +20,7 @@ export const RemotionRoot: React.FC = () => (
   <Composition
     id="CarouselSlide"
     component={CarouselSlide}
-    defaultProps={{ imageUrl: "", title: "", body: "", textPlacement: "bottom", aspect: "4:5" } satisfies CarouselSlideProps}
+    defaultProps={{ imageUrl: "", texts: defaultTexts("4:5"), brightness: 1, shade: 0.35, aspect: "4:5" } satisfies CarouselSlideProps}
     width={carouselCanvasSize("4:5").width}
     height={carouselCanvasSize("4:5").height}
     fps={30}

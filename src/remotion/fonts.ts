@@ -7,7 +7,7 @@ import gmarketBold from "../../assets/fonts/GmarketSansTTFBold.ttf";
 import tmonMonsori from "../../assets/fonts/TmonMonsori.otf";
 import { FONT_FILES } from "../core/fonts";
 
-export { FONT_FAMILY, FONT_FILES } from "../core/fonts";
+export { FONT_FAMILY, FONT_FILES, CAPTION_FONT_FAMILY } from "../core/fonts";
 
 let pending: Promise<void> | null = null;
 const FONT_URLS = [pretendardRegular, pretendardBold, gmarketBold, tmonMonsori, blackHanSansRegular];

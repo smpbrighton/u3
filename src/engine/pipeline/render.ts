@@ -137,6 +137,7 @@ export async function renderCarouselSlide(options: {
   carousel: Carousel;
   slide: CarouselSlide;
   imageUrl: string;
+  logoUrl?: string;
   outputPath: string;
   browserExecutable?: string;
 }) {
@@ -145,9 +146,11 @@ export async function renderCarouselSlide(options: {
   if (!hasImage) throw new Error("프레임 또는 이미지가 준비되지 않은 장입니다");
   const props = {
     imageUrl: options.imageUrl,
-    title: options.slide.title,
-    body: options.slide.body,
-    textPlacement: options.slide.textPlacement,
+    texts: options.slide.texts,
+    logo: options.slide.logo,
+    logoUrl: options.logoUrl,
+    brightness: options.slide.brightness,
+    shade: options.slide.shade,
     aspect: options.carousel.aspect,
     ...(background.kind === "frame" ? {
       frameCropY: background.cropY,

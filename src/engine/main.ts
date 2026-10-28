@@ -108,6 +108,7 @@ const app = createApp({
       carousel,
       slide,
       imageUrl: mediaServer.url("carousels", `${carousel.id}/${asset.file}`),
+      ...(slide.logo?.enabled ? { logoUrl: mediaServer.url("carousels", `${carousel.id}/${slide.logo.file}`) } : {}),
       outputPath: destination,
     });
   },

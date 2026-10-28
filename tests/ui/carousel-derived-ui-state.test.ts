@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { canDownloadSlides, canReextractFrame, defaultHighlightBox, derivedFrameDuration, frameTimeRange, highlightRequestBody, showsBackgroundSection } from "../../src/ui/screens/carousel/derived-ui-state";
-import type { CarouselSlide } from "../../src/core/carousel";
+import { newSlide, type CarouselSlide } from "../../src/core/carousel";
 
 const generated = { kind: "generated" as const };
 const frame = { kind: "frame" as const, sec: 2.4, cropY: 0.5, status: "done" as const };
@@ -26,8 +26,8 @@ describe("derived carousel UI state", () => {
 
   it("prefers a saved timeline duration and falls back for older derived carousels", () => {
     const slides = [
-      { id: "slide-1", title: "", body: "", textPlacement: "bottom" as const, background: { ...frame, sec: 4.5 }, status: "idle" as const },
-      { id: "slide-2", title: "", body: "", textPlacement: "bottom" as const, background: { ...frame, sec: 8.2 }, status: "idle" as const },
+      { ...newSlide({ kind: "topic" }, "4:5"), id: "slide-1", background: { ...frame, sec: 4.5 }, status: "idle" as const },
+      { ...newSlide({ kind: "topic" }, "4:5"), id: "slide-2", background: { ...frame, sec: 8.2 }, status: "idle" as const },
     ] as CarouselSlide[];
     expect(derivedFrameDuration(42, 60, slides)).toBe(42);
     expect(derivedFrameDuration(undefined, 60, slides)).toBe(60);
@@ -36,7 +36,7 @@ describe("derived carousel UI state", () => {
   });
 
   it("disables download when no slide is complete", () => {
-    const idle = { id: "slide-1", title: "", body: "", textPlacement: "bottom" as const, background: { kind: "generated" as const }, status: "idle" as const } as CarouselSlide;
+    const idle = { ...newSlide({ kind: "topic" }, "4:5"), id: "slide-1", background: { kind: "generated" as const }, status: "idle" as const } as CarouselSlide;
     const done = { ...idle, image: { file: "images/slide-1.png" }, status: "done" as const };
     expect(canDownloadSlides([idle])).toBe(false);
     expect(canDownloadSlides([done])).toBe(true);

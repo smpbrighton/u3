@@ -67,7 +67,7 @@ export function registerCarouselRoutes(app: Hono, context: AppContext): void {
     const input = await parseJson(c, z.object({ name: z.string().trim().min(1).max(120).optional(), topic: z.string().trim().min(1).max(1000), slideCount: z.number().int().min(2).max(10).default(5), style: z.string().max(1000).optional(), aspect: ImageOptions.shape.aspect.optional() }));
     const imageOptions = await options(context);
     const aspect = input.aspect ?? imageOptions.aspect;
-    const value = await store.createCarousel({ name: input.name ?? input.topic.slice(0, 60), topic: input.topic, aspect, style: input.style, stage: "review", slides: Array.from({ length: input.slideCount }, (_, index) => ({ ...newSlide({ kind: "topic" }), id: `slide-${index + 1}`, texts: defaultTexts(aspect) })) });
+    const value = await store.createCarousel({ name: input.name ?? input.topic.slice(0, 60), topic: input.topic, aspect, style: input.style, stage: "review", slides: Array.from({ length: input.slideCount }, (_, index) => ({ ...newSlide({ kind: "topic" }, aspect), id: `slide-${index + 1}` })) });
     return c.json(value, 201);
   });
   app.get("/api/carousels/:id", async c => c.json(await store.requireCarousel(c.req.param("id"))));
@@ -127,7 +127,7 @@ export function registerCarouselRoutes(app: Hono, context: AppContext): void {
       name: `${project.name} 캐러셀`, source: { kind: "project", projectId: project.id, projectName: project.name, durationSec: timelineVideoDuration(project.timeline) },
       stage: "review", caption: plan.caption, aspect,
       slides: plan.slides.map((slide, index) => ({
-        ...newSlide({ kind: "project", projectId: project.id, projectName: project.name }), id: `slide-${index + 1}`,
+        ...newSlide({ kind: "project", projectId: project.id, projectName: project.name }, aspect), id: `slide-${index + 1}`,
         texts: defaultTexts(aspect).map(text => ({ ...text, text: text.role === "title" ? slide.title : slide.body })),
         sceneNumber: slide.sceneNumber, background: { kind: "frame", sec: slide.sec, cropY: 0.5, status: "idle", highlight: { style: "border", target: slide.target } },
       })),

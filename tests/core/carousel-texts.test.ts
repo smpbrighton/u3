@@ -36,13 +36,13 @@ describe("carousel text objects", () => {
     expect(Carousel.safeParse({ ...base, caption: "a".repeat(2001), slides: [] }).success).toBe(false);
   });
   it("initializes topic and project slides without sharing text objects", () => {
-    const topic = newSlide({ kind: "topic" });
+    const topic = newSlide({ kind: "topic" }, "4:5");
     expect(topic.texts.map(t => t.text)).toEqual(["", ""]);
     expect(topic.imagePrompt).toBe("");
     expect(topic.background).toEqual({ kind: "generated" });
-    const previous = { ...newSlide({ kind: "project", projectId: "p", projectName: "영상" }), sceneNumber: 3,
+    const previous = { ...newSlide({ kind: "project", projectId: "p", projectName: "영상" }, "4:5"), sceneNumber: 3,
       background: { kind: "frame" as const, sec: 8, cropY: 0.2, status: "done" as const, highlight: { style: "border" as const, target: "상품" } } };
-    const derived = newSlide({ kind: "project", projectId: "p", projectName: "영상" }, previous);
+    const derived = newSlide({ kind: "project", projectId: "p", projectName: "영상" }, "4:5", previous);
     expect(derived.sceneNumber).toBe(3);
     expect(derived.background).toMatchObject({ kind: "frame", sec: 8, cropY: 0.5, highlight: { style: "none", target: "" } });
     expect(derived.id).not.toBe(previous.id);
@@ -58,4 +58,16 @@ describe("script frame times", () => {
     expect(nearestScriptFrame([], 2)).toBeNull();
     expect(scriptFrameSecs(0, 8)).toEqual([]);
   });
+});
+
+
+describe("new slide aspect", () => {
+  for (const aspect of ["4:5", "1:1", "9:16", "16:9"] as const) {
+    it(`initializes text geometry for ${aspect}`, () => {
+      const slide = newSlide({ kind: "topic" }, aspect);
+      expect(slide.texts).toEqual(defaultTexts(aspect));
+      const derived = newSlide({ kind: "project", projectId: "p", projectName: "영상" }, aspect);
+      expect(derived.texts).toEqual(defaultTexts(aspect));
+    });
+  }
 });

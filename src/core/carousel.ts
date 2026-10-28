@@ -71,9 +71,9 @@ export const CarouselSlide = z.object({
 });
 export type CarouselSlide = z.infer<typeof CarouselSlide>;
 
-export function newSlide(source: z.infer<typeof CarouselSource>, previous?: CarouselSlide): CarouselSlide {
+export function newSlide(source: z.infer<typeof CarouselSource>, aspect: CarouselAspect, previous?: CarouselSlide): CarouselSlide {
   return CarouselSlide.parse({
-    id: previous ? `${previous.id}-next` : "slide-1", texts: defaultTexts("4:5"),
+    id: previous ? `${previous.id}-next` : "slide-1", texts: defaultTexts(aspect),
     ...(source.kind === "project" ? { sceneNumber: previous?.sceneNumber ?? 1 } : {}),
     background: source.kind === "project"
       ? { kind: "frame", sec: previous?.background.kind === "frame" ? previous.background.sec : 0, cropY: 0.5, highlight: { style: "none", target: "" } }

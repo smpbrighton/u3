@@ -81,7 +81,7 @@ describe("CarouselStore", () => {
 describe("carousel review storage", () => {
   async function review(store: CarouselStore) {
     return store.createCarousel({ name: "검토", topic: "주제", aspect: "4:5", stage: "review", caption: "캡션", slides: [
-      newSlide({ kind: "topic" }), { ...newSlide({ kind: "topic" }), id: "slide-2" },
+      newSlide({ kind: "topic" }, "4:5"), { ...newSlide({ kind: "topic" }, "4:5"), id: "slide-2" },
     ] });
   }
   it("enforces 2–10 slides and exact reorder ids in review only", async () => {
@@ -107,7 +107,7 @@ describe("carousel review storage", () => {
   it("preserves the frame, scene and user image when replacing a plan", async () => {
     const store = await storeWith();
     const source = { kind: "project" as const, projectId: "p", projectName: "영상" };
-    const slide = { ...newSlide(source), sceneNumber: 2, background: { kind: "frame" as const, sec: 4, cropY: 0.2, status: "done" as const, frame: { file: "frames/s.png" } } };
+    const slide = { ...newSlide(source, "4:5"), sceneNumber: 2, background: { kind: "frame" as const, sec: 4, cropY: 0.2, status: "done" as const, frame: { file: "frames/s.png" } } };
     const c = await store.createCarousel({ name: "영상", source, stage: "review", aspect: "4:5", slides: [slide] });
     const result = await store.replacePlan(c.id, { caption: "게시 글", slides: [{ title: "새 제목", body: "새 본문", imagePrompt: "" }] });
     expect(result.slides[0]!.background).toEqual(slide.background);

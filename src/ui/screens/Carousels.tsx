@@ -133,12 +133,12 @@ function CarouselWorkspace(props: { carousel: Carousel; jobs: Job[]; onBack: () 
   useBeforeUpdateRestart(async () => {
     if (!current || !slide || !edited) return;
     const updated = await api<Carousel>("PATCH", `/api/carousels/${props.carousel.id}/slides/${slide.id}`, {
-      title: current.title, body: current.body, textPlacement: current.textPlacement, imagePrompt: current.imagePrompt,
+      texts: current.texts, imagePrompt: current.imagePrompt,
     });
     props.onUpdate(updated);
   });
 
-  useEffect(() => { setEdited(null); }, [slide?.id, slide?.title, slide?.body, slide?.textPlacement, slide?.imagePrompt, slide?.background]);
+  useEffect(() => { setEdited(null); }, [slide?.id, slide?.texts, slide?.imagePrompt, slide?.background]);
   useEffect(() => { setHighlightChoice(slide?.background.kind === "frame" ? slide.background.highlight?.style ?? "border" : "border"); }, [slide?.id, slide?.background]);
   useEffect(() => {
     let live = true;
@@ -156,7 +156,7 @@ function CarouselWorkspace(props: { carousel: Carousel; jobs: Job[]; onBack: () 
     else setImageUrl("");
     return () => { active = false; };
   }, [props.carousel.id, slide?.image?.file, slide?.background]);
-  async function persist(fields: Partial<Pick<Slide, "title" | "body" | "textPlacement" | "imagePrompt">>) {
+  async function persist(fields: Partial<Pick<Slide, "texts" | "imagePrompt">>) {
     if (!slide) return;
     try { const updated = await api<Carousel>("PATCH", `/api/carousels/${props.carousel.id}/slides/${slide.id}`, fields); props.onUpdate(updated); setEdited(updated.slides.find(item => item.id === slide.id) ?? null); }
     catch (error) { props.onError(message(error)); }
@@ -219,15 +219,15 @@ function CarouselWorkspace(props: { carousel: Carousel; jobs: Job[]; onBack: () 
     <div className="carousel-editor">
       <aside className="carousel-slides" aria-label="캐러셀 장 목록">{props.carousel.slides.map((item, index) => <button type="button" key={item.id} aria-pressed={item.id === slide?.id} className="carousel-slide-choice" onClick={() => setSelectedId(item.id)}><span className="carousel-slide-thumb" style={{ aspectRatio: `${size.width} / ${size.height}` }}>{slideImage(item) ? <CarouselImage carouselId={props.carousel.id} file={slideImage(item)!.file} /> : <span>{index + 1}</span>}</span><span className="carousel-slide-label">{index + 1}장 <small>{slideStatus(item) === "idle" || slideStatus(item) === "queued" ? "대기" : slideStatus(item) === "running" ? "생성 중" : slideStatus(item) === "done" ? "완료" : "실패"}</small></span></button>)}</aside>
       <main className="carousel-preview-area"><div className="carousel-player" style={{ aspectRatio: `${size.width} / ${size.height}` }}>{slide && current ? <>
-        <Player component={CarouselSlide} inputProps={{ imageUrl, title: current.title, body: current.body, textPlacement: current.textPlacement, aspect: props.carousel.aspect, frameCropY: currentFrame?.cropY, highlight: highlightChoice === "none" || currentFrame?.highlight?.style === "ai-outline" ? undefined : currentFrame?.highlight as { style: "border" | "dim" | "zoom"; box?: import("../../core/carousel").CarouselBox; color?: string; width?: number } }} durationInFrames={1} fps={30} compositionWidth={size.width} compositionHeight={size.height} controls={false} style={{ width: "100%", height: "100%" }} />
+        <Player component={CarouselSlide} inputProps={{ imageUrl, texts: current.texts, brightness: current.brightness, shade: current.shade, aspect: props.carousel.aspect, frameCropY: currentFrame?.cropY, highlight: highlightChoice === "none" || currentFrame?.highlight?.style === "ai-outline" ? undefined : currentFrame?.highlight as { style: "border" | "dim" | "zoom"; box?: import("../../core/carousel").CarouselBox; color?: string; width?: number } }} durationInFrames={1} fps={30} compositionWidth={size.width} compositionHeight={size.height} controls={false} style={{ width: "100%", height: "100%" }} />
         {currentFrame && box && highlightChoice !== "none" ? <PreviewEditLayer targets={editTargets} selectedId={boxSelected ? slide.id : null} safeZone={false} onSelect={() => setBoxSelected(true)} onDragStart={() => undefined} onPreview={() => undefined} onCommit={(_id, next) => { const nextBox = { left: next.x, top: next.y, right: next.x + next.width, bottom: next.y + next.height }; void saveHighlight({ box: nextBox }); }} /> : null}
         </> : <p>장을 선택해 주세요.</p>}</div><p className="carousel-preview-caption">{slide ? `${props.carousel.aspect} · ${props.carousel.slides.findIndex(item => item.id === slide.id) + 1} / ${props.carousel.slides.length}장` : ""}</p>
         {currentFrame && !box && highlightChoice !== "none" ? <div className="carousel-box-empty"><p>{sourceAvailable ? "자동 상자를 찾지 못했어요. Jev가 꺼져 있거나 신뢰도가 낮아요." : "자동 상자를 찾지 못했어요. 상자를 직접 그려 주세요."}</p><ActionButton variant="neutralWeak" onClick={() => void saveHighlight({ box: defaultHighlightBox() })}>상자 그리기</ActionButton></div> : null}
       </main>
       <aside className="carousel-inspector" aria-label="장 편집">{current ? <>
-        <TextField label="제목" value={current.title} maxGraphemeCount={500} onValueChange={({ value }) => setEdited({ ...current, title: value })}><TextFieldInput maxLength={500} onBlur={() => void persist({ title: current.title })} /></TextField>
-        <TextField label="본문" value={current.body} maxGraphemeCount={5000} onValueChange={({ value }) => setEdited({ ...current, body: value })}><TextFieldTextarea maxLength={5000} onBlur={() => void persist({ body: current.body })} /></TextField>
-        <div className="carousel-placement"><span>텍스트 위치</span><SegmentedControl aria-label="텍스트 위치" value={current.textPlacement} onValueChange={value => { const textPlacement = value as Slide["textPlacement"]; setEdited({ ...current, textPlacement }); void persist({ textPlacement }); }}><SegmentedControlItem value="top">위</SegmentedControlItem><SegmentedControlItem value="center">가운데</SegmentedControlItem><SegmentedControlItem value="bottom">아래</SegmentedControlItem></SegmentedControl></div>
+        <TextField label="제목" value={current.texts[0]!.text} maxGraphemeCount={500} onValueChange={({ value }) => setEdited({ ...current, texts: current.texts.map((text, i) => i === 0 ? { ...text, text: value } : text) })}><TextFieldInput maxLength={500} onBlur={() => void persist({ texts: current.texts })} /></TextField>
+        <TextField label="본문" value={current.texts[1]!.text} maxGraphemeCount={5000} onValueChange={({ value }) => setEdited({ ...current, texts: current.texts.map((text, i) => i === 1 ? { ...text, text: value } : text) })}><TextFieldTextarea maxLength={5000} onBlur={() => void persist({ texts: current.texts })} /></TextField>
+        <div className="carousel-placement"><span>텍스트 위치</span><SegmentedControl aria-label="텍스트 위치" value={current.texts[0]!.y < 0.3 ? "top" : current.texts[0]!.y < 0.55 ? "center" : "bottom"} onValueChange={value => { const y = value === "top" ? 0.09 : value === "center" ? 0.40 : 0.62; const texts = current.texts.map((text, i) => i < 2 ? { ...text, y: y + i * 0.1 } : text); setEdited({ ...current, texts }); void persist({ texts }); }}><SegmentedControlItem value="top">위</SegmentedControlItem><SegmentedControlItem value="center">가운데</SegmentedControlItem><SegmentedControlItem value="bottom">아래</SegmentedControlItem></SegmentedControl></div>
         {current.background.kind === "generated" ? <TextField label="이미지 지시문" value={current.imagePrompt} maxGraphemeCount={4000} onValueChange={({ value }) => setEdited({ ...current, imagePrompt: value })}><TextFieldTextarea maxLength={4000} onBlur={() => void persist({ imagePrompt: current.imagePrompt })} /></TextField> : null}
         {showsBackgroundSection(current) && currentFrame ? <BackgroundSection
           sec={currentFrame.sec} cropY={currentFrame.cropY} duration={sourceDuration} sourceAvailable={sourceAvailable} canReextract={canReextractFrame(currentFrame, sourceAvailable)}
