@@ -1,6 +1,6 @@
 # 0025 앱 구조: Tauri 셸 + Node sidecar 엔진 + shadcn UI
 
-Status: accepted
+Status: superseded-by 0032
 Source: changes/043-shadcn-redesign/spec.md
 Supersedes: 0001
 
