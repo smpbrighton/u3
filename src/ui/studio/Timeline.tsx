@@ -1,5 +1,4 @@
 import { Timeline as TimelineEditor, type TimelineState } from "@xzdarcy/react-timeline-editor";
-import "@xzdarcy/react-timeline-editor/dist/react-timeline-editor.css";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { Input, Timeline as TimelineData } from "../../core/schema";
 import { VolumeIcon } from "@hugeicons/core-free-icons";
@@ -8,9 +7,9 @@ import { moveAudioClip, moveCaptionClip, moveOverlayClip, overlayDuration, split
 import { labelForAction, timelineToStudioRows, reorderVideoByStart, type StudioAction, type MemeLabel, type SfxLabel } from "./timeline-adapter";
 import { api, type EngineJob } from "../api";
 import { ttsOverflow } from "../../core/tts-clips";
-import { ActionButton } from "../../../seed-design/ui/action-button";
+import { Button } from "../components/ui/button";
 import { scaleWidthForZoom, scrollLeftForZoomAnchor, zoomFromPinch, zoomFromWheel } from "./timeline-zoom";
-import { TIMELINE_ACTION_INSET, TIMELINE_RULER_HEIGHT, TRACK_ROW_HEIGHT, timelineActionHeight, timelineEditorHeight } from "./timeline-layout";
+import { TIMELINE_ACTION_INSET, TIMELINE_RULER_HEIGHT, TRACK_ROW_HEIGHT, timelineActionHeight, timelineEditorHeight, timelineTrackHeaderLayout } from "./timeline-layout";
 import { findOverlayInLayers } from "../../core/timeline/overlay-layers";
 import { moveOverlayClipToLayer, moveOverlayClipToVideo1, moveVideo1ClipToOverlay } from "../../core/timeline/video-track-edits";
 import { findVideoClipAtTime } from "../../core/timeline/video-pointer";
@@ -20,18 +19,12 @@ import { timelinePointerSeconds } from "./timeline-zoom";
 import { studioShortcut } from "./shortcuts";
 import { audioGroupForRow, normalizeSfxLanes } from "../../core/timeline/sfx-lanes";
 import { timelineTrackLabels, withNewVideoTrackRow } from "./timeline-track-labels";
-import { ToggleButton } from "../../../seed-design/ui/toggle-button";
-import { Icon } from "@seed-design/react";
+import { TrackHeader } from "../components/u3/TrackHeader";
+import { Progress } from "../components/ui/progress";
+import { Input as TextInput } from "../components/ui/input";
+import { updateCaption } from "./CaptionStyleEditor";
+import { captionLayersOf } from "../../core/schema";
 
-const TRACKS = [
-  { id: "captions", name: "자막", color: "#F7A54A" },
-  { id: "video", name: "영상", color: "#608CF5" },
-  { id: "source", name: "원본 소리", color: "#56B981" },
-  { id: "stem-voice", name: "목소리", color: "#24A872" },
-  { id: "stem-bg", name: "배경", color: "#6FAF8A" },
-  { id: "voice", name: "음성", color: "#9673DD" },
-  { id: "sfx", name: "효과음", color: "#E276A7" },
-];
 
 export function Timeline(props: {
   timeline: TimelineData;
@@ -63,6 +56,8 @@ export function Timeline(props: {
   const pointerPosition = useRef<{ x: number; y: number } | null>(null);
   const [sfxItems, setSfxItems] = useState<SfxLabel[]>([]);
   const [memeItems, setMemeItems] = useState<MemeLabel[]>([]);
+  const [scrollTop, setScrollTop] = useState(0);
+  const [editingCaption, setEditingCaption] = useState<string | null>(null);
   const [editorKey, setEditorKey] = useState(0);
   const rows = useMemo(() => timelineToStudioRows(props.timeline), [props.timeline]);
   const displayRows = useMemo(() => withNewVideoTrackRow(rows), [rows]);
@@ -232,12 +227,12 @@ export function Timeline(props: {
     catch (error) { props.onError(error instanceof Error ? error.message : String(error)); }
   };
   const actionStyle = (action: StudioAction) => ({
-    background: TRACKS.find((track) => track.id === action.effectId)?.color ?? (action.effectId === "overlay" ? "#A875D6" : "#8A929E"),
+    background: action.effectId === "main" ? "var(--u3-clip-video)" : action.effectId === "meme" ? "var(--u3-clip-meme)" : action.effectId === "overlay" ? (props.timeline.overlays.flat().some(c => c.id === action.id && "memeId" in c) ? "var(--u3-clip-meme)" : "var(--u3-clip-video)") : action.effectId === "caption" ? "var(--u3-clip-caption)" : tracks.find(t => t.id === action.effectId)?.color ?? "var(--muted)",
     borderRadius: `${action.groupBefore ? 0 : 6}px ${action.groupAfter ? 0 : 6}px ${action.groupAfter ? 0 : 6}px ${action.groupBefore ? 0 : 6}px`,
-    color: "#fff",
+    color: "var(--foreground)",
     fontSize: 11,
     padding: "3px 5px",
-    height: timelineActionHeight(),
+    height: Math.min(22, timelineActionHeight()),
     margin: `${TIMELINE_ACTION_INSET}px 0`,
     display: "flex",
     position: "relative" as const,
@@ -254,12 +249,13 @@ export function Timeline(props: {
   } as CSSProperties}>
     {props.ttsBusy ? <div className="studio-tts-progress" role="status">
       <span>{props.ttsJob?.message ?? "음성 만들기 준비 중"}</span>
-      <progress max={1} value={props.ttsJob?.progress ?? undefined} aria-label="음성 만들기 진행률" />
-      <ActionButton size="xsmall" variant="neutralWeak" disabled={!props.ttsJob} onClick={props.onCancelTts}>취소</ActionButton>
+      <Progress className="max-w-60" value={(props.ttsJob?.progress ?? 0) * 100} aria-label="음성 만들기 진행률" />
+      <Button size="xs" variant="secondary" disabled={!props.ttsJob} onClick={props.onCancelTts}>취소</Button>
     </div> : null}
     <div className="studio-timeline-body">
-      <div className="studio-track-labels">
+      <div className="studio-track-labels" style={{ width: timelineTrackHeaderLayout("", false, false).width }} onWheel={e => { ref.current?.setScrollTop(Math.max(0, Math.min((tracks.length - 10) * TRACK_ROW_HEIGHT, scrollTop + e.deltaY))); }}>
         <div className="studio-track-ruler" />
+        <div className="studio-track-viewport" style={{ height: timelineEditorHeight(tracks.length) - TIMELINE_RULER_HEIGHT }}><div style={{ transform: `translateY(${-scrollTop}px)` }}>
         {tracks.map((track) => {
           const group = audioGroupForRow(track.id);
           const stems = Object.values(props.timeline.audio.stems ?? {});
@@ -269,12 +265,9 @@ export function Timeline(props: {
                 : group === "stem-voice" ? stems.length > 0 && stems.every((item) => item.voice.muted)
                   : group === "stem-bg" ? stems.length > 0 && stems.every((item) => item.bg.muted)
                     : false;
-          return <div key={track.id} className={`studio-track-label${track.id === "voice" ? " studio-tts-track" : ""}`} style={{ borderLeftColor: track.color }}>
-            <span className="studio-track-name">{track.name}</span>
-            {group ? <ToggleButton variant="neutralWeak" size="xsmall" pressed={muted} onPressedChange={() => props.onMute?.(group)} aria-label={muted ? `${track.name} 음소거 해제` : `${track.name} 음소거`} className={`studio-track-mute${muted ? " is-muted" : ""}`}><Icon svg={<HugeiconsIcon icon={VolumeIcon} size={14} />} /></ToggleButton> : null}
-            {track.id === "voice" ? <ActionButton className="studio-tts-button" size="xsmall" variant="neutralWeak" disabled={props.ttsBusy} onClick={props.onGenerateTts}>음성 만들기</ActionButton> : null}
-          </div>;
+          return <TrackHeader key={track.id} title={track.name} selected={props.selectedId === track.id} onSelect={track.id === "captions" || /-(main|sub)$/.test(track.id) ? () => props.onSelect(track.id, "caption-layer") : undefined} actions={group ? <Button variant="ghost" size="icon-xs" aria-pressed={muted} onClick={() => props.onMute?.(group)} aria-label={muted ? `${track.name} 음소거 해제` : `${track.name} 음소거`} title="음소거"><HugeiconsIcon icon={VolumeIcon} size={14} /></Button> : undefined} />;
         })}
+        </div></div>
       </div>
       <div className="studio-timeline-editor" ref={editorHost}>
         <TimelineEditor
@@ -296,14 +289,17 @@ export function Timeline(props: {
           getActionRender={(action) => {
             const item = action as StudioAction;
             const label = labelForAction(action.id, props.timeline, props.inputs, sfxItems, memeItems);
-            const marker = { position: "absolute" as const, top: 1, width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderBottom: "6px solid rgba(255,255,255,.9)" };
-            return <div style={actionStyle(item)} title={ttsWarnings.has(item.id) ? `${label} · 다음 음성과 겹쳐 함께 들린다` : label}>
-              {ttsWarnings.has(item.id) ? <span className="studio-tts-warning" aria-label="다음 음성과 겹쳐 함께 들린다">!</span> : null}
+            const textClip = captionLayersOf(props.timeline).flatMap(l => [...l.main, ...l.sub]).find(c => c.id === item.id);
+            const marker = { position: "absolute" as const, top: 1, width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderBottom: "6px solid var(--muted-foreground)" };
+            return <div style={actionStyle(item)} title={ttsWarnings.has(item.id) ? `${label} · 다음 음성과 겹쳐요` : label}>
+              {ttsWarnings.has(item.id) ? <span className="studio-tts-warning" aria-label="다음 음성과 겹쳐요">!</span> : null}
               {item.startTransition?.kind.kind === "dissolve" ? <span aria-label="시작 디졸브" style={{ ...marker, left: 3 }} /> : null}
-              <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>
+              {editingCaption === item.id && textClip ? <TextInput autoFocus aria-label="자막 바로 고치기" defaultValue={textClip.text} className="h-5 min-w-0 rounded-none border-0 bg-transparent p-0 text-xs" onPointerDown={e => e.stopPropagation()} onBlur={e => { props.onEdit(updateCaption(props.timeline, textClip.id, { text: e.target.value })); setEditingCaption(null); }} onKeyDown={e => { e.stopPropagation(); if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") { e.currentTarget.value = textClip.text; e.currentTarget.blur(); } }} /> : <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>}
               {item.endTransition?.kind.kind === "dissolve" ? <span aria-label="끝 디졸브" style={{ ...marker, right: 3 }} /> : null}
             </div>;
           }}
+          onScroll={({ scrollTop }) => setScrollTop(scrollTop)}
+          onClickRow={() => props.onSelect(null, null)}
           onCursorDrag={(time) => props.onPlayhead(time)}
           onClickTimeArea={(time) => { props.onPlayhead(time); return true; }}
           onClickAction={(event, { action, row }) => { event.stopPropagation(); props.onSelect(action.id, selectedTrack(row.id), event.shiftKey); }}
@@ -367,6 +363,7 @@ export function Timeline(props: {
           onDoubleClickAction={(event, { action, row }) => {
             event.preventDefault(); event.stopPropagation();
             props.onSelect(action.id, selectedTrack(row.id), event.shiftKey);
+            if (row.id === "captions" || /-(main|sub)$/.test(row.id)) setEditingCaption(action.id);
           }}
           onActionMoving={({ row }) => row.id === "source" || row.id.startsWith("stem-") ? false : undefined}
         />

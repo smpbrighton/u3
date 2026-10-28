@@ -2,8 +2,15 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Project, Timeline as TimelineData, VideoClip } from "../../core/schema";
 import { videoDuration, videoStartTimes, VIDEO_TRACK_REQUIRED_MESSAGE } from "../../core/timeline/ops";
 import { createHistory, pushHistory, redo, undo, type TimelineHistory } from "../../core/timeline/history";
-import { ActionButton } from "../../../seed-design/ui/action-button";
-import { Icon } from "@seed-design/react";
+import { Button } from "../components/ui/button";
+import { BusyButton } from "../components/u3/BusyButton";
+import { Toolbar } from "../components/u3/Toolbar";
+import { Popover } from "radix-ui";
+import { Notification03Icon } from "@hugeicons/core-free-icons";
+import { captionLayersOf } from "../../core/schema";
+import { extendStudioSelection, studioTrackForClip } from "../studio/selection";
+import type { StudioTab } from "../studio/LibraryPanel";
+import "../studio/studio.css";
 import { Preview } from "../studio/Preview";
 import { Timeline } from "../studio/Timeline";
 import { Inspector } from "../studio/Inspector";
@@ -11,14 +18,13 @@ import { LibraryPanel, type LibraryDragItem } from "../studio/LibraryPanel";
 import { api, watchJob, type EngineJob } from "../api";
 import { applyTtsResults, ttsItemsFromTimeline, type TtsResult } from "../../core/tts-clips";
 import { ExportDialog } from "../ExportDialog";
-import { StudioSlider, StudioSwitch } from "../studio/SeedControls";
+import { StudioSlider, StudioSwitch } from "../components/u3/StudioControls";
 import { ArrowLeft01Icon, PlayIcon, PauseIcon, Undo02Icon, Redo02Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { replaceMemeClip } from "../studio/replace-meme-clip";
 import { scaleWidthForZoom } from "../studio/timeline-zoom";
 import { decideOverlayDrop } from "../studio/overlay-drop";
 import { VIDEO_TRACK_EDIT_GRID_SELECTOR } from "../studio/video-track-drop";
-import { timelineToStudioRows } from "../studio/timeline-adapter";
 import { TRACK_ROW_HEIGHT } from "../studio/timeline-layout";
 import { DerivedCarouselDialog } from "./carousel/DerivedCarouselDialog";
 import type { Carousel } from "../../core/carousel";
@@ -28,7 +34,7 @@ import { timelineToRender } from "../../core/timeline/to-render";
 import { clampTimeToLastFrame } from "../studio/preview-seek";
 import { studioShortcut } from "../studio/shortcuts";
 import { deleteStudioSelection } from "../studio/delete-selection";
-import { decideNewLaneDrop } from "../studio/library-drop";
+import { libraryDropRows, decideNewLaneDrop } from "../studio/library-drop";
 import { audioGroupForRow, nextSfxLane, sfxLane, sfxRowId } from "../../core/timeline/sfx-lanes";
 import { useBeforeUpdateRestart } from "../update-save";
 import { resolveLibraryDropPosition, resolvePointerDropTarget } from "../studio/library-drop";
@@ -38,12 +44,18 @@ interface SfxItem { id: string; category: string; title: string; file: string; r
 
 export function Studio(props: {
   project: Project;
+  initialTab?: StudioTab;
+  notifications?: string[];
+  onOpenSettings?: () => void;
   onProject: (project: Project) => void;
   onBack: () => void;
   onSnackbar: (message: string) => void;
   onError: (message: string) => void;
   onCarouselCreated: (carousel: Carousel) => void;
 }) {
+  const [loopCaption, setLoopCaption] = useState(false);
+  const [processingBusy, setProcessingBusy] = useState(false);
+  const savedTimeline = useRef(JSON.stringify(props.project.timeline));
   const [history, setHistory] = useState<TimelineHistory>(() => createHistory(props.project.timeline));
   const [playhead, setPlayhead] = useState(0);
   const [selected, setSelected] = useState<{ id: string | null; track: string | null }>({ id: null, track: null });
@@ -73,6 +85,7 @@ export function Studio(props: {
   }, [render.durationInFrames, render.fps]);
 
   useEffect(() => {
+    savedTimeline.current = JSON.stringify(props.project.timeline);
     setHistory(createHistory(props.project.timeline));
     setSelected({ id: null, track: null });
     setSelectedIds([]);
@@ -94,7 +107,7 @@ export function Studio(props: {
   }, [props.project.id]);
 
   async function generateTts(captionId?: string) {
-    if (ttsTask.current) return;
+    if (ttsTask.current || processingBusy || exportOpen) return;
     const items = ttsItemsFromTimeline(timelineRef.current).filter(item => !captionId || item.captionId === captionId);
     if (!items.length) { props.onSnackbar("음성으로 만들 자막이 없어요."); return; }
     const task: { controller: AbortController; jobId?: string } = { controller: new AbortController() };
@@ -113,6 +126,7 @@ export function Studio(props: {
       edit(next);
       const saved = await api<Project>("PUT", `/api/projects/${props.project.id}`, { ...props.project, timeline: next, savedAt: new Date().toISOString() });
       if (task.controller.signal.aborted) return;
+      savedTimeline.current = JSON.stringify(next);
       props.onProject(saved);
       props.onSnackbar("음성을 만들었어요.");
     } catch (error) {
@@ -145,8 +159,10 @@ export function Studio(props: {
         altKey: event.altKey, shiftKey: event.shiftKey, isComposing: event.isComposing,
         keyCode: event.keyCode, targetTagName: (event.target as HTMLElement | null)?.tagName,
         targetType: (event.target as HTMLInputElement | null)?.type,
+        targetRole: (event.target as HTMLElement | null)?.closest("[role]")?.getAttribute("role") ?? undefined,
         targetIsContentEditable: (event.target as HTMLElement | null)?.isContentEditable,
       });
+      if (event.key === "Escape" && !(event.target as HTMLElement | null)?.closest("input, textarea, [contenteditable=true], [role=dialog]")) { setSelected({ id: null, track: null }); setSelectedIds([]); return; }
       if (shortcut === "undo" || shortcut === "redo") {
         event.preventDefault(); moveHistory(shortcut); return;
       }
@@ -173,7 +189,7 @@ export function Studio(props: {
       if (shortcut === "delete" && selectedIds.length && selected.track) {
         let next = timeline;
         for (const id of selectedIds) {
-          const result = deleteStudioSelection(next, selected.track, id);
+          const result = deleteStudioSelection(next, studioTrackForClip(next, id, selected.track), id);
           if (result.blocked) { props.onSnackbar(VIDEO_TRACK_REQUIRED_MESSAGE); event.preventDefault(); return; }
           next = result.timeline;
         }
@@ -189,8 +205,9 @@ export function Studio(props: {
     setSaving(true);
     try {
       const saved = await api<Project>("PUT", `/api/projects/${props.project.id}`, { ...props.project, timeline, savedAt: new Date().toISOString() });
+      savedTimeline.current = JSON.stringify(timeline);
       props.onProject(saved);
-      props.onSnackbar("저장했어요.");
+      props.onSnackbar("저장했어요");
       return true;
     } catch (error) { props.onError(error instanceof Error ? error.message : String(error)); return false; }
     finally { setSaving(false); }
@@ -271,8 +288,7 @@ export function Studio(props: {
         gridLeft: gridRect?.left ?? 0, scrollLeft: grid?.scrollLeft ?? 0, scaleWidth: scaleWidthForZoom(zoom), playhead,
       });
       if (target.kind === "none") return;
-      const rows = timelineToStudioRows(timeline);
-      const position = target.kind === "timeline" && gridRect ? resolveLibraryDropPosition({ pointerX: clientX, pointerY: clientY, gridLeft: gridRect.left, gridTop: gridRect.top, scrollLeft: grid!.scrollLeft, scrollTop: grid!.scrollTop, scaleWidth: scaleWidthForZoom(zoom), rows: ["captions", "video-new", ...rows.filter((row) => /^video-(?:[2-9]|[1-9]\d+)$/.test(row.id)).map((row) => row.id), "video", ...rows.filter((row) => !/^(?:captions|video|video-(?:[2-9]|[1-9]\d+))$/.test(row.id)).map((row) => row.id)] }) : null;
+      const position = target.kind === "timeline" && gridRect ? resolveLibraryDropPosition({ pointerX: clientX, pointerY: clientY, gridLeft: gridRect.left, gridTop: gridRect.top, scrollLeft: grid!.scrollLeft, scrollTop: grid!.scrollTop, scaleWidth: scaleWidthForZoom(zoom), rows: libraryDropRows(timeline) }) : null;
       const atSec = target.atSec;
       if (item.type === "meme") {
         const decision = decideNewLaneDrop({ kind: "meme", atSec, videoDurationSec: videoDuration(timeline), mediaDurationSec: item.meme.durationSec ?? 2, trackCount: timeline.overlays.length });
@@ -320,65 +336,65 @@ export function Studio(props: {
     }
   }
 
-  return <section className="studio-screen" aria-label="스튜디오">
+  return <section className="u3-shell studio-screen" aria-label="스튜디오">
     <header className="studio-header">
-      <ActionButton className="studio-back-button" variant="ghost" aria-label="대본으로 돌아가기" onClick={props.onBack}><HugeiconsIcon icon={ArrowLeft01Icon} size={18} /></ActionButton>
+      <Button className="studio-back-button" variant="ghost" title="2 대본" aria-label="대본으로 돌아가기" onClick={props.onBack}><HugeiconsIcon icon={ArrowLeft01Icon} size={18} /></Button>
       <strong className="studio-project-name">{props.project.name}</strong>
-      <ActionButton variant="neutralWeak" onClick={() => setCreateCarouselOpen(true)}>캐러셀 만들기</ActionButton>
-      <ActionButton variant="neutralWeak" loading={saving} onClick={() => void save()}>저장</ActionButton>
-      <ActionButton variant="brandSolid" onClick={() => void save().then(saved => { if (saved) setExportOpen(true); })}>mp4 내보내기</ActionButton>
+      <Popover.Root><Popover.Trigger asChild><Button variant="ghost" size="icon" title="알림" aria-label={`알림 ${props.notifications?.length ?? 0}개`} className="relative"><HugeiconsIcon icon={Notification03Icon} size={18} />{props.notifications?.length ? <span className="absolute top-0 right-0 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-u3-solid px-0.5 text-[10px] font-bold text-u3-solid-foreground">{props.notifications.length}</span> : null}</Button></Popover.Trigger><Popover.Portal><Popover.Content className="u3-shell z-50 grid w-80 gap-2 rounded-lg border border-border bg-popover p-4 text-xs text-foreground shadow-lg" align="end" sideOffset={8}><strong>알림</strong>{props.notifications?.length ? props.notifications.map((message, i) => <p key={i}>{message}</p>) : <p className="text-muted-foreground">알림이 없어요</p>}</Popover.Content></Popover.Portal></Popover.Root>
+      <Button variant="outline" onClick={() => setCreateCarouselOpen(true)}>캐러셀 만들기</Button>
+      <Button variant="secondary" disabled={saving} aria-busy={saving} onClick={() => void save()}>저장{savedTimeline.current !== JSON.stringify(timeline) ? <span className="size-1.5 rounded-full bg-foreground" aria-label="저장하지 않은 변경" /> : null}</Button>
+      <BusyButton variant="default" disabled={ttsBusy || processingBusy || recording} title={ttsBusy || processingBusy ? "다른 작업이 끝난 뒤 시작할 수 있어요" : undefined} onClick={() => void save().then(saved => { if (saved) setExportOpen(true); })}>mp4 내보내기</BusyButton>
     </header>
     <div className="studio-workspace">
-      <LibraryPanel project={{ ...props.project, timeline }} selectedId={selected.id} playhead={playhead} onAddVoice={addVoice} onRecordingChange={(active) => { setRecording(active); if (active) setPlaying(false); }} onAddVideo={(id) => addVideo(id)} onSelectMeme={(meme) => addMeme(meme, timeline.video.find((clip) => clip.id === selected.id && clip.kind === "meme")?.id)} onAddSfx={addSfx} onPointerDrop={(item, x, y) => void addLibraryItemAt(item, x, y)} onPointerMove={updateLibraryDropGuide} onPointerCancel={() => setLibraryDropGuide(null)} onProject={props.onProject} onError={props.onError} onSnackbar={props.onSnackbar} />
+      <LibraryPanel initialTab={props.initialTab} onSelect={(id, track) => { setSelected({ id, track }); setSelectedIds([id]); }} onSeek={setPlayhead} onEdit={edit} loop={loopCaption} onLoopChange={setLoopCaption} onGenerateTts={() => void generateTts()} ttsBusy={ttsBusy} processingBusy={processingBusy} project={{ ...props.project, timeline }} selectedId={selected.id} playhead={playhead} onAddVoice={addVoice} onRecordingChange={(active) => { setRecording(active); if (active) setPlaying(false); }} onAddVideo={(id) => addVideo(id)} onSelectMeme={(meme) => addMeme(meme, timeline.video.find((clip) => clip.id === selected.id && clip.kind === "meme")?.id)} onAddSfx={addSfx} onPointerDrop={(item, x, y) => void addLibraryItemAt(item, x, y)} onPointerMove={updateLibraryDropGuide} onPointerCancel={() => setLibraryDropGuide(null)} onProject={props.onProject} onError={props.onError} onSnackbar={props.onSnackbar} />
       <section className="studio-preview-area" aria-label="미리보기">
-        <Preview project={{ ...props.project, timeline }} time={playhead} playing={playing} muteOriginal={recording} onTime={setPlayhead} onPlaying={setPlaying} selectedId={selected.id} selectedIds={selectedIds} safeZone={safeZone} onSelectTarget={(id, kind) => {
+        <Preview loopRange={loopCaption ? (() => { const clip = captionLayersOf(timeline).flatMap(l => [...l.main, ...l.sub]).find(c => c.id === selected.id); return clip ? { startSec: clip.startSec, endSec: clip.endSec } : null; })() : null} project={{ ...props.project, timeline }} time={playhead} playing={playing} muteOriginal={recording} onTime={setPlayhead} onPlaying={setPlaying} selectedId={selected.id} selectedIds={selectedIds} safeZone={safeZone} onSelectTarget={(id, kind) => {
           const found = findOverlayInLayers(timeline.overlays, id);
-          const track = kind === "caption-layer" ? "caption-layer" : kind === "watermark" ? "brand" : `video-${(found?.layer ?? 0) + 2}`;
+          const track = kind === "caption" ? `${captionLayersOf(timeline).find(l => [...l.main, ...l.sub].some(c => c.id === id))?.id}-${captionLayersOf(timeline).some(l => l.sub.some(c => c.id === id)) ? "sub" : "main"}` : kind === "caption-layer" ? "caption-layer" : kind === "watermark" ? "brand" : `video-${(found?.layer ?? 0) + 2}`;
           setSelected({ id, track }); setSelectedIds([id]);
         }} onEditTimeline={edit} />
         <div className="studio-playback-controls">
-          <ActionButton layout="iconOnly" variant="neutralWeak" aria-label={playing ? "일시 정지" : "재생"} disabled={recording} onClick={() => setPlaying((value) => !value)}><Icon svg={<HugeiconsIcon icon={playing ? PauseIcon : PlayIcon} size={18} />} /></ActionButton>
+          <Button size="icon" variant="secondary" title={playing ? "일시 정지" : "재생"} aria-label={playing ? "일시 정지" : "재생"} disabled={recording} onClick={() => setPlaying((value) => !value)}><HugeiconsIcon icon={playing ? PauseIcon : PlayIcon} size={18} /></Button>
           <span>{timeLabel(playhead)} / {timeLabel(duration)}</span>
           <StudioSlider label="재생 헤드" min={0} max={duration} step={0.01} value={Math.min(playhead, duration)} onChange={setPlayhead} />
         </div>
       </section>
-      <Inspector project={{ ...props.project, timeline }} selectedId={selected.id} selectedIds={selectedIds} selectedTrack={selected.track} timeline={timeline} onChange={edit} onProject={props.onProject} onSnackbar={props.onSnackbar} onUngroup={() => edit(ungroupVideoClips(timeline, selectedIds))} onGenerateTts={id => void generateTts(id)} ttsBusy={ttsBusy} />
+      <Inspector onOpenSettings={props.onOpenSettings} onProcessingChange={setProcessingBusy} onDelete={() => { let next = timeline; for (const id of selectedIds) { const result = deleteStudioSelection(next, studioTrackForClip(next, id, selected.track ?? ""), id); if (result.blocked) { props.onSnackbar(VIDEO_TRACK_REQUIRED_MESSAGE); return; } next = result.timeline; } edit(next); setSelected({ id: null, track: null }); setSelectedIds([]); }} project={{ ...props.project, timeline }} selectedId={selected.id} selectedIds={selectedIds} selectedTrack={selected.track} timeline={timeline} onChange={edit} onProject={props.onProject} onSnackbar={props.onSnackbar} onUngroup={() => edit(ungroupVideoClips(timeline, selectedIds))} onGenerateTts={id => void generateTts(id)} ttsBusy={ttsBusy} />
     </div>
-    <div className="studio-edit-toolbar">
-      <ActionButton
+    <Toolbar className="studio-edit-toolbar" aria-label="편집 도구">
+      <Button
         className="studio-history-button"
-        variant="neutralOutline"
-        size="small"
+        variant="ghost"
+        size="icon-sm"
+        aria-label="실행 취소"
         title="실행 취소 ⌘Z"
         disabled={!history.past.length}
         onClick={() => moveHistory("undo")}
       >
-        <HugeiconsIcon icon={Undo02Icon} size={16} />실행 취소
-      </ActionButton>
-      <ActionButton
+        <HugeiconsIcon icon={Undo02Icon} size={16} />
+      </Button>
+      <Button
         className="studio-history-button"
-        variant="neutralOutline"
-        size="small"
+        variant="ghost"
+        size="icon-sm"
+        aria-label="다시 실행"
         title="다시 실행 ⇧⌘Z"
         disabled={!history.future.length}
         onClick={() => moveHistory("redo")}
       >
-        <HugeiconsIcon icon={Redo02Icon} size={16} />다시 실행
-      </ActionButton>
+        <HugeiconsIcon icon={Redo02Icon} size={16} />
+      </Button>
       <span className="studio-toolbar-spacer" />
-      <StudioSwitch label="세이프존" checked={safeZone} onChange={setSafeZone} size="16" />
-      <StudioSwitch label="스냅" checked={snap} onChange={setSnap} size="16" />
-      <label className="studio-zoom"><span>확대</span><span className="studio-zoom-slider"><StudioSlider label="확대" min={1} max={10} step={0.1} value={zoom} onChange={setZoom} /></span><output>{zoom.toFixed(1)}×</output></label>
-    </div>
+      <label className="flex items-center gap-2 text-xs text-muted-foreground">세이프존<StudioSwitch label="세이프존" checked={safeZone} onChange={setSafeZone} /></label>
+      <label className="flex items-center gap-2 text-xs text-muted-foreground">스냅<StudioSwitch label="스냅" checked={snap} onChange={setSnap} /></label>
+      <label className="studio-zoom"><span>가로 확대</span><span className="studio-zoom-slider"><StudioSlider label="가로 확대" min={1} max={10} step={0.1} value={zoom} onChange={setZoom} /></span><output>{zoom.toFixed(1)}×</output></label>
+    </Toolbar>
     <div className="studio-timeline-drop">
       {libraryDropGuide ? <div className="studio-library-drop-guide" style={{ left: libraryDropGuide.x, top: libraryDropGuide.top, height: libraryDropGuide.height }} /> : null}
       <Timeline timeline={timeline} inputs={props.project.inputs} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} selectedIds={selectedIds} onGenerateTts={() => void generateTts()} onCancelTts={() => void cancelTts()} ttsBusy={ttsBusy} ttsJob={ttsJob} onSelect={(id, track, shift) => {
         if (!id) { setSelected({ id: null, track: null }); setSelectedIds([]); return; }
-        const ids = shift && selected.id
-          ? selected.track === track
-            ? selectVideoRange(timeline, track ?? "", selected.id, id).map((item) => item.id)
-            : [...selectedIds, id]
-          : [id];
+        const range = shift && selected.id && selected.track === track && (track === "video" || /^video-/.test(track ?? "")) ? selectVideoRange(timeline, track ?? "", selected.id, id).map(item => item.id) : [];
+        const ids = extendStudioSelection(selectedIds, id, Boolean(shift), range);
         const expanded = expandVideoGroupSelection(timeline, ids);
         setSelected({ id, track }); setSelectedIds(expanded);
       }} onPlayhead={setPlayhead} onEdit={edit} onError={props.onError} onBlocked={props.onSnackbar} onZoomChange={setZoom} onMute={toggleMute} inputDurations={Object.fromEntries(props.project.inputs.map((input) => [input.id, input.durationSec ?? 1]))} />

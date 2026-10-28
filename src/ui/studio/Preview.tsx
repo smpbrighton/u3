@@ -6,12 +6,15 @@ import { U3Short } from "../../remotion/U3Short";
 import type { U3ShortProps } from "../../remotion/types";
 import { api, brandMediaUrl, libraryMediaUrl, mediaUrl } from "../api";
 import { libraryReferencePath } from "../../core/library-reference";
-import { frameForTime, frameToSeekAfterPlayerReady } from "./preview-seek";
+import { frameForTime, frameToSeekAfterPlayerReady, previewLoopFrames } from "./preview-seek";
 import { hasAllRenderSources } from "./preview-sources";
 import { PreviewEditLayer, type PreviewEditTarget } from "./PreviewEditLayer";
 import { captionTargetBox, mediaTargetBox, type NormalizedBox } from "../../core/preview-geometry";
 import { useFontRevision } from "../../remotion/fonts";
 import { measureCaption } from "../../remotion/caption-measure";
+import { captionSelectionBox } from "./preview-selection";
+import { StudioTextarea } from "../components/u3/StudioControls";
+import { updateCaption } from "./CaptionStyleEditor";
 import { findOverlayInLayers, updateOverlayInLayers } from "../../core/timeline/overlay-layers";
 
 const DEFAULT_MEDIA_ASPECT = 9 / 16;
@@ -28,9 +31,11 @@ export function Preview(props: {
   selectedId: string | null;
   selectedIds: readonly string[];
   safeZone: boolean;
-  onSelectTarget: (id: string, kind: "overlay" | "caption-layer" | "watermark") => void;
+  onSelectTarget: (id: string, kind: "overlay" | "caption-layer" | "caption" | "watermark") => void;
+  loopRange?: { startSec: number; endSec: number } | null;
   onEditTimeline: (timeline: Timeline) => void;
 }) {
+  const [editingCaption, setEditingCaption] = useState<string | null>(null);
   const fontRevision = useFontRevision();
   const playerRef = useRef<PlayerRef>(null);
   const stackRef = useRef<HTMLDivElement>(null);
@@ -49,20 +54,20 @@ export function Preview(props: {
     }));
     const layers = captionLayersOf(previewTimeline);
     const captionTargets = (fontRevision ? layers : []).flatMap((layer) => {
-      const at = (clips: typeof layer.main) => clips.find((clip) => clip.startSec * render.fps <= currentFrame && clip.endSec * render.fps > currentFrame);
-      const rows = [["main", at(layer.main)], ["sub", at(layer.sub)]] as const;
-      const sizes = rows.flatMap(([row, clip]) => clip ? [measureCaption(clip.text, layer.style, row)] : []);
-      if (!sizes.length) return [];
-      const size = { width: Math.max(...sizes.map((item) => item.width)), height: sizes.reduce((sum, item) => sum + item.height, 0) };
-      return [{ id: layer.id, kind: "caption-layer" as const, canResize: false, box: captionTargetBox(layer, size) }];
+      const sec = currentFrame / render.fps;
+      const box = captionSelectionBox(layer, sec, measureCaption);
+      const active = [...layer.main, ...layer.sub].filter(c => c.startSec <= sec && c.endSec > sec);
+      const clip = active.find(c => c.id === props.selectedId) ?? active[0];
+      if (!box || !clip) return [];
+      return [{ id: clip.id, kind: "caption" as const, canResize: false, box }];
     });
     const watermark = render.watermark;
     const watermarkTarget = watermark?.visible ? [{ id: "watermark", kind: "watermark" as const, canResize: true, box: mediaTargetBox(watermark, watermark.width, mediaAspects.watermark ?? DEFAULT_MEDIA_ASPECT) }] : [];
     return [...overlayTargets, ...captionTargets, ...watermarkTarget];
-  }, [previewTimeline, props.time, render, mediaAspects, sources.memeAspects, fontRevision]);
+  }, [previewTimeline, props.time, props.selectedId, render, mediaAspects, sources.memeAspects, fontRevision]);
   const changeTarget = useCallback((timeline: Timeline, id: string, kind: PreviewEditTarget["kind"], box: NormalizedBox): Timeline => {
     if (kind === "overlay") return { ...timeline, overlays: updateOverlayInLayers(timeline.overlays, id, (clip) => ({ ...clip, x: box.x + box.width / 2, y: box.y + box.height / 2, width: box.width })) };
-    if (kind === "caption-layer") return withCaptionLayers(timeline, captionLayersOf(timeline).map((layer) => layer.id === id ? { ...layer, x: box.x + box.width / 2, y: box.y + box.height } : layer));
+    if (kind === "caption-layer" || kind === "caption") return withCaptionLayers(timeline, captionLayersOf(timeline).map((layer) => (layer.id === id || [...layer.main, ...layer.sub].some(c => c.id === id)) ? { ...layer, x: box.x + box.width / 2, y: box.y + box.height } : layer));
     return { ...timeline, brand: { ...timeline.brand, watermark: { ...timeline.brand?.watermark, x: box.x + box.width / 2, y: box.y + box.height / 2, width: box.width } } };
   }, []);
   const previewTarget = useCallback((id: string, box: NormalizedBox) => {
@@ -189,13 +194,14 @@ export function Preview(props: {
     if (Math.abs(player.getCurrentFrame() - frame) > 1) player.seekTo(frame);
   }, [props.time, render.durationInFrames, render.fps, sourcesReady]);
 
-  return <div className="studio-preview-player">
+  return <div className="studio-preview-player" data-u3-preview>
     <div ref={stackRef} className="studio-preview-stack">
     {render.durationInFrames > 0 && sourcesReady ? <Player
       ref={playerRef}
       component={U3Short}
       inputProps={propsForPlayer}
       durationInFrames={render.durationInFrames}
+      {...previewLoopFrames(props.loopRange, render.durationInFrames, render.fps)}
       initialFrame={frameForTime(props.time, render.durationInFrames, render.fps)}
       compositionWidth={1080}
       compositionHeight={1920}
@@ -206,8 +212,9 @@ export function Preview(props: {
       spaceKeyToPlayOrPause={false}
       moveToBeginningWhenEnded={false}
       style={{ width: "100%", height: "100%" }}
-    /> : render.durationInFrames > 0 ? <p>미리보기를 준비하고 있어요.</p> : <p>타임라인에 미디어를 넣어 주세요.</p>}
-    {targets.length ? <PreviewEditLayer targets={targets} selectedId={props.selectedId} safeZone={props.safeZone} titleBarHeight={titleBarHeight} onSelect={props.onSelectTarget} onPreview={previewTarget} onCommit={commitTarget} onDragStart={() => { if (props.playing) props.onPlaying(false); }} /> : props.safeZone ? <PreviewEditLayer targets={[]} selectedId={props.selectedId} safeZone titleBarHeight={titleBarHeight} onSelect={props.onSelectTarget} onPreview={previewTarget} onCommit={commitTarget} onDragStart={() => { if (props.playing) props.onPlaying(false); }} /> : null}
+    /> : render.durationInFrames > 0 ? <p>미리보기 준비 중</p> : <p>타임라인에 미디어를 넣어 주세요</p>}
+    {targets.length ? <PreviewEditLayer targets={targets} selectedId={props.selectedId} safeZone={props.safeZone} titleBarHeight={titleBarHeight} onSelect={props.onSelectTarget} onDoubleClick={id => { const clip = captionLayersOf(previewTimeline).flatMap(l => [...l.main, ...l.sub]).find(c => c.id === id); if (clip) { props.onPlaying(false); setEditingCaption(id); } }} onPreview={previewTarget} onCommit={commitTarget} onDragStart={() => { if (props.playing) props.onPlaying(false); }} /> : props.safeZone ? <PreviewEditLayer targets={[]} selectedId={props.selectedId} safeZone titleBarHeight={titleBarHeight} onSelect={props.onSelectTarget} onDoubleClick={id => { const clip = captionLayersOf(previewTimeline).flatMap(l => [...l.main, ...l.sub]).find(c => c.id === id); if (clip) { props.onPlaying(false); setEditingCaption(id); } }} onPreview={previewTarget} onCommit={commitTarget} onDragStart={() => { if (props.playing) props.onPlaying(false); }} /> : null}
+    {editingCaption ? (() => { const clip = captionLayersOf(previewTimeline).flatMap(l => [...l.main, ...l.sub]).find(c => c.id === editingCaption); if (!clip) return null; return <div className="studio-preview-inline-caption" onKeyDown={e => { e.stopPropagation(); if (e.key === "Escape" || e.key === "Enter" && (e.metaKey || e.ctrlKey)) setEditingCaption(null); }}><StudioTextarea label="자막 바로 고치기" rows={3} value={clip.text} onChange={text => props.onEditTimeline(updateCaption(props.project.timeline, clip.id, { text }))} /><button type="button" onClick={() => setEditingCaption(null)}>닫기</button></div>; })() : null}
     </div>
   </div>;
 }

@@ -1,3 +1,8 @@
+import type { Timeline } from "../../core/schema";
+import { timelineToStudioRows } from "./timeline-adapter";
+import { withNewVideoTrackRow } from "./timeline-track-labels";
+import { resolveVideoTrackAtPointer } from "./video-track-drop";
+
 export function decideNewLaneDrop(input: {
   kind: "meme" | "sfx";
   atSec: number;
@@ -12,7 +17,6 @@ export function decideNewLaneDrop(input: {
   }
   return { track: Math.trunc(input.trackCount), startSec: Math.max(0, Math.min(input.atSec, input.videoDurationSec - input.mediaDurationSec)), durationSec: input.mediaDurationSec };
 }
-import { resolveVideoTrackAtPointer } from "./video-track-drop";
 
 export interface PointerDropRect { left: number; top: number; right: number; bottom: number }
 
@@ -47,4 +51,8 @@ export function resolveLibraryDropPosition(input: {
     track: resolveVideoTrackAtPointer(input.rows, input.pointerY, input.gridTop, input.scrollTop, input.rowHeight),
     atSec: Math.max(0, (input.pointerX - input.gridLeft + input.scrollLeft) / input.scaleWidth),
   };
+}
+
+export function libraryDropRows(timeline: Timeline): string[] {
+  return withNewVideoTrackRow(timelineToStudioRows(timeline)).map(row => row.id);
 }
