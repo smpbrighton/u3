@@ -18,9 +18,11 @@
 - 0.3.3 커밋은 앱과 Tauri의 버전 설정을 변경했다. 실제 배포·서명·공증·설치 실행 증거는 코드에서 못 찾음. `package.json` `src-tauri/Cargo.toml` `src-tauri/tauri.conf.json` `git:93b25bf:`
 - 0.3.4 커밋은 앱과 Tauri의 버전 설정을 변경했다. 실제 배포·서명·공증·설치 실행 증거는 코드에서 못 찾음. `package.json` `src-tauri/Cargo.toml` `src-tauri/tauri.conf.json` `git:e95368c:`
 - 0.3.5 커밋은 앱과 Tauri의 버전 설정을 변경했다. 실제 배포·서명·공증·설치 실행 증거는 코드에서 못 찾음. `package.json` `src-tauri/Cargo.toml` `src-tauri/Cargo.lock` `src-tauri/tauri.conf.json` `git:c4f6223:`
+- 0.3.6 커밋은 앱과 Tauri의 버전 설정을 변경했다. 실제 배포·서명·공증·설치 실행 증거는 코드에서 못 찾음. `package.json` `src-tauri/Cargo.toml` `src-tauri/Cargo.lock` `src-tauri/tauri.conf.json` `git:a5c6d92:`
 - 결정 링크: [자동 업데이트](../../decisions/0021-auto-update.md). `git:b9f7c76:`
 
 ## 관계
+- [원격 기본 프롬프트](concept-remote-prompts.md)
 - [compositor dylib 경로](concept-compositor-dylib.md)
 - [U3 데스크톱 앱](entity-desktop-app.md)
 - [엔진 종료](entity-engine-shutdown.md)

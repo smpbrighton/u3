@@ -13,6 +13,7 @@
 - 이미지 생성 설정에서 주제·영상 캐러셀 기획 프롬프트를 각각 편집하고 포커스를 벗어나면 저장한다. 기본값 복원과 글자 수 표시를 제공하며 각 입력은 최대 20,000자다. `src/ui/screens/Settings.tsx` `src/core/carousel-prompt.ts` `git:be31984:`
 - `GET/PUT /api/system/carousel-prompts`는 두 프롬프트와 기본값 여부를 반환한다. PUT은 전달된 항목만 갱신하며 빈 값이나 기본값은 저장 키를 삭제한다. `src/engine/routes/system.ts` `git:19649af:`
 ## 관계
+- [원격 기본 프롬프트](concept-remote-prompts.md)
 - [Codex 호환성](concept-codex-compat.md)
 - [U3 데스크톱 앱](entity-desktop-app.md)
 - [타임라인 편집](concept-timeline-editing.md)

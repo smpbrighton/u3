@@ -31,6 +31,7 @@
 - 변경된 기본 프롬프트에 맞춰 core 테스트를 수정했다. 이 커밋의 테스트 실행 출력과 실제 캐러셀 기획 검증 증거는 코드에서 못 찾음. `tests/core/carousel-prompt.test.ts` `git:4087bdb:`
 - 054의 core·서버·UI 테스트가 추가됐다. 실패 테스트 실행 출력과 `pnpm verify` 실행 출력은 코드에서 못 찾음. 설치본 0.3.5의 설정 저장·기본값 복원과 주제 기획 실행 증거도 코드에서 못 찾음. `tests/core/carousel-prompt.test.ts` `tests/server/carousel-prompts.test.ts` `tests/server/carousels.test.ts` `tests/server/carousel-derived.test.ts` `tests/ui/settings-carousel-prompts.test.tsx` `architecture/changes/054-carousel-prompts/plan.md` `git:be31984:`
 ## 관계
+- [원격 기본 프롬프트](concept-remote-prompts.md)
 - [Codex 호환성](concept-codex-compat.md)
 - [화면 셸과 설정](concept-ui-shell.md)
 - [자막과 장면 검토](concept-caption-scene-review.md)

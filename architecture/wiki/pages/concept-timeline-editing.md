@@ -43,6 +43,7 @@ U3 타임라인은 영상·자막·음성·효과음 트랙을 저장하고, 영
 - 결정 링크: [스튜디오 단축키 설정](../../decisions/0030-studio-shortcut-settings.md). `git:d9e905f:`
 
 ## 관계
+- [원격 기본 프롬프트](concept-remote-prompts.md)
 - [클립 배속](concept-playback-speed.md)
 - [Codex 호환성](concept-codex-compat.md)
 - [화면 셸과 설정](concept-ui-shell.md)

@@ -126,3 +126,13 @@
 - `pages/concept-updates.md`
 - `index.md`
 - 두 커밋은 기존 페이지에 반영했으며 별도 페이지는 없다. `git:4087bdb:` `git:c4f6223:`
+
+## [2026-10-29] ingest | 055 remote-prompts · release 0.3.6
+- `pages/concept-remote-prompts.md`
+- `pages/concept-ui-shell.md`
+- `pages/concept-carousel.md`
+- `pages/concept-timeline-editing.md`
+- `pages/concept-updates.md`
+- `index.md`
+- 055의 승인·검토·계획·실패 테스트·구현 커밋은 원격 기본 프롬프트 페이지에 묶었으며 별도 페이지는 없다. import 위치 조정도 별도 페이지가 없다. `git:36b53a7:` `git:ff42053:` `git:a3d6599:` `git:189fa06:` `git:d8f6816:` `git:b02e479:` `git:6ec21ef:` `git:efcea52:` `git:d660c5d:` `git:3d1e7ee:`
+- release 0.3.6은 릴리스 페이지에 반영했으며 별도 페이지는 없다. `git:a5c6d92:`
