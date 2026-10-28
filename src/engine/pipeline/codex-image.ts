@@ -2,7 +2,8 @@ import { spawn } from "node:child_process";
 import { copyFile, mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
-import { parseCodexEvents, codexFailureReason } from "./codex";
+import { parseCodexEvents, codexFailureReason, CodexModelUnavailableError } from "./codex";
+import { isCodexModelUnavailable } from "../../core/codex-model";
 import { ffprobe, runFfmpeg } from "./ffmpeg";
 
 export type ImageAspect = "4:5" | "1:1" | "9:16" | "16:9";
@@ -125,7 +126,10 @@ export async function runCodexImage(options: CodexImageOptions): Promise<{ outpu
     const events = parseImageEvents(result.stdout);
     if (result.aborted || options.signal?.aborted) throw new Error("이미지 생성을 취소했습니다");
     if (result.timedOut) throw new Error("Codex 이미지 생성 시간이 초과되었습니다");
-    if (result.code !== 0 || events.failed) throw new Error(codexImageFailureMessage({ reason: events.reason ?? codexFailureReason(result.stderr), detail: events.detail ?? (result.stderr.trim() || null) }, result.code));
+    if (result.code !== 0 || events.failed) {
+      if (isCodexModelUnavailable(`${result.stderr}\n${events.detail ?? ""}\n${result.stdout}`)) throw new CodexModelUnavailableError(options.model, events.usage);
+      throw new Error(codexImageFailureMessage({ reason: events.reason ?? codexFailureReason(result.stderr), detail: events.detail ?? (result.stderr.trim() || null) }, result.code));
+    }
     let source: string;
     try {
       source = await resolveImageResult({ workDir, codexHome: env.CODEX_HOME ?? path.join(os.homedir(), ".codex"), sessionId: events.sessionId, ignoredFiles: referenceImage ? [referenceImage] : [] });

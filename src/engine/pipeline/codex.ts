@@ -7,11 +7,19 @@ import path from "node:path";
 import { z } from "zod";
 import { CodexScript } from "../../core/schema";
 import { compileCodexSchema } from "./codex-schema";
+import { isCodexModelUnavailable, resolveCodexModel } from "../../core/codex-model";
 
 export class CodexError extends Error {
   constructor(message: string, readonly usage: Record<string, number> = {}) {
     super(message);
     this.name = "CodexError";
+  }
+}
+
+export class CodexModelUnavailableError extends CodexError {
+  constructor(readonly model: string, usage: Record<string, number> = {}) {
+    super(`이 계정에서 '${model}' 모델을 쓸 수 없습니다`, usage);
+    this.name = "CodexModelUnavailableError";
   }
 }
 
@@ -60,19 +68,23 @@ export function parseCodexMessage(stdout: string): string | null {
 }
 
 export function codexFailureReason(text: string): string {
+  if (isCodexModelUnavailable(text)) {
+    const model = text.match(/(?:The |Model metadata for )'([^']+)'/i)?.[1];
+    return model ? `이 계정에서 '${model}' 모델을 쓸 수 없습니다` : "이 계정에서 요청한 모델을 쓸 수 없습니다";
+  }
   if (/rate.?limit|usage.?limit|quota|limit.?reached/i.test(text)) return "사용 한도에 도달했습니다";
   if (/auth|log.?in|unauthorized|token.?expired/i.test(text)) return "Codex 로그인이 필요합니다";
   if (/unexpected argument|unknown (?:option|feature)|unsupported|unrecognized/i.test(text)) return "설치된 Codex CLI가 필요한 옵션을 지원하지 않습니다";
   return "Codex CLI 요청이 실패했습니다";
 }
 
-export function codexCliArgs(params: { schemaFile: string; outputFile?: string; cwd: string; images?: readonly string[]; model?: string; effort?: string }): string[] {
+export function codexCliArgs(params: { schemaFile: string; outputFile?: string; cwd: string; images?: readonly string[]; model: string; effort?: string }): string[] {
   return [
     "exec", "--ephemeral", "--skip-git-repo-check", "--sandbox", "read-only",
     "--disable", "apps", "--disable", "shell_tool", "--disable", "unified_exec", "--disable", "image_generation",
     "-c", "mcp_servers={}", "--json", "--output-schema", params.schemaFile,
     ...(params.outputFile ? ["--output-last-message", params.outputFile] : []), "-C", params.cwd,
-    "-m", params.model ?? "gpt-6-luna", "-c", `model_reasoning_effort=${JSON.stringify(params.effort ?? "medium")}`,
+    "-m", params.model, "-c", `model_reasoning_effort=${JSON.stringify(params.effort ?? "medium")}`,
     ...(params.images ?? []).flatMap(image => ["--image", image]),
     "-",
   ];
@@ -156,6 +168,7 @@ type CodexRunRequest<T extends z.ZodType> = {
 };
 
 export function codexCliRunner(options: CodexRunnerOptions) {
+  const model = options.model ?? resolveCodexModel(undefined, []);
   const env = { ...process.env, ...options.env };
   const run = options.run ?? runCodexProcess;
   let capabilitiesChecked = false;
@@ -228,13 +241,14 @@ export function codexCliRunner(options: CodexRunnerOptions) {
           ? `${request.prompt}\n\n영상별 받아 적은 말소리:\n${transcripts.map(item => `- ${item.inputId}: ${item.text}`).join("\n")}`
           : request.prompt;
         const absoluteImages = images.map(image => path.resolve(image));
-        const result = await execute(codexCliArgs({ schemaFile, ...(supportsOutputLastMessage ? { outputFile } : {}), cwd: work, images: absoluteImages, model: options.model, effort: options.effort }), prompt, options.timeoutMs ?? 10 * 60_000);
+        const result = await execute(codexCliArgs({ schemaFile, ...(supportsOutputLastMessage ? { outputFile } : {}), cwd: work, images: absoluteImages, model, effort: options.effort }), prompt, options.timeoutMs ?? 10 * 60_000);
         const events = parseCodexEvents(result.stdout);
         usage = events.usage;
         if (result.aborted) throw new CodexError("Codex 요청이 취소되었습니다", usage);
         if (result.timedOut) throw new CodexError("Codex CLI 실행 시간이 초과되었습니다", usage);
         if (result.overflow) throw new CodexError("Codex CLI 출력 크기가 제한을 넘었습니다", usage);
         if (result.code !== 0 || events.failed) {
+          if (isCodexModelUnavailable(`${result.stderr}\n${events.detail ?? ""}\n${result.stdout}`)) throw new CodexModelUnavailableError(model, usage);
           const detail = (events.detail ?? result.stderr).replace(/(?:\/Users\/|\/home\/)[^\s:]+/g, "[경로]").trim().slice(-300);
           throw new CodexError(`Codex ${events.reason ?? codexFailureReason(result.stderr)} (종료 코드 ${result.code})${detail ? `: ${detail}` : ""}`, usage);
         }
