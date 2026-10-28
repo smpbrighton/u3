@@ -1,21 +1,68 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { ActionButton } from "../../../seed-design/ui/action-button";
-import { ChipTabsList, ChipTabsRoot, ChipTabsTrigger } from "../../../seed-design/ui/chip-tabs";
-import { PageBanner } from "../../../seed-design/ui/page-banner";
-import { ProgressCircle } from "../../../seed-design/ui/progress-circle";
-import { TextField, TextFieldTextarea } from "../../../seed-design/ui/text-field";
-import { RadioSelectBoxRoot, RadioSelectBoxItem } from "../../../seed-design/ui/select-box";
+import { Button } from "../components/ui/button";
+import { Alert } from "../components/ui/alert";
+import { Progress } from "../components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
+import { Textarea } from "../components/ui/textarea";
+import { StepNav } from "../components/u3/StepNav";
+import { CodexWarning } from "../components/u3/CodexWarning";
+import { FlowIconButton } from "../components/u3/FlowIconButton";
 import { api, watchJob, type EngineJob } from "../api";
-import type { CodexScript, FrameGroup, Project, SystemStatus } from "../types";
+import type { CodexScript, FrameGroup, Input, Project, SystemStatus } from "../types";
 import type { MemeMeta } from "../../core/schema";
 import { chooseMissingInputMemes, combineMissingMemeCounts, resolveScriptMemes, type AutomaticMemeRank } from "../../core/script-memes";
 import { timelineFromScript, type SfxLibraryItem } from "../../core/timeline/from-script";
-import { ArrowLeft01Icon } from "@hugeicons/core-free-icons";
+import { AlertCircleIcon, ArrowLeft01Icon, Image01Icon, Loading03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { inputDisplayName } from "../../core/input";
 import { scriptGenerationView, type ScriptGenerationState } from "./script-workflow";
 
 type SfxLibraryResponseItem = SfxLibraryItem & { ref: string; url: string };
+
+export function ScriptFrames({ loading, groups, inputs }: { loading: boolean; groups: FrameGroup[]; inputs: Input[] }) {
+  if (loading) return <div className="flex flex-col gap-5" role="status" aria-label="이미지 준비 중" aria-busy="true">
+    {[0, 1, 2].map(index => <div key={index} className="flex flex-col gap-2" aria-hidden="true">
+      <div className="h-3 w-[180px] animate-pulse rounded bg-muted" />
+      <div className="flex gap-2">{[0, 1, 2, 3].map(frame => <div className="h-32 w-[72px] animate-pulse rounded-md bg-muted" key={frame} />)}</div>
+    </div>)}
+  </div>;
+  if (!groups.some(group => group.frames.length)) return <div className="flex min-h-[300px] flex-1 flex-col items-center justify-center gap-3.5 text-muted-foreground">
+    <HugeiconsIcon icon={Image01Icon} aria-hidden="true" className="size-8" /><p className="text-[14px] text-foreground">이미지가 없어요</p>
+  </div>;
+  return <div className="flex flex-col gap-5" aria-label="AI가 볼 이미지">
+    {groups.filter(group => group.frames.length).map(group => {
+      const inputIndex = inputs.findIndex(input => input.id === group.inputId);
+      const input = inputs[inputIndex];
+      const fileName = input ? inputDisplayName(input) : "파일";
+      const duration = input?.durationSec ?? 0;
+      return <section key={group.inputId} className="flex flex-col gap-2">
+        <h2 className="flex items-center gap-2 text-xs"><b className="tabular-nums">{inputIndex + 1}</b><span className="truncate">{fileName}</span><span className="shrink-0 text-muted-foreground">{input?.kind === "video" ? `${duration.toFixed(1)}초 · ${group.frames.length}장` : `사진 · ${group.frames.length}장`}</span></h2>
+        <div className="flex flex-wrap gap-2">
+          {group.frames.map((frame, index) => {
+            const time = input?.kind === "photo" ? "사진" : `${(duration * (index + 0.5) / group.frames.length).toFixed(1)}초`;
+            return <figure key={frame.file} className="flex w-16 flex-col items-center gap-1">
+              <img src={frame.url} alt={`${fileName} ${time}`} className="h-[114px] w-16 rounded-md bg-muted object-cover" />
+              <figcaption className="text-2xs text-muted-foreground tabular-nums">{time}</figcaption>
+            </figure>;
+          })}
+        </div>
+      </section>;
+    })}
+  </div>;
+}
+
+export function ScriptProgress({ state, progress, onCancel }: { state: ScriptGenerationState; progress: number | null; onCancel: () => void }) {
+  const view = scriptGenerationView(state);
+  if (!view.progress) return null;
+  const percent = progress === null ? undefined : Math.round(Math.max(0, Math.min(1, progress)) * 100);
+  return <div className="flex min-w-0 flex-1 items-center gap-3" aria-live="polite">
+    <HugeiconsIcon icon={Loading03Icon} aria-hidden="true" className="size-4 shrink-0 animate-spin text-muted-foreground" />
+    <span className="text-sm">{view.progress}</span>
+    <Progress className="min-w-12 flex-1" value={percent} aria-label="대본 생성 진행" />
+    {percent !== undefined && <span className="text-xs text-muted-foreground tabular-nums">{percent}%</span>}
+    {view.showCancel && <Button variant="outline" onClick={onCancel}>취소</Button>}
+  </div>;
+}
 
 export function Script(props: {
   project: Project;
@@ -25,13 +72,17 @@ export function Script(props: {
   onBack: () => void;
   onSnackbar: (message: string) => void;
   onError: (message: string) => void;
+  onSettings?: () => void;
+  onNotices?: (notices: string[]) => void;
 }) {
   const [mode, setMode] = useState<"ai" | "direct">("ai");
   const [prompt, setPrompt] = useState("");
   const [frames, setFrames] = useState<FrameGroup[]>([]);
   const [job, setJob] = useState<EngineJob | null>(null);
   const [transcriptWarning, setTranscriptWarning] = useState<string | null>(null);
-  const [loadingFrames, setLoadingFrames] = useState(false);
+  const [loadingFrames, setLoadingFrames] = useState(() => props.project.inputs.some(input => input.id !== "placeholder"));
+  const [frameError, setFrameError] = useState<string | null>(null);
+  const [frameAttempt, setFrameAttempt] = useState(0);
   const [busy, setBusy] = useState(false);
   const [generation, setGeneration] = useState<ScriptGenerationState>({ phase: "idle", message: null, cancellable: false });
   const controllerRef = useRef<AbortController | null>(null);
@@ -40,35 +91,32 @@ export function Script(props: {
   const totalFrames = useMemo(() => frames.reduce((total, group) => total + group.frames.length, 0), [frames]);
   const inputs = useMemo(() => props.project.inputs.filter(input => input.id !== "placeholder"), [props.project.inputs]);
 
-  function formatDuration(seconds: number): string {
-    const wholeSeconds = Math.floor(seconds);
-    return `${Math.floor(wholeSeconds / 60)}:${String(wholeSeconds % 60).padStart(2, "0")}`;
-  }
-
-  function frameLabel(inputId: string, frameIndex: number, frameCount: number): string {
-    const input = inputs.find(item => item.id === inputId);
-    if (input?.kind === "photo") return "사진";
-    const duration = input?.durationSec ?? 0;
-    const second = duration * (frameIndex + 0.5) / frameCount;
-    return `${second.toFixed(1)}s`;
-  }
-
   useEffect(() => {
-    if (!props.project.inputs.some(input => input.id !== "placeholder")) return;
+    if (!props.project.inputs.some(input => input.id !== "placeholder")) { setLoadingFrames(false); setFrames([]); return; }
+    const controller = new AbortController();
+    setFrames([]);
+    setFrameError(null);
     setLoadingFrames(true);
-    void api<FrameGroup[]>("POST", `/api/projects/${props.project.id}/frames`, {})
-      .then(setFrames)
-      .catch(error => props.onError(error instanceof Error ? error.message : String(error)))
-      .finally(() => setLoadingFrames(false));
-  }, [props.project.id]);
+    void api<FrameGroup[]>("POST", `/api/projects/${props.project.id}/frames`, {}, controller.signal)
+      .then(groups => { if (!controller.signal.aborted) setFrames(groups); })
+      .catch(error => {
+        if (controller.signal.aborted) return;
+        const message = error instanceof Error ? error.message : String(error);
+        setFrameError(message);
+        props.onError(message);
+      })
+      .finally(() => { if (!controller.signal.aborted) setLoadingFrames(false); });
+    return () => controller.abort();
+  }, [props.project.id, frameAttempt]);
 
   async function generate() {
+    if (busy || (mode === "ai" && loadingFrames)) return;
     if (!canGenerate) {
       props.onSnackbar("Codex를 설치하고 로그인한 뒤 대본을 만들 수 있어요.");
       return;
     }
     if (mode === "direct" && !prompt.trim()) {
-      props.onSnackbar("간략한 대본을 입력해 주세요.");
+      setGeneration({ phase: "failed", message: null, cancellable: false, error: "간략한 대본을 입력해 주세요" });
       return;
     }
     setBusy(true);
@@ -163,8 +211,9 @@ export function Script(props: {
       });
       props.onProject(saved);
       setGeneration({ phase: "idle", message: null, cancellable: false });
-      const notices = [warning, resolvedWithFallback.missingCount ? `짤을 넣지 못한 장면 ${resolvedWithFallback.missingCount}개` : null].filter(Boolean);
-      props.onSnackbar(notices.length ? `대본을 만들었어요. ${notices.join(" · ")}` : "대본을 만들었어요.");
+      const notices = [warning, resolvedWithFallback.missingCount ? `짤을 넣지 못한 장면 ${resolvedWithFallback.missingCount}개` : null].filter((notice): notice is string => Boolean(notice));
+      props.onNotices?.(notices);
+      props.onSnackbar(!props.onNotices && notices.length ? `대본을 만들었어요. ${notices.join(" · ")}` : "대본을 만들었어요");
       props.onStudio();
     } catch (error) {
       if (error instanceof DOMException && error.name === "AbortError") return;
@@ -193,129 +242,59 @@ export function Script(props: {
     }
   }
 
-  const codexMessage = props.status && !props.status.codex.installed
-    ? "Codex CLI를 찾지 못해 대본을 만들 수 없어요."
-    : props.status && !props.status.codex.loggedIn
-      ? "Codex에 로그인되어 있지 않아 대본을 만들 수 없어요."
-      : null;
   const workflowView = scriptGenerationView(generation);
+  const error = workflowView.error ?? frameError;
 
   return (
-    <section className="script-screen" aria-label="대본 방식 고르기">
-      <header className="script-header">
-        <ActionButton
-          className="flow-back-button"
-          variant="ghost"
-          aria-label="미디어 넣기로 돌아가기"
-          onClick={props.onBack}
-        >
-          <HugeiconsIcon icon={ArrowLeft01Icon} size={20} />
-        </ActionButton>
-        <strong>{props.project.name}</strong>
-        <ChipTabsRoot className="steps" value="script" size="medium" variant="neutralSolid" aria-label="단계" onValueChange={value => {
-          if (value === "media") props.onBack();
-          if (value === "studio") props.onStudio();
-        }}>
-          <ChipTabsList>
-            <ChipTabsTrigger value="media">1 미디어</ChipTabsTrigger>
-            <ChipTabsTrigger value="script">2 대본</ChipTabsTrigger>
-            <ChipTabsTrigger value="studio" disabled={!props.project.timeline.video.length}>3 스튜디오</ChipTabsTrigger>
-          </ChipTabsList>
-        </ChipTabsRoot>
+    <section className="u3-shell flex h-full min-h-0 flex-col" aria-label="대본 방식 고르기">
+      <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-4">
+        <FlowIconButton label="미디어 넣기로 돌아가기" disabled={busy} onClick={props.onBack}><HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden="true" /></FlowIconButton>
+        <strong className="w-60 truncate pl-1">{props.project.name}</strong>
+        <div className="flex min-w-0 flex-1 justify-center">
+          <StepNav current="script" steps={[
+            { id: "media", label: "미디어", disabled: busy },
+            { id: "script", label: "대본", disabled: busy },
+            { id: "studio", label: "스튜디오", disabled: !props.project.timeline.video.length || busy },
+          ]} onStepChange={value => {
+            if (value === "media") props.onBack();
+            if (value === "studio") props.onStudio();
+          }} />
+        </div>
+        <span className="w-[120px]" aria-hidden="true" />
       </header>
-      <main className="script-main">
-        {codexMessage ? (
-          <div className="page-banner-wrap">
-            <PageBanner tone="warning" variant="weak" description={codexMessage} />
-          </div>
-        ) : null}
-        <RadioSelectBoxRoot aria-label="대본 방식" value={mode} onValueChange={value => setMode(value as "ai" | "direct")} columns={2}>
-          <RadioSelectBoxItem value="ai" label="AI 추천" description="영상 프레임과 사진을 보고 AI가 씁니다" />
-          <RadioSelectBoxItem value="direct" label="직접 쓰기" description="간략하게 쓰면 AI가 장면 대본으로 만듭니다" />
-        </RadioSelectBoxRoot>
-      {mode === "ai" ? (
-        <section className="section-card" aria-labelledby="frame-title" style={{ marginTop: 20 }}>
-          <div className="screen-header">
-            <div>
-              <h2 id="frame-title">AI가 볼 이미지</h2>
+      <main className="flex min-h-0 flex-1 justify-center px-10 pt-7">
+        <div className="flex w-full min-w-0 max-w-[880px] flex-col gap-4">
+          <CodexWarning status={props.status} onSettings={props.onSettings} />
+          {error && <Alert className="flex items-center gap-2.5 px-3 py-2.5">
+            <HugeiconsIcon icon={AlertCircleIcon} aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 flex-1 truncate text-sm" title={error}>{workflowView.error ? "대본을 만들지 못했어요" : "이미지를 준비하지 못했어요"} · {error}</span>
+            <Button variant="outline" size="sm" disabled={busy} onClick={() => { if (frameError && !workflowView.error) setFrameAttempt(value => value + 1); else void generate(); }}>다시 시도</Button>
+          </Alert>}
+          <Tabs className="min-h-0 flex-1 gap-4" value={mode} onValueChange={value => setMode(value as "ai" | "direct")}>
+            <div className="flex items-center justify-between gap-3">
+              <TabsList className="w-[280px]" aria-label="대본 방식">
+                <TabsTrigger value="ai" disabled={busy}>AI 추천</TabsTrigger>
+                <TabsTrigger value="direct" disabled={busy}>직접 쓰기</TabsTrigger>
+              </TabsList>
+              {mode === "ai" && !loadingFrames && <span className="text-xs text-muted-foreground tabular-nums">프레임 {totalFrames}장</span>}
             </div>
-            <span>{loadingFrames ? "불러오는 중" : `${totalFrames} / 40장`}</span>
-          </div>
-          {frames.length ? (
-            <div className="frame-groups">
-              {frames.map(group => {
-                const input = inputs.find(item => item.id === group.inputId);
-                const fileName = input ? inputDisplayName(input) : "파일";
-                const inputNumber = inputs.findIndex(item => item.id === group.inputId) + 1;
-                const label = input?.kind === "video"
-                  ? `${inputNumber} · ${fileName} (영상 ${formatDuration(input.durationSec ?? 0)})`
-                  : `${inputNumber} · ${fileName} (사진)`;
-                return (
-                  <div key={group.inputId}>
-                    <h3 className="frame-group-label">{label}</h3>
-                    <div className="frame-grid">
-                      {group.frames.map((frame, frameIndex) => {
-                        const timeLabel = frameLabel(group.inputId, frameIndex, group.frames.length);
-                        return (
-                          <div className="frame-card" key={frame.file}>
-                            <img src={frame.url} alt={`${fileName} ${timeLabel}`} />
-                            <span>{timeLabel}</span>
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-          ) : loadingFrames ? (
-            <div className="progress-row">
-              <ProgressCircle size="24" tone="neutral" />
-              이미지를 준비하고 있어요.
-            </div>
-          ) : <p>표시할 이미지가 없어요.</p>}
-        </section>
-      ) : (
-        <section className="section-card" style={{ marginTop: 20 }}>
-          <TextField
-            label="간략한 대본"
-            description="짧은 문장으로 내용을 적어 주세요."
-            value={prompt}
-            onValueChange={({ value }) => setPrompt(value)}
-          >
-            <TextFieldTextarea style={{ minHeight: 220 }} placeholder="예: 비 오는 날 카페에 갔는데 자리가 없어서 30분 기다렸어요." />
-          </TextField>
-        </section>
-      )}
-        {transcriptWarning ? (
-          <div className="page-banner-wrap" role="status">
-            <PageBanner tone="warning" variant="weak" description={transcriptWarning} />
-          </div>
-        ) : null}
-        {busy && workflowView.progress ? (
-          <div className="progress-row" aria-live="polite">
-            <ProgressCircle
-              size="24"
-              tone="brand"
-              value={job?.progress === null || job?.progress === undefined ? undefined : job.progress * 100}
-            />
-            {workflowView.progress}
-            {workflowView.showCancel ? (
-              <ActionButton variant="neutralWeak" size="small" onClick={() => void cancel()}>
-                취소
-              </ActionButton>
-            ) : null}
-          </div>
-        ) : null}
-        {workflowView.error ? (
-          <div className="page-banner-wrap" role="alert">
-            <PageBanner tone="warning" variant="weak" description={workflowView.error} />
-          </div>
-        ) : null}
+            <TabsContent value="ai" className="flex min-h-0 flex-1 flex-col overflow-y-auto data-[state=inactive]:hidden">
+              <ScriptFrames loading={loadingFrames} groups={frames} inputs={inputs} />
+            </TabsContent>
+            <TabsContent value="direct" className="flex min-h-0 flex-1 flex-col gap-2 data-[state=inactive]:hidden">
+              <label htmlFor="script-prompt" className="text-xs text-muted-foreground">간략한 대본</label>
+              <Textarea id="script-prompt" className="min-h-[220px] flex-1 resize-none" value={prompt} onChange={event => setPrompt(event.target.value)} disabled={busy} />
+            </TabsContent>
+          </Tabs>
+          {transcriptWarning && <Alert role="status" className="flex items-center gap-2.5 px-3 py-2.5">
+            <HugeiconsIcon icon={AlertCircleIcon} aria-hidden="true" className="size-4 shrink-0 text-muted-foreground" />
+            <span className="min-w-0 text-sm">{transcriptWarning}</span>
+          </Alert>}
+          <footer className="mt-auto flex min-h-[72px] shrink-0 items-center justify-end gap-3 border-t border-border">
+            {busy ? <ScriptProgress state={generation} progress={job?.progress ?? null} onCancel={() => void cancel()} /> : <Button disabled={!canGenerate || (mode === "ai" && loadingFrames)} onClick={() => void generate()}>대본 만들기</Button>}
+          </footer>
+        </div>
       </main>
-      <footer className="script-footer">
-        <ActionButton variant="brandSolid" disabled={!canGenerate || busy || (mode === "ai" && loadingFrames)} loading={busy} onClick={() => void generate()}>대본 만들기</ActionButton>
-      </footer>
     </section>
   );
 }

@@ -2,13 +2,16 @@ import { useEffect, useRef, useState } from "react";
 import { isTauri } from "@tauri-apps/api/core";
 import { getCurrentWebview } from "@tauri-apps/api/webview";
 import { open } from "@tauri-apps/plugin-dialog";
-import { ActionButton } from "../../../seed-design/ui/action-button";
-import { ChipTabsList, ChipTabsRoot, ChipTabsTrigger } from "../../../seed-design/ui/chip-tabs";
-import { TextField, TextFieldInput } from "../../../seed-design/ui/text-field";
+import { Button } from "../components/ui/button";
+import { Input as NameInput } from "../components/ui/input";
+import { Progress } from "../components/ui/progress";
+import { StepNav } from "../components/u3/StepNav";
+import { FlowIconButton } from "../components/u3/FlowIconButton";
+import { cn } from "../components/ui/utils";
 import { api, mediaUrl } from "../api";
 import type { Input as ProjectInput, Project } from "../types";
 import { inputDisplayName } from "../../core/input";
-import { ArrowLeft01Icon, ArrowUp01Icon, ArrowDown01Icon, FileUploadIcon } from "@hugeicons/core-free-icons";
+import { ArrowLeft01Icon, ArrowUp01Icon, ArrowDown01Icon, ArrowRight01Icon, Cancel01Icon, DragDropVerticalIcon, FileUploadIcon, Loading03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { useBeforeUpdateRestart } from "../update-save";
 
@@ -35,7 +38,13 @@ export function Input(props: {
   const [dragging, setDragging] = useState(false);
   const [busy, setBusy] = useState(false);
   const [mediaUrls, setMediaUrls] = useState<Record<string, string>>({});
+  const nameRef = useRef(name);
+  const projectRef = useRef(props.project);
+  nameRef.current = name;
+  projectRef.current = props.project;
   const unlisten = useRef<(() => void) | null>(null);
+  const busyRef = useRef(false);
+  const nameSaveRef = useRef<{ name: string; promise: Promise<Project> } | null>(null);
   const inputs = props.project.inputs.filter(input => input.id !== "placeholder");
 
   useEffect(() => {
@@ -43,7 +52,8 @@ export function Input(props: {
     void Promise.all(inputs.map(async input => [input.id, input.kind === "video"
       ? (await api<{ url: string }>("GET", `/api/projects/${props.project.id}/inputs/${input.id}/thumbnail`)).url
       : await mediaUrl(props.project.id, input.file)] as const))
-      .then(entries => { if (active) setMediaUrls(Object.fromEntries(entries)); });
+      .then(entries => { if (active) setMediaUrls(Object.fromEntries(entries)); })
+      .catch(error => { if (active) props.onError(error instanceof Error ? error.message : String(error)); });
     return () => { active = false; };
   }, [props.project.id, props.project.inputs]);
 
@@ -69,12 +79,16 @@ export function Input(props: {
   }, [props.project.id, props.project.inputs]);
 
   async function addPaths(paths: string[]) {
+    if (busyRef.current) return;
     const available = 20 - inputs.length;
+    if (paths.some(file => !mediaKind(file))) props.onError("mp4·mov 영상이나 jpg·png·heic 사진만 넣을 수 있어요");
+    if (paths.filter(file => mediaKind(file)).length > available) props.onError("20개까지 넣을 수 있어요");
     const accepted = paths.filter(file => mediaKind(file)).slice(0, available);
     if (!accepted.length) {
-      props.onError(available ? "mp4·mov 영상이나 jpg·png·heic 사진을 골라 주세요." : "미디어는 20개까지 넣을 수 있어요.");
+      if (!paths.length) props.onError("mp4·mov 영상이나 jpg·png·heic 사진만 넣을 수 있어요");
       return;
     }
+    busyRef.current = true;
     setBusy(true);
     try {
       await persistName();
@@ -85,16 +99,31 @@ export function Input(props: {
     } catch (error) {
       props.onError(error instanceof Error ? error.message : String(error));
     } finally {
+      busyRef.current = false;
       setBusy(false);
     }
   }
 
   async function persistName() {
-    const trimmed = name.trim();
-    if (!trimmed || trimmed === props.project.name) return props.project;
-    const next = await api<Project>("PUT", `/api/projects/${props.project.id}`, { ...props.project, name: trimmed, savedAt: new Date().toISOString() });
-    props.onProject(next);
-    return next;
+    const trimmed = nameRef.current.trim();
+    if (nameSaveRef.current?.name === trimmed) return nameSaveRef.current.promise;
+    const base = nameSaveRef.current ? await nameSaveRef.current.promise : projectRef.current;
+    if (!trimmed || trimmed === base.name) return base;
+    const promise = api<Project>("PUT", `/api/projects/${base.id}`, { ...base, name: trimmed, savedAt: new Date().toISOString() });
+    const saving = { name: trimmed, promise };
+    nameSaveRef.current = saving;
+    try {
+      const next = await promise;
+      projectRef.current = next;
+      props.onProject(next);
+      return next;
+    } finally { if (nameSaveRef.current === saving) nameSaveRef.current = null; }
+  }
+
+  async function navigate(action: () => void) {
+    if (busyRef.current) return;
+    try { await persistName(); action(); }
+    catch (error) { props.onError(error instanceof Error ? error.message : String(error)); }
   }
 
   useBeforeUpdateRestart(async () => { await persistName(); });
@@ -114,6 +143,7 @@ export function Input(props: {
   }
 
   async function removeInput(inputId: string) {
+    if (busyRef.current) return;
     const remaining = inputs.filter(input => input.id !== inputId);
     const next = {
       ...props.project,
@@ -121,7 +151,8 @@ export function Input(props: {
       savedAt: new Date().toISOString(),
     };
     try {
-      const saved = await api<Project>("PUT", `/api/projects/${next.id}`, next);
+      const named = await persistName();
+      const saved = await api<Project>("PUT", `/api/projects/${next.id}`, { ...next, name: named.name });
       props.onProject(saved);
     } catch (error) {
       props.onError(error instanceof Error ? error.message : String(error));
@@ -129,11 +160,13 @@ export function Input(props: {
   }
 
   async function reorder(from: number, to: number) {
+    if (busyRef.current) return;
     if (to < 0 || to >= inputs.length || from === to) return;
     const reordered = [...inputs];
     const [item] = reordered.splice(from, 1);
     if (item) reordered.splice(to, 0, item);
     try {
+      await persistName();
       const saved = await api<Project>("PUT", `/api/projects/${props.project.id}/inputs/order`, { ids: reordered.map(input => input.id) });
       props.onProject(saved);
     } catch (error) {
@@ -155,63 +188,64 @@ export function Input(props: {
   }
 
   return (
-    <section className="screen input-screen" aria-label="미디어 넣기">
-      <header className="input-header">
-        <ActionButton className="flow-back-button" variant="ghost" aria-label="영상 목록으로 돌아가기" onClick={props.onBack}><HugeiconsIcon icon={ArrowLeft01Icon} size={20} /></ActionButton>
-        <div className="project-name-input">
-          <TextField aria-label="영상 이름" value={name} onValueChange={values => setName(values.value)}><TextFieldInput maxLength={120} /></TextField>
+    <section className="u3-shell flex h-full min-h-0 flex-col" aria-label="미디어 넣기"
+      onDragOver={event => { if (event.dataTransfer.types.includes("Files")) { event.preventDefault(); setDragging(true); } }}
+      onDragLeave={event => { if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDragging(false); }}
+      onDrop={event => {
+        if (!event.dataTransfer.types.includes("Files")) return;
+        event.preventDefault(); setDragging(false);
+        void addPaths(Array.from(event.dataTransfer.files).map(file => (file as File & { path?: string }).path).filter((file): file is string => Boolean(file)));
+      }}>
+      <header className="flex h-14 shrink-0 items-center gap-3 border-b border-border bg-card px-4">
+        <FlowIconButton label="영상 목록으로 돌아가기" disabled={busy} onClick={() => void navigate(props.onBack)}><HugeiconsIcon icon={ArrowLeft01Icon} aria-hidden="true" /></FlowIconButton>
+        <NameInput className="w-60" aria-label="영상 이름" maxLength={120} value={name} disabled={busy} onChange={event => setName(event.target.value)} onBlur={() => void persistName().catch(error => props.onError(error instanceof Error ? error.message : String(error)))} />
+        <div className="flex min-w-0 flex-1 justify-center">
+          <StepNav current="media" steps={[
+            { id: "media", label: "미디어", disabled: busy },
+            { id: "script", label: "대본", disabled: !inputs.length || busy },
+            { id: "studio", label: "스튜디오", disabled: !props.project.timeline.video.length || busy },
+          ]} onStepChange={value => {
+            if (value === "script") void navigate(props.onScript);
+            if (value === "studio") void navigate(props.onStudio);
+          }} />
         </div>
-        <ChipTabsRoot className="steps" value="media" size="medium" variant="neutralSolid" aria-label="단계" onValueChange={value => {
-          if (value === "script") props.onScript();
-          if (value === "studio") props.onStudio();
-        }}>
-          <ChipTabsList>
-            <ChipTabsTrigger value="media">1 미디어</ChipTabsTrigger>
-            <ChipTabsTrigger value="script" disabled={!inputs.length}>2 대본</ChipTabsTrigger>
-            <ChipTabsTrigger value="studio" disabled={!props.project.timeline.video.length}>3 스튜디오</ChipTabsTrigger>
-          </ChipTabsList>
-        </ChipTabsRoot>
+        <Button variant="solid" disabled={!inputs.length || busy} onClick={() => void next()}>다음: 대본<HugeiconsIcon icon={ArrowRight01Icon} aria-hidden="true" /></Button>
       </header>
-      <main className="input-content">
-        <ActionButton
-          variant="neutralOutline"
-          className="drop-area"
-          type="button"
-          disabled={busy || inputs.length >= 20}
-          data-dragging={dragging}
-          onClick={() => void chooseFiles()}
-          onDragOver={event => { event.preventDefault(); setDragging(true); }}
-          onDragLeave={() => setDragging(false)}
-          onDrop={event => { event.preventDefault(); setDragging(false); void addPaths(Array.from(event.dataTransfer.files).map(file => (file as File & { path?: string }).path).filter((file): file is string => Boolean(file))); }}
-        >
-          <HugeiconsIcon icon={FileUploadIcon} size={32} aria-hidden="true" />
-          <span className="drop-area-title">영상·사진을 끌어 놓거나 눌러서 고르기</span>
-          <span className="drop-area-description">mp4 · mov · jpg · png · heic, 최대 20개</span>
-        </ActionButton>
-        <section className="input-media-section" aria-labelledby="media-list-title">
-          <div className="input-media-heading">
-            <h2 id="media-list-title">넣은 미디어</h2><span>{inputs.length} / 20</span>
-          </div>
-          {inputs.length ? (
-            <ol className="media-list">
-              {inputs.map((input, index) => (
-                <li className="media-row" key={input.id} draggable onDragStart={event => event.dataTransfer.setData("text/plain", String(index))} onDragOver={event => event.preventDefault()} onDrop={event => { event.preventDefault(); void reorder(Number(event.dataTransfer.getData("text/plain")), index); }}>
-                  <span className="media-preview"><img src={mediaUrls[input.id]} alt="" /></span>
-                  <span className="media-kind">{index + 1}</span>
-                  <span className="media-row-name">{inputDisplayName(input)}</span>
-                  <span className="media-kind">{input.kind === "video" ? "영상" : "사진"}</span>
-                  <ActionButton variant="neutralWeak" size="small" aria-label={`위로 이동 ${inputDisplayName(input)}`} disabled={index === 0} onClick={() => void reorder(index, index - 1)}><HugeiconsIcon icon={ArrowUp01Icon} size={16} /></ActionButton>
-                  <ActionButton variant="neutralWeak" size="small" aria-label={`아래로 이동 ${inputDisplayName(input)}`} disabled={index === inputs.length - 1} onClick={() => void reorder(index, index + 1)}><HugeiconsIcon icon={ArrowDown01Icon} size={16} /></ActionButton>
-                  <ActionButton variant="ghost" size="small" aria-label={`빼기 ${inputDisplayName(input)}`} onClick={() => void removeInput(input.id)}>빼기</ActionButton>
-                </li>
-              ))}
-            </ol>
-          ) : null}
-        </section>
+      <main className="flex min-h-0 flex-1 justify-center overflow-y-auto px-10 py-8">
+        <div className="flex w-full max-w-[880px] flex-col gap-4">
+          {busy ? <div className="flex h-[72px] shrink-0 items-center gap-3 rounded-xl border border-border bg-card px-5" role="status" aria-live="polite" aria-busy="true">
+            <HugeiconsIcon icon={Loading03Icon} aria-hidden="true" className="size-5 animate-spin text-muted-foreground" />
+            <strong>넣는 중</strong><Progress className="flex-1" aria-label="미디어 넣는 중" />
+          </div> : <Button variant="outline" className={cn("shrink-0 justify-start gap-3 rounded-xl border-dashed bg-card px-5", inputs.length ? "h-[72px]" : "min-h-[320px] flex-1 flex-col items-center justify-center gap-3.5", dragging && "border-ring ring-2 ring-ring")}
+            disabled={inputs.length >= 20} data-dragging={dragging} onClick={() => void chooseFiles()}>
+            <HugeiconsIcon icon={FileUploadIcon} className={cn("text-muted-foreground", inputs.length ? "size-5" : "size-8")} aria-hidden="true" />
+            <strong className={inputs.length ? "flex-1 text-left" : "text-[15px]"}>영상·사진 넣기</strong>
+            {inputs.length > 0 && <span className="text-xs text-muted-foreground tabular-nums">{inputs.length} / 20</span>}
+          </Button>}
+          {(inputs.length > 0 || busy) && <ol aria-label="넣은 미디어" className="shrink-0 overflow-hidden rounded-[10px] border border-border">
+            {inputs.map((input, index) => <li key={input.id} draggable={!busy} className="flex h-20 items-center gap-3 border-b border-border bg-background pr-3 pl-2 last:border-b-0"
+              onDragStart={event => { event.dataTransfer.setData("application/x-u3-input-index", String(index)); event.dataTransfer.effectAllowed = "move"; }}
+              onDragOver={event => { if (event.dataTransfer.types.includes("application/x-u3-input-index")) { event.preventDefault(); event.dataTransfer.dropEffect = "move"; } }}
+              onDrop={event => {
+                const value = event.dataTransfer.getData("application/x-u3-input-index");
+                if (!value) return;
+                event.preventDefault(); event.stopPropagation(); void reorder(Number(value), index);
+              }}>
+              <HugeiconsIcon icon={DragDropVerticalIcon} aria-hidden="true" className="size-4 shrink-0 text-placeholder" />
+              <strong className="w-4 shrink-0 text-center tabular-nums">{index + 1}</strong>
+              <span className="h-16 w-9 shrink-0 overflow-hidden rounded-sm bg-muted">{mediaUrls[input.id] && <img src={mediaUrls[input.id]} alt="" className="h-full w-full object-cover" />}</span>
+              <div className="flex min-w-0 flex-1 flex-col gap-0.5">
+                <strong className="truncate">{inputDisplayName(input)}</strong>
+                <span className="text-2xs text-muted-foreground">{input.kind === "video" ? `영상${input.durationSec === undefined ? "" : ` · ${input.durationSec.toFixed(1)}초`}` : "사진"}</span>
+              </div>
+              <FlowIconButton size="icon-sm" label={`위로 이동 ${inputDisplayName(input)}`} disabled={busy || index === 0} onClick={() => void reorder(index, index - 1)}><HugeiconsIcon icon={ArrowUp01Icon} aria-hidden="true" /></FlowIconButton>
+              <FlowIconButton size="icon-sm" label={`아래로 이동 ${inputDisplayName(input)}`} disabled={busy || index === inputs.length - 1} onClick={() => void reorder(index, index + 1)}><HugeiconsIcon icon={ArrowDown01Icon} aria-hidden="true" /></FlowIconButton>
+              <FlowIconButton size="icon-sm" label={`빼기 ${inputDisplayName(input)}`} disabled={busy} onClick={() => void removeInput(input.id)}><HugeiconsIcon icon={Cancel01Icon} aria-hidden="true" /></FlowIconButton>
+            </li>)}
+            {busy && <li className="flex h-20 items-center gap-3 px-16" aria-hidden="true"><div className="h-16 w-9 animate-pulse rounded-sm bg-muted" /><div className="flex flex-col gap-1.5"><div className="h-3 w-36 animate-pulse rounded bg-muted" /><div className="h-2.5 w-20 animate-pulse rounded bg-muted" /></div></li>}
+          </ol>}
+        </div>
       </main>
-      <footer className="input-footer">
-        <ActionButton variant="brandSolid" disabled={!inputs.length || busy} onClick={() => void next()}>다음: 대본</ActionButton>
-      </footer>
     </section>
   );
 }
