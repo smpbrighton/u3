@@ -1,6 +1,6 @@
 # 0033 두 플랫폼 릴리스 공개 절차
 
-Status: draft
+Status: accepted
 Source: changes/049-windows-build/spec.md, changes/049-windows-build/plan.md
 
 ## 맥락
@@ -16,4 +16,4 @@ Source: changes/049-windows-build/spec.md, changes/049-windows-build/plan.md
 - 리소스 전용 archive는 resources-<정수> prerelease에만 둔다. 리소스 Release가 releases/latest를 대체하지 않게 한다. 재배포 권리 확인 전에 올리지 않는다.
 
 ## 결과
-기본 Mac 릴리스 공개가 Windows 검증 성공을 기다린다. Windows 실패 시 draft와 tag가 남는다. 키 등록·리소스 업로드·CI·Windows 11 두 버전 업데이트는 별도 증거가 필요하다. 이 문서의 Status는 사람 검토 전까지 draft다.
+기본 Mac 릴리스 공개가 Windows 검증 성공을 기다린다. Windows 실패 시 draft와 tag가 남는다. 키 등록·리소스 업로드·CI·Windows 11 두 버전 업데이트는 별도 증거가 필요하다. plan 승인(검토 목록 6)으로 받았다.
