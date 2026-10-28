@@ -145,3 +145,12 @@ pub fn install_on_exit(app: &AppHandle) {
     })();
     if let Err(error) = result { eprintln!("업데이트를 설치하지 못했습니다: {error}"); }
 }
+
+#[cfg(test)]
+mod platform_tests {
+    #[test]
+    fn update_cache_uses_the_platform_payload_extension() {
+        assert_eq!(super::cache_name("0.4.0", false), "U3-0.4.0.app.tar.gz");
+        assert_eq!(super::cache_name("0.4.0", true), "U3-0.4.0-setup.exe");
+    }
+}
