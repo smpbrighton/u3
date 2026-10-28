@@ -39,7 +39,7 @@ export function BrandPreview(props: { brand: BrandSettings; layer: "watermark" |
     memes: {}, overlayInputs: {}, memeFrames: {},
   };
 
-  return <div className="brand-preview-wrap" aria-label={props.layer === "watermark" ? "워터마크 미리보기" : "타이틀 바 미리보기"}>
+  return <div data-u3-preview className="brand-preview-wrap m-0 h-[480px] w-[270px] min-w-[270px] shrink-0 overflow-hidden rounded-md border border-border bg-muted" aria-label={props.layer === "watermark" ? "워터마크 미리보기" : "타이틀 바 미리보기"}>
     <Player component={U3Short} inputProps={playerProps} durationInFrames={1} fps={30} compositionWidth={1080} compositionHeight={1920} controls={false} acknowledgeRemotionLicense style={{ width: "100%", height: "100%" }} />
   </div>;
 }

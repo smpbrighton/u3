@@ -1,10 +1,10 @@
-import { ActionButton } from "../../seed-design/ui/action-button";
 import { HugeiconsIcon } from "@hugeicons/react";
 import { RefreshIcon } from "@hugeicons/core-free-icons";
 import { Button } from "./components/ui/button";
 import { Progress } from "./components/ui/progress";
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./components/ui/tooltip";
 import { cn } from "./components/ui/utils";
+import { SettingRow, SettingsGroup } from "./settings/SettingsControls";
 import { updateLine, type UpdateSnapshot } from "./updater";
 
 export function UpdateSidebar(props: { status: UpdateSnapshot | null; collapsed?: boolean; disabled: boolean; onRestart: () => void }) {
@@ -36,9 +36,10 @@ export function UpdateSidebar(props: { status: UpdateSnapshot | null; collapsed?
 }
 
 export function AppInfo(props: { status: UpdateSnapshot | null; onCheck: () => void }) {
-  return <section className="section-card settings-card" aria-labelledby="app-info-title">
-    <h2 id="app-info-title" className="settings-section-title">앱 정보</h2>
-    <dl className="app-info"><div><dt>현재 버전</dt><dd>{props.status?.currentVersion ?? "—"}</dd></div><div><dt>마지막 확인</dt><dd>{props.status?.lastCheckedAt ? <time dateTime={new Date(props.status.lastCheckedAt).toISOString()}>{new Date(props.status.lastCheckedAt).toLocaleString("ko-KR")}</time> : "아직 확인하지 않았어요"}</dd></div></dl>
-    <div className="action-row"><ActionButton variant="neutralWeak" disabled={!props.status || props.status.checking} onClick={props.onCheck}>지금 확인</ActionButton></div>
-  </section>;
+  return <SettingsGroup title="앱 정보">
+    <SettingRow label="현재 버전"><span className="text-sm tabular-nums">{props.status?.currentVersion ?? "—"}</span></SettingRow>
+    <SettingRow label="마지막 확인" value={<Button variant="outline" size="sm" disabled={!props.status || props.status.checking} onClick={props.onCheck}><HugeiconsIcon icon={RefreshIcon} aria-hidden="true" className="size-4" />지금 확인</Button>}>
+      <span className="text-xs text-muted-foreground">{props.status?.lastCheckedAt ? <time dateTime={new Date(props.status.lastCheckedAt).toISOString()}>{new Date(props.status.lastCheckedAt).toLocaleString("ko-KR")}</time> : "아직 확인하지 않았어요"}</span>
+    </SettingRow>
+  </SettingsGroup>;
 }

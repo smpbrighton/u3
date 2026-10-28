@@ -1,13 +1,8 @@
 import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import { UpdateSidebar, AppInfo } from "../../src/ui/UpdateControls";
 import type { UpdateSnapshot } from "../../src/ui/updater";
-
-// AppInfo는 B2에서 옮긴다. 그 SEED 버튼만 제외하고 셸은 실제 shadcn 부품을 검사한다.
-vi.mock("../../seed-design/ui/action-button", () => ({
-  ActionButton: (props: { disabled?: boolean; children: React.ReactNode }) => <button disabled={props.disabled}>{props.children}</button>,
-}));
 
 const idle: UpdateSnapshot = { status: "idle", currentVersion: "0.2.0", lastCheckedAt: null, checking: false, revision: 0 };
 describe("업데이트 화면", () => {
