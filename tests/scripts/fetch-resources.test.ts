@@ -2,7 +2,8 @@ import { mkdir, mkdtemp, readdir, readFile, rm, writeFile } from "node:fs/promis
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { copyLibrary } from "../../scripts/fetch-resources";
+import { copyLibrary, validateResourceManifest } from "../../scripts/fetch-resources";
+import { createHash } from "node:crypto";
 
 let root = "";
 afterEach(async () => {
@@ -21,6 +22,18 @@ async function filePaths(directory: string, prefix = ""): Promise<string[]> {
 }
 
 describe("fetch-resources library copy", () => {
+  it("archive root의 파일 hash와 전체 manifest를 검사한다", async () => {
+    root = await mkdtemp(path.join(os.tmpdir(), "u3-resource-manifest-"));
+    await mkdir(path.join(root, "library"));
+    await writeFile(path.join(root, "library/a.json"), "fixture");
+    const files = { "library/a.json": createHash("sha256").update("fixture").digest("hex") };
+    await writeFile(path.join(root, "manifest.json"), JSON.stringify({ files }));
+    await expect(validateResourceManifest(root)).resolves.toBeUndefined();
+    await writeFile(path.join(root, "library/a.json"), "tampered");
+    await expect(validateResourceManifest(root)).rejects.toThrow("SHA-256");
+    await writeFile(path.join(root, "manifest.json"), JSON.stringify({ files: { "../escape": files["library/a.json"] } }));
+    await expect(validateResourceManifest(root)).rejects.toThrow();
+  });
   it("copies Unicode emotion libraries to ASCII paths and preserves sidecar emotions", async () => {
     root = await mkdtemp(path.join(os.tmpdir(), "u3-fetch-resources-"));
     const source = path.join(root, "source");

@@ -1,0 +1,38 @@
+
+ RUN  v5.0.5 /Volumes/X31/workspace/smp_workspace/u3-049-windows-build
+
+ ❯ tests/scripts/build-engine-platforms.test.ts (0 test)
+ ❯ tests/scripts/fetch-resources.test.ts (2 tests | 1 failed) 100ms
+   ❯ fetch-resources library copy (2)
+     × archive root의 파일 hash와 전체 manifest를 검사한다 36ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/scripts/build-engine-platforms.test.ts [ tests/scripts/build-engine-platforms.test.ts ]
+Error: Cannot find module '../../scripts/build-platforms' imported from /Volumes/X31/workspace/smp_workspace/u3-049-windows-build/tests/scripts/build-engine-platforms.test.ts
+ ❯ tests/scripts/build-engine-platforms.test.ts:3:1
+
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/2]⎯
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/scripts/fetch-resources.test.ts > fetch-resources library copy > archive root의 파일 hash와 전체 manifest를 검사한다
+TypeError: validateResourceManifest is not a function
+ ❯ tests/scripts/fetch-resources.test.ts:31:18
+     29|     const files = { "library/a.json": createHash("sha256").update("fix…
+     30|     await writeFile(path.join(root, "manifest.json"), JSON.stringify({…
+     31|     await expect(validateResourceManifest(root)).resolves.toBeUndefine…
+       |                  ^
+     32|     await writeFile(path.join(root, "library/a.json"), "tampered");
+     33|     await expect(validateResourceManifest(root)).rejects.toThrow("SHA-…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/2]⎯
+
+
+ Test Files  2 failed (2)
+      Tests  1 failed | 1 passed (2)
+   Start at  19:59:30
+   Duration  209ms (tests 83%, transform 7%, import 6%, worker 4%)
+
