@@ -23,6 +23,13 @@ const sources = {
 };
 
 describe("미리보기 소스 준비 판정", () => {
+  it("047 원본 소리·stems의 캐시 파일 URL까지 있어야 준비된다", () => {
+    for (const track of ["source", "stem-voice", "stem-bg"] as const) {
+      const r = render({ audio: [{ id: "a", track, inputId: "main", file: "cache/audio/a.wav", startFrame: 0, durationInFrames: 30, sourceStartFrame: 0, volume: 1 }] });
+      expect(hasAllRenderSources(r, sources)).toBe(false);
+      expect(hasAllRenderSources(r, { ...sources, files: { ...sources.files, "cache/audio/a.wav": "cache-url" } })).toBe(true);
+    }
+  });
   it("영상 1·영상 2, 짤, 입력, 오디오 URL이 모두 있으면 준비 완료다", () => {
     expect(hasAllRenderSources(render({
       video: [
