@@ -7,6 +7,13 @@ export const DEFAULT_PHOTO_MIN_SEC = 1.5;
 export const DEFAULT_MEME_MAX_SEC = 2;
 const VIDEO_JOIN_TOLERANCE_SEC = 0.05;
 
+export function memeClipPlacement({ sceneStart, sceneDuration, memeDuration, position }: {
+  sceneStart: number; sceneDuration: number; memeDuration?: number; position: "before" | "after";
+}): { startSec: number; durationSec: number } {
+  const durationSec = Math.min(memeDuration ?? DEFAULT_MEME_MAX_SEC, DEFAULT_MEME_MAX_SEC, sceneDuration);
+  return { startSec: position === "before" ? sceneStart : Math.max(sceneStart, sceneStart + sceneDuration - durationSec), durationSec };
+}
+
 export interface SfxLibraryItem {
   id: string;
   category: string;
@@ -60,9 +67,8 @@ export function timelineFromScript(script: CodexScript, inputs: readonly Input[]
         ? options.alternateMemes?.[index] ?? meme
         : meme;
       if (!selected) throw new Error(`장면 ${index + 1}의 짤을 찾을 수 없습니다`);
-      const durationSec = Math.min(selected.durationSec ?? DEFAULT_MEME_MAX_SEC, DEFAULT_MEME_MAX_SEC, mainDuration);
-      const start = suffix === "before" ? cursor : Math.max(cursor, cursor + mainDuration - durationSec);
-      overlays = placeOverlayInLowestLayer(overlays, { id: `scene-${index}-meme-${suffix}`, memeId: selected.id, startSec: start, durationSec, x: 0.5, y: 0.5, width: 0.6 });
+      const placement = memeClipPlacement({ sceneStart: cursor, sceneDuration: mainDuration, memeDuration: selected.durationSec, position: suffix });
+      overlays = placeOverlayInLowestLayer(overlays, { id: `scene-${index}-meme-${suffix}`, sceneIndex: index, memeId: selected.id, ...placement, x: 0.5, y: 0.5, width: 0.6 });
     };
     if (scene.memeBefore) addMeme("before");
     const nextVideo = videoClip(index, input, mainStart, mainEnd);
@@ -87,8 +93,8 @@ export function timelineFromScript(script: CodexScript, inputs: readonly Input[]
     if (scene.memeAfter) addMeme("after");
 
     const durationSec = mainDuration;
-    captions.push({ id: `scene-${index}-caption`, startSec: cursor, endSec: cursor + durationSec, text: scene.caption });
-    if (scene.subCaption?.trim()) subCaptions.push({ id: `scene-${index}-sub-caption`, startSec: cursor, endSec: cursor + durationSec, text: scene.subCaption });
+    captions.push({ id: `scene-${index}-caption`, sceneIndex: index, startSec: cursor, endSec: cursor + durationSec, text: scene.caption });
+    if (scene.subCaption?.trim()) subCaptions.push({ id: `scene-${index}-sub-caption`, sceneIndex: index, startSec: cursor, endSec: cursor + durationSec, text: scene.subCaption });
     const category = resolveSceneSfx(
       { sfxCategory: scene.sfxCategory ?? undefined, reaction: scene.reaction ?? undefined },
       options.memes?.[index]?.emotion,
@@ -99,6 +105,7 @@ export function timelineFromScript(script: CodexScript, inputs: readonly Input[]
       : null;
     if (effect) sfx.push({
       id: `scene-${index}-sfx`,
+      sceneIndex: index,
       startSec: cursor,
       file: effect.file,
       inStartSec: 0,

@@ -164,6 +164,50 @@ export function trimCaptionClip(timeline: Timeline, clipId: string, edge: "start
   return layer ? withCaptionLayers(timeline, captionLayersOf(timeline).map((item) => item.id === layer.id ? { ...item, [row]: item[row].map((current) => current.id === clipId ? next : current) } : item)) : { ...timeline, captions: timeline.captions.map((item) => item.id === clipId ? next : item) };
 }
 
+function captionRow(timeline: Timeline, clipId: string) {
+  for (const layer of captionLayersOf(timeline)) {
+    for (const row of ["main", "sub"] as const) {
+      const clip = layer[row].find(item => item.id === clipId);
+      if (clip) return { layer, row, clip };
+    }
+  }
+  throw new Error(`caption 클립을 찾을 수 없습니다: ${clipId}`);
+}
+
+export function setCaptionRange(timeline: Timeline, clipId: string, startSec: number, endSec: number): Timeline {
+  if (!Number.isFinite(startSec) || !Number.isFinite(endSec)) throw new RangeError("자막 시각은 유한한 수여야 합니다");
+  const { layer, row, clip } = captionRow(timeline, clipId);
+  const others = layer[row].filter(item => item.id !== clipId);
+  const lower = Math.max(0, ...others.filter(item => item.startSec < clip.startSec).map(item => item.endSec));
+  const upper = Math.min(videoDuration(timeline), ...others.filter(item => item.startSec >= clip.startSec).map(item => item.startSec));
+  if (upper - lower < 0.1 - 1e-9) return timeline;
+  const start = Math.max(lower, Math.min(upper - 0.1, startSec));
+  const end = Math.max(start + 0.1, Math.min(upper, endSec));
+  return withCaptionLayers(timeline, captionLayersOf(timeline).map(item => item.id === layer.id
+    ? { ...item, [row]: item[row].map(current => current.id === clipId ? { ...current, startSec: start, endSec: end } : current) } : item));
+}
+
+export function splitCaptionClip(timeline: Timeline, clipId: string, atSec: number, ids: readonly [string, string] = [`${clipId}-a`, `${clipId}-b`]): Timeline {
+  const { layer, row, clip } = captionRow(timeline, clipId);
+  if (!(atSec > clip.startSec && atSec < clip.endSec)) throw new RangeError("자르기 위치는 자막 클립 안쪽이어야 합니다");
+  const { sceneIndex: _sceneIndex, ...right } = clip;
+  const pieces: TextClip[] = [{ ...clip, id: ids[0], endSec: atSec, ...(clip.style ? { style: { ...clip.style } } : {}) },
+    { ...right, id: ids[1], startSec: atSec, ...(clip.style ? { style: { ...clip.style } } : {}) }];
+  return withCaptionLayers(timeline, captionLayersOf(timeline).map(item => item.id === layer.id
+    ? { ...item, [row]: item[row].flatMap(current => current.id === clipId ? pieces : [current]) } : item));
+}
+
+export function addCaptionClip(timeline: Timeline, layerId: string, row: "main" | "sub", startSec: number, maxSec = 3): Timeline | null {
+  const layers = captionLayersOf(timeline);
+  const layer = layers.find(item => item.id === layerId);
+  if (!layer) throw new Error(`자막 레이어를 찾을 수 없습니다: ${layerId}`);
+  if (!Number.isFinite(startSec) || !Number.isFinite(maxSec) || startSec < 0 || layer[row].some(c => c.startSec <= startSec && c.endSec > startSec)) return null;
+  const endSec = Math.min(startSec + Math.min(3, maxSec), videoDuration(timeline), ...layer[row].filter(c => c.startSec > startSec).map(c => c.startSec));
+  if (endSec - startSec < 0.3 - 1e-9) return null;
+  const clip: TextClip = { id: `caption-${crypto.randomUUID()}`, startSec, endSec, text: "" };
+  return withCaptionLayers(timeline, layers.map(item => item.id === layerId ? { ...item, [row]: [...item[row], clip].sort((a, b) => a.startSec - b.startSec) } : item));
+}
+
 export function moveCaptionClip(timeline: Timeline, clipId: string, startSec: number): Timeline {
   const layer = captionLayersOf(timeline).find((item) => [...item.main, ...item.sub].some((clip) => clip.id === clipId));
   const row = layer?.main.some(clip => clip.id === clipId) ? "main" : "sub";
