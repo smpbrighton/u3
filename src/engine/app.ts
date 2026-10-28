@@ -1,6 +1,6 @@
-import { BUNDLED_PROMPT_DEFAULTS, type PromptDefaults } from "../core/default-prompts";
 // Hono 앱 조립. uUu src/server/app.ts의 공용 컨텍스트·오류 처리·미들웨어 조립 방식을 따른다.
 import { Hono } from "hono";
+import { BUNDLED_PROMPT_DEFAULTS, type PromptDefaults } from "../core/default-prompts";
 import type { Store } from "./store";
 import type { Jobs } from "./jobs";
 import type { MemeIndex } from "./pipeline/meme-embed";
