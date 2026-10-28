@@ -11,7 +11,11 @@ describe("Codex 모델 선택", () => {
     expect(resolveCodexModel("gpt-5.5", catalog)).toBe("gpt-6.1-sol");
     expect(resolveCodexModel(undefined, ["gpt-6.1-terra", "gpt-6-luna"])).toBe("gpt-6-luna");
     expect(resolveCodexModel(undefined, ["account-model"])).toBe("account-model");
-    expect(resolveCodexModel("gpt-5.5", [])).toBe("gpt-6.1-sol");
+    expect(resolveCodexModel(undefined, [])).toBe("gpt-6.1-sol");
+  });
+  it("카탈로그를 읽지 못하면 저장 모델을 유지한다", () => {
+    expect(resolveCodexModel("gpt-5.5", [])).toBe("gpt-5.5");
+    expect(resolveCodexModel("gpt-6-luna", [])).toBe("gpt-6-luna");
   });
   it("실패한 모델은 다시 고르지 않고 목록 밖 모델도 고르지 않는다", () => {
     expect(nextCodexModel(["gpt-6-luna"], catalog)).toBe("gpt-6.1-sol");
