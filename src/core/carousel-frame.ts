@@ -53,3 +53,15 @@ export function frameCropPosition(cropY: number): string {
   const y = Math.max(0, Math.min(1, Number.isFinite(cropY) ? cropY : 0.5));
   return `50% ${Number((y * 100).toFixed(4))}%`;
 }
+
+/** 대본 단계의 균등 구간 가운데 시각을 반환한다. */
+export function scriptFrameSecs(count: number, durationSec: number): number[] {
+  if (!Number.isInteger(count) || count < 0 || !Number.isFinite(durationSec) || durationSec < 0) throw new RangeError("프레임 수와 길이가 올바르지 않습니다");
+  return Array.from({ length: count }, (_, i) => ((i + 0.5) / count) * durationSec);
+}
+
+export function nearestScriptFrame(secs: readonly number[], sec: number): number | null {
+  return secs.reduce<number | null>((best, value) => best === null ||
+    Math.abs(value - sec) < Math.abs(best - sec) ||
+    (Math.abs(value - sec) === Math.abs(best - sec) && value < best) ? value : best, null);
+}

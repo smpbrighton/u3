@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { Carousel, carouselFolderName, nextCarouselFolderName, receivedSlideFileName } from "../../src/core/carousel";
-import { carouselCanvasSize, textPlacementStyle } from "../../src/remotion/carousel-layout";
+import { Carousel, textsFromLegacy, carouselFolderName, nextCarouselFolderName, receivedSlideFileName } from "../../src/core/carousel";
+import { carouselCanvasSize } from "../../src/remotion/carousel-layout";
 
 const example = {
   id: "carousel-1",
@@ -62,8 +62,8 @@ describe("carousel composition layout", () => {
   });
 
   it("places text at the selected vertical position", () => {
-    expect(textPlacementStyle("top")).toMatchObject({ justifyContent: "flex-start" });
-    expect(textPlacementStyle("center")).toMatchObject({ justifyContent: "center" });
-    expect(textPlacementStyle("bottom")).toMatchObject({ justifyContent: "flex-end" });
+    expect(textsFromLegacy({ textPlacement: "top" }, "4:5")[0]?.y).toBe(0.09);
+    expect(textsFromLegacy({ textPlacement: "center" }, "4:5")[0]?.y).toBe(0.40);
+    expect(textsFromLegacy({ textPlacement: "bottom" }, "4:5")[0]?.y).toBe(0.62);
   });
 });
