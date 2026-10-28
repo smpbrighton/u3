@@ -1,3 +1,4 @@
+import type { SystemStatus } from "../types";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_BRAND_SETTINGS, captionLayersOf, withCaptionLayers, type AudioClip, type BrandSettings, type ClipTransitionInput, type OverlayClip, type Project, type Timeline as TimelineData, type TransitionKind } from "../../core/schema";
 import { clipDuration, deleteOverlayClip, moveVideoClip, overlayDuration, videoDuration, videoStartTimes, trimVideoClip, setCaptionRange } from "../../core/timeline/ops";
@@ -25,6 +26,7 @@ export type SpeedJob = { clipId: string; job: EngineJob | null; cancel: () => vo
 interface SfxItem { id: string; category: string; title: string; file: string; ref: string; url: string; durationSec: number }
 type TranscriptResult = { captions: TimelineData["captions"]; replaced: TimelineData["captions"] };
 export function Inspector(props: {
+  capabilities?: SystemStatus["capabilities"];
   onSpeed?: (clipId: string, track: "video" | "overlay" | "voice", speed: number) => void; speedJob?: SpeedJob | null;
   project: Project; selectedId: string | null; selectedIds: readonly string[]; selectedTrack: string | null; timeline: TimelineData;
   onChange: (timeline: TimelineData) => void; onProject: (project: Project) => void; onSnackbar: (message: string) => void; onUngroup: () => void;
@@ -245,7 +247,7 @@ export function Inspector(props: {
       <GainControl label="트랙 볼륨" gain={audioGain[track].gain} muted={audioGain[track].muted} onChange={v => updateGain(track, v)} onMute={() => toggleMute(track)} />
       <GainControl label="클립 볼륨" gain={clip.gain} onChange={v => updateClip(clip.id, { gain: v }, track)} />
       {track === "sfx" && <PropertyRow label="효과음"><StudioSelect label="효과음 바꾸기" value={clip.file} items={sfxItems.map(i => ({ value: i.ref, label: i.title }))} onChange={v => { const item = sfxItems.find(i => i.ref === v); if (item) updateClip(clip.id, { file: item.ref, inStartSec: 0, inEndSec: item.durationSec }, "sfx"); }} /></PropertyRow>}
-      {track === "voice" && <><BusyButton variant="outline" disabled={blocked} title={blockedTitle} onClick={() => void createCaptions()}>자막 만들기</BusyButton>{clip.id.startsWith("tts-") && <><BusyButton variant="outline" disabled={blocked} title={blockedTitle} onClick={() => props.onGenerateTts?.(clip.id.slice(4))}>다시 만들기</BusyButton>{ttsOverflow(props.timeline, props.project.audioCache).some(c => c.id === clip.id) && <p role="status" className="text-xs text-muted-foreground">자막보다 음성이 길어요</p>}</>}{jobLine}</>}
+      {track === "voice" && <><BusyButton variant="outline" disabled={blocked} title={blockedTitle} onClick={() => void createCaptions()}>자막 만들기</BusyButton>{props.capabilities?.tts === true && clip.id.startsWith("tts-") && <><BusyButton variant="outline" disabled={blocked} title={blockedTitle} onClick={() => props.onGenerateTts?.(clip.id.slice(4))}>다시 만들기</BusyButton>{ttsOverflow(props.timeline, props.project.audioCache).some(c => c.id === clip.id) && <p role="status" className="text-xs text-muted-foreground">자막보다 음성이 길어요</p>}</>}{jobLine}</>}
     </InspectorShell>;
   }
   if (sourceClip && input) return <InspectorShell title={separated ? "분리한 소리" : "원본 소리"} error={error} {...dialogProps}>

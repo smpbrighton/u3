@@ -139,7 +139,7 @@ export function App() {
   ) : screen === "script" && project ? (
     <Script project={project} status={status} onProject={setProject} onStudio={() => { setStudioFromScript(true); go("studio"); }} onBack={() => go("input")} onSnackbar={notify} onError={notifyError} onSettings={() => go("settings")} onNotices={setStudioNotices} />
   ) : screen === "studio" && project ? (
-    <Studio project={project} shortcuts={shortcuts} onProject={setProject} onBack={() => go("script")} onSnackbar={notify} onError={notifyError} onCarouselCreated={openCarousel} initialTab={studioFromScript ? "scenes" : undefined} notifications={studioNotices} onOpenSettings={() => go("settings")} />
+    <Studio capabilities={status?.capabilities} project={project} shortcuts={shortcuts} onProject={setProject} onBack={() => go("script")} onSnackbar={notify} onError={notifyError} onCarouselCreated={openCarousel} initialTab={studioFromScript ? "scenes" : undefined} notifications={studioNotices} onOpenSettings={() => go("settings")} />
   ) : screen === "carousel" ? (
     <Carousels initialCarousel={carouselToOpen} onSnackbar={notify} onError={notifyError} onSettings={() => go("settings")} />
   ) : <Settings shortcuts={shortcuts} onShortcuts={setShortcuts} onSnackbar={notify} onError={notifyError} update={update} onCheckUpdate={() => void checkNow()} />;

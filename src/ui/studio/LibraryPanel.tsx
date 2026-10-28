@@ -1,3 +1,4 @@
+import type { SystemStatus } from "../types";
 import { useEffect, useRef, useState, type MouseEvent, type PointerEvent as ReactPointerEvent } from "react";
 import { open } from "@tauri-apps/plugin-dialog";
 
@@ -26,6 +27,7 @@ interface SfxItem { id: string; category: string; title: string; file: string; r
 export type LibraryDragItem = { type: "video"; id: string; label: string; image?: string } | { type: "meme"; id: string; label: string; image: string; meme: MemeItem } | { type: "sfx"; id: string; label: string; sfx: SfxItem };
 
 export function LibraryPanel(props: {
+  capabilities?: SystemStatus["capabilities"];
   project: Project;
   selectedId: string | null;
   initialTab?: StudioTab;
@@ -371,7 +373,7 @@ export function LibraryPanel(props: {
         {sfxSearchStatus === "jev" ? <span role="status">Jev 추천</span> : null}
         {sfxQuery.trim() && !["searching", "judging", "search-error"].includes(sfxSearchStatus) && !sfxItems.length ? <span role="status">맞는 효과음이 없어요</span> : null}
       </> : null}
-      {tab === "voice" ? <Recorder projectId={props.project.id} clips={props.project.timeline.voice} onAdd={props.onAddVoice} onRecordingChange={props.onRecordingChange} onError={props.onError} onSnackbar={props.onSnackbar} actions={<BusyButton variant="outline" className="w-full justify-start" disabled={props.ttsBusy || props.processingBusy} title={props.processingBusy ? "다른 작업이 끝난 뒤 시작할 수 있어요" : undefined} onClick={props.onGenerateTts}>자막으로 음성 만들기</BusyButton>} /> : null}
+      {tab === "voice" ? <Recorder projectId={props.project.id} clips={props.project.timeline.voice} onAdd={props.onAddVoice} onRecordingChange={props.onRecordingChange} onError={props.onError} onSnackbar={props.onSnackbar} actions={props.capabilities?.tts === true ? <BusyButton variant="outline" className="w-full justify-start" disabled={props.ttsBusy || props.processingBusy} title={props.processingBusy ? "다른 작업이 끝난 뒤 시작할 수 있어요" : undefined} onClick={props.onGenerateTts}>자막으로 음성 만들기</BusyButton> : undefined} /> : null}
     </TabsContent>
     </TabsRoot>
     {pointerDrag ? <div className="studio-pointer-drag-preview" style={{ left: pointerDrag.x + 14, top: pointerDrag.y + 14 }}>{pointerDrag.item.type === "meme" ? <video src={pointerDrag.item.image} muted autoPlay loop playsInline /> : <span>{pointerDrag.item.type === "sfx" ? "♫ " : ""}{pointerDrag.item.label}</span>}</div> : null}

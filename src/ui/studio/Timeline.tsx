@@ -1,3 +1,4 @@
+import type { SystemStatus } from "../types";
 import { Timeline as TimelineEditor, type TimelineState } from "@xzdarcy/react-timeline-editor";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
 import type { AudioCache, Input, Timeline as TimelineData } from "../../core/schema";
@@ -32,6 +33,7 @@ function blurTimelineControlFocus() {
 }
 
 export function Timeline(props: {
+  capabilities?: SystemStatus["capabilities"];
   timeline: TimelineData;
   shortcuts?: StudioShortcutTable;
   audioCache?: AudioCache;
@@ -254,7 +256,7 @@ export function Timeline(props: {
     "--studio-track-row-height": `${TRACK_ROW_HEIGHT}px`,
     "--studio-ruler-height": `${TIMELINE_RULER_HEIGHT}px`,
   } as CSSProperties}>
-    {props.ttsBusy ? <div className="studio-tts-progress" role="status">
+    {props.capabilities?.tts === true && props.ttsBusy ? <div className="studio-tts-progress" role="status">
       <span>{props.ttsJob?.message ?? "음성 만들기 준비 중"}</span>
       <Progress className="max-w-60" value={(props.ttsJob?.progress ?? 0) * 100} aria-label="음성 만들기 진행률" />
       <Button size="xs" variant="secondary" disabled={!props.ttsJob} onClick={props.onCancelTts}>취소</Button>
