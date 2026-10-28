@@ -1,11 +1,14 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { studioShortcut } from "../../src/ui/studio/shortcuts";
+import { DEFAULT_STUDIO_SHORTCUTS } from "../../src/core/studio-shortcuts";
+
+vi.stubGlobal("navigator", { platform: "MacIntel" });
 
 describe("스튜디오 단축키", () => {
   it("한글 입력 상태에서도 물리 키 코드로 단축키를 판정한다", () => {
     expect(studioShortcut({ key: "ㅊ", code: "KeyC" })).toBe("split-pointer");
     expect(studioShortcut({ key: "ㄴ", code: "KeyS" })).toBe("split-playhead");
-    expect(studioShortcut({ key: "ㅡ", code: "KeyM", metaKey: true })).toBe("group");
+    expect(studioShortcut({ key: "ㅡ", code: "KeyM", metaKey: true })).toBeNull();
     expect(studioShortcut({ key: " ", code: "Space" })).toBe("toggle-play");
     expect(studioShortcut({ key: "ㅋ", code: "KeyZ", metaKey: true })).toBe("undo");
   });
@@ -21,8 +24,8 @@ describe("스튜디오 단축키", () => {
     expect(studioShortcut({ key: "ㄴ", code: "KeyS", targetRole })).toBe("split-playhead");
     expect(studioShortcut({ key: "Delete", code: "Delete", targetRole })).toBe("delete");
     expect(studioShortcut({ key: "Backspace", code: "Backspace", targetRole })).toBe("delete");
-    expect(studioShortcut({ key: "m", code: "KeyM", metaKey: true, targetRole })).toBe("group");
-    expect(studioShortcut({ key: "z", code: "KeyZ", ctrlKey: true, targetRole })).toBe("undo");
+    expect(studioShortcut({ key: "m", code: "KeyM", metaKey: true, targetRole })).toBeNull();
+    expect(studioShortcut({ key: "z", code: "KeyZ", ctrlKey: true, targetRole })).toBeNull();
     expect(studioShortcut({ key: " ", code: "Space", targetRole })).toBeNull();
     expect(studioShortcut({ key: " ", targetRole })).toBeNull();
   });
@@ -62,11 +65,36 @@ describe("스튜디오 단축키", () => {
   it("묶기, 해제, 실행 취소, 다시 실행, 삭제 키를 구분한다", () => {
     expect(studioShortcut({ key: "m", code: "KeyM" })).toBe("group");
     expect(studioShortcut({ key: "M", code: "KeyM", shiftKey: true })).toBe("ungroup");
-    expect(studioShortcut({ key: "m", code: "KeyM", metaKey: true })).toBe("group");
-    expect(studioShortcut({ key: "M", code: "KeyM", ctrlKey: true, shiftKey: true })).toBe("ungroup");
+    expect(studioShortcut({ key: "m", code: "KeyM", metaKey: true })).toBeNull();
+    expect(studioShortcut({ key: "M", code: "KeyM", ctrlKey: true, shiftKey: true })).toBeNull();
     expect(studioShortcut({ key: "z", code: "KeyZ", metaKey: true, shiftKey: true })).toBe("redo");
     expect(studioShortcut({ key: "Delete", code: "Delete" })).toBe("delete");
     expect(studioShortcut({ key: "Backspace", code: "Backspace" })).toBe("delete");
     expect(studioShortcut({ key: "c", code: "KeyC", metaKey: true })).toBeNull();
+  });
+
+  it("사용자 표의 새 키만 실행하고 수정키를 정확히 비교한다", () => {
+    const bindings = { ...DEFAULT_STUDIO_SHORTCUTS, "split-pointer": "KeyX", "toggle-play": "KeyP" };
+    expect(studioShortcut({ key: "x", code: "KeyX" }, bindings)).toBe("split-pointer");
+    expect(studioShortcut({ key: "c", code: "KeyC" }, bindings)).toBeNull();
+    expect(studioShortcut({ key: "p", code: "KeyP" }, bindings)).toBe("toggle-play");
+    expect(studioShortcut({ key: " ", code: "Space" }, bindings)).toBeNull();
+    expect(studioShortcut({ key: "Backspace", code: "Backspace", metaKey: true }, bindings)).toBeNull();
+    expect(studioShortcut({ key: "Backspace", code: "Backspace", shiftKey: true }, bindings)).toBeNull();
+    expect(studioShortcut({ key: "x", code: "KeyX", shiftKey: true }, bindings)).toBeNull();
+  });
+
+  it.each(["button", "tab", "switch", "checkbox", "radio"])("재생 키를 바꿔도 %s에서 물리 Space를 보호한다", targetRole => {
+    const bindings = { ...DEFAULT_STUDIO_SHORTCUTS, "split-pointer": "Space", "toggle-play": "KeyP" };
+    expect(studioShortcut({ key: " ", code: "Space", targetRole }, bindings)).toBeNull();
+    expect(studioShortcut({ key: " ", targetRole }, bindings)).toBeNull();
+    expect(studioShortcut({ key: "p", code: "KeyP", targetRole }, bindings)).toBe("toggle-play");
+    expect(studioShortcut({ key: " ", code: "Space" }, bindings)).toBe("split-pointer");
+  });
+
+  it("Windows 명령키는 Ctrl이고 macOS 명령키는 Meta다", () => {
+    expect(studioShortcut({ key: "z", ctrlKey: true }, DEFAULT_STUDIO_SHORTCUTS, "win")).toBe("undo");
+    expect(studioShortcut({ key: "z", metaKey: true }, DEFAULT_STUDIO_SHORTCUTS, "win")).toBeNull();
+    expect(studioShortcut({ key: "z", ctrlKey: true, shiftKey: true }, DEFAULT_STUDIO_SHORTCUTS, "win")).toBe("redo");
   });
 });
