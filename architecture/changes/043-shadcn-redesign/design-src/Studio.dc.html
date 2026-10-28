@@ -33,8 +33,59 @@ body{margin:0}
 
   <div style="flex: 1 1 0; min-height: 0; display: flex">
     <aside class="lib">
-      <div class="tabs"><span class="{{tab.media}}">미디어</span><span class="{{tab.meme}}">짤</span><span class="{{tab.sfx}}">효과음</span><span class="{{tab.voice}}">음성</span></div>
+      <div class="tabs"><span class="{{tab.scenes}}">장면</span><span class="{{tab.caps}}">자막</span><span class="{{tab.media}}">미디어</span><span class="{{tab.meme}}">짤</span><span class="{{tab.sfx}}">효과음</span><span class="{{tab.voice}}">음성</span></div>
       <div style="flex: 1; min-height: 0; overflow: hidden; padding: 12px; display: flex; flex-direction: column; gap: 10px">
+        <sc-if value="{{L.scenes}}" hint-placeholder-val="{{ false }}">
+          <div style="display: flex; flex-direction: column; gap: 2px; overflow: hidden">
+            <sc-for list="{{sceneRows}}" as="sc" hint-placeholder-count="5">
+              <div class="libitem {{sc.cls}}" style="align-items: flex-start; gap: 8px">
+                <b class="xs num muted" style="width: 14px; flex: none; padding-top: 2px">{{sc.n}}</b>
+                <div style="min-width: 0; flex: 1; display: flex; flex-direction: column; gap: 5px">
+                  <span class="sm ell">{{sc.cap}}</span>
+                  <div style="display: flex; align-items: center; gap: 6px; min-height: 24px">
+                    <sc-if value="{{sc.hasMeme}}" hint-placeholder-val="{{ true }}"><div class="libthumb" style="width: 32px; height: 32px; display: flex; align-items: center; justify-content: center"><span class="i i-image" style="color: var(--fg2)"></span></div><span class="xs muted">{{sc.memeMeta}}</span></sc-if>
+                    <sc-if value="{{sc.noMeme}}" hint-placeholder-val="{{ false }}"><span class="xs muted">짤 없음</span><button class="btn btn-outline btn-xs">넣기</button></sc-if>
+                  </div>
+                  <div style="display: flex; align-items: center; gap: 6px; min-height: 20px">
+                    <span class="i i-music" style="width: 12px; height: 12px; color: var(--fg2)"></span>
+                    <sc-if value="{{sc.hasSfx}}" hint-placeholder-val="{{ true }}"><span class="xs ell">{{sc.sfx}}</span></sc-if>
+                    <sc-if value="{{sc.noSfx}}" hint-placeholder-val="{{ false }}"><span class="xs muted">효과음 없음</span><button class="btn btn-outline btn-xs">넣기</button></sc-if>
+                  </div>
+                </div>
+                <span class="xs num muted" style="flex: none">{{sc.t}}</span>
+              </div>
+            </sc-for>
+          </div>
+        </sc-if>
+        <sc-if value="{{L.caps}}" hint-placeholder-val="{{ false }}">
+          <div class="prow nov" style="min-height: 28px"><span class="lb">레이어</span><div class="select select-sm"><span>레이어 1</span><span class="i i-down"></span></div></div>
+          <div style="display: flex; flex-direction: column; gap: 2px">
+            <sc-for list="{{capRows}}" as="cr" hint-placeholder-count="5">
+              <div class="libitem {{cr.cls}}" style="padding: 4px 8px; gap: 8px"><b class="xs num muted" style="width: 14px; flex: none">{{cr.n}}</b><span class="xs num muted" style="flex: none">{{cr.t}}</span><span class="sm grow ell">{{cr.text}}</span><sc-if value="{{cr.dot}}" hint-placeholder-val="{{ false }}"><span class="dot" style="background: var(--accent)"></span></sc-if></div>
+            </sc-for>
+          </div>
+          <div style="display: flex; gap: 6px; align-items: center">
+            <button class="btn btn-outline btn-xs"><span class="i i-up-arr"></span>이전</button><button class="btn btn-outline btn-xs"><span class="i i-dn-arr"></span>다음</button>
+            <span class="grow"></span>
+            <button class="btn btn-ghost btn-xs"><span class="i i-plus"></span>자막 더하기</button><button class="btn btn-ghost btn-xs">여기서 나누기</button>
+          </div>
+          <div class="hr"></div>
+          <div><label class="field-label">메인</label><div class="textarea" style="min-height: 48px">입구에 행사 매대가 보여서 뭐가 있나 구경했어.</div></div>
+          <div><label class="field-label">서브</label><div class="textarea" style="min-height: 40px">The sale display was right by the entrance,</div></div>
+          <div class="prow"><span class="lb">구간</span><div class="sl"><i style="left: 15%; width: 23%"></i><b style="left: 15%"></b><b style="left: 38%"></b></div><span class="v num">3.2–8.1</span></div>
+          <div class="prow nov"><span class="lb">구간 반복</span><div class="sw {{s.loopSw}}"><i></i></div></div>
+          <div class="psec" style="padding-bottom: 0"><div class="psec-h"><span>이 자막 스타일</span><sc-if value="{{s.capStyleClosed}}" hint-placeholder-val="{{ true }}"><span class="i i-right"></span></sc-if><sc-if value="{{s.capStyle}}" hint-placeholder-val="{{ false }}"><span class="i i-down"></span></sc-if></div>
+            <sc-if value="{{s.capStyle}}" hint-placeholder-val="{{ false }}">
+              <div class="pstack">
+                <div class="prow nov"><span class="lb">글자 색</span><div class="swatch"><i style="background: #ffffff"></i>#FFFFFF</div></div>
+                <div class="prow"><span class="lb">크기</span><div class="sl"><i style="width: 47%"></i><b style="left: 47%"></b></div><span class="v">120%</span></div>
+                <div class="prow nov"><span class="lb">등장 효과</span><div class="select select-sm"><span>튀어나옴</span><span class="i i-down"></span></div></div>
+                <div class="prow nov"><span class="lb">단어 색</span><div class="swatch"><i style="background: #ffb020"></i>#FFB020</div></div>
+                <button class="btn btn-outline btn-xs btn-block" style="margin-top: 6px">레이어 스타일로 되돌리기</button>
+              </div>
+            </sc-if>
+          </div>
+        </sc-if>
         <sc-if value="{{L.media}}" hint-placeholder-val="{{ true }}">
           <div><button class="btn btn-outline btn-sm"><span class="i i-upload"></span>넣기</button></div>
           <div style="display: flex; flex-direction: column; gap: 2px">
@@ -98,6 +149,28 @@ body{margin:0}
           </div>
         </sc-if>
       </div>
+      <sc-if value="{{s.memePop}}" hint-placeholder-val="{{ false }}">
+        <div class="menu" style="left: 60px; top: 230px; width: 236px; padding: 10px; gap: 8px">
+          <b class="sm">다른 짤</b>
+          <div class="memegrid" style="grid-template-columns: repeat(3, minmax(0, 1fr))">
+            <div class="memetile sel" style="height: 64px"><span class="i i-image"></span></div>
+            <div class="memetile" style="height: 64px"><span class="i i-image"></span></div>
+            <div class="memetile" style="height: 64px"><span class="i i-play"></span></div>
+            <div class="memetile" style="height: 64px"><span class="i i-image"></span></div>
+            <div class="memetile" style="height: 64px"><span class="i i-image"></span></div>
+          </div>
+          <div style="display: flex; justify-content: space-between; align-items: center"><span class="xs muted">Jev 순위</span><button class="btn btn-danger-text btn-xs"><span class="i i-trash"></span>빼기</button></div>
+        </div>
+      </sc-if>
+      <sc-if value="{{s.sfxPop}}" hint-placeholder-val="{{ false }}">
+        <div class="menu" style="left: 60px; top: 260px; width: 236px; padding: 10px; gap: 6px">
+          <div style="display: flex; justify-content: space-between; align-items: center"><b class="sm">효과음 바꾸기</b><div class="seg seg-sm" style="width: 110px"><span class="on">shock</span><span>전체</span></div></div>
+          <div class="libitem sel" style="padding: 4px 6px"><button class="btn btn-ghost btn-icon btn-xs" aria-label="미리 듣기"><span class="i i-play"></span></button><b class="sm grow ell">Shocked sound</b><span class="xs muted num">1.4초</span></div>
+          <div class="libitem" style="padding: 4px 6px"><button class="btn btn-ghost btn-icon btn-xs" aria-label="미리 듣기"><span class="i i-play"></span></button><b class="sm grow ell">[효과음]</b><span class="xs muted num">1.1초</span></div>
+          <div class="libitem" style="padding: 4px 6px"><button class="btn btn-ghost btn-icon btn-xs" aria-label="미리 듣기"><span class="i i-play"></span></button><b class="sm grow ell">[효과음]</b><span class="xs muted num">0.8초</span></div>
+          <div style="display: flex; justify-content: flex-end"><button class="btn btn-danger-text btn-xs"><span class="i i-mute"></span>끄기</button></div>
+        </div>
+      </sc-if>
     </aside>
 
     <section class="stage">
@@ -174,7 +247,8 @@ body{margin:0}
             <div class="prow"><span class="lb">길이</span><div class="input input-sm num">4.9</div><span class="v">초</span></div>
           </div>
         </div>
-        <div class="psec" style="margin-top: 12px"><div class="psec-h"><span>레이어 스타일 · 레이어 1</span><span class="i i-right"></span></div></div>
+        <div class="psec" style="margin-top: 12px"><div class="psec-h"><span>이 자막 스타일</span><span class="i i-right"></span></div></div>
+        <div class="psec"><div class="psec-h"><span>레이어 스타일 · 레이어 1</span><span class="i i-right"></span></div></div>
       </sc-if>
 
       <sc-if value="{{I.layer}}" hint-placeholder-val="{{ false }}">
@@ -444,7 +518,7 @@ body{margin:0}
   </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"v":{"editor":"enum","options":["brand","caption","capinline","capinlinetl","layer","layersub","video1","transition","meme1","overlay","original","separated","voice","sfx","watermark","multi","error","libmeme","libmemeload","manytracks","libsfx","libvoice","notif","drag","empty","preparing","whisper","replace","exready","exprog","exdone","exfail","excancel"],"default":"brand"},"$preview":{"width":1440,"height":900}}'>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"v":{"editor":"enum","options":["scenes","scenesmeme","scenessfx","scenesnone","caps","capsstyle","capsloop","brand","caption","capinline","capinlinetl","layer","layersub","video1","transition","meme1","overlay","original","separated","voice","sfx","watermark","multi","error","libmeme","libmemeload","manytracks","libsfx","libvoice","notif","drag","empty","preparing","whisper","replace","exready","exprog","exdone","exfail","excancel"],"default":"brand"},"$preview":{"width":1440,"height":900}}'>
 class Component extends DCLogic {
   renderVals() {
     const v = this.props.v ?? 'brand';
@@ -534,9 +608,17 @@ class Component extends DCLogic {
     const I = {};
     ['brand', 'caption', 'layer', 'video1', 'transition', 'meme1', 'overlay', 'original', 'separated', 'voice', 'sfx', 'watermark', 'multi'].forEach(k => { I[k] = insp === k; });
 
-    const lib = is('libmeme', 'libmemeload', 'drag') ? 'meme' : is('libsfx') ? 'sfx' : is('libvoice') ? 'voice' : 'media';
-    const L = { media: lib === 'media', meme: lib === 'meme', sfx: lib === 'sfx', voice: lib === 'voice' };
-    const tab = { media: lib === 'media' ? 'on' : '', meme: lib === 'meme' ? 'on' : '', sfx: lib === 'sfx' ? 'on' : '', voice: lib === 'voice' ? 'on' : '' };
+    const lib = is('libmeme', 'libmemeload', 'drag') ? 'meme' : is('libsfx') ? 'sfx' : is('libvoice') ? 'voice' : is('scenes', 'scenesmeme', 'scenessfx', 'scenesnone') ? 'scenes' : is('caps', 'capsstyle', 'capsloop') ? 'caps' : 'media';
+    const L = { media: lib === 'media', meme: lib === 'meme', sfx: lib === 'sfx', voice: lib === 'voice', scenes: lib === 'scenes', caps: lib === 'caps' };
+    const tab = { media: lib === 'media' ? 'on' : '', meme: lib === 'meme' ? 'on' : '', sfx: lib === 'sfx' ? 'on' : '', voice: lib === 'voice' ? 'on' : '', scenes: lib === 'scenes' ? 'on' : '', caps: lib === 'caps' ? 'on' : '' };
+    const sceneRows = [
+      { n: 1, t: '0:00.0', cap: C[0][2], hasMeme: true, noMeme: false, memeMeta: '앞 · 당황', hasSfx: true, noSfx: false, sfx: 'whoosh sfx', cls: '' },
+      { n: 2, t: '0:03.2', cap: C[1][2], hasMeme: is('scenesnone') ? false : true, noMeme: is('scenesnone'), memeMeta: '보충 짤', hasSfx: !is('scenesnone'), noSfx: is('scenesnone'), sfx: 'Shocked sound', cls: is('scenesmeme', 'scenessfx', 'scenesnone') ? 'sel' : '' },
+      { n: 3, t: '0:08.1', cap: C[2][2], hasMeme: true, noMeme: false, memeMeta: '뒤 · 흔들림', hasSfx: true, noSfx: false, sfx: 'VINE BOOM SOUND', cls: '' },
+      { n: 4, t: '0:15.6', cap: C[3][2], hasMeme: true, noMeme: false, memeMeta: '뒤 · 체념', hasSfx: true, noSfx: false, sfx: 'slap hard', cls: '' },
+      { n: 5, t: '0:19.9', cap: C[4][2], hasMeme: false, noMeme: true, memeMeta: '', hasSfx: true, noSfx: false, sfx: 'Pop SFX', cls: '' }
+    ];
+    const capRows = C.map((a, i) => ({ n: i + 1, t: fmt(a[0]), text: a[2], cls: i === 1 ? 'sel' : '', dot: is('capsstyle') && i === 1 }));
 
     const exp = is('exready', 'exprog', 'exdone', 'exfail');
     const wave = [];
@@ -566,7 +648,7 @@ class Component extends DCLogic {
         { t: 'whoosh sfx', m: 'whoosh · 1.0초' }, { t: 'Pop SFX', m: 'pop · 0.3초' }, { t: 'slap hard', m: 'impact · 1.3초' },
         { t: 'sitcom laugh', m: 'laugh · 7.4초' }, { t: 'VINE BOOM SOUND', m: 'reveal · 1.3초' }, { t: 'Shocked sound', m: 'shock · 1.4초' }
       ],
-      I, L, tab,
+      I, L, tab, sceneRows, capRows,
       s: {
         bellBadge: !is('empty'),
         dirty: is('caption', 'capinline', 'capinlinetl', 'layer', 'layersub', 'video1', 'transition', 'meme1', 'overlay', 'multi'),
@@ -582,7 +664,12 @@ class Component extends DCLogic {
         tts: is('original'),
         ph: !is('empty'),
         noUndo: is('empty', 'preparing'),
-        safeCls: is('overlay') ? 'on' : ''
+        safeCls: is('overlay') ? 'on' : '',
+        memePop: is('scenesmeme'),
+        sfxPop: is('scenessfx'),
+        capStyle: is('capsstyle'),
+        capStyleClosed: !is('capsstyle'),
+        loopSw: is('capsloop') ? 'on' : ''
       },
       pv: {
         img: !is('empty', 'meme1'),

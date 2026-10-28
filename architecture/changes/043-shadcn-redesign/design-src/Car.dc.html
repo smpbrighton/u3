@@ -70,6 +70,63 @@ body{margin:0}
     </main>
   </sc-if>
 
+  <sc-if value="{{s.reviewPage}}" hint-placeholder-val="{{ false }}">
+    <main class="page" style="gap: 16px">
+      <div class="page-h">
+        <div style="display: flex; align-items: center; gap: 12px; min-width: 0">
+          <button class="btn btn-ghost btn-sm"><span class="i i-back"></span>캐러셀 목록</button>
+          <h1 class="ell">{{r.name}}</h1><span class="badge">검토 중</span>
+        </div>
+        <div style="display: flex; gap: 8px">
+          <button class="btn btn-outline" disabled="{{s.planning}}"><span class="i i-refresh"></span>다시 기획</button>
+          <button class="btn btn-primary" disabled="{{s.planning}}"><span class="i i-sparkle"></span>이미지 만들기</button>
+        </div>
+      </div>
+      <sc-if value="{{s.planning}}" hint-placeholder-val="{{ false }}">
+        <div style="display: flex; align-items: center; gap: 8px" role="status"><span class="spin"></span><span class="sm">기획 중</span></div>
+        <div style="display: flex; flex-direction: column; gap: 10px; width: 760px"><div class="skel" style="height: 120px"></div><div class="skel" style="height: 120px"></div><div class="skel" style="height: 120px"></div></div>
+      </sc-if>
+      <sc-if value="{{s.planfail}}" hint-placeholder-val="{{ false }}">
+        <div class="errline"><span class="i i-alert"></span>기획하지 못했어요: [실패 이유]</div>
+        <div><button class="btn btn-outline btn-sm"><span class="i i-refresh"></span>다시 기획</button></div>
+      </sc-if>
+      <sc-if value="{{s.reviewCards}}" hint-placeholder-val="{{ false }}">
+        <div style="flex: 1; min-height: 0; display: flex; gap: 16px">
+          <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; overflow: hidden">
+            <sc-for list="{{r.cards}}" as="c" hint-placeholder-count="5">
+              <div style="display: flex; gap: 12px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; background: var(--panel)">
+                <div style="display: flex; flex-direction: column; align-items: center; gap: 6px; width: 24px; flex: none"><span class="i i-grip" style="color: var(--fg2)"></span><b class="sm num">{{c.n}}</b></div>
+                <sc-if value="{{r.isVideo}}" hint-placeholder-val="{{ false }}"><div class="thumb" style="width: 128px; height: 72px; flex: none"><img src="{{r.thumb}}" alt=""></div></sc-if>
+                <div style="flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 6px">
+                  <div class="input input-sm" style="font-weight: 700">{{c.title}}</div>
+                  <div class="textarea" style="min-height: 40px; font-size: 12px">{{c.body}}</div>
+                  <sc-if value="{{r.isSolo}}" hint-placeholder-val="{{ true }}"><div class="libitem" style="height: 28px; padding: 0 6px"><span class="xs muted grow ell">이미지 지시문 · {{c.prompt}}</span><span class="i i-right" style="color: var(--fg2)"></span></div></sc-if>
+                  <sc-if value="{{r.isVideo}}" hint-placeholder-val="{{ false }}">
+                    <div style="display: flex; gap: 8px; align-items: center">
+                      <div class="select select-sm" style="width: 110px"><span>{{c.scene}}</span><span class="i i-down"></span></div>
+                      <div class="input input-sm num" style="width: 64px">{{c.sec}}</div><span class="xs muted">초</span>
+                      <div class="input input-sm" style="flex: 1">{{c.target}}</div>
+                    </div>
+                  </sc-if>
+                </div>
+                <button class="btn btn-ghost btn-icon btn-sm" aria-label="지우기"><span class="i i-trash"></span></button>
+              </div>
+            </sc-for>
+            <div><button class="btn btn-outline btn-sm"><span class="i i-plus"></span>장 더하기</button></div>
+          </div>
+          <div class="cpanel">
+            <div class="psec-h" style="margin-top: 10px">게시 캡션</div>
+            <div><div class="textarea" style="min-height: 140px">[게시 캡션]</div><div class="count num">0/2000</div></div>
+            <sc-if value="{{r.isSolo}}" hint-placeholder-val="{{ true }}">
+              <div class="psec-h" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); height: auto">화풍</div>
+              <div class="input input-sm">산뜻한 K-뷰티 매거진 스타일</div>
+            </sc-if>
+          </div>
+        </div>
+      </sc-if>
+    </main>
+  </sc-if>
+
   <sc-if value="{{s.editPage}}" hint-placeholder-val="{{ false }}">
     <main class="page" style="gap: 16px">
       <div class="page-h">
@@ -98,31 +155,82 @@ body{margin:0}
             <sc-if value="{{e.box}}" hint-placeholder-val="{{ false }}">
               <div class="sel-box" style="left: 154px; top: 85px; width: 204px; height: 115px; border-width: 2px"><b class="tl"></b><b class="tr"></b><b class="bl"></b><b class="br"></b></div>
             </sc-if>
+            <sc-if value="{{e.slideImg}}" hint-placeholder-val="{{ true }}">
+              <div style="position: absolute; inset: 0; background: linear-gradient(180deg, transparent 50%, rgba(0,0,0,.35) 100%); pointer-events: none"></div>
+              <div style="position: absolute; left: 8%; top: 60%; width: 84%; font-size: 19px; line-height: 1.2; font-weight: 700; color: #fff; text-shadow: 0 1px 4px rgba(0,0,0,.6)">{{e.title}}</div>
+              <div style="position: absolute; left: 8%; top: 74%; width: 84%; font-size: 10px; line-height: 1.5; color: #fff; text-shadow: 0 1px 3px rgba(0,0,0,.6)">{{e.body}}</div>
+              <sc-if value="{{e.selBody}}" hint-placeholder-val="{{ false }}"><div class="sel-box" style="left: 8%; top: 73%; width: 84%; height: 22%"><b class="tl"></b><b class="tr"></b><b class="bl"></b><b class="br"></b></div></sc-if>
+              <sc-if value="{{e.logoOn}}" hint-placeholder-val="{{ false }}"><img src="{{e.logoImg}}" alt="" style="position: absolute; left: 86%; top: 6%; width: 10%; opacity: .9"></sc-if>
+            </sc-if>
+            <sc-if value="{{e.over}}" hint-placeholder-val="{{ false }}">
+              <div style="position: absolute; left: 8%; top: 74%; width: 84%; height: 40%; border: 1.5px solid var(--danger); font-size: 10px; line-height: 1.5; color: #fff; padding: 2px">[넘친 본문 — 장 밖으로 이어지는 긴 글]</div>
+            </sc-if>
           </div>
           <span class="xs muted num">16:9 · {{e.cur}} / 5장</span>
         </div>
         <div class="cpanel">
           <sc-if value="{{e.pText}}" hint-placeholder-val="{{ true }}">
-            <div class="psec-h" style="margin-top: 10px">글</div>
-            <div style="display: flex; flex-direction: column; gap: 10px">
-              <div><label class="field-label">제목</label><div class="input">{{e.title}}</div><div class="count num">{{e.titleCount}}/500</div></div>
-              <div><label class="field-label">본문</label><div class="textarea" style="min-height: 96px">{{e.body}}</div><div class="count num">{{e.bodyCount}}/5000</div></div>
-              <div class="prow nov"><span class="lb">텍스트 위치</span><div class="seg seg-sm"><span>위</span><span>가운데</span><span class="on">아래</span></div></div>
+            <div class="psec-h" style="margin-top: 10px"><span>글</span><button class="btn btn-ghost btn-xs"><span class="i i-plus"></span>글 더하기</button></div>
+            <div style="display: flex; flex-direction: column; gap: 6px">
+              <sc-if value="{{e.selTitle}}" hint-placeholder-val="{{ true }}">
+                <div style="padding: 8px; border: 1px solid var(--accent); border-radius: 8px; display: flex; flex-direction: column; gap: 6px">
+                  <div><label class="field-label">제목</label><div class="textarea" style="min-height: 44px">{{e.title}}</div></div>
+                  <div class="pstack">
+                    <div class="prow nov"><span class="lb">폰트</span><div class="select select-sm"><span>Pretendard</span><span class="i i-down"></span></div></div>
+                    <div class="prow nov"><span class="lb">굵기</span><div class="seg seg-sm"><span>400</span><span class="on">700</span></div></div>
+                    <div class="prow"><span class="lb">크기</span><div class="sl"><i style="width: 34%"></i><b style="left: 34%"></b></div><span class="v">76px</span></div>
+                    <div class="prow nov"><span class="lb">색</span><div class="swatch"><i style="background: #ffffff"></i>#FFFFFF</div></div>
+                    <div class="prow nov"><span class="lb">정렬</span><div class="seg seg-sm"><span class="on">왼쪽</span><span>가운데</span><span>오른쪽</span></div></div>
+                    <div class="prow nov"><span class="lb">효과</span><div class="select select-sm"><span>그림자</span><span class="i i-down"></span></div></div>
+                    <div class="prow"><span class="lb">투명도</span><div class="sl"><i style="width: 100%"></i><b style="left: 100%"></b></div><span class="v">100%</span></div>
+                  </div>
+                </div>
+                <div class="libitem" style="height: 32px"><b class="sm grow ell" style="font-weight: 400">본문 · {{e.body}}</b><span class="i i-right" style="color: var(--fg2)"></span></div>
+              </sc-if>
+              <sc-if value="{{e.selBody}}" hint-placeholder-val="{{ false }}">
+                <div style="padding: 8px; border: 1px solid var(--accent); border-radius: 8px; display: flex; flex-direction: column; gap: 6px">
+                  <div><label class="field-label">본문</label><div class="textarea" style="min-height: 64px">{{e.body}}</div></div>
+                  <div class="pstack">
+                    <div class="prow nov"><span class="lb">폰트</span><div class="select select-sm"><span>Pretendard</span><span class="i i-down"></span></div></div>
+                    <div class="prow nov"><span class="lb">굵기</span><div class="seg seg-sm"><span class="on">400</span><span>700</span></div></div>
+                    <div class="prow"><span class="lb">크기</span><div class="sl"><i style="width: 15%"></i><b style="left: 15%"></b></div><span class="v">40px</span></div>
+                    <div class="prow nov"><span class="lb">색</span><div class="swatch"><i style="background: #ffffff"></i>#FFFFFF</div></div>
+                    <div class="prow nov"><span class="lb">정렬</span><div class="seg seg-sm"><span class="on">왼쪽</span><span>가운데</span><span>오른쪽</span></div></div>
+                    <div class="prow nov"><span class="lb">효과</span><div class="select select-sm"><span>반투명 바</span><span class="i i-down"></span></div></div>
+                    <div class="prow nov"><span class="lb">바 색</span><div class="swatch"><i style="background: #000000"></i>#000000</div></div>
+                    <div class="prow"><span class="lb">투명도</span><div class="sl"><i style="width: 100%"></i><b style="left: 100%"></b></div><span class="v">100%</span></div>
+                  </div>
+                </div>
+                <div class="libitem" style="height: 32px"><b class="sm grow ell">제목 · {{e.title}}</b><span class="i i-right" style="color: var(--fg2)"></span></div>
+              </sc-if>
+            </div>
+            <div class="psec-h" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); height: auto"><span>로고</span><div class="sw {{e.logoSw}}"><i></i></div></div>
+            <sc-if value="{{e.logoOn}}" hint-placeholder-val="{{ false }}">
+              <div class="pstack">
+                <div class="prow"><span class="lb">가로 위치</span><div class="sl"><i style="width: 91%"></i><b style="left: 91%"></b></div><span class="v">91%</span></div>
+                <div class="prow"><span class="lb">세로 위치</span><div class="sl"><i style="width: 10%"></i><b style="left: 10%"></b></div><span class="v">10%</span></div>
+                <div class="prow"><span class="lb">폭</span><div class="sl"><i style="width: 10%"></i><b style="left: 10%"></b></div><span class="v">10%</span></div>
+                <div class="prow"><span class="lb">투명도</span><div class="sl"><i style="width: 90%"></i><b style="left: 90%"></b></div><span class="v">90%</span></div>
+              </div>
+            </sc-if>
+            <div class="psec-h" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); height: auto">배경</div>
+            <div class="pstack">
+              <div class="prow"><span class="lb">밝기</span><div class="sl"><i style="width: 44%"></i><b style="left: 44%"></b></div><span class="v">100%</span></div>
+              <div class="prow"><span class="lb">음영</span><div class="sl"><i style="width: 39%"></i><b style="left: 39%"></b></div><span class="v">35%</span></div>
             </div>
           </sc-if>
 
           <sc-if value="{{e.pBgSolo}}" hint-placeholder-val="{{ false }}">
-            <div class="psec-h" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); height: auto">배경</div>
-            <div style="display: flex; flex-direction: column; gap: 10px">
+            <div style="display: flex; flex-direction: column; gap: 10px; margin-top: 8px">
               <sc-if value="{{e.failLine}}" hint-placeholder-val="{{ false }}"><div class="errline"><span class="i i-alert"></span>이미지를 만들지 못했어요: [실패 이유]</div></sc-if>
+              <sc-if value="{{e.noPrompt}}" hint-placeholder-val="{{ false }}"><div class="noteline"><span class="i i-alert"></span>지시문 없음</div></sc-if>
               <div><label class="field-label">이미지 지시문</label><div class="textarea" style="min-height: 140px">밝은 화장대 위에 스킨케어 제품 몇 개와 체크리스트, 재고 확인 표시가 있는 장면. 올리브 그린과 크림색 배경, 코랄 포인트, 산뜻한 K-뷰티 매거진 스타일.</div><div class="count num">88/4000</div></div>
               <button class="btn btn-solid btn-block"><span class="i i-refresh"></span>다시 만들기</button>
             </div>
           </sc-if>
 
           <sc-if value="{{e.pBgVideo}}" hint-placeholder-val="{{ false }}">
-            <div class="psec-h" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); height: auto">배경</div>
-            <div class="pstack">
+            <div class="pstack" style="margin-top: 2px">
               <div class="prow"><span class="lb">시각</span><div class="sl"><i style="width: 9%"></i><b style="left: 9%"></b></div><span class="v">0.9초</span></div>
               <button class="btn btn-outline btn-sm btn-block" style="margin: 4px 0 4px" disabled="{{e.noSrc}}"><span class="i i-refresh"></span>이 시각으로 다시 뽑기</button>
               <sc-if value="{{e.noSrc}}" hint-placeholder-val="{{ false }}"><div class="noteline"><span class="i i-alert"></span>원본 영상이 없어요</div></sc-if>
@@ -150,6 +258,8 @@ body{margin:0}
               </sc-if>
             </div>
           </sc-if>
+          <div class="psec-h" style="margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); height: auto">캡션</div>
+          <div><div class="textarea" style="min-height: 56px">[게시 캡션]</div><div class="count num">0/2000</div></div>
         </div>
       </div>
       <sc-if value="{{s.doneToast}}" hint-placeholder-val="{{ false }}">
@@ -181,6 +291,8 @@ body{margin:0}
         <sc-if value="{{s.newAi}}" hint-placeholder-val="{{ false }}"><div class="textarea" style="min-height: 96px">올리브영 세일 장보기</div><div class="count num">10/1000</div></sc-if>
       </div>
       <div class="prow nov"><span class="lb">장 수</span><div class="stepper" style="width: 120px"><em>−</em><span>5</span><em>+</em></div></div>
+      <div class="prow nov"><span class="lb">비율</span><div class="seg seg-sm" style="width: 240px"><span class="on">4:5</span><span>1:1</span><span>9:16</span><span>16:9</span></div></div>
+      <div class="prow nov"><span class="lb">화풍</span><div class="input input-sm"><span class="ph">비우면 AI 가 정해요</span></div></div>
       <div>
         <sc-if value="{{s.newEmpty}}" hint-placeholder-val="{{ true }}"><button class="btn btn-outline btn-sm" disabled><span class="i i-sparkle"></span>AI 로 다듬기</button></sc-if>
         <sc-if value="{{s.newAi}}" hint-placeholder-val="{{ false }}">
@@ -191,43 +303,88 @@ body{margin:0}
           </div>
         </sc-if>
       </div>
-      <div class="foot"><button class="btn btn-outline">취소</button><button class="btn btn-primary" disabled="{{s.newEmpty}}">만들기</button></div>
+      <div class="foot"><button class="btn btn-outline">취소</button><button class="btn btn-primary" disabled="{{s.newEmpty}}">기획</button></div>
+    </div></div>
+  </sc-if>
+  <sc-if value="{{s.newMode}}" hint-placeholder-val="{{ false }}">
+    <div class="scrim"><div class="dlg" style="width: 520px">
+      <h3>새 캐러셀</h3>
+      <div style="display: flex; gap: 12px">
+        <div style="flex: 1; padding: 16px; border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start"><span class="i i-lg i-sparkle"></span><b>주제로</b></div>
+        <div style="flex: 1; padding: 16px; border: 1px solid var(--border); border-radius: 10px; display: flex; flex-direction: column; gap: 8px; align-items: flex-start"><span class="i i-lg i-video"></span><b>영상으로</b></div>
+      </div>
+      <div class="foot"><button class="btn btn-outline">취소</button></div>
+    </div></div>
+  </sc-if>
+  <sc-if value="{{s.newVideo}}" hint-placeholder-val="{{ false }}">
+    <div class="scrim"><div class="dlg" style="width: 520px">
+      <h3>새 캐러셀 · 영상으로</h3>
+      <div style="display: flex; flex-direction: column; gap: 4px">
+        <div class="libitem sel"><div class="thumb" style="width: 64px; height: 36px; flex: none"><img src="/_blob/1f805d4dd8d35283783679a989575d28" alt=""></div><div style="min-width: 0; display: flex; flex-direction: column; gap: 2px"><b class="sm ell">새 영상</b><span class="xs muted">영상 3개 · 21.6초</span></div></div>
+        <div class="libitem"><div class="thumb" style="width: 64px; height: 36px; flex: none"><img src="/_blob/34ed991c596f500b1b0deaa104ced48e" alt=""></div><div style="min-width: 0; display: flex; flex-direction: column; gap: 2px"><b class="sm ell">[프로젝트]</b><span class="xs muted">영상 1개 · 9.7초</span></div></div>
+      </div>
+      <div class="prow nov"><span class="lb">장 수</span><div class="stepper" style="width: 120px"><em>−</em><span>5</span><em>+</em></div></div>
+      <div class="prow nov"><span class="lb">비율</span><div class="seg seg-sm" style="width: 240px"><span class="on">4:5</span><span>1:1</span><span>9:16</span><span>16:9</span></div></div>
+      <div class="foot"><button class="btn btn-outline">취소</button><button class="btn btn-primary">기획</button></div>
     </div></div>
   </sc-if>
   <sc-if value="{{s.download}}" hint-placeholder-val="{{ false }}">
     <div class="scrim"><div class="dlg">
-      <h3>완료한 장만 받을까요?</h3>
+      <h3>완료한 장 3개만 받을까요?</h3>
+      <p class="muted">넘친 글이 있는 장 1개</p>
       <div class="foot"><button class="btn btn-outline">취소</button><button class="btn btn-solid">완료한 장 받기</button></div>
     </div></div>
   </sc-if>
 </div>
 </x-dc>
-<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"v":{"editor":"enum","options":["list","loading","empty","menu","rename","delete","new","newai","edit","editwork","video","videobg","videoai","nobox","download"],"default":"list"},"$preview":{"width":1440,"height":900}}'>
+<script type="text/x-dc" data-dc-script data-props='{"theme":{"editor":"enum","options":["dark","light"],"default":"dark"},"v":{"editor":"enum","options":["list","loading","empty","menu","rename","delete","newmode","new","newai","newvideo","review","reviewvideo","planning","planfail","edit","editwork","video","videobg","videoai","nobox","download","edittext","editover","logo"],"default":"list"},"$preview":{"width":1440,"height":900}}'>
 class Component extends DCLogic {
   renderVals() {
     const v = this.props.v ?? 'list';
     const is = (...a) => a.includes(v);
-    const editPage = is('edit', 'editwork', 'video', 'videobg', 'videoai', 'nobox', 'download');
+    const editPage = is('edit', 'editwork', 'video', 'videobg', 'videoai', 'nobox', 'download', 'edittext', 'editover', 'logo');
+    const reviewPage = is('review', 'reviewvideo', 'planning', 'planfail');
+    const reviewVideo = is('reviewvideo');
     const video = is('video', 'videobg', 'videoai', 'nobox');
-    const work = is('editwork', 'download');
+    const work = is('editwork', 'download', 'editover');
     const done = { st: '완료', color: 'var(--fg2)' };
     let slides = [1, 2, 3, 4, 5].map(n => ({ n, cls: n === 1 ? 'sel' : '', hasImg: true, ...done }));
     if (work) {
       slides = [
         { n: 1, cls: '', hasImg: true, ...done },
         { n: 2, cls: '', hasImg: false, st: '생성 중', color: 'var(--fg)' },
-        { n: 3, cls: 'sel', hasImg: false, st: '실패', color: 'var(--danger)' },
+        { n: 3, cls: 'sel', hasImg: false, st: is('editover') ? '지시문 없음' : '실패', color: 'var(--danger)' },
         { n: 4, cls: '', hasImg: false, st: '대기', color: 'var(--fg2)' },
         { n: 5, cls: '', hasImg: false, st: '대기', color: 'var(--fg2)' }
       ];
     }
     const shape = is('videoai') ? 'AI 윤곽' : '테두리';
+    const solo = [
+      { n: 1, title: '세일 전에 장바구니부터 점검', body: '집에 있는 제품과 다 쓴 제품을 먼저 확인하세요. 재구매할 품목을 적고, 세일 시작 전에 장바구니에 담아두세요.', prompt: '밝은 화장대 위에 스킨케어 제품 몇 개와 체크리스트, 재고 확인 표시가 있는 장면.' },
+      { n: 2, title: '[제목]', body: '[본문]', prompt: '[이미지 지시문]' },
+      { n: 3, title: '[제목]', body: '[본문]', prompt: '[이미지 지시문]' },
+      { n: 4, title: '[제목]', body: '[본문]', prompt: '[이미지 지시문]' },
+      { n: 5, title: '[제목]', body: '[본문]', prompt: '' }
+    ];
+    const vid = [
+      { n: 1, title: '잠깐 들르려다 길어진 외출', body: '올리브영에 잠깐 들르려던 발걸음이 예상보다 길어졌어요.', scene: '장면 1', sec: '0.9', target: '발길이 길어진 썰' },
+      { n: 2, title: '[제목]', body: '[본문]', scene: '장면 2', sec: '5.6', target: '[강조 대상]' },
+      { n: 3, title: '[제목]', body: '[본문]', scene: '장면 3', sec: '11.8', target: '[강조 대상]' },
+      { n: 4, title: '[제목]', body: '[본문]', scene: '장면 4', sec: '17.7', target: '[강조 대상]' },
+      { n: 5, title: '[제목]', body: '[본문]', scene: '장면 5', sec: '20.7', target: '[강조 대상]' }
+    ];
     return {
       theme: this.props.theme ?? 'dark',
       s: {
-        listPage: !editPage,
+        listPage: !editPage && !reviewPage,
+        reviewPage,
+        reviewCards: is('review', 'reviewvideo'),
+        planning: is('planning'),
+        planfail: is('planfail'),
+        newMode: is('newmode'),
+        newVideo: is('newvideo'),
         showNew: !is('empty'),
-        cards: is('list', 'menu', 'rename', 'delete', 'new', 'newai'),
+        cards: is('list', 'menu', 'rename', 'delete', 'new', 'newai', 'newmode', 'newvideo'),
         loading: is('loading'),
         empty: is('empty'),
         menu: is('menu'),
@@ -240,6 +397,13 @@ class Component extends DCLogic {
         newAi: is('newai'),
         download: is('download'),
         doneToast: is('edit')
+      },
+      r: {
+        cards: reviewVideo ? vid : solo,
+        isVideo: reviewVideo,
+        isSolo: !reviewVideo,
+        name: reviewVideo ? '새 영상 캐러셀' : '올리브영 세일 때 실패 없이 장바구니 채우기',
+        thumb: '/_blob/1f805d4dd8d35283783679a989575d28'
       },
       e: {
         name: video ? '새 영상 캐러셀' : '올리브영 세일 때 실패 없이 장바구니 채우기',
@@ -264,7 +428,15 @@ class Component extends DCLogic {
         title: video ? '잠깐 들르려다 길어진 외출' : '세일 전에 장바구니부터 점검',
         titleCount: video ? 14 : 15,
         body: video ? '올리브영에 잠깐 들르려던 발걸음이 예상보다 길어졌어요.' : '집에 있는 제품과 다 쓴 제품을 먼저 확인하세요. 재구매할 품목을 적고, 세일 시작 전에 장바구니에 담아두세요.',
-        bodyCount: video ? 30 : 62
+        bodyCount: video ? 30 : 62,
+        selBody: is('edittext'),
+        selTitle: !is('edittext'),
+        over: is('editover'),
+        noPrompt: is('editover'),
+        logoOn: is('logo'),
+        logoOff: !is('logo'),
+        logoSw: is('logo') ? 'on' : '',
+        logoImg: '/_blob/b6f306898b83434ab364a3e4080deacc'
       }
     };
   }
