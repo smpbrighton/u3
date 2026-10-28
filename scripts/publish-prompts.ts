@@ -12,6 +12,11 @@ export function decidePublish(remote: PromptDefaults | null, local: PromptDefaul
   return "publish";
 }
 
+// curl -f 의 HTTP 오류 종료 코드는 버전에 따라 22 또는 56 이다. --write-out 의 HTTP 코드로 판정한다.
+export function isMissingRemote(failure: { status?: number | null; stdout?: string }): boolean {
+  return failure.stdout?.trim() === "404";
+}
+
 const root = path.resolve(import.meta.dirname, "..");
 const repo = "smpbrighton/u3";
 function command(bin: string, args: string[]): string {
@@ -23,8 +28,7 @@ function readRemote(url: string): PromptDefaults | null {
   try {
     text = command("curl", ["-fsSL", "--max-time", "30", "--max-filesize", String(512 * 1024), "--write-out", "\n%{http_code}", url]);
   } catch (error) {
-    const failure = error as { status?: number; stdout?: string };
-    if (failure.status === 22 && failure.stdout?.trim() === "404") return null;
+    if (isMissingRemote(error as { status?: number; stdout?: string })) return null;
     throw error;
   }
   return PromptDefaultsFile.parse(JSON.parse(text.slice(0, text.lastIndexOf("\n"))));
