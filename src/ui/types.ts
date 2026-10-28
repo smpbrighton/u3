@@ -4,7 +4,7 @@ export type Project = CoreProject;
 export type Input = CoreInput;
 
 export interface SystemStatus {
-  codex: { installed: boolean; loggedIn: boolean };
+  codex: { installed: boolean; loggedIn: boolean; version?: string | null; outdated?: boolean };
   jev: { available: boolean; hasKey: boolean; keyHint: string | null; enabled: boolean; model: string; boxModel: string };
 }
 

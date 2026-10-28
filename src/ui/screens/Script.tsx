@@ -5,7 +5,7 @@ import { Progress } from "../components/ui/progress";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../components/ui/tabs";
 import { Textarea } from "../components/ui/textarea";
 import { StepNav } from "../components/u3/StepNav";
-import { CodexWarning } from "../components/u3/CodexWarning";
+import { CodexWarning, codexWarningMessage } from "../components/u3/CodexWarning";
 import { FlowIconButton } from "../components/u3/FlowIconButton";
 import { api, watchJob, type EngineJob } from "../api";
 import type { CodexScript, FrameGroup, Input, Project, SystemStatus } from "../types";
@@ -87,7 +87,7 @@ export function Script(props: {
   const [generation, setGeneration] = useState<ScriptGenerationState>({ phase: "idle", message: null, cancellable: false });
   const controllerRef = useRef<AbortController | null>(null);
   const jobIdRef = useRef<string | null>(null);
-  const canGenerate = Boolean(props.status?.codex.installed && props.status.codex.loggedIn);
+  const canGenerate = Boolean(props.status?.codex.installed && props.status.codex.loggedIn && !props.status.codex.outdated);
   const totalFrames = useMemo(() => frames.reduce((total, group) => total + group.frames.length, 0), [frames]);
   const inputs = useMemo(() => props.project.inputs.filter(input => input.id !== "placeholder"), [props.project.inputs]);
 
@@ -112,7 +112,7 @@ export function Script(props: {
   async function generate() {
     if (busy || (mode === "ai" && loadingFrames)) return;
     if (!canGenerate) {
-      props.onSnackbar("Codex를 설치하고 로그인한 뒤 대본을 만들 수 있어요.");
+      props.onSnackbar(codexWarningMessage(props.status) ?? "codex 상태를 확인해 주세요");
       return;
     }
     if (mode === "direct" && !prompt.trim()) {
@@ -138,7 +138,7 @@ export function Script(props: {
         setGeneration({ phase: "running", message: next.message, cancellable: next.cancellable });
       }, controller.signal);
       if (done.status !== "done") throw new Error(done.error ?? done.message ?? "대본 생성을 마치지 못했어요.");
-      const result = done.result as { script?: CodexScript; transcriptWarnings?: { inputId: string; warning: string }[]; styleWarnings?: string[] };
+      const result = done.result as { script?: CodexScript; transcriptWarnings?: { inputId: string; warning: string }[]; styleWarnings?: string[]; message?: string };
       if (!result.script) throw new Error("엔진이 대본을 반환하지 않았어요.");
       const warning = [
         ...(result.transcriptWarnings ?? []).map(item => `받아 적기 안내: ${item.warning}`),
@@ -211,7 +211,7 @@ export function Script(props: {
       });
       props.onProject(saved);
       setGeneration({ phase: "idle", message: null, cancellable: false });
-      const notices = [warning, resolvedWithFallback.missingCount ? `짤을 넣지 못한 장면 ${resolvedWithFallback.missingCount}개` : null].filter((notice): notice is string => Boolean(notice));
+      const notices = [result.message, warning, resolvedWithFallback.missingCount ? `짤을 넣지 못한 장면 ${resolvedWithFallback.missingCount}개` : null].filter((notice): notice is string => Boolean(notice));
       props.onNotices?.(notices);
       props.onSnackbar(!props.onNotices && notices.length ? `대본을 만들었어요. ${notices.join(" · ")}` : "대본을 만들었어요");
       props.onStudio();

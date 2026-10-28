@@ -18,7 +18,7 @@
 유효한 결정만, 한 줄 + `decisions/NNNN-slug.md` 링크. 대체된 결정은 여기서 지운다.
 
 - 앱 구조: Tauri 2 셸 + React·shadcn/Tailwind UI(다크·라이트 테마 설정) + Node sidecar 엔진(127.0.0.1·일회용 토큰), macOS Apple Silicon 만 → [0025](decisions/0025-ui-shadcn.md)
-- AI: codex CLI(모델·effort 선택, 기본 `gpt-6-luna`)와 Jev(짤 적합도 `jev-1.13.0`, 캐러셀 강조 상자 Box `jev-1.14.0`, 키는 사용자가 설정에서 입력해 Keychain 에 저장)만, Claude 없음 → [0024](decisions/0024-jev-key-setting.md)
+- AI: codex CLI(모델·effort 선택, 기본은 계정 카탈로그에서 고름)와 Jev(짤 적합도 `jev-1.13.0`, 캐러셀 강조 상자 Box `jev-1.14.0`, 키는 사용자가 설정에서 입력해 Keychain 에 저장)만, Claude 없음 → [0024](decisions/0024-jev-key-setting.md)
 - 범위: 입력(영상·사진 섞어 1~20개)·대본·짤·효과음·녹음·TTS 음성·음성 분리·mp4 내보내기·캐러셀(한 대화상자에서 주제·영상 선택, 요청→기획→검토→이미지→편집→받기, 2~10장, PNG+caption.txt), 업로드·채널·허브·움직이는 장 없음 → [0026](decisions/0026-scope-carousel-review-texts.md)
 - TTS: Qwen3-TTS 1.7B CustomVoice 를 Swift 도우미(MLX)로 로컬 실행, 모델은 받기·첫 생성 때 받음, 기본 화자 Sohee, 자막 클립 단위로 목소리 트랙에, 내보내기·음성 분리와 동시 실행 없음 → [0023](decisions/0023-qwen-tts-local.md)
 - 캐러셀 이미지·글: codex 내장 image_gen(설정에서 모델·퀄리티·비율 4:5·1:1·9:16·16:9·동시 수)으로 글자 없는 배경, 글은 장당 2~5 객체(위치·폭·폰트·크기·색·정렬·효과)로 앱이 얹음, 로고·밝기·음영 → [0027](decisions/0027-carousel-text-objects.md)

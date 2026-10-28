@@ -23,6 +23,8 @@ import { AppInfo } from "../UpdateControls";
 import type { UpdateSnapshot } from "../updater";
 import { useBeforeUpdateRestart } from "../update-save";
 import type { StudioShortcutTable } from "../../core/studio-shortcuts";
+import { resolveCodexModel } from "../../core/codex-model";
+import { codexWarningMessage } from "../components/u3/CodexWarning";
 
 type ModelStatus = {
   bgeM3: { available: boolean; ranking: "embedding" | "rules" };
@@ -56,7 +58,7 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
   const [codexChecking, setCodexChecking] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [codexCatalog, setCodexCatalog] = useState<CodexModelCatalog>({ source: "fallback", models: [] });
-  const [codexSettings, setCodexSettings] = useState({ model: "gpt-6-luna", effort: "medium" });
+  const [codexSettings, setCodexSettings] = useState({ model: resolveCodexModel(undefined, []), effort: "medium" });
   const codexRef = useRef(codexSettings);
   const [ttsSettings, setTtsSettings] = useState(DEFAULT_TTS_SETTINGS);
   const ttsRef = useRef(ttsSettings);
@@ -127,7 +129,11 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
   async function refreshCodex() {
     setCodexChecking(true);
     try {
-      const results = await Promise.allSettled([api<SystemStatus>("GET", "/api/system").then(setStatus), api<CodexModelCatalog>("GET", "/api/system/codex-models").then(setCodexCatalog)]);
+      const results = await Promise.allSettled([
+        api<SystemStatus>("GET", "/api/system").then(setStatus),
+        api<CodexModelCatalog>("GET", "/api/system/codex-models").then(setCodexCatalog),
+        api<typeof codexSettings>("GET", "/api/system/codex-settings").then(value => { codexRef.current = value; setCodexSettings(value); }),
+      ]);
       const rejected = results.find(result => result.status === "rejected");
       if (rejected?.status === "rejected") throw rejected.reason;
       setError(null);
@@ -245,7 +251,7 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
   const selectedModel = codexCatalog.models.find(model => model.slug === codexSettings.model);
   const modelOptions = selectedModel ? codexCatalog.models : [...codexCatalog.models, { slug: codexSettings.model, displayName: codexSettings.model, efforts: [] }];
   const effortOptions = selectedModel?.efforts.length ? selectedModel.efforts : ["low", "medium", "high"];
-  const codexWarning = !status || status.codex.loggedIn ? null : status.codex.installed ? "codex 로그인이 필요해요" : "codex 설치가 필요해요";
+  const codexWarning = codexWarningMessage(status);
   const brandDisabled = loading || assetChanging;
   const watermark = { ...DEFAULT_BRAND_SETTINGS.watermark!, ...brand.watermark };
 
