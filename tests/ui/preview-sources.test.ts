@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import type { RenderTimeline } from "../../src/core/timeline/to-render";
-import { hasAllRenderSources } from "../../src/ui/studio/preview-sources";
+import { hasAllRenderSources, speedSourceMatches } from "../../src/ui/studio/preview-sources";
+import { Timeline } from "../../src/core/schema";
 
 function render(overrides: Partial<RenderTimeline> = {}): RenderTimeline {
   return {
@@ -23,6 +24,16 @@ const sources = {
 };
 
 describe("미리보기 소스 준비 판정", () => {
+  it("047 같은 입력 id의 원본 경로가 바뀌면 이전 배속 응답을 반영하지 않는다", () => {
+    const timeline = Timeline.parse({ video: [], voice: [{ id: "voice", startSec: 0, file: "voice/a.wav", inStartSec: 0, inEndSec: 1, gain: 1 }], sfx: [], audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } } });
+    const p = { id: "p", inputs: [{ id: "i", kind: "video" as const, file: "input/old.mp4" }], timeline };
+    const expected = { projectId: "p", sourceId: "i", file: "input/old.mp4" };
+    expect(speedSourceMatches(p, expected)).toBe(true);
+    expect(speedSourceMatches({ ...p, id: "other" }, expected)).toBe(false);
+    expect(speedSourceMatches({ ...p, inputs: [{ ...p.inputs[0]!, file: "input/new.mp4" }] }, expected)).toBe(false);
+    expect(speedSourceMatches(p, { projectId: "p", sourceId: "voice/a.wav", file: "voice/a.wav" })).toBe(true);
+    expect(speedSourceMatches({ ...p, timeline: { ...timeline, voice: [] } }, { projectId: "p", sourceId: "voice/a.wav", file: "voice/a.wav" })).toBe(false);
+  });
   it("047 원본 소리·stems의 캐시 파일 URL까지 있어야 준비된다", () => {
     for (const track of ["source", "stem-voice", "stem-bg"] as const) {
       const r = render({ audio: [{ id: "a", track, inputId: "main", file: "cache/audio/a.wav", startFrame: 0, durationInFrames: 30, sourceStartFrame: 0, volume: 1 }] });
