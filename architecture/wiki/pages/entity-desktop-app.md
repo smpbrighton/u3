@@ -18,7 +18,10 @@ U3는 macOS Apple Silicon 대상 Tauri 2 앱이며 React UI와 Node sidecar 엔�
 - 결정 링크: [Jev 키 설정](../../decisions/0024-jev-key-setting.md). `git:1f29af1:`
 
 - 앱의 최소 macOS 버전은 15다. `src-tauri/tauri.conf.json` `git:f65db44:`
+- compositor dylib 처리와 패키징된 ffprobe 검증은 [compositor dylib 경로](concept-compositor-dylib.md)에 있다. `scripts/build-engine.ts` `git:41c0d1a:`
+
 ## 관계
+- [compositor dylib 경로](concept-compositor-dylib.md)
 - [화면 셸과 설정](concept-ui-shell.md)
 - [엔진 종료](entity-engine-shutdown.md)
 - [자동 업데이트와 릴리스](concept-updates.md)
