@@ -1,6 +1,6 @@
 [package]
 name = "u3"
-version = "0.3.3"
+version = "0.3.4"
 description = "U3 desktop studio"
 authors = ["Brighton AI Holdings"]
 edition = "2021"
