@@ -3,6 +3,8 @@ import type { Measurer } from "./measure";
 import { captionLayersOf, withCaptionLayers, type AudioClip, type TextClip, type Timeline, type WordStamp } from "./schema";
 import { clipDuration } from "./timeline/ops";
 
+import { timelineOffsetOf } from "./timeline/speed";
+
 type JsonObject = Record<string, unknown>;
 
 function object(value: unknown): JsonObject {
@@ -43,8 +45,8 @@ export function wordsForAudioClip(clip: AudioClip, sourceWords: readonly WordSta
     .filter((word) => word.start >= clip.inStartSec && word.start < clip.inEndSec && word.end <= clip.inEndSec)
     .map((word) => ({
       text: word.text,
-      start: clip.startSec + (word.start - clip.inStartSec),
-      end: clip.startSec + (word.end - clip.inStartSec),
+      start: clip.startSec + timelineOffsetOf(clip, word.start),
+      end: clip.startSec + timelineOffsetOf(clip, word.end),
     }));
 }
 
@@ -65,7 +67,7 @@ export function captionsFromTranscript(
     if (isSourceVideo) {
       const selected = sourceWords
         .filter((word) => word.start >= clip.inStartSec && word.start < clip.inEndSec && word.end <= clip.inEndSec)
-        .map((word) => ({ text: word.text, start: timelineStart + word.start - clip.inStartSec, end: timelineStart + word.end - clip.inStartSec }));
+        .map((word) => ({ text: word.text, start: timelineStart + timelineOffsetOf(clip, word.start), end: timelineStart + timelineOffsetOf(clip, word.end) }));
       if (selected.length) {
         mapped.push(...selected);
         speechRanges.push({ startSec: selected[0]!.start, endSec: selected.at(-1)!.end });

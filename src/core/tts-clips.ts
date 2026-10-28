@@ -1,12 +1,14 @@
-import { captionLayersOf, type Timeline } from "./schema";
+import { captionLayersOf, type AudioCache, type Timeline } from "./schema";
 import { EMOJI } from "./script-style";
 import { plainCaptionText } from "./captions";
+
+import { audioClipLength, cacheKey, clipSpeed } from "./timeline/speed";
 
 export const TTS_SPEAKERS = ["Sohee", "Vivian", "Serena", "Uncle_Fu", "Dylan", "Eric", "Ryan", "Aiden", "Ono_Anna"] as const;
 export type TtsSpeaker = typeof TTS_SPEAKERS[number];
 export const DEFAULT_TTS_SETTINGS = { speaker: "Sohee" as TtsSpeaker, instruct: "" };
 export interface TtsItem { captionId: string; text: string }
-export interface TtsResult { captionId: string; file: string; durationSec: number }
+export interface TtsResult { captionId: string; file: string; durationSec: number; cache?: { key: string; file: string; durationSec: number; version: string } }
 
 export function ttsSettingsOf(settings: Record<string, unknown>) {
   return { speaker: TTS_SPEAKERS.includes(settings.ttsSpeaker as TtsSpeaker) ? settings.ttsSpeaker as TtsSpeaker : DEFAULT_TTS_SETTINGS.speaker,
@@ -35,14 +37,15 @@ export function applyTtsResults(timeline: Timeline, results: readonly TtsResult[
   const clips = results.flatMap(result => {
     const caption = captions.find(clip => clip.id === result.captionId);
     return caption ? [{ id: `tts-${result.captionId}`, file: result.file, startSec: caption.startSec,
+      ...(timeline.voice.find(c => c.id === `tts-${result.captionId}`)?.speed !== undefined ? { speed: timeline.voice.find(c => c.id === `tts-${result.captionId}`)!.speed } : {}),
       inStartSec: 0, inEndSec: result.durationSec, gain: 1 }] : [];
   });
   const replacing = new Set(clips.map(clip => clip.id));
   return { ...timeline, voice: [...timeline.voice.filter(clip => !replacing.has(clip.id)), ...clips] };
 }
 
-export function ttsOverflow(timeline: Timeline) {
+export function ttsOverflow(timeline: Timeline, audioCache?: AudioCache) {
   const captions = captionLayersOf(timeline)[0]?.main ?? [];
   return timeline.voice.filter(clip => clip.id.startsWith("tts-") && captions.some(caption =>
-    clip.id === `tts-${caption.id}` && clip.inEndSec - clip.inStartSec > caption.endSec - caption.startSec + 0.001));
+    clip.id === `tts-${caption.id}` && audioClipLength(clip, audioCache?.[cacheKey(clip.file, clipSpeed(clip))]) > caption.endSec - caption.startSec + 0.001));
 }
