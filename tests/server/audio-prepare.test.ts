@@ -63,7 +63,7 @@ describe("047 음성 준비 API", () => {
     expect(await readdir(path.join(p, "cache/audio"))).toEqual(["keep.wav"]);
     expect(await readdir(path.join(p, "voice"))).toEqual(["a.wav"]);
   });
-  it("TTS 재생성은 불변 원본과 배속 캐시를 같은 job에서 준비한다", async () => {
+  it.skipIf(process.platform === "win32")("TTS 재생성은 불변 원본과 배속 캐시를 같은 job에서 준비한다 (Mac 전용: Windows TTS 미지원)", async () => {
     const x = await setup(); x.project.timeline.voice = [{ ...x.project.timeline.voice[0]!, id: "tts-a", speed: 2 }]; await x.store.saveProject(x.project);
     const app = createApp({ store: x.store, jobs: x.jobs, token: "test", codexPath: async () => null, jevKey: async () => null, ttsPath: await fakeTts(x.root), ttsServices: { ready: async () => true } });
     const request = () => app.request(`/api/projects/${x.project.id}/tts`, { method: "POST", headers, body: JSON.stringify({ items: [{ captionId: "a", text: "문장" }] }) });

@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { copyFile, mkdir, mkdtemp, readFile, rm, stat } from "node:fs/promises";
+import { copyFile, mkdir, mkdtemp, readFile, rm, stat, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
@@ -9,6 +9,7 @@ import { startMediaServer } from "../../src/engine/pipeline/media-server";
 import { Store } from "../../src/engine/store";
 import { DEFAULT_BRAND_SETTINGS, Project } from "../../src/core/schema";
 import { timelineToRender } from "../../src/core/timeline/to-render";
+import { ffmpeg, ffprobeBin, mediaBinDir, solidPng, toneWav } from "../helpers/media";
 
 const fixtureRoot = path.resolve("tests/fixtures/project");
 const token = "render-media-test-token";
@@ -23,15 +24,19 @@ describe("render route media", () => {
       p.inputs = [{ id: "i", kind: "video", file: "input/video.mp4", durationSec: 0.8 }];
       p.timeline.video = [{ id: "v", kind: "main", inputId: "i", inStartSec: 0, inEndSec: 0.8, speed }];
       await store.saveProject(p);
-      execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=red:s=108x192:r=30:d=0.4", "-f", "lavfi", "-i", "color=blue:s=108x192:r=30:d=0.4", "-f", "lavfi", "-i", "sine=frequency=440:duration=0.8", "-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0[v]", "-map", "[v]", "-map", "2:a", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", path.join(store.projectDir(p.id), "input/video.mp4")]);
+      // Windows 번들에는 color 필터가 없다. 12장씩 이어서 같은 0.8초 영상을 만든다.
+      const red = solidPng(108, 192, [255, 0, 0]), blue = solidPng(108, 192, [0, 0, 255]);
+      await Promise.all(Array.from({ length: 24 }, (_, index) => writeFile(path.join(root, `frame-${String(index).padStart(2, "0")}.png`), index < 12 ? red : blue)));
+      await writeFile(path.join(root, "tone.wav"), toneWav(0.8));
+      ffmpeg(["-y", "-framerate", "30", "-i", path.join(root, "frame-%02d.png"), "-i", path.join(root, "tone.wav"), "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", path.join(store.projectDir(p.id), "input/video.mp4")]);
       const app = createApp({ store, jobs, token, codexPath: async () => null, jevKey: async () => null, mediaServer });
       const outputPath = path.join(root, "render.mp4");
       const response = await app.request(`/api/projects/${p.id}/render`, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ outputPath }) });
       expect(response.status).toBe(202); const final = await jobs.wait((await response.json() as { id: string }).id); expect(final.status, final.error ?? "").toBe("done");
       const saved = await store.requireProject(p.id), preview = timelineToRender(saved.timeline, undefined, saved.audioCache);
-      const probe = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_format", "-show_streams", "-of", "json", outputPath], { encoding: "utf8" }));
+      const probe = JSON.parse(execFileSync(ffprobeBin, ["-v", "error", "-show_format", "-show_streams", "-of", "json", outputPath], { encoding: "utf8", cwd: mediaBinDir }));
       expect(Math.abs(Number(probe.format.duration) - preview.durationInFrames / 30)).toBeLessThanOrEqual(1 / 30);
-      const pixel = (sec: number) => execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-ss", String(sec), "-i", outputPath, "-vf", "format=rgb24,crop=1:1:540:960", "-frames:v", "1", "-f", "rawvideo", "pipe:1"]);
+      const pixel = (sec: number) => ffmpeg(["-ss", String(sec), "-i", outputPath, "-vf", "format=rgb24,crop=1:1:540:960", "-frames:v", "1", "-c:v", "rawvideo", "-f", "image2pipe", "pipe:1"]);
       expect(pixel(0)[0]).toBeGreaterThan(230); expect(pixel((preview.durationInFrames - 1) / 30)[2]).toBeGreaterThan(230);
       expect(probe.streams.some((s: { codec_type: string }) => s.codec_type === "audio")).toBe(true);
       if (speed !== 1) { expect(saved.audioCache?.[`i:${speed}`]?.file).toMatch(/^cache\/audio\//); expect(preview.audio[0]?.file).toBe(saved.audioCache?.[`i:${speed}`]?.file); }
@@ -67,7 +72,7 @@ describe("render route media", () => {
       await store.init();
       await store.saveProject(project);
       await mkdir(path.join(root, "brand"), { recursive: true });
-      execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=red:s=600x100", "-frames:v", "1", path.join(root, "brand", "title.png")]);
+      await writeFile(path.join(root, "brand", "title.png"), solidPng(600, 100, [255, 0, 0]));
       await store.saveSettings({ brand: { ...DEFAULT_BRAND_SETTINGS, titleBar: { ...DEFAULT_BRAND_SETTINGS.titleBar, kind: "image", file: "title.png", bgColor: "#000000", bgOpacity: 1 } } });
 
       await copyFile(
@@ -90,7 +95,7 @@ describe("render route media", () => {
       }
       expect(final?.status).toBe("done");
       expect((await stat(outputPath)).size).toBeGreaterThan(0);
-      const pixel = (x: number, y: number) => execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-i", outputPath, "-vf", `format=rgb24,crop=1:1:${x}:${y}`, "-frames:v", "1", "-f", "rawvideo", "pipe:1"]);
+      const pixel = (x: number, y: number) => ffmpeg(["-i", outputPath, "-vf", `format=rgb24,crop=1:1:${x}:${y}`, "-frames:v", "1", "-c:v", "rawvideo", "-f", "image2pipe", "pipe:1"]);
       // 600×100 이미지는 768×128로 가운데 그린다. 위 16px과 좌우 156px은 배경이다.
       const center = pixel(540, 80);
       expect(center[0]).toBeGreaterThan(240);

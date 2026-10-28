@@ -1,24 +1,14 @@
-import { createRequire } from "node:module";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
 import os from "node:os";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { audioVersion, prepareSpeedAudio } from "../../src/engine/pipeline/audio-speed";
+import { ffmpegBin as ffmpeg, ffprobeBin, toneWav as tone } from "../helpers/media";
 
-const require = createRequire(import.meta.url);
-const rendererRequire = createRequire(require.resolve("@remotion/renderer"));
-const binDir = rendererRequire("@remotion/compositor-darwin-arm64").dir as string;
-const ffmpeg = path.join(binDir, "ffmpeg");
-vi.stubEnv("FFMPEG_BIN", ffmpeg); vi.stubEnv("FFPROBE_BIN", path.join(binDir, "ffprobe"));
+vi.stubEnv("FFMPEG_BIN", ffmpeg); vi.stubEnv("FFPROBE_BIN", ffprobeBin);
 const roots: string[] = [];
 afterEach(async () => { await Promise.all(roots.splice(0).map(p => rm(p, { recursive: true, force: true }))); });
-function tone(seconds = 2) {
-  const rate = 48000, count = Math.round(seconds * rate), b = Buffer.alloc(44 + count * 2);
-  b.write("RIFF"); b.writeUInt32LE(b.length - 8, 4); b.write("WAVEfmt ", 8); b.writeUInt32LE(16, 16); b.writeUInt16LE(1, 20); b.writeUInt16LE(1, 22); b.writeUInt32LE(rate, 24); b.writeUInt32LE(rate * 2, 28); b.writeUInt16LE(2, 32); b.writeUInt16LE(16, 34); b.write("data", 36); b.writeUInt32LE(count * 2, 40);
-  for (let i = 0; i < count; i++) b.writeInt16LE(Math.round(12000 * Math.sin(2 * Math.PI * 440 * i / rate)), 44 + i * 2);
-  return b;
-}
 describe.skipIf(!existsSync(ffmpeg))("047 번들 ffmpeg 음성 배속", () => {
   it("0.5·1.25·2배의 길이·주파수·캐시 재사용·원본 보존을 실제로 측정한다", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "u3-audio-speed-")); roots.push(root);

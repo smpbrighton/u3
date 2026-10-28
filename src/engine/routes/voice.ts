@@ -37,7 +37,7 @@ export function registerVoiceRoutes(app: Hono, context: AppContext): void {
 
     const filename = `${randomBytes(8).toString("hex")}${extension}`;
     const directory = path.join(context.store.projectDir(id), "voice");
-    const destination = path.join(directory, filename);
+    const destination = path.resolve(directory, filename);
     await mkdir(directory, { recursive: true });
     await writeFile(destination, Buffer.from(await file.arrayBuffer()), { flag: "wx" });
     try {

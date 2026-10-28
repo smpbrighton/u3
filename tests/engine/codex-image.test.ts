@@ -4,6 +4,7 @@ import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
 import { codexImageFailureMessage, imagePrompt, outlinePrompt, parseImageEvents, requestedImageSize, resolveImageResult, validatePng, normalizedImageSize, runCodexImage } from "../../src/engine/pipeline/codex-image";
 import { CodexModelUnavailableError } from "../../src/engine/pipeline/codex";
+import { fakeCodex } from "../helpers/codex";
 
 const roots: string[] = [];
 afterEach(async () => Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))));
@@ -11,9 +12,9 @@ afterEach(async () => Promise.all(roots.splice(0).map(root => rm(root, { recursi
 describe("Codex image helpers", () => {
   it.each(["stderr", "stdout"] as const)("이미지 실행도 사용자 오류 원문을 %s에서 모델 불가 오류로 분류한다", async channel => {
     const root = await mkdtemp(path.join(os.tmpdir(), "u3-image-model-")); roots.push(root);
-    const bin = path.join(root, "codex.mjs");
+    const bin = path.join(root, "codex.js");
     const unavailable = `{"type":"error","status":400,"error":{"type":"invalid_request_error","message":"The 'gpt-6-luna' model is not supported when using Codex with a ChatGPT account.","code":"model_not_found"}}`;
-    await writeFile(bin, `#!${process.execPath}\nif (process.argv[2] === "login") console.log("Logged in using ChatGPT");\nelse { process.${channel}.write(${JSON.stringify(unavailable)}); process.exitCode = 1; }\n`, { mode: 0o755 });
+    await fakeCodex(bin, `if (process.argv[2] === "login") console.log("Logged in using ChatGPT");\nelse { process.${channel}.write(${JSON.stringify(unavailable)}); process.exitCode = 1; }`);
     const error = await runCodexImage({ bin, model: "gpt-6-luna", effort: "medium", imageModel: "flare", quality: "low", aspect: "1:1", prompt: "배경", style: "", output: path.join(root, "result.png") }).catch(error => error);
     expect(error).toMatchObject({ name: "CodexModelUnavailableError", model: "gpt-6-luna" });
     expect(error).toBeInstanceOf(CodexModelUnavailableError);
