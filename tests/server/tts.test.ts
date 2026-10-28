@@ -6,6 +6,8 @@ import { createApp } from "../../src/engine/app";
 import { done, Jobs } from "../../src/engine/jobs";
 import { Store } from "../../src/engine/store";
 import { fakeTts } from "../helpers/tts";
+import { captionLayersOf, withCaptionLayers } from "../../src/core/schema";
+import { ttsItemsFromTimeline } from "../../src/core/tts-clips";
 
 const roots: string[] = [];
 const registries: Jobs[] = [];
@@ -25,6 +27,30 @@ async function setup(mode: Parameters<typeof fakeTts>[1] = "ok", ready = true) {
 }
 
 describe("음성 만들기 API", () => {
+  it("이스케이프한 별표 쌍을 TTS 도우미 입력까지 글자 별표로 유지한다", async () => {
+    const x = await setup();
+    const timeline = withCaptionLayers(x.project.timeline, captionLayersOf(x.project.timeline).map((layer, index) => index === 0
+      ? { ...layer, main: [{ id: "a", startSec: 0, endSec: 1, text: "\\*문자\\* *강조* 😊\n다음" }] } : layer));
+    const items = ttsItemsFromTimeline(timeline);
+    expect(items).toEqual([{ captionId: "a", text: "*문자* 강조 다음" }]);
+    const response = await x.app.request(`/api/projects/${x.project.id}/tts`, { method: "POST", headers, body: JSON.stringify({ items }) });
+    expect(response.status).toBe(202);
+    const started = await response.json() as { id: string };
+    expect((await x.jobs.wait(started.id)).status).toBe("done");
+    const request = JSON.parse(await readFile(path.join(x.root, "request.json"), "utf8"));
+    expect(request.items).toEqual([{ id: "a", text: "*문자* 강조 다음" }]);
+  });
+
+  it("TTS API는 일반 글의 별표를 유지하면서 이모지와 줄바꿈을 정리한다", async () => {
+    const x = await setup();
+    x.items[0]!.text = "  *문자* 😊\n다음  ";
+    const response = await x.start();
+    expect(response.status).toBe(202);
+    const started = await response.json() as { id: string };
+    expect((await x.jobs.wait(started.id)).status).toBe("done");
+    const request = JSON.parse(await readFile(path.join(x.root, "request.json"), "utf8"));
+    expect(request.items[0]).toEqual({ id: "a", text: "*문자* 다음" });
+  });
   it("가짜 도우미의 결과 3개를 돌려주고 프로젝트 타임라인은 고치지 않는다", async () => {
     const x = await setup(); const before = await x.store.getProject(x.project.id);
     const response = await x.start(); expect(response.status).toBe(202);

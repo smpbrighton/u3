@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import type { Timeline } from "../../src/core/schema";
+import { Timeline, type OverlayClip } from "../../src/core/schema";
 import { deleteCaptionClip, deleteOverlayClip, deleteVideoClip, moveAudioClip, moveCaptionClip, moveOverlayClip, moveVideoClip, splitOverlayClip, splitVideoClip, trimAudioClip, trimCaptionClip, trimOverlayClip, trimVideoClip, videoStartTimes } from "../../src/core/timeline/ops";
 
 const empty = (): Timeline => ({ video: [], overlays: [], captions: [], voice: [], sfx: [], audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } } });
@@ -10,6 +10,18 @@ const base = (): Timeline => ({ ...empty(), video: [
 ] });
 
 describe("timeline ops", () => {
+  it.each<OverlayClip>([
+    { id: "scene-2-meme-after", memeId: "m", startSec: 1, durationSec: 4, x: 0.5, y: 0.5, width: 0.6, sceneIndex: 2 },
+    { id: "video-overlay", kind: "video", inputId: "in", startSec: 1, inStartSec: 2, inEndSec: 6, x: 0.5, y: 0.5, width: 0.6, sceneIndex: 2 },
+    { id: "photo-overlay", kind: "photo", inputId: "p", startSec: 1, durationSec: 4, x: 0.5, y: 0.5, width: 0.6, sceneIndex: 2 },
+  ])("오버레이를 나누면 뒤 조각의 장면 번호를 지우고 저장 뒤에도 복원하지 않는다", clip => {
+    const timeline: Timeline = { ...base(), overlays: [[clip]] };
+    const changed = splitOverlayClip(timeline, clip.id, 2);
+    expect(changed.overlays[0]?.[0]?.sceneIndex).toBe(2);
+    expect(changed.overlays[0]?.[1]).not.toHaveProperty("sceneIndex");
+    expect(Timeline.parse(JSON.parse(JSON.stringify(changed))).overlays[0]?.[1]).not.toHaveProperty("sceneIndex");
+    expect(timeline.overlays[0]?.[0]?.sceneIndex).toBe(2);
+  });
   it("영상 자르기는 원본 구간을 나누고 입력을 바꾸지 않는다", () => {
     const timeline = base();
     const result = splitVideoClip(timeline, "v1", 1.5);
