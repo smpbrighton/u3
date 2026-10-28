@@ -23,7 +23,7 @@
 - TTS: Qwen3-TTS 1.7B CustomVoice 를 Swift 도우미(MLX)로 로컬 실행, 모델은 받기·첫 생성 때 받음, 기본 화자 Sohee, 자막 클립 단위로 목소리 트랙에, 내보내기·음성 분리와 동시 실행 없음 → [0023](decisions/0023-qwen-tts-local.md)
 - 캐러셀 이미지·글: codex 내장 image_gen(설정에서 모델·퀄리티·비율 4:5·1:1·9:16·16:9·동시 수)으로 글자 없는 배경, 글은 장당 2~5 객체(위치·폭·폰트·크기·색·정렬·효과)로 앱이 얹음, 로고·밝기·음영 → [0027](decisions/0027-carousel-text-objects.md)
 - 라이브러리: 짤·효과음과 짤 색인은 앱에 넣고 bge-m3 는 처음 실행 때 받음, 그 전에는 규칙 점수 → [0004](decisions/0004-bundled-library-lazy-model.md)
-- 편집 모델: 자막 레이어 여러 개(메인·서브 두 줄, 레이어 스타일·위치, 폰트 세 가지), 여러 영상 트랙(영상 1 은 본 화면만 빈틈 없음, 짤은 기본으로 영상 2 이상 작은 창), 모든 화면 클립 투명도, 워터마크·타이틀 바(설정 기본값 + 영상별 값), 효과음 트랙 여러 개, `@xzdarcy/react-timeline-editor` + 앱이 만든 자르기·실행 취소 → [0016](decisions/0016-caption-layers-opacity-brand.md)
+- 편집 모델: 자막 레이어 여러 개(메인·서브 두 줄, 레이어 스타일·위치, 폰트 세 가지), 여러 영상 트랙(영상 1 은 본 화면만 빈틈 없음, 짤은 기본으로 영상 2 이상 작은 창), 모든 화면 클립 투명도, 워터마크·타이틀 바(설정 기본값 + 영상별 값), 효과음 트랙 여러 개, `@xzdarcy/react-timeline-editor` + 앱이 만든 자르기·실행 취소 → [0016](decisions/0016-caption-layers-opacity-brand.md), 단축키 기본값·재정의 → [0030](decisions/0030-studio-shortcut-settings.md)
 - 자막 클립 재정의·자막 편집기: 클립마다 색·크기 배율·굵게·등장 효과·강조색을 레이어 위에 덮고 `*단어*` 는 강조 표기, 스튜디오 「자막」 탭에서 목록·이전·다음·구간 슬라이더로 편집 → [0028](decisions/0028-caption-clip-style.md)
 - 장면 검토: 자동 생성 클립은 `sceneIndex` 를 갖고 스튜디오 「장면」 탭에서 장면별 짤(후보 5)·효과음을 바꾸거나 빼거나 넣음, 2 대본 뒤 첫 탭 → [0029](decisions/0029-scene-review.md)
 - 타이틀 바 내용: 설정에서 글·이미지 기본값, 영상별 재정의, 새 영상에 AI 제목 자동 채움 없음 → [0020](decisions/0020-title-bar-content.md)
