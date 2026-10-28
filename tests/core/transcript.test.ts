@@ -11,6 +11,13 @@ const options = { style: CAPTION_STYLE, maxWidth: CAPTION_MAX_LINE_WIDTH, maxLin
 const blank = (): Timeline => ({ video: [], overlays: [], captions: [], voice: [], sfx: [], audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } } });
 
 describe("whisper transcript", () => {
+  it("047 원본 단어 시각은 영상과 음성 배속으로 한 번 변환한다", () => {
+    const words = [{ text: "배속", start: 3, end: 4 }];
+    const clip = { id: "a", startSec: 5, file: "a.wav", inStartSec: 2, inEndSec: 6, gain: 1, speed: 2 };
+    expect(wordsForAudioClip(clip, words)).toEqual([{ text: "배속", start: 5.5, end: 6 }]);
+    const t = { ...blank(), video: [{ id: "v", kind: "main" as const, inputId: "i", inStartSec: 2, inEndSec: 6, speed: 2 }] };
+    expect(captionsFromTranscript(t, "i", words, measurer, options).words).toEqual([{ text: "배속", start: 0.5, end: 1 }]);
+  });
   it("받아 적기 결과의 별표를 강조로 해석하지 않도록 이스케이프해 저장한다", () => {
     const base: Timeline = { ...blank(), video: [{ id: "v", kind: "main", inputId: "in", inStartSec: 0, inEndSec: 2 }] };
     const result = captionsFromTranscript(base, "in", [{ text: "*별표*", start: 0, end: 1 }], measurer, options);

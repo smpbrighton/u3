@@ -16,6 +16,14 @@ function timeline() {
 }
 
 describe("TTS 자막 클립", () => {
+  it("047 다시 만들기와 전체 생성은 원본 경로와 기존 배속을 보존하고 측정 길이로 경고한다", () => {
+    const t = timeline(); t.voice = [{ id: "tts-a", file: "voice/old.wav", startSec: 3, inStartSec: 0, inEndSec: 3, gain: 1, speed: 2 }];
+    const next = applyTtsResults(t, [{ captionId: "a", file: "voice/tts-a-generation.wav", durationSec: 2.02 }, { captionId: "b", file: "voice/tts-b-generation.wav", durationSec: 1 }]);
+    expect(next.voice.find(c => c.id === "tts-a")).toMatchObject({ speed: 2, file: "voice/tts-a-generation.wav", inEndSec: 2.02 });
+    expect(ttsOverflow(next).map(c => c.id)).toContain("tts-a");
+    expect(ttsOverflow(next, { "voice/tts-a-generation.wav:2": { file: "cache/audio/a.wav", durationSec: 1, version: "v" } })).toEqual([]);
+    expect(next.captionLayers).toEqual(t.captionLayers);
+  });
   it("첫 레이어의 메인 자막에서 이모지·키캡·ZWJ·변형 선택자·줄바꿈을 제거하고 빈 글은 제외한다", () => {
     expect(ttsItemsFromTimeline(timeline())).toEqual([
       { captionId: "a", text: "첫 장면 ! 다음 줄" }, { captionId: "b", text: "둘째 장면" }, { captionId: "c", text: "셋째 장면" },
