@@ -7,11 +7,9 @@ import type { AppContext } from "../app";
 import { HttpError, parseJson } from "../http";
 import { CodexError, codexCliRunner } from "../pipeline/codex";
 import { recordUsage } from "../pipeline/usage";
-import { extractFrames, frameAllocation } from "../pipeline/frames";
-import { ffprobe } from "../pipeline/ffmpeg";
+import { extractFrames, frameAllocation, frameInputsWithDuration } from "../pipeline/frames";
 import { listMemes } from "../pipeline/library";
 import { formatScriptInputGuide, validateScriptForInputs } from "../pipeline/script-validation";
-import { inputDisplayName } from "../../core/input";
 import { buildScriptPrompt, DEFAULT_SCRIPT_PROMPT } from "../../core/script-prompt";
 import { checkScriptStyle } from "../../core/script-style";
 import { escapeCaptionStars } from "../../core/captions";
@@ -57,22 +55,12 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
         tone: typeof settings.scriptTone === "string" ? settings.scriptTone : "",
         persona: typeof settings.scriptPersona === "string" ? settings.scriptPersona : "",
       };
-      const inputs = await Promise.all(project.inputs.filter(input => input.id !== "placeholder").map(async input => {
-        if (input.kind !== "video" || input.durationSec !== undefined) return input;
-        const source = path.resolve(context.store.projectDir(project.id), input.file);
-        const durationSec = Number((await ffprobe(source)).format.duration);
-        if (!Number.isFinite(durationSec) || durationSec <= 0) {
-          throw new Error(`${inputDisplayName(input)}의 영상 길이를 확인할 수 없습니다.`);
-        }
-        return { ...input, durationSec };
-      }));
-      const videos = inputs.filter(input => input.kind === "video");
-      const counts = frameAllocation(videos.length, inputs.filter(input => input.kind === "photo").length);
+      const inputs = await frameInputsWithDuration(project.inputs, context.store.projectDir(project.id));
+      const counts = frameAllocation(inputs);
       const emotions = [...new Set((await listMemes(context.resourceDir)).map(meme => meme.emotion))];
-      let videoIndex = 0;
-      const frameTimes = inputs.map(input => {
+      const frameTimes = inputs.map((input, index) => {
         if (input.kind === "photo") return ["사진"];
-        const count = counts[videoIndex++] ?? 10;
+        const count = counts[index]!;
         return Array.from({ length: count }, (_, frameIndex) => `${(((frameIndex + 0.5) / count) * input.durationSec!).toFixed(1)}초`);
       });
       const runner = codexCliRunner({ bin, model: typeof settings.codexModel === "string" ? settings.codexModel : "gpt-6-luna", effort: typeof settings.codexEffort === "string" ? settings.codexEffort : "medium" });
@@ -96,13 +84,12 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
                 return [...images];
               }
               const files: string[] = [];
-              videoIndex = 0;
-              for (const input of inputs) {
+              for (const [index, input] of inputs.entries()) {
                 const source = path.resolve(context.store.projectDir(project.id), input.file);
                 const directory = path.join(context.store.projectDir(project.id), "input", ".frames", input.id);
                 await mkdir(directory, { recursive: true });
                 if (input.kind === "video") {
-                  const count = counts[videoIndex++] ?? 10;
+                  const count = counts[index]!;
                   files.push(...await extractFrames(source, directory, count));
                 } else {
                   files.push(...await extractFrames(source, directory, 1, undefined, true));

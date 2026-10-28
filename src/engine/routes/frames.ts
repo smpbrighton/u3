@@ -3,7 +3,7 @@ import { access, mkdir, readdir } from "node:fs/promises";
 import path from "node:path";
 import type { AppContext } from "../app";
 import { HttpError } from "../http";
-import { extractFrames, extractThumbnail, frameAllocation } from "../pipeline/frames";
+import { extractFrames, extractThumbnail, frameAllocation, frameInputsWithDuration } from "../pipeline/frames";
 import { scriptFrameSecs } from "../../core/carousel-frame";
 import { mediaUrl } from "../pipeline/media-server";
 
@@ -49,14 +49,8 @@ export function registerFrameRoutes(app: Hono, context: AppContext): void {
     const project = await context.store.getProject(id);
     if (!project) throw new HttpError(404, "not-found", "프로젝트가 없습니다");
 
-    const videos = project.inputs.filter(input => input.kind === "video");
-    const photos = project.inputs.filter(input => input.kind === "photo");
-    let counts: number[];
-    try {
-      counts = frameAllocation(videos.length, photos.length);
-    } catch (error) {
-      throw new HttpError(400, "too-many-frames", error instanceof Error ? error.message : "프레임 수가 40장을 넘습니다");
-    }
+    const inputs = await frameInputsWithDuration(project.inputs, context.store.projectDir(id));
+    const counts = frameAllocation(inputs);
     const origin = new URL(c.req.url).origin;
     const frameUrl = (file: string) => {
       const relative = path.relative(context.store.projectDir(id), file);
@@ -65,19 +59,16 @@ export function registerFrameRoutes(app: Hono, context: AppContext): void {
     };
     const output: { inputId: string; frames: { file: string; url: string }[] }[] = [];
 
-    let videoIndex = 0;
-    for (const input of project.inputs) {
+    for (const [index, input] of inputs.entries()) {
       const source = path.resolve(context.store.projectDir(id), input.file);
       const directory = path.join(context.store.projectDir(id), "input", ".frames", input.id);
       await mkdir(directory, { recursive: true });
       const frames = input.kind === "video"
-        ? await extractFrames(source, directory, counts[videoIndex++] ?? 10)
+        ? await extractFrames(source, directory, counts[index])
         : await extractFrames(source, directory, 1, undefined, true);
       output.push({ inputId: input.id, frames: frames.map(file => ({ file, url: frameUrl(file) })) });
     }
 
-    const total = output.reduce((sum, item) => sum + item.frames.length, 0);
-    if (total > 40) throw new HttpError(400, "too-many-frames", "프로젝트 프레임이 40장을 넘습니다");
     return c.json(output);
   });
 }

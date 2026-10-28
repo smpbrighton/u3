@@ -1,24 +1,29 @@
-import { mkdir } from "node:fs/promises";
+import { mkdir, readdir, rm } from "node:fs/promises";
 import path from "node:path";
-import { FFPROBE, runFfmpeg, createMediaRunner } from "./ffmpeg";
+import type { Input } from "../../core/schema";
+import { inputDisplayName } from "../../core/input";
+import { FFPROBE, ffprobe, runFfmpeg, createMediaRunner } from "./ffmpeg";
 
 const mediaRunner = createMediaRunner();
-export const frameCountForInputs = (count: number) => Math.min(40, Math.max(0, count) * 10);
+type FrameInput = Pick<Input, "kind" | "durationSec">;
 
-/** 사진은 한 장씩 예약한다. 영상은 같은 장수에서 비율로 줄이고 각 영상에 세 장을 보장한다. */
-export function frameAllocation(videoCount: number, photoCount = 0, limit = 40): number[] {
-  const videoBudget = limit - photoCount;
-  if (videoCount < 0 || photoCount < 0 || videoBudget < 0 || videoCount * 3 > videoBudget) {
-    throw new RangeError("사진과 영상의 최소 프레임 수가 40장을 넘습니다");
-  }
-  if (videoCount === 0) return [];
-  const framesPerVideo = Math.min(10, Math.floor(videoBudget / videoCount));
-  const extraFrames = framesPerVideo < 10
-    ? Math.min(videoCount, videoBudget - framesPerVideo * videoCount)
-    : 0;
-  return Array.from({ length: videoCount }, (_, index) =>
-    framesPerVideo + (index < extraFrames ? 1 : 0),
-  );
+/** 입력 순서대로 사진은 1장, 영상은 초당 1장을 올림해 3–10장씩 배정한다. 전체 상한은 없다. */
+export function frameAllocation(inputs: readonly FrameInput[]): number[] {
+  return inputs.map(input => input.kind === "photo" ? 1 : Math.min(10, Math.max(3, Math.ceil(input.durationSec ?? 0))));
+}
+
+export function frameCountForInputs(inputs: readonly FrameInput[]): number {
+  return frameAllocation(inputs).reduce((total, count) => total + count, 0);
+}
+
+/** 미디어 화면과 대본 생성이 같은 길이로 프레임 수를 계산한다. 저장 형식은 바꾸지 않는다. */
+export async function frameInputsWithDuration(inputs: readonly Input[], projectDirectory: string): Promise<Input[]> {
+  return Promise.all(inputs.filter(input => input.id !== "placeholder").map(async input => {
+    if (input.kind !== "video" || input.durationSec !== undefined) return input;
+    const durationSec = Number((await ffprobe(path.resolve(projectDirectory, input.file))).format.duration);
+    if (!Number.isFinite(durationSec) || durationSec <= 0) throw new Error(`${inputDisplayName(input)}의 영상 길이를 확인할 수 없습니다.`);
+    return { ...input, durationSec };
+  }));
 }
 
 async function durationOf(file: string): Promise<number> {
@@ -50,6 +55,10 @@ export async function extractFrames(
     ], signal);
     output.push(file);
   }
+  const stale = (await readdir(outputDirectory, { withFileTypes: true })).filter(entry =>
+    entry.isFile() && /^frame-\d+\.jpg$/.test(entry.name) && Number(entry.name.slice(6, -4)) > frameCount,
+  );
+  await Promise.all(stale.map(entry => rm(path.join(outputDirectory, entry.name))));
   return output;
 }
 
