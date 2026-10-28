@@ -42,7 +42,7 @@ describe("compositor dylib 설치 이름", () => {
     expect(id.trim().split(/\r?\n/).at(-1)).toBe("@loader_path/libavutil.dylib");
     await expect(exec("codesign", ["--verify", codec])).resolves.toBeDefined();
     await expect(exec("bash", [script, "--check", dir])).resolves.toBeDefined();
-  });
+  }, 60_000); // dylib 세 개(약 50 MB) 복사·재서명이 전체 verify 와 겹치면 5초를 넘긴다.
 
   it("패키징이 compositor 경로를 고치고 서명은 검사한 뒤 진행한다", async () => {
     const build = await readFile(path.join(root, "scripts/build-engine.ts"), "utf8");
