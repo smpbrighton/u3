@@ -80,6 +80,18 @@ function blendPixelRatio(blend: Buffer, a: Buffer, b: Buffer): number {
   return between / blend.length;
 }
 
+function wavData(file: Buffer): Buffer {
+  assert(file.toString("ascii", 0, 4) === "RIFF" && file.toString("ascii", 8, 12) === "WAVE", "WAV 파일이 아닙니다");
+  let offset = 12;
+  while (offset + 8 <= file.length) {
+    const id = file.toString("ascii", offset, offset + 4);
+    const size = file.readUInt32LE(offset + 4);
+    if (id === "data") return file.subarray(offset + 8, Math.min(file.length, offset + 8 + size));
+    offset += 8 + size + (size % 2);
+  }
+  throw new Error("WAV data 청크가 없습니다");
+}
+
 function peakDb(pcm: Buffer): number {
   let peak = 0;
   for (let offset = 0; offset + 1 < pcm.length; offset += 2) peak = Math.max(peak, Math.abs(pcm.readInt16LE(offset)));
@@ -120,9 +132,10 @@ async function main() {
     assert(probe.streams.some((stream) => stream.codec_type === "audio"), "오디오 스트림이 없습니다");
 
     // Windows 번들 ffmpeg 에는 volumedetect 필터가 없다. PCM 으로 풀어 Node 에서 최대 음량을 잰다.
-    const pcmPath = path.join(outputDir, "u3-short.pcm");
-    await execFile("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", outputPath, "-vn", "-ac", "1", "-ar", "48000", "-f", "s16le", "-c:a", "pcm_s16le", pcmPath]);
-    const maxVolume = peakDb(await readFile(pcmPath));
+    // raw s16le muxer 도 Windows 빌드에 없으므로 WAV 로 풀어 data 청크를 읽는다.
+    const wavPath = path.join(outputDir, "u3-short.wav");
+    await execFile("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", outputPath, "-vn", "-ac", "1", "-ar", "48000", "-c:a", "pcm_s16le", "-f", "wav", wavPath]);
+    const maxVolume = peakDb(wavData(await readFile(wavPath)));
     assert(Number.isFinite(maxVolume) && maxVolume > -60, `오디오가 무음이거나 매우 작습니다: ${Number.isFinite(maxVolume) ? maxVolume.toFixed(1) : "측정 없음"}`);
 
     const trimmed = expected.video.find((item) => item.id === "video-trimmed");
