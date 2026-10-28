@@ -81,7 +81,9 @@ async function checkDylibs(binary: string, bundledDir?: string): Promise<void> {
   const unexpected = output.split(/\r?\n/).slice(1).filter(line => {
     const dependency = line.trim().split(" ")[0];
     if (!dependency || dependency.startsWith("/System/Library/") || dependency.startsWith("/usr/lib/")) return false;
-    if (bundledDir && !dependency.startsWith("/")) return !existsSync(join(bundledDir, basename(dependency)));
+    // 맨 이름(경로 없음)은 hardened runtime 이 거부한다. fix-dylib-paths.sh 가 @loader_path 로 바꾼 뒤여야 한다.
+    if (!dependency.startsWith("/") && !dependency.startsWith("@")) return true;
+    if (bundledDir && dependency.startsWith("@")) return !existsSync(join(bundledDir, basename(dependency)));
     return true;
   });
   if (unexpected.length) fail(`앱 외부 dylib 의존성이 있습니다: ${unexpected.map(line => line.trim().split(" ")[0]).join(", ")}`);
@@ -114,6 +116,8 @@ try {
   execFileSync("bash", [join(root, "scripts/check-engine-key.sh"), bundlePath], { stdio: "inherit" });
   await cp(nodeBinary, join(resources, "node"));
   await chmod(join(resources, "node"), 0o755);
+  // compositor 의 맨 이름 dylib 참조를 @loader_path 로 고친다(hardened runtime 이 상대 경로를 거부한다).
+  execFileSync("bash", [join(root, "scripts/fix-dylib-paths.sh"), join(runtimeNodeModules, "@remotion/compositor-darwin-arm64")], { stdio: "inherit" });
   await cp(runtimeNodeModules, join(resources, "node_modules"), { recursive: true });
   await rm(join(resources, "node_modules/.bin"), { recursive: true, force: true });
 

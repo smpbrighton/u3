@@ -40,5 +40,10 @@ plan mode 산출물. 승인 후 `architecture/changes/046-ffmpeg-dylib-paths/pla
 3. 패키징한 앱의 `ffprobe -version` 과 실제 영상 `-show_format` 출력(명령·종료 코드 기록).
 4. 릴리스 `✓ release published: v0.3.1`, 설치본 버전 0.3.1, 앱에서 영상 넣기 성공(사용자 확인이면 그렇다고 적는다).
 
+## 실행 기록
+- 1단계 실패: 두 테스트 모두 실패(스크립트 없음 · build-engine 에 호출 없음). 커밋 `77bc73c`.
+- 2·3단계: `tests/scripts/dylib-paths.test.ts`·`macos-executables.test.ts` 6개 통과. `pnpm verify` 종료 코드 0(테스트 734 통과·3 건너뜀), 마지막 줄 `✓ verify passed`.
+- 4단계: `pnpm package` 종료 코드 0, 로그 "dylib 설치 이름을 고쳤습니다: 10 개". 패키징한 앱의 `ffprobe -version` 종료 코드 0(`ffprobe version n7.1`), `otool -L` 이 `@loader_path/libavdevice.dylib`, 실제 영상 `projects/20261028-152946-fb08/input/607d38d42f97.MOV` 의 `-show_format -of json` 이 JSON 을 냈다. 로그 `/Volumes/X31/.cache/u3/tmp/{verify,package}-046.log`.
+
 ## 롤백
 - 데이터·API 변경 없음. 커밋 단위로 되돌린다. 0.3.0 은 영상 넣기가 안 되므로 되돌릴 이유가 없다.

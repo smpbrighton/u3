@@ -8,6 +8,7 @@ APP=${1:?usage: sign-nested.sh <U3.app> <identity>}
 ID=${2:?usage: sign-nested.sh <U3.app> <identity>}
 HERE=$(cd "$(dirname "$0")/.." && pwd)
 bash "$HERE/scripts/check-macos-executables.sh" "$APP"
+bash "$HERE/scripts/fix-dylib-paths.sh" --check "$APP/Contents/Resources/resources/node_modules/@remotion/compositor-darwin-arm64"
 ENGINE_ENT="$HERE/src-tauri/entitlements-engine.plist"
 APP_ENT="$HERE/src-tauri/entitlements.plist"
 MAIN="$APP/Contents/MacOS/u3"
