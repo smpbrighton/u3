@@ -7,7 +7,7 @@ import { Script } from "../../src/ui/screens/Script";
 import type { SystemStatus } from "../../src/ui/types";
 
 function status(codex: SystemStatus["codex"] & { version?: string; outdated?: boolean }): SystemStatus {
-  return { codex, jev: { available: false, hasKey: false, keyHint: null, enabled: false, model: "jev", boxModel: "jev-box" } };
+  return { platform: "darwin", capabilities: { tts: true }, codex, jev: { available: false, hasKey: false, keyHint: null, enabled: false, model: "jev", boxModel: "jev-box" } };
 }
 
 describe("Codex 경고", () => {
