@@ -1,7 +1,7 @@
 import { readFile, writeFile } from "node:fs/promises";
 import { describe, expect, it, vi } from "vitest";
 import { z } from "zod";
-import { codexCliRunner, type CodexProcessRunner } from "../../src/engine/pipeline/codex";
+import { CodexError, CodexModelUnavailableError, codexCliRunner, codexFailureReason, type CodexProcessRunner } from "../../src/engine/pipeline/codex";
 
 const success = (stdout = ""): Awaited<ReturnType<CodexProcessRunner>> => ({
   code: 0,
@@ -25,6 +25,32 @@ function fakeCodex(output: unknown, schemaFiles: Record<string, unknown>[]): Cod
 }
 
 describe("generic Codex CLI runner", () => {
+  const unavailable = `{"type":"error","status":400,"error":{"type":"invalid_request_error","message":"The 'gpt-6-luna' model is not supported when using Codex with a ChatGPT account.","code":"model_not_found"}}`;
+
+  it.each(["stderr", "stdout"] as const)("사용자 오류 원문을 %s에서 모델 불가 오류로 분류한다", async channel => {
+    const run: CodexProcessRunner = async request => {
+      if (request.args[0] === "login") return success("Logged in using ChatGPT");
+      if (request.args.includes("--help")) return success("--output-schema --json --ephemeral --sandbox --image");
+      const usage = JSON.stringify({ type: "turn.completed", usage: { input_tokens: 7 } });
+      return { ...success(usage), code: 1, [channel]: channel === "stdout" ? `${usage}\n${unavailable}` : unavailable };
+    };
+    const error = await codexCliRunner({ bin: "fake-codex", model: "gpt-6-luna", run }).run({ schema: z.object({ title: z.string() }), prompt: "제목" }).catch(error => error);
+    expect(error).toMatchObject({ name: "CodexModelUnavailableError", model: "gpt-6-luna", usage: { input_tokens: 7 } });
+    expect(error).toBeInstanceOf(CodexModelUnavailableError);
+    expect(error.message).toContain("이 계정에서 'gpt-6-luna' 모델을 쓸 수 없습니다");
+  });
+
+  it("모델 불가와 사용 한도 오류를 구분한다", async () => {
+    expect(codexFailureReason(unavailable)).toBe("이 계정에서 'gpt-6-luna' 모델을 쓸 수 없습니다");
+    const run: CodexProcessRunner = async request => request.args[0] === "login" ? success("Logged in using ChatGPT")
+      : request.args.includes("--help") ? success("--output-schema --json --ephemeral --sandbox --image")
+      : { ...success(), code: 1, stderr: "usage limit reached" };
+    const error = await codexCliRunner({ bin: "fake-codex", model: "gpt-6-luna", run }).run({ schema: z.object({ title: z.string() }), prompt: "제목" }).catch(error => error);
+    expect(error).toBeInstanceOf(CodexError);
+    expect(error.name).toBe("CodexError");
+    expect(error.message).toContain("사용 한도");
+  });
+
   it("validates and compiles the schema passed by the caller", async () => {
     const schema = z.object({ title: z.string(), count: z.number() });
     const schemaFiles: Record<string, unknown>[] = [];
