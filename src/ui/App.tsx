@@ -45,6 +45,8 @@ export function App() {
   const notifyError = useCallback((message: string) => { toast.error(message, { id: APP_TOAST_ID, duration: 5000 }); }, []);
   const [update, setUpdate] = useState<UpdateSnapshot | null>(null);
   const [restarting, setRestarting] = useState(false);
+  const [studioFromScript, setStudioFromScript] = useState(false);
+  const [studioNotices, setStudioNotices] = useState<string[]>([]);
   const [confirmRestart, setConfirmRestart] = useState(false);
   const saves = useRef(new RestartSaves()).current;
   const restart = useRef(new RestartController({ getBusy: () => api<{ busy: boolean }>("GET", "/api/system/busy"), saves, restart: restartUpdate })).current;
@@ -111,6 +113,7 @@ export function App() {
 
   const openProject = useCallback((next: Project) => {
     setProject(next);
+    setStudioFromScript(false);
     setScreen(projectOpenScreen(next));
   }, []);
 
@@ -120,6 +123,7 @@ export function App() {
       return;
     }
     setCarouselToOpen(null);
+    if (target !== "studio") setStudioFromScript(false);
     setScreen(target);
   };
 
@@ -128,11 +132,11 @@ export function App() {
   ) : screen === "input" && project ? (
     <Input project={project} onProject={setProject} onBack={() => go("home")} onNext={() => go("script")} onScript={() => go("script")} onStudio={() => go("studio")} onError={notifyError} />
   ) : screen === "script" && project ? (
-    <Script project={project} status={status} onProject={setProject} onStudio={() => go("studio")} onBack={() => go("input")} onSnackbar={notify} onError={notifyError} onSettings={() => go("settings")} />
+    <Script project={project} status={status} onProject={setProject} onStudio={() => { setStudioFromScript(true); go("studio"); }} onBack={() => go("input")} onSnackbar={notify} onError={notifyError} onSettings={() => go("settings")} onNotices={setStudioNotices} />
   ) : screen === "studio" && project ? (
-    <Studio project={project} onProject={setProject} onBack={() => go("script")} onSnackbar={notify} onError={notifyError} onCarouselCreated={openCarousel} />
+    <Studio project={project} onProject={setProject} onBack={() => go("script")} onSnackbar={notify} onError={notifyError} onCarouselCreated={openCarousel} initialTab={studioFromScript ? "scenes" : undefined} notifications={studioNotices} onOpenSettings={() => go("settings")} />
   ) : screen === "carousel" ? (
-    <Carousels initialCarousel={carouselToOpen} onSnackbar={notify} onError={notifyError} />
+    <Carousels initialCarousel={carouselToOpen} onSnackbar={notify} onError={notifyError} onSettings={() => go("settings")} />
   ) : <Settings onSnackbar={notify} onError={notifyError} update={update} onCheckUpdate={() => void checkNow()} />;
 
   return (
@@ -143,7 +147,7 @@ export function App() {
       {screen !== "studio" || updateLine(update) ? <Sidebar items={NAVIGATION} current={screen === "input" || screen === "script" || screen === "studio" ? "home" : screen} onNavigate={go} update={update} restarting={restarting} onRestart={() => void requestRestart()} /> : null}
       <main className="main-column flex min-w-0 flex-1 flex-col overflow-hidden">
         {engineError && <div className="shrink-0 px-10 pt-7 pb-5"><EngineConnectionBanner error={engineError} connecting={connecting} onRetry={() => setConnectionAttempt(attempt => attempt + 1)} /></div>}
-        {screen === "studio" || screen === "carousel" ? <div data-u3-legacy={screen}>{page}</div> : page}
+        {page}
       </main>
     </div>
     <AlertDialog open={confirmRestart} onOpenChange={setConfirmRestart}>
