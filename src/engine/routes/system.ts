@@ -1,3 +1,4 @@
+import { capabilities, enginePlatform } from "../platform";
 import type { Hono } from "hono";
 import { TTS_SPEAKERS, ttsSettingsOf } from "../../core/tts-clips";
 import path from "node:path";
@@ -28,17 +29,17 @@ const ImageOptions = z.object({ model: z.enum(["flare", "sunburst"]), quality: z
 const DEFAULT_IMAGE_OPTIONS = { model: "flare" as const, quality: "auto" as const, aspect: "4:5" as const, concurrency: 3 };
 
 export function registerSystemRoutes(app: Hono, context: AppContext): void {
-  const enginePlatform = (): Platform => process.platform === "darwin" ? "mac" : "win";
+  const shortcutPlatform = (): Platform => process.platform === "darwin" ? "mac" : "win";
 
   app.get("/api/system/studio-shortcuts", async c => {
     const settings = await context.store.readSettings();
-    return c.json({ bindings: parseStudioShortcuts(settings.studioShortcuts, enginePlatform()) });
+    return c.json({ bindings: parseStudioShortcuts(settings.studioShortcuts, shortcutPlatform()) });
   });
 
   app.put("/api/system/studio-shortcuts", async c => {
     const bindings = await parseJson(c, StudioShortcutTable);
     for (const { id } of STUDIO_ACTIONS) {
-      const conflict = shortcutConflict(bindings, id, bindings[id], enginePlatform());
+      const conflict = shortcutConflict(bindings, id, bindings[id], shortcutPlatform());
       if (!conflict) continue;
       const message = conflict.kind === "action" ? `${STUDIO_ACTIONS.find(action => action.id === conflict.id)!.label}에서 사용 중이에요`
         : conflict.kind === "text" ? "글 편집에 사용하는 조합이에요" : "시스템에서 사용하는 조합이에요";
@@ -171,6 +172,8 @@ export function registerSystemRoutes(app: Hono, context: AppContext): void {
     const bin = await context.codexPath();
     const codex = bin ? await codexLoginStatus(bin) : { installed: false, loggedIn: false, version: null, outdated: false };
     return c.json({
+      platform: enginePlatform(),
+      capabilities: capabilities(),
       codex,
       jev: await jevStatus(),
     });
@@ -191,13 +194,13 @@ export function registerSystemRoutes(app: Hono, context: AppContext): void {
       warning = "연결을 확인하지 못했지만 키를 저장했어요. 나중에 다시 확인해 주세요.";
     }
     try { await (context.jevKeyStore?.saveJevKey ?? saveJevKey)(key); }
-    catch { throw new HttpError(500, "jev-key-save", "Jev 키를 Keychain에 저장하지 못했습니다"); }
+    catch { throw new HttpError(500, "jev-key-save", "Jev 키를 보안 저장소에 저장하지 못했습니다"); }
     return c.json({ ...await jevStatus(), ...(warning ? { warning } : {}) });
   });
 
   app.delete("/api/system/jev-key", async c => {
     try { await (context.jevKeyStore?.deleteJevKey ?? deleteJevKey)(); }
-    catch { throw new HttpError(500, "jev-key-delete", "Jev 키를 Keychain에서 지우지 못했습니다"); }
+    catch { throw new HttpError(500, "jev-key-delete", "Jev 키를 보안 저장소에서 지우지 못했습니다"); }
     return c.json(await jevStatus());
   });
 

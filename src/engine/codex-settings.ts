@@ -1,3 +1,5 @@
+import { codexCommand } from "./pipeline/codex-path";
+import { SPAWN_OPTIONS } from "./spawn-options";
 import { execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { CODEX_FALLBACK_MODELS, nextCodexModel, resolveCodexModel } from "../core/codex-model";
@@ -15,7 +17,8 @@ const catalogCache = new Map<string, { expires: number; value: Promise<CodexMode
 async function loadCodexModels(bin: string): Promise<CodexModels> {
   for (const args of [[], ["--bundled"]]) {
     try {
-      const { stdout } = await execFileAsync(bin, ["debug", "models", ...args], { timeout: 8_000, maxBuffer: 32 * 1024 * 1024 });
+      const command = await codexCommand(bin, ["debug", "models", ...args]);
+      const { stdout } = await execFileAsync(command.bin, command.args, { ...SPAWN_OPTIONS, timeout: 8_000, maxBuffer: 32 * 1024 * 1024 });
       const catalog = JSON.parse(stdout) as CodexCatalog;
       const models = catalog.models?.flatMap(model => {
         if (typeof model.slug !== "string" || model.visibility !== "list" || model.slug.includes("/")) return [];

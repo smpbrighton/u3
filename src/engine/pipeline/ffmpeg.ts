@@ -1,3 +1,4 @@
+import { SPAWN_OPTIONS } from "../spawn-options";
 import { execFile } from "node:child_process";
 import type { ExecFileOptions } from "node:child_process";
 import path from "node:path";
@@ -10,7 +11,7 @@ const execFileP = promisify(execFile) as MediaExec;
 export function createMediaRunner(execute: MediaExec = execFileP) {
   return {
     run(file: string, args: string[], options: ExecFileOptions = {}) {
-      return execute(file, args, { ...options, cwd: path.dirname(path.resolve(file)) });
+      return execute(file, args, { ...options, ...SPAWN_OPTIONS, cwd: path.dirname(path.resolve(file)) });
     },
   };
 }

@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
-import os from "node:os";
+import { defaultDataDir } from "./platform";
 import path from "node:path";
 import { Carousel, CarouselSlide, defaultTexts, newSlide, type Carousel as CarouselData } from "../core/carousel";
 import { HttpError } from "./http";
@@ -28,7 +28,7 @@ export class CarouselStore {
   readonly root: string;
 
   constructor(
-    root = process.env.U3_DATA_DIR ?? path.join(os.homedir(), "Library/Application Support/U3"),
+    root = process.env.U3_DATA_DIR ?? defaultDataDir(),
     private readonly hasActiveForCarousel: (id: string) => boolean = () => false,
     private readonly now: () => Date = () => new Date(),
   ) {

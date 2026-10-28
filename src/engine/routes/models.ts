@@ -1,3 +1,4 @@
+import { capabilities, exe } from "../platform";
 import type { Hono } from "hono";
 import { stat } from "node:fs/promises";
 import path from "node:path";
@@ -21,7 +22,7 @@ export function registerModelRoutes(app: Hono, context: AppContext): void {
     const bgeModel = path.join(modelRoot, "Xenova/bge-m3/onnx/model.onnx");
     const whisperModel = process.env.U3_WHISPER_MODEL ?? path.join(modelRoot, "ggml-large-v3-turbo-q5_0.bin");
     const [whisperCli, silero, mrx] = await Promise.all([
-      configuredModelPath(context.store, "whisperCli", context.whisperPath ?? path.join(resourceRoot, "bin/whisper-cli")),
+      configuredModelPath(context.store, "whisperCli", context.whisperPath ?? path.join(resourceRoot, "bin", exe("whisper-cli"))),
       configuredModelPath(context.store, "silero", context.sileroPath ?? path.join(resourceRoot, "models/ggml-silero-v6.2.0.bin")),
       configuredModelPath(context.store, "mrx", context.mrxPath ?? path.join(resourceRoot, "models/mrx.int8.onnx")),
     ]);
@@ -35,6 +36,7 @@ export function registerModelRoutes(app: Hono, context: AppContext): void {
 
   app.post("/api/models/download", async c => {
     const { model } = await parseJson(c, z.object({ model: z.enum(["bge-m3", "whisper", "qwen-tts"]) }));
+    if (model === "qwen-tts" && !capabilities().tts) throw new HttpError(400, "unsupported-platform", "이 플랫폼에서는 음성 만들기를 지원하지 않습니다");
     const active = context.jobs.findActive("model-download");
     if (active) throw new HttpError(409, "model-download-active", "모델을 이미 받고 있습니다");
     const job = context.jobs.start({ kind: "models", label: `${model} 모델 받기`, key: "model-download", cancellable: true }, async jobContext => {

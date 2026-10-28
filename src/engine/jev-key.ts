@@ -1,3 +1,4 @@
+import { SPAWN_OPTIONS } from "./spawn-options";
 import { spawn } from "node:child_process";
 import { homedir } from "node:os";
 import path from "node:path";
@@ -33,7 +34,7 @@ export function createJevKeyStore(options: {
 
   function run(args: string[], input = ""): Promise<{ code: number | null; stdout: string }> {
     return new Promise((resolve, reject) => {
-      const child = spawn(securityPath, args, { cwd: path.dirname(keychainPath), stdio: ["pipe", "pipe", "ignore"] });
+      const child = spawn(securityPath, args, { ...SPAWN_OPTIONS, cwd: path.dirname(keychainPath), stdio: ["pipe", "pipe", "ignore"] });
       let stdout = "";
       const timer = setTimeout(() => child.kill("SIGKILL"), 30_000);
       child.stdout.setEncoding("utf8");

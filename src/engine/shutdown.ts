@@ -40,7 +40,8 @@ export function installEngineShutdown(options: {
         await flushOutput();
         // ONNX Runtime의 정적 Env 소멸자가 C 런타임 exit()에서 abort를 낸다.
         // 정리와 출력 flush 뒤 기본 SIGTERM으로 종료한다. 종료 상태는 0이 아니라 SIGTERM이다.
-        process.kill(process.pid, "SIGTERM");
+        if (process.platform === "win32") process.exit(0);
+        else process.kill(process.pid, "SIGTERM");
       }
     })();
     return closing;

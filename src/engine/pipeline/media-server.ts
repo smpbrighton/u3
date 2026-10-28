@@ -7,7 +7,7 @@ import { stat } from "node:fs/promises";
 import http from "node:http";
 import type { AddressInfo } from "node:net";
 import path from "node:path";
-const encodeRelPath = (rel: string) => rel.split(path.sep).map(encodeURIComponent).join("/");
+const encodeRelPath = (rel: string) => rel.split(/[\\/]/).map(encodeURIComponent).join("/");
 
 export interface MediaServerOptions {
   /** URL 접두사 → 디렉터리. 예: { data: "/…/data", assets: "/…/assets" } */
@@ -56,7 +56,7 @@ export function contentTypeOf(file: string): string {
 }
 
 export function mediaUrl(projectId: string, relative: string, token?: string, origin = ""): string {
-  const file = relative.split(path.sep).map(encodeURIComponent).join("/");
+  const file = relative.split(/[\\/]/).map(encodeURIComponent).join("/");
   const url = `${origin}/api/media/projects/${encodeURIComponent(projectId)}/${file}`;
   return token ? `${url}?token=${encodeURIComponent(token)}` : url;
 }
@@ -71,10 +71,12 @@ export function resolveUnder(root: string, relEncoded: string): string | null {
   } catch {
     return null;
   }
-  if (rel.includes("\0")) return null;
-  const abs = path.resolve(root, "./" + rel);
-  const base = path.resolve(root);
-  if (abs !== base && !abs.startsWith(base + path.sep)) return null;
+  if (rel.includes("\0") || /^[\\/]/.test(rel) || rel.includes(":") || rel.split(/[\\/]/).includes("..")) return null;
+  const paths = path.win32.isAbsolute(root) && !root.startsWith("/") ? path.win32 : path;
+  const abs = paths.resolve(root, rel.replace(/[\\/]/g, paths.sep));
+  const base = paths.resolve(root);
+  const comparable = (value: string) => paths === path.win32 ? value.toLowerCase() : value;
+  if (comparable(abs) !== comparable(base) && !comparable(abs).startsWith(comparable(base + paths.sep))) return null;
   return abs;
 }
 
