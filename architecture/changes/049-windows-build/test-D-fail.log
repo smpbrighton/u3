@@ -1,0 +1,52 @@
+
+ RUN  v5.0.5 /Volumes/X31/workspace/smp_workspace/u3-049-windows-build
+
+ ❯ tests/scripts/tauri-windows.test.ts (3 tests | 3 failed) 86ms
+   × Windows bundle는 사용자별 NSIS와 Whisper만 선택한다 76ms
+   × Windows engine은 Job Object와 콘솔 숨김으로 시작한다 6ms
+   × Windows helper는 현재 사용자 DPAPI와 보호된 DACL을 쓴다 1ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/scripts/tauri-windows.test.ts > Windows bundle는 사용자별 NSIS와 Whisper만 선택한다
+Error: ENOENT: no such file or directory, open '/Volumes/X31/workspace/smp_workspace/u3-049-windows-build/src-tauri/tauri.windows.conf.json'
+ ❯ tests/scripts/tauri-windows.test.ts:5:29
+      3| const read = (name: string) => readFile(new URL(`../../${name}`, impor…
+      4| it("Windows bundle는 사용자별 NSIS와 Whisper만 선택한다", async () => {
+      5|   const config = JSON.parse(await read("src-tauri/tauri.windows.conf.j…
+       |                             ^
+      6|   const mac = JSON.parse(await read("src-tauri/tauri.conf.json"));
+      7|   expect(config.bundle.targets).toEqual(["nsis"]);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/3]⎯
+
+ FAIL  tests/scripts/tauri-windows.test.ts > Windows engine은 Job Object와 콘솔 숨김으로 시작한다
+Error: ENOENT: no such file or directory, open '/Volumes/X31/workspace/smp_workspace/u3-049-windows-build/src-tauri/src/job.rs'
+ ❯ tests/scripts/tauri-windows.test.ts:15:59
+     13| });
+     14| it("Windows engine은 Job Object와 콘솔 숨김으로 시작한다", async () => {
+     15|   const main = await read("src-tauri/src/main.rs"), job = await read("…
+       |                                                           ^
+     16|   expect(main).toContain("CREATE_NO_WINDOW");
+     17|   expect(main).toContain("app_local_data_dir");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/3]⎯
+
+ FAIL  tests/scripts/tauri-windows.test.ts > Windows helper는 현재 사용자 DPAPI와 보호된 DACL을 쓴다
+Error: ENOENT: no such file or directory, open '/Volumes/X31/workspace/smp_workspace/u3-049-windows-build/native/u3-key-store/src/windows.rs'
+ ❯ tests/scripts/tauri-windows.test.ts:22:18
+     20| });
+     21| it("Windows helper는 현재 사용자 DPAPI와 보호된 DACL을 쓴다", async () => {
+     22|   const helper = await read("native/u3-key-store/src/windows.rs");
+       |                  ^
+     23|   expect(helper).toContain("CryptProtectData");
+     24|   expect(helper).toContain("CryptUnprotectData");
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/3]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  3 failed (3)
+   Start at  20:21:58
+   Duration  1.24s (transform 61%, tests 16%, import 15%, worker 8%)
+
