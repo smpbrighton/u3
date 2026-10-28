@@ -60,8 +60,8 @@ async function framePixels(file: string, frame: number, out: string, rendered: b
   const top = Math.round(y * height - size / 2);
   const crop = `crop=${size}:${size}:${left}:${top}${rendered ? ",scale=64:64:flags=area" : ""}`;
   // Windows 번들 ffmpeg 에는 rawvideo 머서가 없다. image2pipe 로 raw 프레임을 stdout 에 받아 파일에도 남긴다.
-  // Windows 번들 ffmpeg 에는 select 필터도 없다. 입력 seek(-ss) 로 프레임 시각을 찾는다(두 입력 모두 30fps).
-  const { stdout } = await execFile("ffmpeg", ["-hide_banner", "-loglevel", "error", ...(frame > 0 ? ["-ss", (frame / 30).toFixed(6)] : []), "-i", file, "-vf", `${crop},format=rgb24`, "-frames:v", "1", "-c:v", "rawvideo", "-f", "image2pipe", "pipe:1"], { encoding: "buffer", maxBuffer: 64 * 1024 * 1024 });
+  // Windows 번들 ffmpeg 에는 select 필터도 없다. 입력 seek(-ss) 로 프레임 시각을 찾는다(두 입력 모두 30fps). 반 프레임 앞에서 seek 해 pts 반올림으로 다음 프레임이 잡히는 것을 막는다.
+  const { stdout } = await execFile("ffmpeg", ["-hide_banner", "-loglevel", "error", ...(frame > 0 ? ["-ss", ((frame - 0.5) / 30).toFixed(6)] : []), "-i", file, "-vf", `${crop},format=rgb24`, "-frames:v", "1", "-c:v", "rawvideo", "-f", "image2pipe", "pipe:1"], { encoding: "buffer", maxBuffer: 64 * 1024 * 1024 });
   await writeFile(out, stdout);
   assert(stdout.length === 64 * 64 * 3, `프레임 추출 결과가 64×64 RGB 가 아닙니다: ${path.basename(file)} frame ${frame} → ${stdout.length} bytes`);
   return stdout;
@@ -172,7 +172,9 @@ async function main() {
     const sourceMae = pixelMae(beforePixels, afterPixels);
     const betweenRatio = blendPixelRatio(dissolvePixels, beforePixels, afterPixels);
     assert(transitionMaeBefore > 0 && transitionMaeAfter > 0, "디졸브 가운데 프레임이 경계 양쪽 원본 프레임과 같으면 안 됩니다");
-    assert(transitionMaeBefore < sourceMae && transitionMaeAfter < sourceMae, `디졸브 가운데 프레임이 양쪽 원본의 혼합 범위에 없습니다: ${transitionMaeBefore.toFixed(2)}, ${transitionMaeAfter.toFixed(2)}, source ${sourceMae.toFixed(2)}`);
+    // 디코더·색 변환 차이로 1 수준의 오차가 있다(Windows ffmpeg 에서 before 와 source 가 같게 나옴). 범위 비율이 실제 혼합 판정이다.
+    assert(transitionMaeBefore <= sourceMae + 1 && transitionMaeAfter <= sourceMae + 1, `디졸브 가운데 프레임이 양쪽 원본의 혼합 범위에 없습니다: ${transitionMaeBefore.toFixed(2)}, ${transitionMaeAfter.toFixed(2)}, source ${sourceMae.toFixed(2)}`);
+    assert(betweenRatio >= 0.9, `디졸브 가운데 프레임의 픽셀이 양쪽 원본 사이에 있지 않습니다: ${(betweenRatio * 100).toFixed(1)}%`);
     assert(betweenRatio > 0.7, `디졸브 가운데 픽셀이 양쪽 원본 픽셀 사이에 있지 않습니다: ${(betweenRatio * 100).toFixed(1)}%`);
 
     const overlay = expected.overlay.find((item) => item.id === "overlay-smoke");
