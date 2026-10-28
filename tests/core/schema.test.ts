@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
 import { AudioClip, CodexScript, Gain, Input, Project, TextClip, Timeline, VideoClip } from "../../src/core/schema";
+import { audioClipLength, cacheKey, clipSpeed, playLength, sourceAt, timelineOffsetOf } from "../../src/core/timeline/speed";
 
 const timeline = {
   video: [], overlays: [], captions: [], voice: [], sfx: [],
@@ -8,6 +9,33 @@ const timeline = {
 };
 const input = (id: number) => ({ id: String(id), kind: "video" as const, file: `input/${id}.mp4`, durationSec: 10 });
 const project = (inputs: unknown[], name = "테스트 프로젝트") => ({ id: "p", name, inputs, timeline, savedAt: "2026-10-24T00:00:00.000Z" });
+
+describe("047 배속 schema와 원본 좌표", () => {
+  const video = { id: "v", kind: "main" as const, inputId: "1", inStartSec: 2, inEndSec: 6 };
+  it("선택 배속과 캐시는 저장·재열기 뒤 유지하고 기본 배속은 1이다", () => {
+    expect(clipSpeed(VideoClip.parse(video))).toBe(1);
+    for (const speed of [0.5, 1, 1.25, 2]) {
+      const saved = Project.parse({ ...project([input(1)]), timeline: { ...timeline, video: [{ ...video, speed }] }, audioCache: { [cacheKey("1", speed)]: { file: "cache/audio/a.wav", durationSec: 8, version: "v1" } } });
+      const opened = Project.parse(JSON.parse(JSON.stringify(saved)));
+      expect(opened.timeline.video[0]?.speed).toBe(speed);
+      expect(opened.audioCache).toEqual(saved.audioCache);
+      expect(playLength(2, 6, speed)).toBe(4 / speed);
+    }
+  });
+  it("범위 밖·비유한 배속과 사진·짤·효과음 배속을 거절한다", () => {
+    for (const speed of [0.49, 2.01, 0, -1, NaN, Infinity]) expect(VideoClip.safeParse({ ...video, speed }).success).toBe(false);
+    for (const clip of [{ id: "p", kind: "main", inputId: "1", durationSec: 2 }, { id: "m", kind: "meme", memeId: "m", durationSec: 2 }]) expect(VideoClip.safeParse({ ...clip, speed: 2 }).success).toBe(false);
+    expect(Timeline.safeParse({ ...timeline, overlays: [[{ id: "p", kind: "photo", inputId: "1", startSec: 0, durationSec: 2, x: 0.5, y: 0.5, width: 1, speed: 2 }]] }).success).toBe(false);
+    expect(Timeline.safeParse({ ...timeline, sfx: [{ id: "s", file: "s.wav", startSec: 0, inStartSec: 0, inEndSec: 2, gain: 1, speed: 2 }] }).success).toBe(false);
+    expect(VideoClip.safeParse({ ...video, speed: 2, endTransition: { kind: { kind: "dissolve" }, durationSec: 1.1 } }).success).toBe(false);
+  });
+  it("원본 좌표 변환과 측정 캐시의 끝을 공유한다", () => {
+    const clip = { ...video, speed: 2 };
+    expect(sourceAt(clip, 1)).toBe(4);
+    expect(timelineOffsetOf(clip, 4)).toBe(1);
+    expect(audioClipLength(clip, { file: "a.wav", version: "v", durationSec: 2.98 })).toBeCloseTo(1.98);
+  });
+});
 
 describe("U3 schema 범위", () => {
   it("입력 1~20개 프로젝트를 허용한다", () => {
