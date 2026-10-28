@@ -5,6 +5,7 @@ import path from "node:path";
 import { createApp } from "../../src/engine/app";
 import { Jobs } from "../../src/engine/jobs";
 import { Store } from "../../src/engine/store";
+import { DEFAULT_CAROUSEL_VIDEO_PROMPT } from "../../src/core/carousel-prompt";
 
 const roots: string[] = [];
 const headers = { authorization: "Bearer test-token", "content-type": "application/json" };
@@ -23,21 +24,41 @@ async function setup(jevEnabled = true) {
   ] }));
   await store.saveSettings({ jevEnabled });
   const jobs = new Jobs(); const askBox = vi.fn(async () => ({ box: { left: 0.1, top: 0.1, right: 0.7, bottom: 0.8 }, confidence: 0.9, usage: { input_tokens: 2, output_tokens: 1 }, model: "jev-1.14.0" }));
+  const derivePlan = vi.fn(async ({ count, prompt }: { count: number; prompt: string }) => {
+    expect(prompt).not.toContain("data:image");
+    return { caption: "영상 게시 캡션", slides: Array.from({ length: count }, (_, i) => ({ sceneNumber: i + 1, title: `제목 ${i + 1}`, body: `본문 ${i + 1}`, target: "상품" })), usage: {} };
+  });
   const app = createApp({ store, jobs, token: "test-token", codexPath: async () => null, jevKey: async () => "fixture-jev-key",
     carouselServices: {
       refine: async () => ({ candidates: [], usage: {} }), plan: async () => ({ style: "", slides: [], usage: {} }), generateImage: async () => Buffer.from([]),
-      derivePlan: async ({ count, prompt }) => {
-        expect(prompt).not.toContain("data:image");
-        return { caption: "영상 게시 캡션", slides: Array.from({ length: count }, (_, i) => ({ sceneNumber: i + 1, title: `제목 ${i + 1}`, body: `본문 ${i + 1}`, target: "상품" })), usage: {} };
-      },
+      derivePlan,
       renderFrame: async ({ outputPath }) => { await mkdir(path.dirname(outputPath), { recursive: true }); await writeFile(outputPath, Buffer.from("png")); },
       askBox,
     },
   });
-  return { app, store, jobs, project, askBox };
+  return { app, store, jobs, project, askBox, derivePlan };
 }
 
 describe("video derived carousel API", () => {
+  it.each([undefined, "저장한 영상 기획 지침"])("영상 기획과 재기획은 기본값 또는 저장한 본문 뒤에 장수와 자료를 붙인다: %s", async saved => {
+    const { app, store, project, derivePlan } = await setup();
+    await store.saveSettings({ ...await store.readSettings(), carouselVideoPrompt: saved, scriptPrompt: "섞지 않을 대본 지침", scriptPersona: "섞지 않을 성격" });
+    const response = await app.request(`/api/projects/${project.id}/carousel`, { method: "POST", headers, body: JSON.stringify({ count: 2 }) });
+    expect(response.status).toBe(201);
+    const { carousel } = await response.json() as { carousel: { id: string } };
+    const replanned = await app.request(`/api/carousels/${carousel.id}/plan`, { method: "POST", headers, body: "{}" });
+    expect(replanned.status).toBe(202);
+    expect(derivePlan).toHaveBeenCalledTimes(2);
+    const prefix = `${saved ?? DEFAULT_CAROUSEL_VIDEO_PROMPT}\n\n요청 장수: 2\n자료: `;
+    for (const [input] of derivePlan.mock.calls) {
+      expect(input.prompt.startsWith(prefix)).toBe(true);
+      expect(JSON.parse(input.prompt.slice(prefix.length))).toMatchObject({
+        scenes: [{ sceneNumber: 1, caption: "상품을 보여 줍니다" }, { sceneNumber: 2, caption: "다음 장면" }],
+        captionLayersMain: expect.any(Array), title: "시험 영상", videoDurationSec: expect.any(Number),
+      });
+    }
+  });
+
   it("accepts all four aspects for frame based carousels", async () => {
     const { app, jobs, project } = await setup();
     for (const aspect of ["9:16", "16:9"] as const) {

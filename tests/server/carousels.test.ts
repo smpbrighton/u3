@@ -1,10 +1,17 @@
-import { afterEach, describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { createApp } from "../../src/engine/app";
 import { Jobs } from "../../src/engine/jobs";
 import { Store } from "../../src/engine/store";
+import { DEFAULT_CAROUSEL_TOPIC_PROMPT } from "../../src/core/carousel-prompt";
+
+const runner = vi.hoisted(() => ({ run: vi.fn() }));
+vi.mock("../../src/engine/pipeline/codex", async importOriginal => ({
+  ...await importOriginal<typeof import("../../src/engine/pipeline/codex")>(),
+  codexCliRunner: () => ({ run: runner.run }),
+}));
 
 const roots: string[] = [];
 afterEach(async () => Promise.all(roots.splice(0).map(root => rm(root, { recursive: true, force: true }))));
@@ -26,6 +33,20 @@ async function appAt(composeCarouselSlide?: (carousel: import("../../src/core/ca
 }
 
 describe("carousels API", () => {
+  it.each([undefined, "저장한 주제 기획 지침"])("주제 기획은 기본값 또는 저장한 본문 뒤에 장수와 주제와 화풍을 붙인다: %s", async saved => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "u3-carousel-topic-prompt-")); roots.push(root);
+    const store = new Store(root);
+    await store.saveSettings({ carouselTopicPrompt: saved, scriptPrompt: "섞지 않을 대본 지침", scriptTone: "섞지 않을 말투" });
+    runner.run.mockReset().mockResolvedValue({ output: { caption: "게시 캡션", slides: Array.from({ length: 2 }, () => ({ title: "제목", body: "본문", imagePrompt: "이미지" })) }, usage: {} });
+    const app = createApp({ store, jobs: new Jobs(), token: "test-token", codexPath: async () => path.join(root, "fake-codex"), jevKey: async () => null });
+    const created = await app.request("/api/carousels", { method: "POST", headers, body: JSON.stringify({ topic: "바다", style: "수채화", slideCount: 2 }) });
+    const { id } = await created.json() as { id: string };
+    const planned = await app.request(`/api/carousels/${id}/plan`, { method: "POST", headers, body: JSON.stringify({ topic: "하늘" }) });
+    expect(planned.status).toBe(202);
+    expect(runner.run).toHaveBeenCalledOnce();
+    expect(runner.run.mock.calls[0]![0].prompt).toBe(`${saved ?? DEFAULT_CAROUSEL_TOPIC_PROMPT}\n\n요청 장수: 2\n주제: 하늘\n요청 화풍: 수채화`);
+  });
+
   it("saves and validates image options and applies concurrency to the image queue", async () => {
     const { app, store } = await appAt();
     expect(await (await app.request("http://127.0.0.1/api/system/image-options", { headers })).json()).toMatchObject({ model: "flare", quality: "auto", aspect: "4:5", concurrency: 3 });
