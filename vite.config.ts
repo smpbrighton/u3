@@ -1,10 +1,12 @@
 import react from "@vitejs/plugin-react";
+import tailwindcss from "@tailwindcss/vite";
 import http from "node:http";
 import { defineConfig } from "vite";
 
 export default defineConfig({
   plugins: [
     react(),
+    tailwindcss(),
     {
       name: "u3-tauri-engine-proxy",
       configureServer(server) {

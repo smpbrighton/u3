@@ -1,0 +1,221 @@
+/* 공존 순서: 기존 화면은 SEED를 유지하고 새 부품의 utilities가 나중에 적용된다. */
+@layer seed, legacy, theme, base, components, utilities;
+@import "@seed-design/css/all.css" layer(seed);
+@import "./styles.css" layer(legacy);
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities) source(none);
+@import "tw-animate-css";
+@source "./components";
+@custom-variant dark (&:where(.dark, .dark *));
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("../../assets/fonts/Pretendard-Regular.otf") format("opentype");
+  font-style: normal;
+  font-weight: 400;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: "Pretendard";
+  src: url("../../assets/fonts/Pretendard-Bold.otf") format("opentype");
+  font-style: normal;
+  font-weight: 700;
+  font-display: swap;
+}
+
+@layer theme {
+  :root {
+    --background: #ffffff;
+    --foreground: #09090b;
+    --card: #f7f7f8;
+    --card-foreground: #09090b;
+    --popover: #f7f7f8;
+    --popover-foreground: #09090b;
+    --muted: #efeff1;
+    --muted-foreground: #52525b;
+    --secondary: #efeff1;
+    --secondary-foreground: #09090b;
+    --accent: #e6e6e9;
+    --accent-foreground: #09090b;
+    --border: #e4e4e7;
+    --input: #e4e4e7;
+    --ring: #6b6b74;
+    --placeholder: #6b6b74;
+    --primary: #c2410c;
+    --primary-foreground: #ffffff;
+    --destructive: #b91c1c;
+    --destructive-foreground: #ffffff;
+    --u3-danger-text: #b91c1c;
+    --sidebar: #f7f7f8;
+    --sidebar-foreground: #09090b;
+    --sidebar-primary: #18181b;
+    --sidebar-primary-foreground: #ffffff;
+    --sidebar-accent: #e6e6e9;
+    --sidebar-accent-foreground: #09090b;
+    --sidebar-border: #e4e4e7;
+    --sidebar-ring: #6b6b74;
+    --u3-solid: #18181b;
+    --u3-solid-foreground: #ffffff;
+    --u3-clip-caption: #e4e4e7;
+    --u3-clip-video: #dbe5f5;
+    --u3-clip-meme: #e9ddfa;
+    --u3-clip-audio: #d6eedd;
+    --u3-clip-voice: #f3e7c8;
+    --u3-clip-sfx: #f8dbe8;
+    --radius: 6px;
+    --u3-control-height: 32px;
+    --u3-control-height-sm: 28px;
+    --u3-control-height-xs: 24px;
+    --u3-property-height: 32px;
+    --u3-setting-height: 40px;
+    --u3-track-height: 28px;
+    --u3-clip-height: 22px;
+    --u3-studio-header-height: 48px;
+    --u3-step-header-height: 56px;
+  }
+
+  .dark {
+    --background: #0e0e10;
+    --foreground: #f4f4f5;
+    --card: #151517;
+    --card-foreground: #f4f4f5;
+    --popover: #151517;
+    --popover-foreground: #f4f4f5;
+    --muted: #1d1d20;
+    --muted-foreground: #a1a1aa;
+    --secondary: #1d1d20;
+    --secondary-foreground: #f4f4f5;
+    --accent: #26262a;
+    --accent-foreground: #f4f4f5;
+    --border: #2a2a2e;
+    --input: #2a2a2e;
+    --ring: #8b8b94;
+    --placeholder: #8b8b94;
+    --primary: #ff8a3d;
+    --primary-foreground: #1a0b00;
+    --destructive: #dc2626;
+    --destructive-foreground: #ffffff;
+    --u3-danger-text: #f87171;
+    --sidebar: #151517;
+    --sidebar-foreground: #f4f4f5;
+    --sidebar-primary: #f4f4f5;
+    --sidebar-primary-foreground: #0e0e10;
+    --sidebar-accent: #26262a;
+    --sidebar-accent-foreground: #f4f4f5;
+    --sidebar-border: #2a2a2e;
+    --sidebar-ring: #8b8b94;
+    --u3-solid: #f4f4f5;
+    --u3-solid-foreground: #0e0e10;
+    --u3-clip-caption: #34343a;
+    --u3-clip-video: #2b3a55;
+    --u3-clip-meme: #3f2f5c;
+    --u3-clip-audio: #1f4630;
+    --u3-clip-voice: #4a3d1f;
+    --u3-clip-sfx: #57263f;
+  }
+}
+
+@theme inline {
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+  --color-placeholder: var(--placeholder);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-u3-danger-text: var(--u3-danger-text);
+  --color-sidebar: var(--sidebar);
+  --color-sidebar-foreground: var(--sidebar-foreground);
+  --color-sidebar-primary: var(--sidebar-primary);
+  --color-sidebar-primary-foreground: var(--sidebar-primary-foreground);
+  --color-sidebar-accent: var(--sidebar-accent);
+  --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
+  --color-sidebar-border: var(--sidebar-border);
+  --color-sidebar-ring: var(--sidebar-ring);
+  --color-u3-solid: var(--u3-solid);
+  --color-u3-solid-foreground: var(--u3-solid-foreground);
+  --color-u3-clip-caption: var(--u3-clip-caption);
+  --color-u3-clip-video: var(--u3-clip-video);
+  --color-u3-clip-meme: var(--u3-clip-meme);
+  --color-u3-clip-audio: var(--u3-clip-audio);
+  --color-u3-clip-voice: var(--u3-clip-voice);
+  --color-u3-clip-sfx: var(--u3-clip-sfx);
+  --font-sans: "Pretendard", system-ui, sans-serif;
+  --text-2xs: 11px;
+  --text-2xs--line-height: 1.45;
+  --text-xs: 12px;
+  --text-xs--line-height: 1.45;
+  --text-sm: 13px;
+  --text-sm--line-height: 1.45;
+  --text-base: 13px;
+  --text-base--line-height: 1.45;
+  --text-lg: 16px;
+  --text-lg--line-height: 1.45;
+  --text-xl: 20px;
+  --text-xl--line-height: 1.45;
+  --font-weight-*: initial;
+  --font-weight-normal: 400;
+  --font-weight-bold: 700;
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --radius-lg: 8px;
+  --radius-xl: 12px;
+}
+
+/* Tailwind preflight는 import하지 않는다. Portal의 Content도 u3-shell로 표시한다.
+   미리보기 경계와 그 자손은 아래 초기화 선택자 모두에서 제외한다. */
+@layer base {
+  :where(.u3-shell) {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 400;
+    line-height: 1.45;
+    font-synthesis: none;
+    color: var(--foreground);
+    background-color: var(--background);
+    color-scheme: light;
+  }
+
+  :where(.dark .u3-shell) { color-scheme: dark; }
+
+  :where(.u3-shell, .u3-shell *):not(:where(.carousel-player, .carousel-player *, .studio-preview-area, .studio-preview-area *, .studio-preview-player, .studio-preview-player *, [data-u3-preview], [data-u3-preview] *)) {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+    border: 0 solid var(--border);
+    &::before, &::after { box-sizing: border-box; border: 0 solid var(--border); }
+  }
+
+  :where(.u3-shell) :where(button, input, textarea, select):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *)) {
+    font: inherit;
+    color: inherit;
+    letter-spacing: inherit;
+    background-color: transparent;
+    border-radius: 0;
+  }
+
+  :where(.u3-shell) :where(button, [role="button"]):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *)) { cursor: pointer; }
+  :where(.u3-shell) :where(button:disabled, [aria-disabled="true"]):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *)) { cursor: default; }
+  :where(.u3-shell) :where(input, textarea):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *))::placeholder { color: var(--placeholder); opacity: 1; }
+  :where(.u3-shell) :where(h1, h2, h3, h4, h5, h6):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *)) { font-size: inherit; font-weight: 700; }
+  :where(.u3-shell) :where(b, strong):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *)) { font-weight: 700; }
+  :where(.u3-shell) :where(a):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *)) { color: inherit; text-decoration: inherit; }
+  :where(.u3-shell) :where(ol, ul, menu):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *)) { list-style: none; }
+  :where(.u3-shell) :where(img, svg, video, canvas):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *)) { display: block; vertical-align: middle; }
+  :where(.u3-shell) :where(textarea):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *)) { resize: vertical; }
+  :where(.u3-shell) :where([hidden]:not([hidden="until-found"])):not(:where(.carousel-player *, .studio-preview-area *, .studio-preview-player *, [data-u3-preview] *)) { display: none !important; }
+}

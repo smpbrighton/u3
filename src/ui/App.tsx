@@ -20,6 +20,7 @@ import { RestartController, RestartSaves, checkUpdateNow, restartUpdate, subscri
 import { RestartSaveContext } from "./update-save";
 import { UpdateSidebar } from "./UpdateControls";
 import { AlertDialogRoot, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter } from "../../seed-design/ui/alert-dialog";
+import { Toaster } from "./components/ui/sonner";
 
 type Screen = "home" | "input" | "script" | "studio" | "settings" | "carousel";
 type Connection = { port: number; token: string };
@@ -124,6 +125,7 @@ export function App() {
 
   return (
     <SnackbarProvider>
+    <Toaster />
     <RestartSaveContext.Provider value={saves}>
     <div className={`app-shell${screen === "studio" ? " app-shell--studio" : ""}`} data-engine-connected={Boolean(connection)} inert={restarting} aria-busy={restarting}>
       <SideNavigationProvider>
