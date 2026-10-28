@@ -15,6 +15,7 @@
 - 0.3.0 커밋의 버전 설정은 0.3.0이었다. 이 버전 변경 커밋의 실제 배포·서명·공증·설치 실행 증거는 코드에서 못 찾음. `package.json` `src-tauri/Cargo.toml` `src-tauri/tauri.conf.json` `git:418c393:`
 - compositor 경로 수정이 포함된 0.3.1 릴리스·설치 및 앱 영상 입력 검증의 실행 증거는 코드에서 못 찾음. `architecture/changes/046-ffmpeg-dylib-paths/plan.md` `git:41c0d1a:`
 - 0.3.2 커밋은 앱과 Tauri의 버전 설정을 변경했다. 실제 배포·서명·공증·설치 실행 증거는 코드에서 못 찾음. `package.json` `src-tauri/Cargo.toml` `src-tauri/tauri.conf.json` `git:f4fcf7a:`
+- 0.3.3 커밋은 앱과 Tauri의 버전 설정을 변경했다. 실제 배포·서명·공증·설치 실행 증거는 코드에서 못 찾음. `package.json` `src-tauri/Cargo.toml` `src-tauri/tauri.conf.json` `git:93b25bf:`
 - 결정 링크: [자동 업데이트](../../decisions/0021-auto-update.md). `git:b9f7c76:`
 
 ## 관계

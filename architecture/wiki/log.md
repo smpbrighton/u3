@@ -102,3 +102,12 @@
 - `pages/concept-updates.md`
 - `index.md`
 - 별도 페이지 변경이 없는 커밋: 048·052의 실패 테스트, 승인·검토·계획·결정 및 구현 세부 커밋은 위 페이지에 묶어 반영했다. `f4fcf7a`는 릴리스 페이지에 반영했다.
+
+## [2026-10-28] ingest | 047 playback-speed · 053 script-prompt-captions
+- `pages/concept-playback-speed.md`
+- `pages/concept-timeline-editing.md`
+- `pages/concept-local-tts.md`
+- `pages/concept-updates.md`
+- `index.md`
+- 047의 승인·검토·실패 테스트 및 구현 세부 커밋은 배속 페이지에 묶었고 별도 페이지는 없다. `git:60b27ac:` `git:f36ba8c:` `git:92c3eda:` `git:252f79e:` `git:e1ff0ca:` `git:701468e:` `git:1fc7ed4:` `git:1111f4e:` `git:437db16:` `git:9708d36:` `git:20b1879:` `git:35965cb:`
+- release 0.3.3은 릴리스 페이지에 반영했으며 별도 페이지는 없다. `git:93b25bf:`
