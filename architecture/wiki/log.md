@@ -53,3 +53,10 @@
 - `index.md`
 - 설계 승인·review·계획 승인 커밋 `ec00382`, `40c5a94`, `0891658`과 테스트 선행 커밋 `d401836`은 별도 페이지 없이 구현 및 검증 상태에 반영했다.
 - 스파이크 커밋 `ede8fe7`, `55d1486`, `fb5e5c0`, 계획 반영 커밋 `6839136`, 구현 커밋 `910cddc`를 TTS 페이지에 반영했다.
+
+## [2026-10-28] ingest | 044 carousel-workflow 및 release 0.2.2
+- `pages/concept-carousel.md`
+- `pages/concept-updates.md`
+- `index.md`
+- 설계 승인 `480b5ec`, review `1e53186`, 계획 승인 `51bb105`은 구현과 함께 반영했으며 별도 페이지는 없다. `git:480b5ec:` `git:1e53186:` `git:51bb105:`
+- 데이터·저장소·라우트·합성 커밋과 버전 변경을 관련 페이지에 반영했다. `git:34fd789:` `git:e205fb4:` `git:a351ab2:` `git:8e5d3c3:` `git:18f3e6a:`
