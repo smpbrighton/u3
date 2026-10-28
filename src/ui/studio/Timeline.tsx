@@ -25,6 +25,10 @@ import { Input as TextInput } from "../components/ui/input";
 import { updateCaption } from "./CaptionStyleEditor";
 import { captionLayersOf } from "../../core/schema";
 
+function blurTimelineControlFocus() {
+  const active = document.activeElement;
+  if (active instanceof HTMLElement && active.matches("button, [role=button], [role=tab]")) active.blur();
+}
 
 export function Timeline(props: {
   timeline: TimelineData;
@@ -269,7 +273,7 @@ export function Timeline(props: {
         })}
         </div></div>
       </div>
-      <div className="studio-timeline-editor" ref={editorHost}>
+      <div className="studio-timeline-editor" ref={editorHost} onPointerDown={blurTimelineControlFocus}>
         <TimelineEditor
           key={editorKey}
           ref={ref}
@@ -301,8 +305,8 @@ export function Timeline(props: {
           onScroll={({ scrollTop }) => setScrollTop(scrollTop)}
           onClickRow={() => props.onSelect(null, null)}
           onCursorDrag={(time) => props.onPlayhead(time)}
-          onClickTimeArea={(time) => { props.onPlayhead(time); return true; }}
-          onClickAction={(event, { action, row }) => { event.stopPropagation(); props.onSelect(action.id, selectedTrack(row.id), event.shiftKey); }}
+          onClickTimeArea={(time) => { blurTimelineControlFocus(); props.onPlayhead(time); return true; }}
+          onClickAction={(event, { action, row }) => { blurTimelineControlFocus(); event.stopPropagation(); props.onSelect(action.id, selectedTrack(row.id), event.shiftKey); }}
           onActionMoveStart={({ action, row }) => {
             if (row.id === "video" || /^video-(?:[2-9]|[1-9]\d+)$/.test(row.id)) { dragTarget.current = { id: action.id, rowId: row.id, clientY: pointerPosition.current?.y ?? 0 }; }
           }}

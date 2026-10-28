@@ -16,13 +16,17 @@ export interface StudioShortcutInput {
 }
 
 const textTags = new Set(["INPUT", "TEXTAREA", "SELECT"]);
-const interactiveRoles = new Set(["slider", "switch", "checkbox", "radio", "combobox", "listbox", "option", "button", "tab"]);
+const textRoles = new Set(["slider", "combobox", "listbox", "option", "textbox", "searchbox", "spinbutton"]);
+const spaceRoles = new Set(["button", "tab", "switch", "checkbox", "radio"]);
 
 export function studioShortcut(event: StudioShortcutInput): StudioShortcut | null {
-  if (event.isComposing || (event.keyCode === 229 && !event.code)) return null;
-  if (event.targetIsContentEditable || textTags.has(event.targetTagName?.toUpperCase() ?? "") || event.targetType === "range" || interactiveRoles.has(event.targetRole?.toLowerCase() ?? "")) return null;
+  if (!event.code && (event.isComposing || event.keyCode === 229)) return null;
+  const tagName = event.targetTagName?.toUpperCase() ?? "";
+  const role = event.targetRole?.toLowerCase() ?? "";
+  if (event.targetIsContentEditable || textTags.has(tagName) || event.targetType === "range" || textRoles.has(role)) return null;
 
   const key = event.code ? codeKey(event.code) : event.key.toLowerCase();
+  if (key === " " && (tagName === "BUTTON" || spaceRoles.has(role))) return null;
   const command = Boolean(event.metaKey || event.ctrlKey);
 
   if (command && !event.altKey && key === "z") return event.shiftKey ? "redo" : "undo";
