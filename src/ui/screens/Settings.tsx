@@ -5,6 +5,7 @@ import { Alert02Icon, PlayIcon, RefreshIcon } from "@hugeicons/core-free-icons";
 import { api, brandMediaUrl, watchJob, watchJobs, type EngineJob } from "../api";
 import type { SystemStatus } from "../types";
 import { DEFAULT_SCRIPT_PROMPT, SCRIPT_PROMPT_MAX_LENGTH } from "../../core/script-prompt";
+import { CAROUSEL_PROMPT_MAX_LENGTH, DEFAULT_CAROUSEL_TOPIC_PROMPT, DEFAULT_CAROUSEL_VIDEO_PROMPT } from "../../core/carousel-prompt";
 import { DEFAULT_BRAND_SETTINGS, type BrandSettings } from "../../core/schema";
 import { DEFAULT_TTS_SETTINGS, TTS_SPEAKERS } from "../../core/tts-clips";
 import { BrandPreview } from "../settings/BrandPreview";
@@ -35,6 +36,9 @@ type ModelStatus = {
 type CodexModel = { slug: string; displayName: string; efforts: string[] };
 type CodexModelCatalog = { source: "codex-cli" | "fallback"; models: CodexModel[] };
 type ScriptPromptSettings = { prompt: string; isDefault: boolean; rulesPreview: string };
+type CarouselPromptKind = "topic" | "video";
+type CarouselPromptSettings = Record<CarouselPromptKind, { prompt: string; isDefault: boolean }>;
+const DEFAULT_CAROUSEL_PROMPTS: Record<CarouselPromptKind, string> = { topic: DEFAULT_CAROUSEL_TOPIC_PROMPT, video: DEFAULT_CAROUSEL_VIDEO_PROMPT };
 type ScriptVoiceField = "tone" | "persona";
 type ScriptVoiceSettings = Record<ScriptVoiceField, string>;
 type IntroSfxSetting = { enabled: boolean; ref: string; atSec: number; title: string; durationSec: number };
@@ -64,6 +68,8 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
   const ttsRef = useRef(ttsSettings);
   const [imageOptions, setImageOptions] = useState<ImageOptions>({ model: "flare", quality: "auto", aspect: "4:5", concurrency: 3 });
   const imageRef = useRef(imageOptions);
+  const [carouselPrompts, setCarouselPrompts] = useState(DEFAULT_CAROUSEL_PROMPTS);
+  const carouselPromptsRef = useRef(carouselPrompts);
   const [introSfx, setIntroSfx] = useState<IntroSfxSetting>({ enabled: true, ref: "", atSec: 3, title: "띠링- 소리", durationSec: 1.5 });
   const introRef = useRef(introSfx);
   const [notifyItems, setNotifyItems] = useState<Array<{ ref: string; title: string; url: string }>>([]);
@@ -99,6 +105,10 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
         api<typeof ttsSettings>("GET", "/api/system/tts-settings").then(value => { ttsRef.current = value; setTtsSettings(value); }),
         api<typeof codexSettings>("GET", "/api/system/codex-settings").then(value => { codexRef.current = value; setCodexSettings(value); }),
         api<ImageOptions>("GET", "/api/system/image-options").then(value => { imageRef.current = value; setImageOptions(value); }),
+        api<CarouselPromptSettings>("GET", "/api/system/carousel-prompts").then(value => {
+          const next = { topic: value.topic.prompt, video: value.video.prompt };
+          carouselPromptsRef.current = next; setCarouselPrompts(next);
+        }),
         api<IntroSfxSetting>("GET", "/api/system/intro-sfx").then(value => { introRef.current = value; setIntroSfx(value); }),
         api<Array<{ ref: string; title: string; url: string; category: string }>>("GET", "/api/library/sfx").then(items => setNotifyItems(items.filter(item => item.category === "notify"))),
         api<BrandSettings>("GET", "/api/system/brand").then(async value => {
@@ -210,6 +220,17 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
   function saveVoice() {
     const next = { ...voiceRef.current };
     void persist("script-voice", async () => { await api<ScriptVoiceSettings>("PUT", "/api/system/script-voice", next); });
+  }
+  function changeCarouselPrompt(kind: CarouselPromptKind, value: string) {
+    carouselPromptsRef.current = { ...carouselPromptsRef.current, [kind]: value };
+    setCarouselPrompts(carouselPromptsRef.current);
+  }
+  function saveCarouselPrompt(kind: CarouselPromptKind) {
+    const value = carouselPromptsRef.current[kind];
+    void persist("carousel-prompts", async () => {
+      const saved = await api<CarouselPromptSettings>("PUT", "/api/system/carousel-prompts", { [kind]: value });
+      if (carouselPromptsRef.current[kind] === value) changeCarouselPrompt(kind, saved[kind].prompt);
+    });
   }
 
   function saveBrand(layer: keyof BrandSettings, draft: BrandSettings[keyof BrandSettings]) {
@@ -343,16 +364,22 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
           <ModelDownloadRow label="음성 만들기 모델" size="약 3.1 GB" available={Boolean(models?.qwenTts?.available)} job={modelJob("qwen-tts")} starting={startingModels.includes("qwen-tts")} disabled={loading} onDownload={() => void download("qwen-tts")} onCancel={jobId => void cancel(jobId)} />
         </SettingsGroup>}
 
-        {section === "imagegen" && <SettingsGroup title="이미지 생성">
-          <SettingRow label="모델"><SettingsChoice label="이미지 모델" value={imageOptions.model} items={[{ value: "flare", label: "Flare · 빠름" }, { value: "sunburst", label: "Sunburst · 고품질" }]} disabled={loading} onChange={model => updateImage({ ...imageRef.current, model: model as ImageOptions["model"] })} /></SettingRow>
-          <SettingRow label="퀄리티"><SettingsChoice label="퀄리티" value={imageOptions.quality} items={["low", "medium", "high", "auto"].map(value => ({ value, label: value }))} disabled={loading} onChange={quality => updateImage({ ...imageRef.current, quality: quality as ImageOptions["quality"] })} /></SettingRow>
-          <SettingRow label="비율"><SettingsChoice label="비율" value={imageOptions.aspect} items={["4:5", "1:1", "9:16", "16:9"].map(value => ({ value, label: value }))} disabled={loading} onChange={aspect => updateImage({ ...imageRef.current, aspect: aspect as ImageOptions["aspect"] })} /></SettingRow>
-          <SettingRow label="동시 실행 수"><div className="flex h-7 items-center rounded-md border border-input bg-background">
-            <SettingsIconButton label="동시 실행 수 줄이기" variant="ghost" size="icon-xs" disabled={loading || imageOptions.concurrency <= 1} onClick={() => updateImage({ ...imageRef.current, concurrency: imageRef.current.concurrency - 1 })}>−</SettingsIconButton>
-            <Input aria-label="동시 실행 수" type="number" min={1} max={10} step={1} disabled={loading} value={imageOptions.concurrency} className="h-6 w-14 border-0 px-1 text-center text-xs" onChange={event => { const value = Number(event.target.value); if (Number.isFinite(value)) updateImage({ ...imageRef.current, concurrency: Math.min(10, Math.max(1, Math.round(value))) }); }} />
-            <SettingsIconButton label="동시 실행 수 늘리기" variant="ghost" size="icon-xs" disabled={loading || imageOptions.concurrency >= 10} onClick={() => updateImage({ ...imageRef.current, concurrency: imageRef.current.concurrency + 1 })}>+</SettingsIconButton>
-          </div></SettingRow>
-        </SettingsGroup>}
+        {section === "imagegen" && <>
+          <SettingsGroup title="이미지 생성">
+            <SettingRow label="모델"><SettingsChoice label="이미지 모델" value={imageOptions.model} items={[{ value: "flare", label: "Flare · 빠름" }, { value: "sunburst", label: "Sunburst · 고품질" }]} disabled={loading} onChange={model => updateImage({ ...imageRef.current, model: model as ImageOptions["model"] })} /></SettingRow>
+            <SettingRow label="퀄리티"><SettingsChoice label="퀄리티" value={imageOptions.quality} items={["low", "medium", "high", "auto"].map(value => ({ value, label: value }))} disabled={loading} onChange={quality => updateImage({ ...imageRef.current, quality: quality as ImageOptions["quality"] })} /></SettingRow>
+            <SettingRow label="비율"><SettingsChoice label="비율" value={imageOptions.aspect} items={["4:5", "1:1", "9:16", "16:9"].map(value => ({ value, label: value }))} disabled={loading} onChange={aspect => updateImage({ ...imageRef.current, aspect: aspect as ImageOptions["aspect"] })} /></SettingRow>
+            <SettingRow label="동시 실행 수"><div className="flex h-7 items-center rounded-md border border-input bg-background">
+              <SettingsIconButton label="동시 실행 수 줄이기" variant="ghost" size="icon-xs" disabled={loading || imageOptions.concurrency <= 1} onClick={() => updateImage({ ...imageRef.current, concurrency: imageRef.current.concurrency - 1 })}>−</SettingsIconButton>
+              <Input aria-label="동시 실행 수" type="number" min={1} max={10} step={1} disabled={loading} value={imageOptions.concurrency} className="h-6 w-14 border-0 px-1 text-center text-xs" onChange={event => { const value = Number(event.target.value); if (Number.isFinite(value)) updateImage({ ...imageRef.current, concurrency: Math.min(10, Math.max(1, Math.round(value))) }); }} />
+              <SettingsIconButton label="동시 실행 수 늘리기" variant="ghost" size="icon-xs" disabled={loading || imageOptions.concurrency >= 10} onClick={() => updateImage({ ...imageRef.current, concurrency: imageRef.current.concurrency + 1 })}>+</SettingsIconButton>
+            </div></SettingRow>
+          </SettingsGroup>
+          {([["topic", "캐러셀 기획 프롬프트 · 주제로"], ["video", "캐러셀 기획 프롬프트 · 영상으로"]] as const).map(([kind, title]) => <SettingsGroup key={kind} title={title} action={<Button variant="ghost" size="xs" disabled={loading || carouselPrompts[kind] === DEFAULT_CAROUSEL_PROMPTS[kind]} onClick={() => { changeCarouselPrompt(kind, DEFAULT_CAROUSEL_PROMPTS[kind]); saveCarouselPrompt(kind); }}>기본값으로</Button>}>
+            <Textarea aria-label={title} maxLength={CAROUSEL_PROMPT_MAX_LENGTH} disabled={loading} value={carouselPrompts[kind]} onChange={event => changeCarouselPrompt(kind, event.target.value)} onBlur={() => saveCarouselPrompt(kind)} className="h-28 text-xs" />
+            <span className="mt-1 text-right text-2xs text-muted-foreground tabular-nums">{carouselPrompts[kind].length.toLocaleString("ko-KR")}/{CAROUSEL_PROMPT_MAX_LENGTH.toLocaleString("ko-KR")}</span>
+          </SettingsGroup>)}
+        </>}
 
         {section === "sound" && <SettingsGroup title="알림음">
           <SettingRow label="켜기" htmlFor="intro-sfx-enabled"><Switch id="intro-sfx-enabled" checked={introSfx.enabled} disabled={loading} onCheckedChange={enabled => updateIntro({ ...introRef.current, enabled })} /></SettingRow>
