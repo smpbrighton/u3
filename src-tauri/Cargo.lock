@@ -4386,6 +4386,14 @@ dependencies = [
  "tauri-plugin-opener",
  "tauri-plugin-updater",
  "uuid",
+ "windows",
+]
+
+[[package]]
+name = "u3-key-store"
+version = "0.1.0"
+dependencies = [
+ "windows",
 ]
 
 [[package]]

@@ -9,7 +9,7 @@ struct Prepared {
 }
 
 pub struct UpdaterState(Mutex<Runtime>);
-struct Runtime { model: Model, prepared: Option<Prepared> }
+struct Runtime { model: Model, prepared: Option<Prepared>, restart: bool }
 
 fn now() -> u64 {
     SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_millis() as u64
@@ -21,7 +21,7 @@ fn emit(app: &AppHandle, runtime: &Runtime) {
 
 pub fn setup(app: &AppHandle) {
     app.manage(UpdaterState(Mutex::new(Runtime {
-        model: Model::new(app.package_info().version.to_string(), now()), prepared: None,
+        model: Model::new(app.package_info().version.to_string(), now()), prepared: None, restart: false,
     })));
     if cfg!(debug_assertions) { return; }
     let app = app.clone();
@@ -57,7 +57,10 @@ fn check(app: &AppHandle, reason: Reason) {
 }
 
 async fn check_and_download(app: &AppHandle) -> Result<(), String> {
-    let updater = app.updater_builder().timeout(Duration::from_secs(30)).build().map_err(|e| e.to_string())?;
+    let before_exit_app = app.clone();
+    let updater = app.updater_builder().timeout(Duration::from_secs(30))
+        .restart_after_install(false)
+        .on_before_exit(move || crate::stop_engine(&before_exit_app)).build().map_err(|e| e.to_string())?;
     let offered = updater.check().await.map_err(|e| format!("업데이트를 확인하지 못했어요: {e}"))?;
     let mut update = {
         let state = app.state::<UpdaterState>();
@@ -86,7 +89,7 @@ async fn check_and_download(app: &AppHandle) -> Result<(), String> {
 fn stage(app: &AppHandle, update: Update, bytes: Vec<u8>, cache: PathBuf) -> Result<(), String> {
     fs::create_dir_all(&cache).map_err(|e| e.to_string())?;
     let temporary = cache.join(format!("{}.part", uuid::Uuid::new_v4()));
-    let path = cache.join(format!("U3-{}.app.tar.gz", update.version));
+    let path = cache.join(cache_name(&update.version, cfg!(windows)));
     let result = (|| {
         fs::write(&temporary, &bytes).map_err(|e| e.to_string())?;
         let state = app.state::<UpdaterState>();
@@ -122,7 +125,11 @@ pub fn update_restart(app: AppHandle) -> Result<(), String> {
         let mut runtime = state.0.lock().unwrap();
         if runtime.prepared.is_none() { return Err("다시 시작할 업데이트가 없어요.".into()); }
         runtime.model.stop();
+        runtime.restart = true;
     }
+    #[cfg(windows)]
+    app.exit(0);
+    #[cfg(not(windows))]
     // request_restart()는 Exit 콜백이 끝난 뒤 새 실행 파일을 연다.
     app.request_restart();
     Ok(())
@@ -135,15 +142,27 @@ pub fn stop(app: &AppHandle) {
 /// 엔진을 종료한 RunEvent::Exit에서만 실행한다. 실행 중인 번들은 바꾸지 않는다.
 pub fn install_on_exit(app: &AppHandle) {
     if cfg!(debug_assertions) { return; }
-    let prepared = app.state::<UpdaterState>().0.lock().unwrap().prepared.take();
+    let (prepared, restart) = {
+        let state = app.state::<UpdaterState>();
+        let mut runtime = state.0.lock().unwrap();
+        (runtime.prepared.take(), runtime.restart)
+    };
     let Some(prepared) = prepared else { return; };
     let result = (|| {
         let bytes = fs::read(&prepared.path).map_err(|e| e.to_string())?;
         // updater 2.14의 install()은 캐시 bytes의 서명과 서명된 버전을 다시 확인한다.
-        prepared.update.install(&bytes).map_err(|e| e.to_string())?;
-        fs::remove_file(&prepared.path).map_err(|e| e.to_string())
+        #[cfg(windows)]
+        fs::remove_file(&prepared.path).map_err(|e| e.to_string())?;
+        prepared.update.restart_after_install(restart).install(&bytes).map_err(|e| e.to_string())?;
+        #[cfg(not(windows))]
+        fs::remove_file(&prepared.path).map_err(|e| e.to_string())?;
+        Ok::<(), String>(())
     })();
     if let Err(error) = result { eprintln!("업데이트를 설치하지 못했습니다: {error}"); }
+}
+
+fn cache_name(version: &str, windows: bool) -> String {
+    if windows { format!("U3-{version}-setup.exe") } else { format!("U3-{version}.app.tar.gz") }
 }
 
 #[cfg(test)]

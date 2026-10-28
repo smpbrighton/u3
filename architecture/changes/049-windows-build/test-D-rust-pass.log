@@ -1,0 +1,19 @@
+   Compiling u3 v0.3.2 (/Volumes/X31/workspace/smp_workspace/u3-049-windows-build/src-tauri)
+    Finished `test` profile [unoptimized + debuginfo] target(s) in 11.54s
+     Running unittests src/main.rs (src-tauri/target/debug/deps/u3-da8fd8327fac832f)
+
+running 11 tests
+test updater::platform_tests::update_cache_uses_the_platform_payload_extension ... ok
+test updater_logic::tests::only_one_check_or_download_runs_at_a_time ... ok
+test updater_logic::tests::debug_builds_never_check_even_manually ... ok
+test updater_logic::tests::failed_replacement_preserves_the_verified_previous_download ... ok
+test updater_logic::tests::focus_checks_wait_ten_minutes_since_the_last_attempt ... ok
+test updater_logic::tests::prepared_version_is_not_downloaded_again_and_newer_offer_replaces_it ... ok
+test updater_logic::tests::progress_is_bounded_and_snapshots_have_increasing_revisions ... ok
+test updater_logic::tests::shutdown_blocks_checks_and_late_download_completion ... ok
+test updater_logic::tests::startup_and_periodic_checks_wait_for_their_deadlines ... ok
+test bundled_engine_tests::packaged_engine_runs_node_directly_with_the_existing_arguments_and_environment ... ok
+test updater_logic::tests::versions_use_semver_and_reject_invalid_or_older_offers ... ok
+
+test result: ok. 11 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; finished in 0.00s
+
