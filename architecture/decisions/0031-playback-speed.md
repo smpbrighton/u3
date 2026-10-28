@@ -1,6 +1,6 @@
 # 0031 클립 배속
 
-Status: draft
+Status: accepted
 Source: changes/047-playback-speed/spec.md, changes/047-playback-speed/plan.md
 
 ## 맥락
