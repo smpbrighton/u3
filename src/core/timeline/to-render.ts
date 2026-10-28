@@ -1,5 +1,5 @@
 import { CAPTION_HIGHLIGHT_DEFAULT, type AudioCache, type CaptionClipStyle, type CaptionStyle, type ClipTransition, type ClipTransitionInput, type OverlayClip, type Timeline, type TransitionKind } from "../schema";
-import { clipDuration, overlayDuration, projectDuration } from "./ops";
+import { clipDuration, overlayDuration, projectDuration, videoStartTimes } from "./ops";
 
 import { audioClipLength, cacheKey, clipSpeed } from "./speed";
 
@@ -220,6 +220,7 @@ export function timelineToRender(timeline: Timeline, brand?: RenderBrandSettings
 
   // 캐시 파일 전체가 배속된 좌표다. 구간·전환 핸들은 파일 재처리 없이 이동한다.
   const sourceClips = [...timeline.video, ...timeline.overlays.flat()].filter(c => "inStartSec" in c);
+  const sourceStarts = videoStartTimes(timeline);
   for (let index = audio.length - 1; index >= 0; index--) {
     const layer = audio[index]!;
     const clip = layer.track === "voice" || layer.track === "sfx"
@@ -231,7 +232,8 @@ export function timelineToRender(timeline: Timeline, brand?: RenderBrandSettings
     if (!cache) { audio.splice(index, 1); continue; }
     layer.file = cache.file;
     layer.sourceStartFrame = frame(clip.inStartSec / clipSpeed(clip));
-    layer.durationInFrames = frame(layer.startFrame / RENDER_FPS + audioClipLength(clip, cache)) - layer.startFrame;
+    const startSec = "startSec" in clip ? clip.startSec : sourceStarts[clip.id]!;
+    layer.durationInFrames = frame(startSec + audioClipLength(clip, cache)) - frame(startSec);
     if (layer.durationInFrames <= 0) audio.splice(index, 1);
   }
 
