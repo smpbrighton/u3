@@ -5,6 +5,7 @@ import os from "node:os";
 import path from "node:path";
 import { describe, expect, it } from "vitest";
 import { createMediaRunner } from "../../src/engine/pipeline/ffmpeg";
+import { ffmpegBin, mediaPlatform } from "../helpers/media";
 
 describe("bundled ffmpeg execution", () => {
   it("runs configured ffmpeg and ffprobe from their binary directory", async () => {
@@ -13,8 +14,9 @@ describe("bundled ffmpeg execution", () => {
       calls.push({ file, options });
       return { stdout: "", stderr: "" };
     });
-    const ffmpeg = "/bundle/resources/node_modules/@remotion/compositor-darwin-arm64/ffmpeg";
-    const ffprobe = "/bundle/resources/node_modules/@remotion/compositor-darwin-arm64/ffprobe";
+    const binDir = path.resolve("bundle/resources/node_modules", mediaPlatform.compositor);
+    const ffmpeg = path.join(binDir, `ffmpeg${mediaPlatform.extension}`);
+    const ffprobe = path.join(binDir, `ffprobe${mediaPlatform.extension}`);
 
     await runner.run(ffmpeg, ["-version"]);
     await runner.run(ffprobe, ["-version"]);
@@ -25,7 +27,7 @@ describe("bundled ffmpeg execution", () => {
     ]);
   });
 
-  const bundledFfmpeg = path.resolve("node_modules/@remotion/compositor-darwin-arm64/ffmpeg");
+  const bundledFfmpeg = ffmpegBin;
   it.skipIf(!existsSync(bundledFfmpeg))("runs the installed compositor ffmpeg from another working directory", async () => {
     const directory = await mkdtemp(path.join(os.tmpdir(), "u3-ffmpeg-cwd-"));
     try {

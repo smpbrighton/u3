@@ -30,10 +30,10 @@ describe("라이브러리 미디어 참조", () => {
 
     const loaded = await store.requireProject(project.id);
     const reference = loaded.timeline.sfx[0]!.file;
-    const libraryRootB = "/app/resources/library";
+    const libraryRootB = path.resolve(root, "app/resources/library");
     const mediaUrlB = "http://127.0.0.1:52002/library/sfx/%ED%9A%A8%EA%B3%BC/test.wav?token=session-b";
     let resolvedPath = "";
-    const resolvedUrl = asUrl(reference, "/project", (absolutePath) => {
+    const resolvedUrl = asUrl(reference, path.join(root, "project"), (absolutePath) => {
       resolvedPath = absolutePath;
       return mediaUrlB;
     }, libraryRootB);
