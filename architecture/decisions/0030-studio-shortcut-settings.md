@@ -1,6 +1,6 @@
 # 0030 스튜디오 단축키 기본값과 설정 재정의
 
-Status: draft
+Status: accepted
 Source: changes/048-shortcut-settings/spec.md
 
 ## 맥락
