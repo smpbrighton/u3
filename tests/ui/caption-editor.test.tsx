@@ -11,7 +11,7 @@ vi.mock("../../src/ui/components/ui/slider", () => ({ Slider: (p: any) => { cont
 vi.mock("../../src/ui/components/ui/switch", () => ({ Switch: (p: any) => { controls.set(p["aria-label"], p); return <button role="switch" aria-checked={p.checked} />; } }));
 
 function fixture() {
-  return Timeline.parse({ video: [{ id: "v", kind: "main", inputId: "v", durationSec: 10 }], captions: [
+  return Timeline.parse({ voice: [], sfx: [], audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } }, video: [{ id: "v", kind: "main", inputId: "v", durationSec: 10 }], captions: [
     { id: "a", startSec: 1, endSec: 3, text: "첫 *자막*", style: { sizeScale: 1.2 } },
     { id: "b", startSec: 5, endSec: 7, text: "둘째 자막" },
   ] });

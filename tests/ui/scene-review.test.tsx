@@ -8,7 +8,7 @@ import { SceneReview, SceneMemeChoices, sceneMemeRankRequest } from "../../src/u
 const controls = vi.hoisted(() => new Map<string, any>());
 vi.mock("../../src/ui/components/ui/button", () => ({ Button: (p: any) => { controls.set(p["aria-label"] ?? String(p.children), p); return <button>{p.children}</button>; } }));
 const script = CodexScript.parse({ scenes: [{ caption: "첫 *장면*", inputIndex: 1, startSec: 0, endSec: 5, reaction: "놀람", sfxCategory: null }] });
-const timeline = Timeline.parse({ video: [{ id: "v", kind: "main", inputId: "v", durationSec: 5 }], captions: [{ id: "scene-0-caption", startSec: 0, endSec: 5, text: "첫 장면" }], overlays: [[{ id: "scene-0-meme-after", sceneIndex: 0, startSec: 3, durationSec: 2, memeId: "old", x: 0.4, y: 0.3, width: 0.6 }]] });
+const timeline = Timeline.parse({ voice: [], sfx: [], audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } }, video: [{ id: "v", kind: "main", inputId: "v", durationSec: 5 }], captions: [{ id: "scene-0-caption", startSec: 0, endSec: 5, text: "첫 장면" }], overlays: [[{ id: "scene-0-meme-after", sceneIndex: 0, startSec: 3, durationSec: 2, memeId: "old", x: 0.4, y: 0.3, width: 0.6 }]] });
 const candidate = { ...MemeMeta.parse({ id: "new", emotion: "놀람", situations: [], importedAt: "", tagsConfirmed: true, durationSec: 1 }), url: "/new.mp4" };
 describe("장면 검토", () => {
   it("장면 줄·없음·대본 빈 상태를 표시한다", () => {

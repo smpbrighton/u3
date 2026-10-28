@@ -3,14 +3,14 @@ import { describe, expect, it } from "vitest";
 
 describe("studio global input and edit toolbar", () => {
   it("sets readable foreground and placeholder colors for text controls", async () => {
-    const styles = await readFile("src/ui/styles.css", "utf8");
-    expect(styles).toMatch(/input[^{}]*textarea[^{}]*select[^{}]*\{[^}]*color:\s*var\(--seed-color-fg-neutral\)/s);
-    expect(styles).toMatch(/::placeholder\s*\{[^}]*color:/s);
+    const styles = await readFile("src/ui/components/ui/input.tsx", "utf8") + await readFile("src/ui/components/ui/textarea.tsx", "utf8");
+    expect(styles).toContain("text-foreground");
+    expect(styles).toContain("placeholder:text-placeholder");
   });
 
   it("keeps playback controls below preview and removes duplicate playback from edit toolbar", async () => {
     const studio = await readFile("src/ui/screens/Studio.tsx", "utf8");
-    const toolbar = studio.split('<div className="studio-edit-toolbar">')[1]?.split("</div>")[0] ?? "";
+    const toolbar = studio.split('<Toolbar className="studio-edit-toolbar"')[1]?.split("</Toolbar>")[0] ?? "";
     expect(toolbar).not.toContain("setPlaying(true)");
     expect(toolbar).not.toContain("timeLabel(playhead)");
     expect(studio).toContain('<div className="studio-playback-controls">');
