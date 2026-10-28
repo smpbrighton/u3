@@ -5,11 +5,13 @@ import { HttpError, parseJson } from "../http";
 import { jevClient } from "../pipeline/jev";
 import { listMemes } from "../pipeline/library";
 import { rankSceneMemes, createUsageLog } from "../pipeline/meme-rank";
+import { plainCaptionText } from "../../core/captions";
 
 const MemeRankRequest = z.object({
   caption: z.string().min(1),
   reaction: z.string().nullable().optional(),
   query: z.string().min(1),
+  excludeIds: z.array(z.string()).optional(),
 });
 
 export function registerMemeRoutes(app: Hono, context: AppContext): void {
@@ -18,14 +20,15 @@ export function registerMemeRoutes(app: Hono, context: AppContext): void {
     if (!await context.store.getProject(projectId)) throw new HttpError(404, "not-found", "프로젝트가 없습니다");
     const input = await parseJson(c, MemeRankRequest);
     const root = process.env.U3_LIBRARY_DIR;
-    const library = await listMemes(root);
+    const excluded = new Set(input.excludeIds ?? []);
+    const library = (await listMemes(root)).filter(meme => !excluded.has(meme.id));
     const ranking = await rankSceneMemes({
       jev: jevClient(await context.jevKey()),
       usage: createUsageLog(context.store.root),
       index: context.memeIndex ?? null,
     }, {
-      caption: input.caption,
-      query: input.query,
+      caption: plainCaptionText(input.caption),
+      query: plainCaptionText(input.query),
       ...(input.reaction ? { reaction: input.reaction } : {}),
     }, library, projectId);
     return c.json(ranking);

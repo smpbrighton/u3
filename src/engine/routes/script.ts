@@ -14,6 +14,7 @@ import { formatScriptInputGuide, validateScriptForInputs } from "../pipeline/scr
 import { inputDisplayName } from "../../core/input";
 import { buildScriptPrompt, DEFAULT_SCRIPT_PROMPT } from "../../core/script-prompt";
 import { checkScriptStyle } from "../../core/script-style";
+import { escapeCaptionStars } from "../../core/captions";
 
 export function registerScriptRoutes(app: Hono, context: AppContext): void {
   app.get("/api/projects/:id/script", async c => {
@@ -149,6 +150,8 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
           styleWarnings.push(error instanceof Error ? `대본 재생성에 실패해 초안을 사용했습니다: ${error.message}` : "대본 재생성에 실패해 초안을 사용했습니다.");
         }
       }
+      script = { ...script, scenes: script.scenes.map(scene => ({ ...scene, caption: escapeCaptionStars(scene.caption),
+        ...(scene.subCaption !== undefined ? { subCaption: escapeCaptionStars(scene.subCaption) } : {}) })) };
       await mkdir(context.store.projectDir(project.id), { recursive: true });
       await writeFile(path.join(context.store.projectDir(project.id), "script.json"), `${JSON.stringify(script, null, 2)}\n`);
       progress(1, "대본 추천 완료");

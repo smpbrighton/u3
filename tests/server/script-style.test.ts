@@ -48,6 +48,15 @@ async function recommend() {
 }
 
 describe("대본 검사와 한 번 재생성", () => {
+  it("생성한 메인·서브 자막의 별표를 이스케이프해 응답과 저장본에 쓴다", async () => {
+    const draft = script("*직접* 써 봤어. 너는 어때? 😊");
+    draft.scenes[0]!.subCaption = "*Try* it";
+    runScript.mockResolvedValue(result(draft));
+    const done = await recommend();
+    expect(done.saved.scenes[0]).toMatchObject({ caption: String.raw`\*직접\* 써 봤어. 너는 어때? 😊`, subCaption: String.raw`\*Try\* it` });
+    expect(done.result.script).toEqual(done.saved);
+    expect(done.result.draft).toEqual(draft);
+  });
   it("위반이 없으면 한 번만 생성하고 옛 검수 설정을 읽지 않는다", async () => {
     const draft = script("직접 써 봤어. 너는 어때? 😊");
     runScript.mockResolvedValue(result(draft));

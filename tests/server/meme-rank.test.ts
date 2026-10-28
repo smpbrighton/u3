@@ -1,4 +1,11 @@
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
+import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import os from "node:os";
+import path from "node:path";
+import { createApp } from "../../src/engine/app";
+import { Jobs } from "../../src/engine/jobs";
+import { Store } from "../../src/engine/store";
+import * as ranking from "../../src/engine/pipeline/meme-rank";
 import { answerFor, fakeJevClient } from "../../src/engine/pipeline/jev";
 import { rankSceneMemes, searchMemeCandidates } from "../../src/engine/pipeline/meme-rank";
 import { memoryUsageLog } from "../../src/engine/pipeline/usage";
@@ -10,6 +17,31 @@ const memes: LibraryEntry[] = [
   { id: "sad", file: "sad.mp4", emotion: "sad", description: "슬픈 장면", importedAt: "2026-01-02T00:00:00.000Z", tagsConfirmed: true, situations: ["sad"] },
 ];
 const scene = { caption: "웃긴 장면", query: "funny", reaction: "laugh" };
+
+afterEach(() => { vi.restoreAllMocks(); vi.unstubAllEnvs(); });
+
+it("rank API가 사용 중인 짤을 빼고 자막·검색어의 강조 표기를 제거한다", async () => {
+  const root = await mkdtemp(path.join(os.tmpdir(), "u3-rank-plain-"));
+  try {
+    const library = path.join(root, "library");
+    vi.stubEnv("U3_LIBRARY_DIR", library);
+    const dir = path.join(library, "memes", "test");
+    await mkdir(dir, { recursive: true });
+    for (const meme of memes) {
+      await writeFile(path.join(dir, `${meme.id}.json`), JSON.stringify(meme));
+      await writeFile(path.join(dir, meme.file), "");
+    }
+    const store = new Store(root); const project = await store.createProject("짤");
+    const spy = vi.spyOn(ranking, "rankSceneMemes");
+    const app = createApp({ store, jobs: new Jobs(), token: "token", codexPath: async () => null, jevKey: async () => null });
+    const response = await app.request(`/api/projects/${project.id}/memes/rank`, { method: "POST",
+      headers: { authorization: "Bearer token", "content-type": "application/json" },
+      body: JSON.stringify({ caption: "*웃긴* 장면", query: "*funny*", excludeIds: ["laugh"] }) });
+    expect(response.status).toBe(200);
+    expect((await response.json() as { list: Array<{ meme: { id: string } }> }).list.map(item => item.meme.id)).toEqual(["sad"]);
+    expect(spy.mock.calls[0]?.[1]).toMatchObject({ caption: "웃긴 장면", query: "funny" });
+  } finally { await rm(root, { recursive: true, force: true }); }
+});
 
 describe("meme ranking", () => {
   it("keeps rule candidates when embeddings are unavailable", async () => {

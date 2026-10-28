@@ -15,6 +15,7 @@ import { sceneFrameSec } from "../../core/carousel-frame";
 import { renderCarouselFrame } from "../pipeline/carousel-frame";
 import { askJevBox } from "../pipeline/jev-box";
 import { videoDuration as timelineVideoDuration } from "../../core/timeline/ops";
+import { plainCaptionText } from "../../core/captions";
 
 const RefineSchema = z.object({ candidates: z.array(z.object({ topic: z.string().min(1), angle: z.string().min(1) })).length(3) });
 const PlanSchema = z.object({ caption: z.string().max(2000).default(""), style: z.string().optional(), slides: z.array(z.object({ title: z.string().max(5000), body: z.string().max(5000), imagePrompt: z.string().max(4000) })) });
@@ -162,8 +163,8 @@ export function registerCarouselRoutes(app: Hono, context: AppContext): void {
       if (enabled && background.frame?.file) {
         const imagePath = path.join(store.carouselDir(id), background.frame.file);
         const result = context.carouselServices?.askBox
-          ? await context.carouselServices.askBox({ imagePath, target: input.target, enabled })
-          : await askJevBox({ imagePath, target: input.target, apiKey: apiKey ?? undefined, enabled });
+          ? await context.carouselServices.askBox({ imagePath, target: plainCaptionText(input.target), enabled })
+          : await askJevBox({ imagePath, target: plainCaptionText(input.target), apiKey: apiKey ?? undefined, enabled });
         await recordProviderUsage(context.store.root, "jev", result.usage, carousel.source.kind === "project" ? carousel.source.projectId : id);
         await store.updateSlideEngineFields(id, slideId, { background: { highlight: { ...(background.highlight ?? { style: input.style, target: input.target }), box: result.box ?? undefined } } });
       } else await store.clearAutomaticHighlight(id, slideId, true);
@@ -334,8 +335,8 @@ async function planDerivedCarousel(context: AppContext, project: import("../../c
   const videoOne = sourceInputs.find(item => item.kind === "video");
   if (!videoOne || !project.timeline.video.some(item => item.kind === "main" && item.inputId === videoOne.id)) throw new HttpError(400, "missing-video", "영상 1 본 화면 클립이 없습니다");
   const material = {
-    scenes: script.scenes.map((scene, index) => ({ sceneNumber: index + 1, caption: scene.caption })),
-    captionLayersMain: captionLayersOf(project.timeline).flatMap(layer => layer.main.map(clip => clip.text).filter(Boolean)),
+    scenes: script.scenes.map((scene, index) => ({ sceneNumber: index + 1, caption: plainCaptionText(scene.caption) })),
+    captionLayersMain: captionLayersOf(project.timeline).flatMap(layer => layer.main.map(clip => plainCaptionText(clip.text)).filter(Boolean)),
     title: project.timeline.brand?.titleBar?.text ?? script.title ?? "", videoDurationSec: videoOne.durationSec ?? timelineVideoDuration(project.timeline),
   };
   const prompt = `영상 내용으로 정확히 ${count}장의 파생 캐러셀을 기획하세요. 장면 번호·제목·본문·강조 대상과 게시 캡션(caption, 최대 2000자)을 작성하세요. 프레임 이미지를 입력하지 않았으므로 화면을 단정하지 말고 장면 자막의 짧은 대상 문장을 쓰세요.\n자료: ${JSON.stringify(material)}`;
@@ -375,7 +376,7 @@ async function extractSlideFrame(context: AppContext, store: CarouselStore, id: 
     const apiKey = await context.jevKey(); const settings = await context.store.readSettings();
     const enabled = settings.jevEnabled !== false && !!apiKey;
     if (enabled && background.frame?.file && !background.highlight?.boxManual && background.highlight?.style !== "none") {
-      const imagePath = path.join(store.carouselDir(id), background.frame.file), target = background.highlight?.target ?? "";
+      const imagePath = path.join(store.carouselDir(id), background.frame.file), target = plainCaptionText(background.highlight?.target ?? "");
       const result = context.carouselServices?.askBox
         ? await context.carouselServices.askBox({ imagePath, target, enabled })
         : await askJevBox({ imagePath, target, apiKey: apiKey ?? undefined, enabled });

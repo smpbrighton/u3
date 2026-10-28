@@ -1,4 +1,4 @@
-import { buildCaptionChunks, type CaptionOptions } from "./captions";
+import { buildCaptionChunks, escapeCaptionStars, type CaptionOptions } from "./captions";
 import type { Measurer } from "./measure";
 import { captionLayersOf, withCaptionLayers, type AudioClip, type TextClip, type Timeline, type WordStamp } from "./schema";
 import { clipDuration } from "./timeline/ops";
@@ -79,7 +79,7 @@ export function captionsFromTranscript(
     id: `${idPrefix}-${index}`,
     startSec: chunk.startSec,
     endSec: Math.max(chunk.startSec + 0.01, chunk.endSec),
-    text: chunk.lines.map((line) => line.text).join("\n"),
+    text: escapeCaptionStars(chunk.lines.map((line) => line.text).join("\n")),
   }));
   const layers = captionLayersOf(timeline);
   const main = layers[0]?.main ?? [];
