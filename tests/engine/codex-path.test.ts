@@ -2,7 +2,7 @@ import * as fs from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { codexLoginStatus, codexVersion, findCodexPath } from "../../src/engine/pipeline/codex-path";
+import { codexCommand, codexLoginStatus, codexVersion, findCodexPath } from "../../src/engine/pipeline/codex-path";
 import { Store } from "../../src/engine/store";
 
 vi.mock("node:fs/promises", async importOriginal => {
@@ -12,7 +12,9 @@ vi.mock("node:fs/promises", async importOriginal => {
 
 const roots: string[] = [];
 afterEach(async () => {
-  vi.restoreAllMocks(); vi.unstubAllEnvs();
+  vi.restoreAllMocks(); vi.unstubAllEnvs(); vi.unstubAllGlobals();
+  const { access } = await vi.importActual<typeof fs>("node:fs/promises");
+  vi.mocked(fs.access).mockImplementation(access);
   await Promise.all(roots.splice(0).map(root => fs.rm(root, { recursive: true, force: true })));
 });
 
@@ -78,4 +80,17 @@ describe("Codex 경로와 버전", () => {
     expect(await codexLoginStatus(bin)).toMatchObject({ installed: true, loggedIn: false, version: null, outdated: false });
     expect(await codexLoginStatus(path.join(root, "missing"))).toMatchObject({ installed: false, loggedIn: false, version: null, outdated: false });
   });
+});
+
+it("npm codex.cmd를 shell 없이 Node JS 진입점으로 실행한다", async () => {
+  const root = await fs.mkdtemp(path.join(os.tmpdir(), "u3-codex-path-"));
+  try {
+    const npm = path.join(root, "npm"), js = path.join(npm, "node_modules/@openai/codex/bin/codex.js");
+    await fs.mkdir(path.dirname(js), { recursive: true }); await fs.writeFile(js, "// fixture");
+    await fs.writeFile(path.join(npm, "codex.cmd"), '@ECHO off\r\n"%_prog%" "%dp0%\\node_modules\\@openai\\codex\\bin\\codex.js" %*');
+    vi.stubGlobal("process", { ...process, platform: "win32", env: { APPDATA: root, PATH: "" } });
+    expect(await findCodexPath()).toBe(js);
+    expect(await codexCommand(path.join(npm, "codex.cmd"), ["login", "status"])).toEqual({ bin: process.execPath, args: [js, "login", "status"] });
+    expect(await codexCommand("C:\\codex.exe", ["exec"])).toEqual({ bin: "C:\\codex.exe", args: ["exec"] });
+  } finally { await fs.rm(root, { recursive: true, force: true }); }
 });

@@ -1,0 +1,169 @@
+
+ RUN  v5.0.5 /Volumes/X31/workspace/smp_workspace/u3-049-windows-build
+
+ ❯ tests/engine/spawn-options.test.ts (0 test)
+ ❯ tests/engine/platform.test.ts (0 test)
+ ❯ tests/server/jev-key-win.test.ts (0 test)
+ ❯ tests/engine/media-server.test.ts (2 tests | 2 failed) 3ms
+   × 두 경로 구분자를 URL 세그먼트로 바꾼다 2ms
+   × Windows 드라이브·UNC·부모 경로를 거절한다 0ms
+ ❯ tests/engine/codex-path.test.ts (1 test | 1 failed) 75ms
+   × npm codex.cmd를 shell 없이 Node JS 진입점으로 실행한다 74ms
+ ❯ tests/server/system.test.ts (1 test | 1 failed) 28ms
+   × system은 엔진 platform과 capabilities를 반환한다 27ms
+ ❯ tests/server/tts.test.ts (11 tests | 1 failed) 2574ms
+   ❯ 음성 만들기 API (11)
+     × Windows에서는 파일·job·다운로드 전에 TTS 요청을 거절한다 37ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 3 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/engine/platform.test.ts [ tests/engine/platform.test.ts ]
+Error: Cannot find module '../../src/engine/platform' imported from /Volumes/X31/workspace/smp_workspace/u3-049-windows-build/tests/engine/platform.test.ts
+ ❯ tests/engine/platform.test.ts:4:1
+      2| import path from "node:path";
+      3| import os from "node:os";
+      4| import { capabilities, defaultDataDir, defaultOrigin, enginePlatform, …
+       | ^
+      5|
+      6| afterEach(() => vi.unstubAllGlobals());
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/8]⎯
+
+ FAIL  tests/engine/spawn-options.test.ts [ tests/engine/spawn-options.test.ts ]
+Error: Cannot find module '../../src/engine/spawn-options' imported from /Volumes/X31/workspace/smp_workspace/u3-049-windows-build/tests/engine/spawn-options.test.ts
+ ❯ tests/engine/spawn-options.test.ts:3:1
+      1| import { expect, it } from "vitest";
+      2| import { readFile } from "node:fs/promises";
+      3| import { SPAWN_OPTIONS } from "../../src/engine/spawn-options";
+       | ^
+      4| it("모든 엔진 프로세스 호출이 콘솔 숨김 옵션을 쓴다", async () => {
+      5|   expect(SPAWN_OPTIONS.windowsHide).toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/8]⎯
+
+ FAIL  tests/server/jev-key-win.test.ts [ tests/server/jev-key-win.test.ts ]
+Error: Cannot find module '../../src/engine/jev-key-win' imported from /Volumes/X31/workspace/smp_workspace/u3-049-windows-build/tests/server/jev-key-win.test.ts
+ ❯ tests/server/jev-key-win.test.ts:5:1
+      3| import os from "node:os";
+      4| import path from "node:path";
+      5| import { createDpapiKeyStore } from "../../src/engine/jev-key-win";
+       | ^
+      6| it("helper에 키를 stdin으로만 보내고 저장·교체·삭제를 직렬화한다", async () => {
+      7|   const root = await mkdtemp(path.join(os.tmpdir(), "u3-dpapi-"));
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/8]⎯
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/engine/codex-path.test.ts > npm codex.cmd를 shell 없이 Node JS 진입점으로 실행한다
+AssertionError: expected '/Users/smp/.local/bin/codex' to be '/Volumes/X31/.cache/u3/tmp/u3-codex-p…' // Object.is equality
+
+Expected: "/Volumes/X31/.cache/u3/tmp/u3-codex-path-PLkFle/npm/node_modules/@openai/codex/bin/codex.js"
+Received: "/Users/smp/.local/bin/codex"
+
+ ❯ tests/engine/codex-path.test.ts:14:35
+     12|     await writeFile(path.join(npm, "codex.cmd"), '@ECHO off\r\n"%_prog…
+     13|     vi.stubGlobal("process", { ...process, platform: "win32", env: { A…
+     14|     expect(await findCodexPath()).toBe(js);
+       |                                   ^
+     15|     expect(await codexCommand(path.join(npm, "codex.cmd"), ["login", "…
+     16|     expect(await codexCommand("C:\\codex.exe", ["exec"])).toEqual({ bi…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/8]⎯
+
+ FAIL  tests/engine/media-server.test.ts > 두 경로 구분자를 URL 세그먼트로 바꾼다
+AssertionError: expected '%ED%95%9C%20%EA%B8%80%5Ca.png' to be '%ED%95%9C%20%EA%B8%80/a.png' // Object.is equality
+
+Expected: "%ED%95%9C%20%EA%B8%80/a.png"
+Received: "%ED%95%9C%20%EA%B8%80%5Ca.png"
+
+ ❯ tests/engine/media-server.test.ts:5:33
+      3| it("두 경로 구분자를 URL 세그먼트로 바꾼다", () => {
+      4|   for (const file of ["한 글/a.png", "한 글\\a.png"]) {
+      5|     expect(encodeRelPath(file)).toBe("%ED%95%9C%20%EA%B8%80/a.png");
+       |                                 ^
+      6|     expect(mediaUrl("p", file)).toBe("/api/media/projects/p/%ED%95%9C%…
+      7|   }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/8]⎯
+
+ FAIL  tests/engine/media-server.test.ts > Windows 드라이브·UNC·부모 경로를 거절한다
+AssertionError: a/../x: expected '/Volumes/X31/workspace/smp_workspace/…' to be null
+
+- Expected:
+null
+
++ Received:
+"/Volumes/X31/workspace/smp_workspace/u3-049-windows-build/C:\\한 글\\projects/x"
+
+ ❯ tests/engine/media-server.test.ts:11:57
+      9| it("Windows 드라이브·UNC·부모 경로를 거절한다", () => {
+     10|   for (const rel of ["../x", "a/../x", "..%5cx", "C:%5cx", "D:/x", "//…
+     11|     expect(resolveUnder("C:\\한 글\\projects", rel), rel).toBeNull();
+       |                                                         ^
+     12|   }
+     13|   expect(resolveUnder("C:\\한 글\\projects", "foo%5cbar.png")).toBe("C:\…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/8]⎯
+
+ FAIL  tests/server/system.test.ts > system은 엔진 platform과 capabilities를 반환한다
+AssertionError: expected { …(2) } to match object { platform: 'win32', …(1) }
+(10 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "capabilities": {
+-     "tts": false,
++   "codex": {
++     "installed": false,
++     "loggedIn": false,
+    },
+-   "platform": "win32",
++   "jev": {
++     "available": false,
++     "boxModel": "jev-1.14.0",
++     "enabled": true,
++     "hasKey": false,
++     "keyHint": null,
++     "model": "jev-1.13.0",
++   },
+  }
+
+ ❯ tests/server/system.test.ts:15:108
+     13|     const app = createApp({ store, jobs: new Jobs(), token: "test", co…
+     14|     vi.stubGlobal("process", { ...process, platform: "win32" });
+     15|     expect(await (await app.request("/api/system", { headers: { author…
+       |                                                                                                            ^
+     16|   } finally { await rm(root, { recursive: true, force: true }); }
+     17| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/8]⎯
+
+ FAIL  tests/server/tts.test.ts > 음성 만들기 API > Windows에서는 파일·job·다운로드 전에 TTS 요청을 거절한다
+AssertionError: expected 202 to be 400 // Object.is equality
+
+- Expected
++ Received
+
+- 400
++ 202
+
+ ❯ tests/server/tts.test.ts:36:33
+     34|     try {
+     35|       for (const response of [await x.start(), await x.app.request("/a…
+     36|         expect(response.status).toBe(400);
+       |                                 ^
+     37|         expect(await response.json()).toMatchObject({ error: { code: "…
+     38|       }
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/8]⎯
+
+
+ Test Files  7 failed (7)
+      Tests  5 failed | 10 passed (15)
+   Start at  19:54:55
+   Duration  5.34s (import 46%, tests 33%, transform 20%)
+

@@ -27,6 +27,20 @@ async function setup(mode: Parameters<typeof fakeTts>[1] = "ok", ready = true) {
 }
 
 describe("음성 만들기 API", () => {
+  it("Windows에서는 파일·job·다운로드 전에 TTS 요청을 거절한다", async () => {
+    const x = await setup("ok", false);
+    const before = await readdir(path.join(x.store.projectDir(x.project.id), "voice"));
+    vi.stubGlobal("process", { ...process, platform: "win32" });
+    try {
+      for (const response of [await x.start(), await x.app.request("/api/models/download", { method: "POST", headers, body: JSON.stringify({ model: "qwen-tts" }) })]) {
+        expect(response.status).toBe(400);
+        expect(await response.json()).toMatchObject({ error: { code: "unsupported-platform" } });
+      }
+      expect(x.jobs.list()).toEqual([]);
+      expect(x.download).not.toHaveBeenCalled();
+      expect(await readdir(path.join(x.store.projectDir(x.project.id), "voice"))).toEqual(before);
+    } finally { vi.unstubAllGlobals(); }
+  });
   it("이스케이프한 별표 쌍을 TTS 도우미 입력까지 글자 별표로 유지한다", async () => {
     const x = await setup();
     const timeline = withCaptionLayers(x.project.timeline, captionLayersOf(x.project.timeline).map((layer, index) => index === 0
