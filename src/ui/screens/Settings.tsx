@@ -10,6 +10,7 @@ import { DEFAULT_TTS_SETTINGS, TTS_SPEAKERS } from "../../core/tts-clips";
 import { BrandPreview } from "../settings/BrandPreview";
 import { SettingsSaves } from "../settings/settings-save";
 import { ThemeSettings } from "../settings/ThemeSettings";
+import { ShortcutSettings } from "../settings/ShortcutSettings";
 import { ModelDownloadRow } from "../settings/ModelDownloadRow";
 import { SettingRow, SettingsGroup, SettingsSelect, SettingsChoice, SettingsSlider, SettingsColor, SettingsIconButton } from "../settings/SettingsControls";
 import { Button } from "../components/ui/button";
@@ -38,7 +39,7 @@ type IntroSfxSetting = { enabled: boolean; ref: string; atSec: number; title: st
 const DEFAULT_SCRIPT_VOICE: ScriptVoiceSettings = { tone: "", persona: "" };
 type ImageOptions = { model: "flare" | "sunburst"; quality: "low" | "medium" | "high" | "auto"; aspect: "4:5" | "1:1" | "9:16" | "16:9"; concurrency: number };
 
-const SECTIONS = [["screen", "화면"], ["brand", "브랜드"], ["script", "대본"], ["meme", "짤"], ["voice", "음성"], ["imagegen", "이미지 생성"], ["sound", "알림음"], ["about", "앱 정보"]] as const;
+const SECTIONS = [["screen", "화면"], ["shortcuts", "단축키"], ["brand", "브랜드"], ["script", "대본"], ["meme", "짤"], ["voice", "음성"], ["imagegen", "이미지 생성"], ["sound", "알림음"], ["about", "앱 정보"]] as const;
 type SettingsSection = typeof SECTIONS[number][0];
 
 export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?: (bindings: StudioShortcutTable) => void; onSnackbar: (message: string) => void; onError: (message: string) => void; update: UpdateSnapshot | null; onCheckUpdate: () => void }) {
@@ -260,6 +261,7 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
       </nav>
       <div role="region" aria-labelledby={`settings-nav-${section}`} className={cn("flex min-w-0 flex-1 flex-col gap-6", section === "brand" ? "max-w-[960px]" : "max-w-[640px]")}>
         {section === "screen" && <ThemeSettings />}
+        {section === "shortcuts" && <ShortcutSettings shortcuts={props.shortcuts} onShortcuts={props.onShortcuts} saves={saves} />}
 
         {section === "brand" && <>
           <div className="flex items-start gap-8">
