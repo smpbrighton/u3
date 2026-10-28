@@ -1,5 +1,4 @@
 import { createRequire } from "node:module";
-import { execFileSync } from "node:child_process";
 import { existsSync } from "node:fs";
 import { mkdtemp, readFile, readdir, rm, stat, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -27,7 +26,14 @@ describe.skipIf(!existsSync(ffmpeg))("047 번들 ffmpeg 음성 배속", () => {
     for (const speed of [0.5, 1.25, 2]) {
       const result = await prepareSpeedAudio({ projectDir: root, sourceAbs, sourceId: "tone", speed });
       expect(Math.abs(result.durationSec - 2 / speed)).toBeLessThanOrEqual(1 / 30);
-      const pcm = execFileSync(ffmpeg, ["-hide_banner", "-loglevel", "error", "-i", path.join(root, result.file), "-f", "s16le", "-ac", "1", "-ar", "48000", "pipe:1"], { cwd: binDir });
+      const wav = await readFile(path.join(root, result.file));
+      let pcm = Buffer.alloc(0);
+      for (let offset = 12; offset + 8 <= wav.length;) {
+        const size = wav.readUInt32LE(offset + 4);
+        if (wav.toString("ascii", offset, offset + 4) === "data") { pcm = wav.subarray(offset + 8, offset + 8 + size); break; }
+        offset += 8 + size + size % 2;
+      }
+      expect(pcm.length).toBeGreaterThan(0);
       let crossings = 0; const start = 4800, end = pcm.length / 2 - 4800;
       for (let i = start + 1; i < end; i++) if (pcm.readInt16LE((i - 1) * 2) <= 0 && pcm.readInt16LE(i * 2) > 0) crossings++;
       const hz = crossings * 48000 / (end - start);

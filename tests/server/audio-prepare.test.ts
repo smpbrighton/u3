@@ -42,7 +42,7 @@ describe("047 음성 준비 API", () => {
     const x = await setup(); let release!: () => void;
     const other = x.jobs.start({ kind: "separate", key: "heavy-media", label: "분리" }, async () => { await new Promise<void>(r => { release = r; }); return done(); });
     await new Promise(r => setTimeout(r, 0));
-    let settled = false; const request = x.request().then(r => { settled = true; return r; });
+    let settled = false; const request = Promise.resolve(x.request()).then(r => { settled = true; return r; });
     await new Promise(r => setTimeout(r, 30)); expect(settled).toBe(false);
     release(); await x.jobs.wait(other.id);
     const response = await request; expect(response.status).toBe(202);
