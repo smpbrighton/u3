@@ -19,7 +19,7 @@ vi.mock("react", async importOriginal => {
   } };
 });
 // 입력과 기본값 버튼의 이벤트 경계만 노출한다. 실제 저장 함수와 큐를 실행한다.
-vi.mock("../../src/ui/components/ui/textarea", () => ({ Textarea: (props: { "aria-label": string; value: string; onChange: (event: { target: { value: string } }) => void; onBlur: () => void; value: string }) => {
+vi.mock("../../src/ui/components/ui/textarea", () => ({ Textarea: (props: { "aria-label": string; value: string; onChange: (event: { target: { value: string } }) => void; onBlur: () => void }) => {
   events.fields.set(props["aria-label"], props);
   return <textarea aria-label={props["aria-label"]} />;
 } }));

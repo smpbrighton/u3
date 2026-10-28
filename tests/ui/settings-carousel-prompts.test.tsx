@@ -115,6 +115,14 @@ describe("캐러셀 기획 프롬프트 설정", () => {
     field.onBlur();
     expect(events.api).toHaveBeenCalledTimes(1);
     expect(events.api).toHaveBeenLastCalledWith("PUT", endpoint, { [kind]: "  정리된 지침  " });
+    // 새 조회로 서버 본문이 바뀐 뒤 정규화된 본문을 다시 입력하면 그 값을 저장한다.
+    events.promptStates = { ...events.promptStates, [kind]: stateOf("서버에서 바뀐 지침", defaults[kind]) };
+    render();
+    const refreshed = events.fields.get(label)!;
+    refreshed.onChange({ target: { value: "정리된 지침" } });
+    refreshed.onBlur();
+    await vi.waitFor(() => expect(events.api).toHaveBeenCalledTimes(2));
+    expect(events.api).toHaveBeenLastCalledWith("PUT", endpoint, { [kind]: "정리된 지침" });
   });
 
   it.each(cases)("%s의 이전 저장 응답은 새 편집 값을 덮어쓰지 않는다", async (kind, label) => {
