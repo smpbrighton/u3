@@ -17,6 +17,7 @@ import { renderCarouselFrame } from "../pipeline/carousel-frame";
 import { askJevBox } from "../pipeline/jev-box";
 import { videoDuration as timelineVideoDuration } from "../../core/timeline/ops";
 import { plainCaptionText } from "../../core/captions";
+import { DEFAULT_CAROUSEL_TOPIC_PROMPT, DEFAULT_CAROUSEL_VIDEO_PROMPT, carouselTopicPrompt, carouselVideoPrompt, resolveCarouselPrompt } from "../../core/carousel-prompt";
 
 const RefineSchema = z.object({ candidates: z.array(z.object({ topic: z.string().min(1), angle: z.string().min(1) })).length(3) });
 const PlanSchema = z.object({ caption: z.string().max(2000).default(""), style: z.string().optional(), slides: z.array(z.object({ title: z.string().max(5000), body: z.string().max(5000), imagePrompt: z.string().max(4000) })) });
@@ -224,7 +225,8 @@ export function registerCarouselRoutes(app: Hono, context: AppContext): void {
     if (context.carouselServices) result = await context.carouselServices.plan({ topic, count, ...(carousel.style === undefined ? {} : { style: carousel.style }) });
     else {
       const selection = await codexRunnerOptions(context);
-      const prompt = `주제로 정확히 ${count}장의 캐러셀을 기획하세요. 장마다 제목, 본문, 이미지 지시문과 공통 화풍을 정하고 게시 캡션(caption, 최대 2000자)을 작성하세요. 대본 프롬프트는 쓰지 마세요.\n주제: ${topic}${carousel.style ? `\n요청 화풍: ${carousel.style}` : ""}`;
+      const settings = await context.store.readSettings();
+      const prompt = carouselTopicPrompt({ basePrompt: resolveCarouselPrompt(settings.carouselTopicPrompt, DEFAULT_CAROUSEL_TOPIC_PROMPT), count, topic, style: carousel.style });
       const attempt = await withCodexModelFallback(context, model => codexCliRunner({ ...selection, model }).run({ schema: PlanSchema, prompt }));
       result = { ...attempt.value.output, usage: attempt.value.usage };
       message = codexModelSwitchMessage(attempt);
@@ -350,7 +352,8 @@ async function planDerivedCarousel(context: AppContext, project: import("../../c
     captionLayersMain: captionLayersOf(project.timeline).flatMap(layer => layer.main.map(clip => plainCaptionText(clip.text)).filter(Boolean)),
     title: project.timeline.brand?.titleBar?.text ?? script.title ?? "", videoDurationSec: videoOne.durationSec ?? timelineVideoDuration(project.timeline),
   };
-  const prompt = `영상 내용으로 정확히 ${count}장의 파생 캐러셀을 기획하세요. 장면 번호·제목·본문·강조 대상과 게시 캡션(caption, 최대 2000자)을 작성하세요. 프레임 이미지를 입력하지 않았으므로 화면을 단정하지 말고 장면 자막의 짧은 대상 문장을 쓰세요.\n자료: ${JSON.stringify(material)}`;
+  const settings = await context.store.readSettings();
+  const prompt = carouselVideoPrompt({ basePrompt: resolveCarouselPrompt(settings.carouselVideoPrompt, DEFAULT_CAROUSEL_VIDEO_PROMPT), count, material });
   let message: string | undefined;
   let result: Awaited<ReturnType<NonNullable<NonNullable<AppContext["carouselServices"]>["derivePlan"]>>>;
   if (context.carouselServices?.derivePlan) result = await context.carouselServices.derivePlan({ projectId: project.id, count, prompt });

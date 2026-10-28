@@ -9,6 +9,7 @@ import { codexLoginStatus } from "../pipeline/codex-path";
 import { codexSelection, readCodexModels } from "../codex-settings";
 import { readUsage } from "../pipeline/usage";
 import { DEFAULT_SCRIPT_PROMPT, SCRIPT_PROMPT_MAX_LENGTH } from "../../core/script-prompt";
+import { CAROUSEL_PROMPT_MAX_LENGTH, DEFAULT_CAROUSEL_TOPIC_PROMPT, DEFAULT_CAROUSEL_VIDEO_PROMPT, resolveCarouselPrompt } from "../../core/carousel-prompt";
 import { formatScriptInputGuidePreview } from "../pipeline/script-validation";
 import { ImageQueue } from "../image-queue";
 import { listSfx } from "../pipeline/library";
@@ -26,6 +27,15 @@ const pathRelativeLibrary = (file: string, root: string) => path.relative(path.b
 
 const ImageOptions = z.object({ model: z.enum(["flare", "sunburst"]), quality: z.enum(["low", "medium", "high", "auto"]), aspect: z.enum(["4:5", "1:1", "9:16", "16:9"]), concurrency: z.number().int().min(1).max(10) });
 const DEFAULT_IMAGE_OPTIONS = { model: "flare" as const, quality: "auto" as const, aspect: "4:5" as const, concurrency: 3 };
+
+function carouselPromptSettings(settings: Record<string, unknown>) {
+  const topic = resolveCarouselPrompt(settings.carouselTopicPrompt, DEFAULT_CAROUSEL_TOPIC_PROMPT);
+  const video = resolveCarouselPrompt(settings.carouselVideoPrompt, DEFAULT_CAROUSEL_VIDEO_PROMPT);
+  return {
+    topic: { prompt: topic, isDefault: topic === DEFAULT_CAROUSEL_TOPIC_PROMPT },
+    video: { prompt: video, isDefault: video === DEFAULT_CAROUSEL_VIDEO_PROMPT },
+  };
+}
 
 export function registerSystemRoutes(app: Hono, context: AppContext): void {
   const enginePlatform = (): Platform => process.platform === "darwin" ? "mac" : "win";
@@ -232,6 +242,28 @@ export function registerSystemRoutes(app: Hono, context: AppContext): void {
     await context.store.saveSettings(settings);
     const savedPrompt = prompt || DEFAULT_SCRIPT_PROMPT;
     return c.json({ prompt: savedPrompt, isDefault: savedPrompt === DEFAULT_SCRIPT_PROMPT, rulesPreview: formatScriptInputGuidePreview() });
+  });
+
+  app.get("/api/system/carousel-prompts", async c => c.json(carouselPromptSettings(await context.store.readSettings())));
+
+  app.put("/api/system/carousel-prompts", async c => {
+    const input = await parseJson(c, z.object({
+      topic: z.string().max(CAROUSEL_PROMPT_MAX_LENGTH).optional(),
+      video: z.string().max(CAROUSEL_PROMPT_MAX_LENGTH).optional(),
+    }));
+    const settings = await context.store.readSettings();
+    for (const [kind, key, fallback] of [
+      ["topic", "carouselTopicPrompt", DEFAULT_CAROUSEL_TOPIC_PROMPT],
+      ["video", "carouselVideoPrompt", DEFAULT_CAROUSEL_VIDEO_PROMPT],
+    ] as const) {
+      const raw = input[kind];
+      if (raw === undefined) continue;
+      const prompt = raw.trim();
+      if (!prompt || prompt === fallback) delete settings[key];
+      else settings[key] = prompt;
+    }
+    await context.store.saveSettings(settings);
+    return c.json(carouselPromptSettings(settings));
   });
 
   app.get("/api/system/script-voice", async c => {
