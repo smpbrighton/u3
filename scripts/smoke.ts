@@ -113,7 +113,7 @@ async function main() {
     assert(Math.abs(actualFrames - expected.durationInFrames) <= 1, `길이가 다릅니다: expected ${expected.durationInFrames} frames, got ${actualFrames}`);
     assert(probe.streams.some((stream) => stream.codec_type === "audio"), "오디오 스트림이 없습니다");
 
-    const { stderr: volumeLog } = await execFile("ffmpeg", ["-hide_banner", "-i", outputPath, "-af", "volumedetect", "-f", "null", "-"]);
+    const { stderr: volumeLog } = await execFile("ffmpeg", ["-hide_banner", "-i", outputPath, "-vn", "-af", "volumedetect", "-c:a", "pcm_s16le", "-f", "null", "-"]);
     const maxVolume = /max_volume:\s*(-?\d+(?:\.\d+)?) dB/.exec(volumeLog)?.[1];
     assert(maxVolume !== undefined && Number(maxVolume) > -60, `오디오가 무음이거나 매우 작습니다: ${maxVolume ?? "측정 없음"}`);
 
