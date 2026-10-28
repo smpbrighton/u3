@@ -1,5 +1,5 @@
 # Review: windows-build
-Author: claude-opus-5-5. Status: draft. Round: 1.
+Author: claude-opus-5-5. Status: accepted. Round: 1.
 
 ## 대조한 것
 - 변경: `architecture/changes/049-windows-build/intent.md`, `architecture/changes/049-windows-build/spec.md`
