@@ -14,7 +14,12 @@ export function ttsSettingsOf(settings: Record<string, unknown>) {
 }
 
 export function ttsText(text: string): string {
-  const segments = new Intl.Segmenter("ko", { granularity: "grapheme" }).segment(plainCaptionText(text));
+  return cleanTtsText(plainCaptionText(text));
+}
+
+/** 일반 글의 이모지와 공백만 정리한다. 글자 별표는 다시 해석하지 않는다. */
+export function cleanTtsText(text: string): string {
+  const segments = new Intl.Segmenter("ko", { granularity: "grapheme" }).segment(text);
   return [...segments].filter(({ segment }) => !EMOJI.test(segment) && !segment.includes("\u20E3"))
     .map(({ segment }) => segment).join("").replace(/[\uFE0F\u20E3\u200D\p{Emoji_Modifier}]/gu, "")
     .replace(/\s+/gu, " ").trim();

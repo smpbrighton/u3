@@ -61,6 +61,7 @@ export function splitOverlayClip(timeline: Timeline, clipId: string, atSec: numb
   const pieces: [OverlayClip, OverlayClip] = "durationSec" in clip
     ? [{ ...clip, id: ids[0], durationSec: offset, ...transitionSplit.left }, { ...clip, id: ids[1], startSec: atSec, durationSec: duration - offset, ...transitionSplit.right }]
     : [{ ...clip, id: ids[0], inEndSec: clip.inStartSec + offset, ...transitionSplit.left }, { ...clip, id: ids[1], startSec: atSec, inStartSec: clip.inStartSec + offset, ...transitionSplit.right }];
+  delete pieces[1].sceneIndex;
   const overlays = timeline.overlays.map((layer, index) => index === found.layer ? layer.flatMap((item) => item.id === clipId ? pieces : [item]) : layer);
   return { ...timeline, overlays };
 }

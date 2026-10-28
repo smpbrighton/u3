@@ -8,7 +8,7 @@ import { HttpError, parseJson } from "../http";
 import { done } from "../jobs";
 import { downloadQwenTts, QWEN_TTS_MODEL_DIR, qwenTtsReady } from "../pipeline/models";
 import { runTts } from "../pipeline/tts";
-import { ttsSettingsOf, ttsText, type TtsResult } from "../../core/tts-clips";
+import { cleanTtsText, ttsSettingsOf, type TtsResult } from "../../core/tts-clips";
 
 export function requireHeavyMediaIdle(context: AppContext): void {
   if (context.jobs.findActive("heavy-media")) throw new HttpError(409, "heavy-media-active", "다른 작업이 끝난 뒤 시작할 수 있어요");
@@ -60,7 +60,7 @@ export function registerTtsRoutes(app: Hono, context: AppContext): void {
     const project = await context.store.requireProject(c.req.param("id"));
     const { items } = await parseJson(c, z.object({ items: z.array(z.object({ captionId: z.string().regex(/^[A-Za-z0-9_-]+$/), text: z.string() })).min(1) }));
     if (new Set(items.map(item => item.captionId)).size !== items.length) throw new HttpError(400, "duplicate-id", "자막 id가 중복됐습니다");
-    const cleaned = items.map(item => ({ id: item.captionId, text: ttsText(item.text) })).filter(item => item.text);
+    const cleaned = items.map(item => ({ id: item.captionId, text: cleanTtsText(item.text) })).filter(item => item.text);
     if (!cleaned.length) throw new HttpError(400, "empty-text", "음성으로 만들 자막이 없습니다");
     const settings = ttsSettingsOf(await context.store.readSettings());
     const binary = await binaryPath(context);

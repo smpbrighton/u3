@@ -16,9 +16,10 @@ plan mode 산출물. 승인 후 커밋한다. 구현이 계획에서 벗어나�
 - `src/core/captions.ts`: `plainCaptionText(text)`(`*…*` → 안쪽 글, `\*` → `*`), `captionRuns(text): {text, highlight}[]`, `escapeCaptionStars(text)`(`*` → `\*`). 기존 `findEmphasis` 와 충돌하지 않게 별도 함수.
 - `src/core/timeline/from-script.ts`: 자막·서브·짤·효과음 클립에 `sceneIndex: index`. 짤 길이·시작 계산(57–67)을 export 함수 `memeClipPlacement({sceneStart, sceneDuration, memeDuration, position})` 로 뺀다. 효과음 길이 규칙(`SCENE_SFX_MAX_SEC`)은 `src/core/sfx.ts` 그대로 쓴다.
 - `src/core/timeline/scene-review.ts` (new): `sceneClips(timeline, script) → SceneRow[]`(`{index, sec|null, captions, memes: {clip, position}[], sfx}`; 시각은 자막 → 짤·효과음 → null), `usedMemeIds(timeline, exceptClipId?)`, `replaceSceneMeme(timeline, script, sceneIndex, clipId, meme: MemeMeta)`(memeId·durationSec·startSec 를 `memeClipPlacement` 로 다시 계산, x·y·width·opacity 유지), `removeSceneMeme`, `insertSceneMeme(…, meme)`(뒤 짤, `placeOverlayInLowestLayer`), `replaceSceneSfx(timeline, sceneIndex, clipId, sfx: SfxMeta, videoEnd)`(file·inEndSec=min(1.5, duration, videoEnd−start)), `removeSceneSfx`, `insertSceneSfx`. 장면 구간은 `script.scenes` 와 자막 클립에서 구한다(자막이 없으면 짤·효과음 시작과 장면 글자 수 기준 길이).
-- `src/core/timeline/ops.ts`: `setCaptionRange(timeline, clipId, startSec, endSec)`(같은 줄 이웃 클립 경계·0·`videoDuration` 으로 clamp, 늘리기 허용, 최소 0.1초), `splitCaptionClip(timeline, clipId, atSec, ids?)`(뒤 조각 `sceneIndex` 삭제, `style` 은 복사), `addCaptionClip(timeline, layerId, row, startSec, maxSec=3)`(길이 min(3, 다음 자막까지, 영상 끝까지), 0.3초 미만이면 null).
-- `src/core/tts-clips.ts` `ttsText`: `plainCaptionText` 를 먼저 거친다.
+- `src/core/timeline/ops.ts`: `setCaptionRange(timeline, clipId, startSec, endSec)`(같은 줄 이웃 클립 경계·0·`videoDuration` 으로 clamp, 늘리기 허용, 최소 0.1초), `splitCaptionClip(timeline, clipId, atSec, ids?)`(뒤 조각 `sceneIndex` 삭제, `style` 은 복사), `addCaptionClip(timeline, layerId, row, startSec, maxSec=3)`(길이 min(3, 다음 자막까지, 영상 끝까지), 0.3초 미만이면 null). `splitOverlayClip` 도 짤·영상·사진의 뒤 조각에서 `sceneIndex` 를 삭제한다(0029).
+- `src/core/tts-clips.ts` `ttsText`: `plainCaptionText` 를 먼저 거친 뒤 `cleanTtsText` 로 이모지·공백을 정리한다. `cleanTtsText` 는 글자 별표를 해석하지 않는다.
 ### 엔진
+- `src/engine/routes/tts.ts`: 이미 일반 글인 요청에는 `cleanTtsText` 만 적용해 `plainCaptionText` 를 두 번 거치지 않는다.
 - `src/engine/routes/memes.ts`: `MemeRankRequest` 에 `excludeIds?: string[]`, 순위 결과에서 뺀다. `caption`·`query` 는 `plainCaptionText` 적용.
 - `src/engine/routes/captions.ts`: 번역 입력(22)과 제목 입력(46)에 `plainCaptionText`. 번역 결과 서브 자막은 `escapeCaptionStars` 없이 그대로(별표를 내지 않도록 프롬프트에 한 줄).
 - `src/engine/routes/carousels.ts`(93–103): `captionText`·`material.scenes[].caption`·Jev 대상에 `plainCaptionText`. 044 가 이 구간을 바꾸므로 뒤에 병합되는 쪽이 적용한다(044 plan 순서 7).
@@ -34,6 +35,7 @@ plan mode 산출물. 승인 후 커밋한다. 구현이 계획에서 벗어나�
 - `tests/core/to-render.test.ts`: `effectiveCaptionStyle` 합성(색·배율·단어 색 기본값). `tests/remotion/caption-runs.test.tsx` (new): `renderToStaticMarkup` 으로 `SceneCaption` 의 `<span>` 색과 별표 없음.
 - `tests/server/meme-rank.test.ts`: `excludeIds` 로 빠지는 것, 별표 제거. `tests/server/caption-plain.test.ts` (new): 번역·제목 요청의 codex 프롬프트에 별표 없음(fake runner 로 프롬프트 캡처).
 - `tests/server/script-*.test.ts`·`tests/core/transcript.test.ts`: 저장된 글의 별표가 `\*` 로.
+- `tests/core/timeline-ops.test.ts`: 짤·영상·사진 오버레이를 나눈 뒤 조각에 `sceneIndex` 가 없고 저장·읽기 뒤에도 없다. `tests/server/tts.test.ts`: `ttsItemsFromTimeline` → API → TTS 도우미에서 `\*문자\*` 가 `*문자*` 로 남고, 서버의 이모지·공백 정리는 유지된다.
 ### 문서
 - `architecture/changes/045-caption-scene-review/plan.md`: 이 파일.
 - 043 pages.md·spec 화면 목록·아티팩트 보드는 043 워크트리에서(요구사항 11). UI 테스트(caption-editor·scene-review)는 043 B5.
@@ -47,6 +49,7 @@ plan mode 산출물. 승인 후 커밋한다. 구현이 계획에서 벗어나�
 5. **E 확인:** `pnpm dev` 로 기존 프로젝트 「새 영상」을 열어 자막이 지금과 같이 보이는지(재정의 없음) 캡처 한 장, `*단어*` 를 넣은 자막 클립 하나를 project.json 에 써서 미리보기 캡처 한 장(수동, 경로 기록).
 6. **F 마감:** `worktree.sh finish caption-scene-review`, `/smp:wiki ingest`.
 7. 044 가 먼저 병합돼 있으면 rebase 뒤 `carousels.ts` 의 `plainCaptionText` 적용(044 요구사항 14)을 이 변경에서 한다.
+8. **보정:** 오버레이 나누기와 TTS 이중 정리의 실패 테스트를 먼저 커밋하고 구현한다. 영향 테스트와 `pnpm verify` 통과 뒤 보정 커밋을 만든다. 자막 선택 상자의 클립 배율 반영은 UI 이므로 043 B5 에서 한다.
 
 ## 리스크
 - **가장 위험한 단계는 B 다.** 장면 구간(시작·길이)을 자막 클립에서 구하는데, 자막을 옮기거나 지운 뒤에는 장면 경계가 흐려진다. `sceneClips` 의 시각 규칙(자막 → 짤·효과음 → null)을 테스트로 잠그고, 구간을 모르면 바꾸기는 길이만 바꾸고 시작을 유지한다.
