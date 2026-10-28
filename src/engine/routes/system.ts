@@ -19,6 +19,7 @@ import { validateBrandImage } from "../brand-image";
 import { deleteJevKey, saveJevKey } from "../jev-key";
 import { JEV_MODEL, JevError, typesafeJevClient } from "../pipeline/jev";
 import { JEV_BOX_MODEL } from "../pipeline/jev-box";
+import { STUDIO_ACTIONS, StudioShortcutTable, parseStudioShortcuts, shortcutConflict, type Platform } from "../../core/studio-shortcuts";
 
 const IntroSfx = z.object({ enabled: z.boolean(), ref: z.string().min(1), atSec: z.number().min(0).max(10) });
 const DEFAULT_INTRO_SFX = { enabled: true, ref: "u3-library:sfx/notify/sfx-mum36456-06c20f.mp3", atSec: 3 };
@@ -55,6 +56,27 @@ async function readCodexModels(bin: string | null) {
 }
 
 export function registerSystemRoutes(app: Hono, context: AppContext): void {
+  const enginePlatform = (): Platform => process.platform === "darwin" ? "mac" : "win";
+
+  app.get("/api/system/studio-shortcuts", async c => {
+    const settings = await context.store.readSettings();
+    return c.json({ bindings: parseStudioShortcuts(settings.studioShortcuts, enginePlatform()) });
+  });
+
+  app.put("/api/system/studio-shortcuts", async c => {
+    const bindings = await parseJson(c, StudioShortcutTable);
+    for (const { id } of STUDIO_ACTIONS) {
+      const conflict = shortcutConflict(bindings, id, bindings[id], enginePlatform());
+      if (!conflict) continue;
+      const message = conflict.kind === "action" ? `${STUDIO_ACTIONS.find(action => action.id === conflict.id)!.label}에서 사용 중이에요`
+        : conflict.kind === "text" ? "글 편집에 사용하는 조합이에요" : "시스템에서 사용하는 조합이에요";
+      throw new HttpError(400, "shortcut-conflict", message, { action: id, conflict });
+    }
+    const settings = await context.store.readSettings();
+    await context.store.saveSettings({ ...settings, studioShortcuts: bindings });
+    return c.json({ bindings });
+  });
+
   async function jevStatus() {
     const key = await context.jevKey();
     const settings = await context.store.readSettings();
