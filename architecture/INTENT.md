@@ -19,9 +19,9 @@
 
 - 앱 구조: Tauri 2 셸 + React UI + Node sidecar 엔진(127.0.0.1·일회용 토큰), macOS Apple Silicon 만 → [0001](decisions/0001-tauri-node-sidecar.md)
 - AI: codex CLI(모델·effort 선택, 기본 `gpt-6-luna`)와 Jev(짤 적합도 `jev-1.13.0`, 캐러셀 강조 상자 Box `jev-1.14.0`, 키는 사용자가 설정에서 입력해 Keychain 에 저장)만, Claude 없음 → [0024](decisions/0024-jev-key-setting.md)
-- 범위: 입력(영상·사진 섞어 1~20개)·대본·짤·효과음·녹음·TTS 음성·음성 분리·mp4 내보내기·캐러셀(단독: 주제→그림 / 영상 파생: 장면 프레임+강조, 2~10장, PNG 한 번에 받기), 업로드·채널·허브·움직이는 장 없음 → [0022](decisions/0022-scope-add-tts.md)
+- 범위: 입력(영상·사진 섞어 1~20개)·대본·짤·효과음·녹음·TTS 음성·음성 분리·mp4 내보내기·캐러셀(한 대화상자에서 주제·영상 선택, 요청→기획→검토→이미지→편집→받기, 2~10장, PNG+caption.txt), 업로드·채널·허브·움직이는 장 없음 → [0026](decisions/0026-scope-carousel-review-texts.md)
 - TTS: Qwen3-TTS 1.7B CustomVoice 를 Swift 도우미(MLX)로 로컬 실행, 모델은 받기·첫 생성 때 받음, 기본 화자 Sohee, 자막 클립 단위로 목소리 트랙에, 내보내기·음성 분리와 동시 실행 없음 → [0023](decisions/0023-qwen-tts-local.md)
-- 캐러셀 이미지: codex 내장 image_gen(설정에서 모델·퀄리티·비율 4:5·1:1·9:16·16:9·동시 수), 글자는 앱이 위에 얹음 → [0019](decisions/0019-carousel-image-aspects.md)
+- 캐러셀 이미지·글: codex 내장 image_gen(설정에서 모델·퀄리티·비율 4:5·1:1·9:16·16:9·동시 수)으로 글자 없는 배경, 글은 장당 2~5 객체(위치·폭·폰트·크기·색·정렬·효과)로 앱이 얹음, 로고·밝기·음영 → [0027](decisions/0027-carousel-text-objects.md)
 - 라이브러리: 짤·효과음과 짤 색인은 앱에 넣고 bge-m3 는 처음 실행 때 받음, 그 전에는 규칙 점수 → [0004](decisions/0004-bundled-library-lazy-model.md)
 - 편집 모델: 자막 레이어 여러 개(메인·서브 두 줄, 레이어 스타일·위치, 폰트 세 가지), 여러 영상 트랙(영상 1 은 본 화면만 빈틈 없음, 짤은 기본으로 영상 2 이상 작은 창), 모든 화면 클립 투명도, 워터마크·타이틀 바(설정 기본값 + 영상별 값), 효과음 트랙 여러 개, `@xzdarcy/react-timeline-editor` + 앱이 만든 자르기·실행 취소 → [0016](decisions/0016-caption-layers-opacity-brand.md)
 - 타이틀 바 내용: 설정에서 글·이미지 기본값, 영상별 재정의, 새 영상에 AI 제목 자동 채움 없음 → [0020](decisions/0020-title-bar-content.md)

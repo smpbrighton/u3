@@ -1,6 +1,6 @@
 # 0022 범위: 0017 에 음성 합성(TTS) 추가
 
-Status: accepted
+Status: superseded-by 0026
 Source: changes/040-qwen-tts/spec.md
 Supersedes: 0017
 

@@ -1,6 +1,6 @@
 # 0019 캐러셀 이미지: codex 내장 image_gen, 글자는 위에 얹음, 옵션은 설정(비율 넷)
 
-Status: accepted
+Status: superseded-by 0027
 Source: changes/035-settings-redesign/plan.md
 Supersedes: 0015
 
