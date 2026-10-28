@@ -93,9 +93,9 @@ describe("대본 검사와 한 번 재생성", () => {
   });
 
   it.each([
-    ["좋아요. ㅋㅋ", "좋아요.", "좋아요."],
-    ["좋아요.", "좋아요. ㅋㅋ", "좋아요."],
-    ["좋아요.", "맞습니다.", "좋아요."],
+    ["좋아요. ㅋㅋ", "좋아요. ㅎㅎ ㅇㅈ", "좋아요. ㅋㅋ"],
+    ["좋아요. ㅋㅋ", "좋아요. ㅎㅎ ㅇㅈ", "좋아요. ㅋㅋ"],
+    ["좋아 ㅋㅋ", "좋아 ㅎㅎ ㅇㅈ", "좋아 ㅋㅋ"],
   ])("두 결과에도 위반이 남으면 위반 수가 적은 결과를 저장한다: %s → %s", async (first, second, chosen) => {
     runScript.mockResolvedValueOnce(result(script(first))).mockResolvedValueOnce(result(script(second)));
     const done = await recommend();
@@ -106,7 +106,7 @@ describe("대본 검사와 한 번 재생성", () => {
   });
 
   it("재생성 호출이 실패하면 초안과 남은 위반을 보존한다", async () => {
-    const draft = script("좋아요.");
+    const draft = script("좋아요 ㅋㅋ");
     runScript.mockResolvedValueOnce(result(draft)).mockRejectedValueOnce(new Error("Codex 실패"));
     const done = await recommend();
     expect(runScript).toHaveBeenCalledTimes(2);
@@ -117,7 +117,7 @@ describe("대본 검사와 한 번 재생성", () => {
   });
 
   it("재생성 결과의 입력 범위가 잘못되면 초안을 보존한다", async () => {
-    const draft = script("좋아요.");
+    const draft = script("좋아요 ㅋㅋ");
     runScript.mockResolvedValueOnce(result(draft)).mockResolvedValueOnce(result(script("직접 써 봤어.", 2)));
     const done = await recommend();
     expect(runScript).toHaveBeenCalledTimes(2);
