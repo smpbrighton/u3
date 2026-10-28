@@ -36,7 +36,8 @@ if [[ "$PLATFORM" == darwin ]]; then
   fi
   NAME=whisper-cli
 else
-  cmake -S "$SOURCE" -B "$BUILD" -G "Visual Studio 17 2022" -A x64 \
+  # runner 이미지의 Visual Studio 버전이 바뀌어도 되게 generator 를 고정하지 않는다(CMake 기본값 = 설치된 최신 VS).
+  cmake -S "$SOURCE" -B "$BUILD" -A x64 \
     -DBUILD_SHARED_LIBS=OFF -DGGML_METAL=OFF -DGGML_CUDA=OFF -DGGML_NATIVE=OFF \
     -DGGML_AVX=OFF -DGGML_AVX2=OFF -DGGML_FMA=OFF -DGGML_F16C=OFF
   cmake --build "$BUILD" --config Release --target whisper-cli --parallel
