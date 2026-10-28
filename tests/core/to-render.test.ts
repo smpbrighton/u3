@@ -19,6 +19,29 @@ const timeline: Timeline = {
 };
 
 describe("timelineToRender", () => {
+  it("047 영상·오버레이·양쪽 전환은 각 배속과 원본 좌표를 사용한다", () => {
+    const t: Timeline = { ...timeline, video: [
+      { id: "left", kind: "main", inputId: "in1", inStartSec: 2, inEndSec: 6, speed: 2, endTransition: { kind: { kind: "dissolve" }, durationSec: 0.4 } },
+      { id: "right", kind: "main", inputId: "in2", inStartSec: 4, inEndSec: 6, speed: 0.5 },
+    ], overlays: [[{ id: "o", kind: "video", inputId: "in1", startSec: 0.11, inStartSec: 2, inEndSec: 6, speed: 2, x: 0.5, y: 0.5, width: 0.6 }]] };
+    const r = timelineToRender(t);
+    expect(r.transitions[0]).toMatchObject({ fromPlaybackRate: 1, toPlaybackRate: 0.25, fromSourceStartFrame: 168, toSourceStartFrame: 120 });
+    expect(r.video[1]).toMatchObject({ playbackRate: 0.5, sourceStartFrame: 123 });
+    expect(r.overlay[0]).toMatchObject({ playbackRate: 2, durationInFrames: 60, sourceStartFrame: 60 });
+    expect(r.audio.filter(a => ["source", "stem-voice", "stem-bg"].includes(a.track))).toEqual([]);
+    const edges = timelineToRender({ ...t, video: [{ ...t.video[0]!, startTransition: { kind: { kind: "dissolve" }, durationSec: 0.4 } }] });
+    expect(edges.transitions.every(e => e.fromPlaybackRate === 2 && e.toPlaybackRate === 2)).toBe(true);
+  });
+  it("047 캐시 WAV는 세 영상 소리와 음성에 동일하게 적용하고 추가 배속을 쓰지 않는다", () => {
+    const t: Timeline = { ...timeline, video: timeline.video.map(c => "inStartSec" in c ? { ...c, speed: 2 } : c), voice: [{ ...timeline.voice[0]!, speed: 2 }] };
+    const cache = { "in1:2": { file: "cache/audio/1.wav", durationSec: 5, version: "v1" }, "in2:2": { file: "cache/audio/2.wav", durationSec: 5, version: "v2" }, "voice.wav:2": { file: "cache/audio/voice.wav", durationSec: 0.99, version: "v3" } };
+    const r = timelineToRender(t, undefined, cache);
+    expect(r.audio.find(a => a.id === "v1-source")).toMatchObject({ file: cache["in1:2"].file, sourceStartFrame: 15, durationInFrames: 30 });
+    for (const id of ["v2-voice", "v2-bg"]) expect(r.audio.find(a => a.id === id)).toMatchObject({ file: cache["in2:2"].file, sourceStartFrame: 30, durationInFrames: 30 });
+    expect(r.audio.find(a => a.id === "voice")).toMatchObject({ file: cache["voice.wav:2"].file, sourceStartFrame: 15, durationInFrames: 15 });
+    expect(r.audio.find(a => a.id === "voice")).not.toHaveProperty("playbackRate");
+    expect(timelineToRender(t).audio.some(a => a.id === "voice")).toBe(false);
+  });
   it("클립 색·배율을 레이어 위에 합치고 단어 색 기본값을 둔다", () => {
     expect(effectiveCaptionStyle(DEFAULT_CAPTION_STYLE)).toEqual({ ...DEFAULT_CAPTION_STYLE, highlightColor: CAPTION_HIGHLIGHT_DEFAULT });
     expect(effectiveCaptionStyle(DEFAULT_CAPTION_STYLE, { color: "#112233", sizeScale: 1.5, highlightColor: "#445566" })).toMatchObject({ color: "#112233", mainSize: 84, subSize: 60, highlightColor: "#445566", barOpacity: 0.62 });
