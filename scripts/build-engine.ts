@@ -1,5 +1,6 @@
+import { buildPlatform, npmCliCandidates } from "./build-platforms";
 import { cp, chmod, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
-import { existsSync } from "node:fs";
+import { existsSync, realpathSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { homedir, tmpdir } from "node:os";
 import { basename, dirname, join, resolve } from "node:path";
@@ -12,7 +13,8 @@ const root = resolve(import.meta.dirname, "..");
 const resources = join(root, "src-tauri/resources");
 const cache = process.env.U3_BUILD_CACHE ?? join(homedir(), "Library/Caches/u3-build");
 const nodeVersion = "v24.13.0";
-const nodeArchive = `node-${nodeVersion}-darwin-arm64.tar.gz`;
+const descriptor = buildPlatform(process.platform, process.arch);
+const nodeArchive = descriptor.nodeArchive;
 const nodeUrl = `https://nodejs.org/dist/${nodeVersion}/${nodeArchive}`;
 const temporary = await mkdtemp(join(tmpdir(), "u3-engine-build-"));
 
@@ -28,8 +30,8 @@ async function sha256(file: string): Promise<string> {
 }
 
 async function installNodeRuntime(): Promise<string> {
-  const nodeCache = join(cache, `node-${nodeVersion}-darwin-arm64`);
-  const nodeBinary = join(nodeCache, "bin/node");
+  const nodeCache = join(cache, `node-${nodeVersion}-${process.platform === "win32" ? "win-x64" : "darwin-arm64"}`);
+  const nodeBinary = join(nodeCache, descriptor.nodeBinary);
   try {
     await readFile(nodeBinary);
     return nodeBinary;
@@ -46,7 +48,7 @@ async function installNodeRuntime(): Promise<string> {
     .find(match => match?.[2] === nodeArchive)?.[1];
   if (!expected) fail("Node SHASUMS256.txt에 배포 파일 해시가 없습니다.");
   if (await sha256(archive) !== expected) fail("Node 공식 배포본 SHA-256 검사가 실패했습니다.");
-  execFileSync("tar", ["-xzf", archive, "--strip-components=1", "-C", nodeCache]);
+  execFileSync("tar", ["-xf", archive, "--strip-components=1", "-C", nodeCache]);
   return nodeBinary;
 }
 
@@ -70,9 +72,13 @@ async function installProductionDependencies(stage: string): Promise<void> {
     overrides: { "onnxruntime-node": dependencies["onnxruntime-node"] },
   };
   await writeFile(join(stage, "package.json"), `${JSON.stringify(stagePackage, null, 2)}\n`);
-  execFileSync("npm", ["install", "--omit=dev", "--no-audit", "--no-fund"], {
+  const npmCliJs = npmCliCandidates(realpathSync(process.execPath)).find(file => existsSync(file));
+  if (!npmCliJs) fail("npm CLI JS 진입점을 찾지 못했습니다");
+  execFileSync(process.execPath, [npmCliJs, "install", "--omit=dev", "--no-audit", "--no-fund"], {
     cwd: stage,
+    env: { ...process.env, npm_config_cache: join(cache, "npm") },
     stdio: "inherit",
+    windowsHide: true,
   });
 }
 
@@ -114,10 +120,12 @@ try {
     logLevel: "silent",
   });
   execFileSync("bash", [join(root, "scripts/check-engine-key.sh"), bundlePath], { stdio: "inherit" });
-  await cp(nodeBinary, join(resources, "node"));
-  await chmod(join(resources, "node"), 0o755);
+  await cp(nodeBinary, join(resources, "node" + descriptor.extension));
+  await chmod(join(resources, "node" + descriptor.extension), 0o755);
   // compositor 의 맨 이름 dylib 참조를 @loader_path 로 고친다(hardened runtime 이 상대 경로를 거부한다).
-  execFileSync("bash", [join(root, "scripts/fix-dylib-paths.sh"), join(runtimeNodeModules, "@remotion/compositor-darwin-arm64")], { stdio: "inherit" });
+  if (process.platform === "darwin") {
+    execFileSync("bash", [join(root, "scripts/fix-dylib-paths.sh"), join(runtimeNodeModules, descriptor.compositor)], { stdio: "inherit" });
+  }
   await cp(runtimeNodeModules, join(resources, "node_modules"), { recursive: true });
   await rm(join(resources, "node_modules/.bin"), { recursive: true, force: true });
 
@@ -127,18 +135,34 @@ try {
   await cp(dirname(browser.path), join(resources, "chrome"), { recursive: true });
   await writeFile(join(resources, "chrome-path.txt"), basename(browser.path));
 
-  await checkDylibs(join(resources, "node"));
-  const compositorDir = join(runtimeNodeModules, "@remotion/compositor-darwin-arm64");
+  if (process.platform === "darwin") {
+  await checkDylibs(join(resources, "node" + descriptor.extension));
+  const compositorDir = join(runtimeNodeModules, descriptor.compositor);
   for (const executable of ["remotion", "ffmpeg", "ffprobe"]) {
     await checkDylibs(join(compositorDir, executable), compositorDir);
   }
   for (const name of ["libavcodec.dylib", "libavdevice.dylib", "libavfilter.dylib", "libavformat.dylib", "libavutil.dylib", "libswresample.dylib", "libswscale.dylib"]) {
     await checkDylibs(join(compositorDir, name), compositorDir);
   }
-  const onnxDir = join(runtimeNodeModules, "onnxruntime-node/bin/napi-v6/darwin/arm64");
+  const onnxDir = join(runtimeNodeModules, "onnxruntime-node/bin/napi-v6", descriptor.onnx);
   await checkDylibs(join(onnxDir, "onnxruntime_binding.node"), onnxDir);
   await checkDylibs(join(onnxDir, "libonnxruntime.1.22.0.dylib"), onnxDir);
-  process.stdout.write("엔진 리소스를 준비했습니다. Node와 compositor dylib 검사를 통과했습니다.\n");
+  } else {
+    await mkdir(join(resources, "bin"), { recursive: true });
+    const helperTarget = join(cache, "key-store-target");
+    execFileSync("cargo", ["build", "--release", "--manifest-path", join(root, "native/u3-key-store/Cargo.toml"), "--target-dir", helperTarget], { stdio: "inherit", windowsHide: true });
+    await cp(join(helperTarget, "release/u3-key-store.exe"), join(resources, "bin/u3-key-store.exe"));
+    checkWindowsDeps();
+  }
+  process.stdout.write("엔진 리소스를 준비하고 플랫폼 의존성 검사를 통과했습니다.\n");
 } finally {
   await rm(temporary, { recursive: true, force: true });
+}
+
+function checkWindowsDeps(): void {
+  const options = { cwd: resources, stdio: "inherit" as const, windowsHide: true };
+  execFileSync(join(resources, "node.exe"), ["-e", "require('onnxruntime-node')"], options);
+  for (const file of ["ffmpeg.exe", "ffprobe.exe"]) {
+    execFileSync(join(resources, "node_modules", descriptor.compositor, file), ["-version"], options);
+  }
 }

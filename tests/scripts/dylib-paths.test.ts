@@ -25,7 +25,7 @@ async function dependencies(file: string): Promise<string[]> {
   return stdout.split(/\r?\n/).slice(1).map(line => line.trim().split(" ")[0]).filter(Boolean);
 }
 
-describe("compositor dylib 설치 이름", () => {
+describe.skipIf(process.platform !== "darwin")("compositor dylib 설치 이름", () => {
   it("맨 이름 참조를 @loader_path 로 바꾸고 ad-hoc 으로 다시 서명한다", async () => {
     const dir = await mkdtemp(path.join(os.tmpdir(), "u3-dylib-")); temporary.push(dir);
     const compositor = await compositorDir();

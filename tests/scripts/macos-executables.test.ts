@@ -23,7 +23,7 @@ async function appFixture() {
   return { app, macos, calls, run };
 }
 
-describe("macOS 실행 파일 서명 검사", () => {
+describe.skipIf(process.platform !== "darwin")("macOS 실행 파일 서명 검사", () => {
   it("Contents/MacOS의 Mach-O 파일만 통과시킨다", async () => {
     const s = await appFixture();
     await expect(s.run("check-macos-executables.sh")).resolves.toBeDefined();

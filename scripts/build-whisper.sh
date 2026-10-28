@@ -7,27 +7,40 @@ SOURCE="$CACHE/whisper.cpp-1.9.5"
 ARCHIVE="$CACHE/whisper.cpp-v1.9.5.tar.gz"
 BUILD="$CACHE/whisper-build"
 
+case $(uname -s) in
+  Darwin) PLATFORM=darwin; TARGET=aarch64-apple-darwin ;;
+  MSYS*|MINGW*) PLATFORM=win32; TARGET=x86_64-pc-windows-msvc; BUILD="$CACHE/whisper-build-windows" ;;
+  *) echo '지원하지 않는 Whisper 빌드 플랫폼입니다' >&2; exit 1 ;;
+esac
 mkdir -p "$CACHE"
-if [[ ! -f "$SOURCE/CMakeLists.txt" ]]; then
+if [[ ! -f "$ARCHIVE" ]]; then
   curl -fL "https://github.com/ggml-org/whisper.cpp/archive/refs/tags/v1.9.5.tar.gz" -o "$ARCHIVE"
+fi
+node -e 'const fs=require("node:fs"),crypto=require("node:crypto"); if(crypto.createHash("sha256").update(fs.readFileSync(process.argv[1])).digest("hex")!=="ff1a9053feb509ff9d7729703355541ae9690073a6b1c40eb692c962e0dc1720") { console.error("Whisper archive SHA-256 오류"); process.exit(1); }' "$ARCHIVE"
+if [[ ! -f "$SOURCE/CMakeLists.txt" ]]; then
   mkdir -p "$SOURCE"
   tar -xzf "$ARCHIVE" --strip-components=1 -C "$SOURCE"
 fi
-
-cmake -S "$SOURCE" -B "$BUILD" \
-  -DBUILD_SHARED_LIBS=OFF \
-  -DGGML_METAL=ON
-cmake --build "$BUILD" --config Release --target whisper-cli -j "$(sysctl -n hw.ncpu)"
-
-BIN="$BUILD/bin/whisper-cli"
-file "$BIN"
-otool -L "$BIN"
-if otool -L "$BIN" | tail -n +2 | awk '{print $1}' | grep -Ev '^(/System/Library/|/usr/lib/)' | grep -q .; then
-  echo "whisper-cli has a non-system dylib dependency" >&2
-  exit 1
+if [[ "$PLATFORM" == darwin ]]; then
+  cmake -S "$SOURCE" -B "$BUILD" -DBUILD_SHARED_LIBS=OFF -DGGML_METAL=ON
+  cmake --build "$BUILD" --config Release --target whisper-cli -j "$(sysctl -n hw.ncpu)"
+  BIN="$BUILD/bin/whisper-cli"
+  file "$BIN"
+  otool -L "$BIN"
+  if otool -L "$BIN" | tail -n +2 | awk '{print $1}' | grep -Ev '^(/System/Library/|/usr/lib/)' | grep -q .; then
+    echo "whisper-cli has a non-system dylib dependency" >&2
+    exit 1
+  fi
+  NAME=whisper-cli
+else
+  cmake -S "$SOURCE" -B "$BUILD" -G "Visual Studio 17 2022" -A x64 \
+    -DBUILD_SHARED_LIBS=OFF -DGGML_METAL=OFF -DGGML_CUDA=OFF -DGGML_NATIVE=OFF \
+    -DGGML_AVX=OFF -DGGML_AVX2=OFF -DGGML_FMA=OFF -DGGML_F16C=OFF
+  cmake --build "$BUILD" --config Release --target whisper-cli --parallel
+  BIN="$BUILD/bin/Release/whisper-cli.exe"
+  NAME=whisper-cli.exe
 fi
-
-mkdir -p "$ROOT/src-tauri/resources/bin"
-install -m 755 "$BIN" "$ROOT/src-tauri/resources/bin/whisper-cli"
-mkdir -p "$ROOT/src-tauri/binaries"
-install -m 755 "$BIN" "$ROOT/src-tauri/binaries/whisper-cli-aarch64-apple-darwin"
+mkdir -p "$ROOT/src-tauri/resources/bin" "$ROOT/src-tauri/binaries"
+cp "$BIN" "$ROOT/src-tauri/resources/bin/$NAME"
+cp "$BIN" "$ROOT/src-tauri/binaries/whisper-cli-$TARGET${NAME#whisper-cli}"
+chmod 755 "$ROOT/src-tauri/resources/bin/$NAME" "$ROOT/src-tauri/binaries/whisper-cli-$TARGET${NAME#whisper-cli}"
