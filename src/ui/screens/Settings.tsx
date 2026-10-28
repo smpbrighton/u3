@@ -173,7 +173,7 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
   }
 
   async function download(model: "bge-m3" | "whisper" | "qwen-tts") {
-    if (startingModels.includes(model)) return;
+    if (startingModels.includes(model) || (model === "qwen-tts" && status?.capabilities?.tts !== true)) return;
     setStartingModels(current => [...current, model]);
     try {
       const job = await api<EngineJob>("POST", "/api/models/download", { model });
@@ -287,6 +287,7 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
   const brandDisabled = loading || assetChanging;
   const watermark = { ...DEFAULT_BRAND_SETTINGS.watermark!, ...brand.watermark };
 
+  const visibleSection = section === "voice" && status?.capabilities?.tts !== true ? "screen" : section;
   return <section className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-10 py-7" aria-labelledby="settings-title">
     <header className="flex h-9 shrink-0 items-center"><h1 id="settings-title" className="text-xl font-bold">설정</h1></header>
     {error && <Alert className="flex min-h-11 shrink-0 items-center gap-2.5 [&>svg]:text-u3-danger-text">
@@ -295,13 +296,13 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
     </Alert>}
     <div className="flex items-start gap-10">
       <nav aria-label="설정 구역" className="sticky top-0 flex w-[200px] shrink-0 flex-col gap-0.5 pt-1">
-        {SECTIONS.map(([key, label]) => <Button key={key} id={`settings-nav-${key}`} variant="ghost" aria-current={section === key ? "page" : undefined} onClick={() => setSection(key)} className="h-8 justify-start px-2.5 text-muted-foreground aria-[current=page]:bg-secondary aria-[current=page]:font-bold aria-[current=page]:text-foreground">{label}</Button>)}
+        {SECTIONS.filter(([key]) => key !== "voice" || status?.capabilities?.tts === true).map(([key, label]) => <Button key={key} id={`settings-nav-${key}`} variant="ghost" aria-current={visibleSection === key ? "page" : undefined} onClick={() => setSection(key)} className="h-8 justify-start px-2.5 text-muted-foreground aria-[current=page]:bg-secondary aria-[current=page]:font-bold aria-[current=page]:text-foreground">{label}</Button>)}
       </nav>
-      <div role="region" aria-labelledby={`settings-nav-${section}`} className={cn("flex min-w-0 flex-1 flex-col gap-6", section === "brand" ? "max-w-[960px]" : "max-w-[640px]")}>
-        {section === "screen" && <ThemeSettings />}
-        {section === "shortcuts" && <ShortcutSettings shortcuts={props.shortcuts} onShortcuts={props.onShortcuts} saves={saves} />}
+      <div role="region" aria-labelledby={`settings-nav-${visibleSection}`} className={cn("flex min-w-0 flex-1 flex-col gap-6", visibleSection === "brand" ? "max-w-[960px]" : "max-w-[640px]")}>
+        {visibleSection === "screen" && <ThemeSettings />}
+        {visibleSection === "shortcuts" && <ShortcutSettings shortcuts={props.shortcuts} onShortcuts={props.onShortcuts} saves={saves} />}
 
-        {section === "brand" && <>
+        {visibleSection === "brand" && <>
           <div className="flex items-start gap-8">
             <div className="min-w-0 flex-1"><SettingsGroup title="워터마크">
               <SettingRow label="이미지" value={<span className="inline-flex gap-1.5"><Button variant="outline" size="sm" disabled={brandDisabled} onClick={() => void changeBrandImage("watermark", "choose")}>선택</Button>{brand.watermark?.file && <Button variant="ghost" size="sm" disabled={brandDisabled} onClick={() => void changeBrandImage("watermark", "delete")}>지우기</Button>}</span>}>
@@ -331,7 +332,7 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
           </div>
         </>}
 
-        {section === "script" && <>
+        {visibleSection === "script" && <>
           <SettingsGroup title="codex">
             {codexWarning && <Alert className="mb-1 flex min-h-11 items-center gap-2 [&>svg]:text-u3-danger-text">
               <HugeiconsIcon icon={Alert02Icon} aria-hidden="true" className="size-4 shrink-0" /><strong className="min-w-0 flex-1 text-sm">{codexWarning}</strong>
@@ -357,7 +358,7 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
           </div>
         </>}
 
-        {section === "meme" && <>
+        {visibleSection === "meme" && <>
           <SettingsGroup title="Jev">
             <form onSubmit={event => { event.preventDefault(); void changeJevKey("save"); }}>
               <SettingRow label="API 키" htmlFor="jev-api-key" value={<span className="inline-flex gap-1.5"><Button type="submit" variant="solid" size="sm" disabled={loading || !jevStatus || !jevKey.trim() || jevChanging}>저장</Button><Button variant="ghost" size="sm" disabled={!jevStatus?.hasKey || jevChanging} onClick={() => void changeJevKey("delete")}>지우기</Button></span>}>
@@ -369,13 +370,13 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
           <SettingsGroup title="짤 검색"><ModelDownloadRow label="짤 검색 모델" available={Boolean(models?.bgeM3.available)} job={modelJob("bge-m3")} starting={startingModels.includes("bge-m3")} disabled={loading} onDownload={() => void download("bge-m3")} onCancel={jobId => void cancel(jobId)} /></SettingsGroup>
         </>}
 
-        {section === "voice" && <SettingsGroup title="음성">
+        {visibleSection === "voice" && status?.capabilities?.tts === true && <SettingsGroup title="음성">
           <SettingRow label="화자"><SettingsSelect label="화자" value={ttsSettings.speaker} items={TTS_SPEAKERS.map(speaker => ({ value: speaker, label: speaker }))} disabled={loading} onChange={speaker => updateTts({ ...ttsRef.current, speaker: speaker as typeof ttsSettings.speaker })} /></SettingRow>
           <SettingRow label="말투 지시" htmlFor="tts-instruct"><Input id="tts-instruct" maxLength={4000} disabled={loading} value={ttsSettings.instruct} onChange={event => updateTts({ ...ttsRef.current, instruct: event.target.value })} className="h-7 text-xs" /></SettingRow>
           <ModelDownloadRow label="음성 만들기 모델" size="약 3.1 GB" available={Boolean(models?.qwenTts?.available)} job={modelJob("qwen-tts")} starting={startingModels.includes("qwen-tts")} disabled={loading} onDownload={() => void download("qwen-tts")} onCancel={jobId => void cancel(jobId)} />
         </SettingsGroup>}
 
-        {section === "imagegen" && <>
+        {visibleSection === "imagegen" && <>
           <SettingsGroup title="이미지 생성">
             <SettingRow label="모델"><SettingsChoice label="이미지 모델" value={imageOptions.model} items={[{ value: "flare", label: "Flare · 빠름" }, { value: "sunburst", label: "Sunburst · 고품질" }]} disabled={loading} onChange={model => updateImage({ ...imageRef.current, model: model as ImageOptions["model"] })} /></SettingRow>
             <SettingRow label="퀄리티"><SettingsChoice label="퀄리티" value={imageOptions.quality} items={["low", "medium", "high", "auto"].map(value => ({ value, label: value }))} disabled={loading} onChange={quality => updateImage({ ...imageRef.current, quality: quality as ImageOptions["quality"] })} /></SettingRow>
@@ -392,14 +393,14 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
           </SettingsGroup>)}
         </>}
 
-        {section === "sound" && <SettingsGroup title="알림음">
+        {visibleSection === "sound" && <SettingsGroup title="알림음">
           <SettingRow label="켜기" htmlFor="intro-sfx-enabled"><Switch id="intro-sfx-enabled" checked={introSfx.enabled} disabled={loading} onCheckedChange={enabled => updateIntro({ ...introRef.current, enabled })} /></SettingRow>
           <SettingRow label="소리"><SettingsSelect label="소리" value={introSfx.ref} items={notifyItems.map(item => ({ value: item.ref, label: item.title }))} disabled={loading} onChange={ref => { const item = notifyItems.find(candidate => candidate.ref === ref); if (item) updateIntro({ ...introRef.current, ref: item.ref, title: item.title }); }} />
             <SettingsIconButton label="미리 듣기" disabled={!notifyItems.some(item => item.ref === introSfx.ref)} onClick={() => { const item = notifyItems.find(candidate => candidate.ref === introSfx.ref); if (item) void new Audio(item.url).play().catch(fail); }}><HugeiconsIcon icon={PlayIcon} aria-hidden="true" className="size-4" /></SettingsIconButton>
           </SettingRow>
           <SettingsSlider label="재생 시작 딜레이" value={introSfx.atSec} min={0} max={10} step={0.1} suffix="초" disabled={loading} onChange={atSec => updateIntro({ ...introRef.current, atSec })} />
         </SettingsGroup>}
-        {section === "about" && <AppInfo status={props.update} onCheck={props.onCheckUpdate} />}
+        {visibleSection === "about" && <AppInfo status={props.update} onCheck={props.onCheckUpdate} />}
       </div>
     </div>
   </section>;

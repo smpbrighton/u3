@@ -1,3 +1,4 @@
+import type { SystemStatus } from "../types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AudioCache, AudioCacheEntry, Project, Timeline as TimelineData, VideoClip } from "../../core/schema";
 import { clipDuration, projectDuration, setAudioClipSpeed, setOverlayClipSpeed, setVideoClipSpeed, videoDuration, videoStartTimes, VIDEO_TRACK_REQUIRED_MESSAGE } from "../../core/timeline/ops";
@@ -52,6 +53,7 @@ interface MemeItem { id: string; emotion: string; situations: string[]; descript
 interface SfxItem { id: string; category: string; title: string; file: string; ref: string; url: string; durationSec: number }
 
 export function Studio(props: {
+  capabilities?: SystemStatus["capabilities"];
   project: Project;
   shortcuts?: StudioShortcutTable;
   initialTab?: StudioTab;
@@ -260,6 +262,7 @@ export function Studio(props: {
   }, [project.id, preparationKey, playing, sourceFilesKey]);
 
   async function generateTts(captionId?: string) {
+    if (!props.capabilities?.tts) return;
     if (ttsTask.current || processingBusy || exportOpen) return;
     const items = ttsItemsFromTimeline(timelineRef.current).filter(item => !captionId || item.captionId === captionId);
     if (!items.length) { props.onSnackbar("음성으로 만들 자막이 없어요."); return; }
@@ -506,7 +509,7 @@ export function Studio(props: {
       <BusyButton variant="default" disabled={ttsBusy || processingBusy || recording} title={ttsBusy || processingBusy ? "다른 작업이 끝난 뒤 시작할 수 있어요" : undefined} onClick={() => void save().then(saved => { if (saved) setExportOpen(true); })}>mp4 내보내기</BusyButton>
     </header>
     <div className="studio-workspace">
-      <LibraryPanel initialTab={props.initialTab} onSelect={(id, track) => { setSelected({ id, track }); setSelectedIds([id]); }} onSeek={setPlayhead} onEdit={edit} loop={loopCaption} onLoopChange={setLoopCaption} onGenerateTts={() => void generateTts()} ttsBusy={ttsBusy} processingBusy={processingBusy} project={{ ...project, timeline }} selectedId={selected.id} playhead={playhead} onAddVoice={addVoice} onRecordingChange={(active) => { setRecording(active); if (active) setPlaying(false); }} onAddVideo={(id) => addVideo(id)} onSelectMeme={(meme) => addMeme(meme, timeline.video.find((clip) => clip.id === selected.id && clip.kind === "meme")?.id)} onAddSfx={addSfx} onPointerDrop={(item, x, y) => void addLibraryItemAt(item, x, y)} onPointerMove={updateLibraryDropGuide} onPointerCancel={() => setLibraryDropGuide(null)} onProject={props.onProject} onError={props.onError} onSnackbar={props.onSnackbar} />
+      <LibraryPanel capabilities={props.capabilities} initialTab={props.initialTab} onSelect={(id, track) => { setSelected({ id, track }); setSelectedIds([id]); }} onSeek={setPlayhead} onEdit={edit} loop={loopCaption} onLoopChange={setLoopCaption} onGenerateTts={() => void generateTts()} ttsBusy={ttsBusy} processingBusy={processingBusy} project={{ ...project, timeline }} selectedId={selected.id} playhead={playhead} onAddVoice={addVoice} onRecordingChange={(active) => { setRecording(active); if (active) setPlaying(false); }} onAddVideo={(id) => addVideo(id)} onSelectMeme={(meme) => addMeme(meme, timeline.video.find((clip) => clip.id === selected.id && clip.kind === "meme")?.id)} onAddSfx={addSfx} onPointerDrop={(item, x, y) => void addLibraryItemAt(item, x, y)} onPointerMove={updateLibraryDropGuide} onPointerCancel={() => setLibraryDropGuide(null)} onProject={props.onProject} onError={props.onError} onSnackbar={props.onSnackbar} />
       <section className="studio-preview-area" aria-label="미리보기">
         <Preview loopRange={loopCaption ? (() => { const clip = captionLayersOf(timeline).flatMap(l => [...l.main, ...l.sub]).find(c => c.id === selected.id); return clip ? { startSec: clip.startSec, endSec: clip.endSec } : null; })() : null} project={{ ...project, timeline }} time={playhead} playing={playing} muteOriginal={recording} onTime={setPlayhead} onPlaying={setPlaying} selectedId={selected.id} selectedIds={selectedIds} safeZone={safeZone} onSelectTarget={(id, kind) => {
           const found = findOverlayInLayers(timeline.overlays, id);
@@ -519,7 +522,7 @@ export function Studio(props: {
           <StudioSlider label="재생 헤드" min={0} max={duration} step={0.01} value={Math.min(playhead, duration)} onChange={setPlayhead} />
         </div>
       </section>
-      <Inspector onSpeed={(id, track, speed) => void setSpeed(id, track, speed)} speedJob={speedJob} onOpenSettings={props.onOpenSettings} onProcessingChange={setProcessingBusy} onDelete={() => { let next = timeline; for (const id of selectedIds) { const result = deleteStudioSelection(next, studioTrackForClip(next, id, selected.track ?? ""), id); if (result.blocked) { props.onSnackbar(VIDEO_TRACK_REQUIRED_MESSAGE); return; } next = result.timeline; } edit(next); setSelected({ id: null, track: null }); setSelectedIds([]); }} project={{ ...project, timeline }} selectedId={selected.id} selectedIds={selectedIds} selectedTrack={selected.track} timeline={timeline} onChange={edit} onProject={props.onProject} onSnackbar={props.onSnackbar} onUngroup={() => edit(ungroupVideoClips(timeline, selectedIds))} onGenerateTts={id => void generateTts(id)} ttsBusy={ttsBusy} />
+      <Inspector capabilities={props.capabilities} onSpeed={(id, track, speed) => void setSpeed(id, track, speed)} speedJob={speedJob} onOpenSettings={props.onOpenSettings} onProcessingChange={setProcessingBusy} onDelete={() => { let next = timeline; for (const id of selectedIds) { const result = deleteStudioSelection(next, studioTrackForClip(next, id, selected.track ?? ""), id); if (result.blocked) { props.onSnackbar(VIDEO_TRACK_REQUIRED_MESSAGE); return; } next = result.timeline; } edit(next); setSelected({ id: null, track: null }); setSelectedIds([]); }} project={{ ...project, timeline }} selectedId={selected.id} selectedIds={selectedIds} selectedTrack={selected.track} timeline={timeline} onChange={edit} onProject={props.onProject} onSnackbar={props.onSnackbar} onUngroup={() => edit(ungroupVideoClips(timeline, selectedIds))} onGenerateTts={id => void generateTts(id)} ttsBusy={ttsBusy} />
     </div>
     <Toolbar className="studio-edit-toolbar" aria-label="편집 도구">
       <Button
@@ -553,7 +556,7 @@ export function Studio(props: {
     </Toolbar>
     <div className="studio-timeline-drop">
       {libraryDropGuide ? <div className="studio-library-drop-guide" style={{ left: libraryDropGuide.x, top: libraryDropGuide.top, height: libraryDropGuide.height }} /> : null}
-      <Timeline shortcuts={shortcuts} audioCache={audioCache} timeline={timeline} inputs={project.inputs} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} selectedIds={selectedIds} onGenerateTts={() => void generateTts()} onCancelTts={() => void cancelTts()} ttsBusy={ttsBusy} ttsJob={ttsJob} onSelect={(id, track, shift) => {
+      <Timeline capabilities={props.capabilities} shortcuts={shortcuts} audioCache={audioCache} timeline={timeline} inputs={project.inputs} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} selectedIds={selectedIds} onGenerateTts={() => void generateTts()} onCancelTts={() => void cancelTts()} ttsBusy={ttsBusy} ttsJob={ttsJob} onSelect={(id, track, shift) => {
         if (!id) { setSelected({ id: null, track: null }); setSelectedIds([]); return; }
         const range = shift && selected.id && selected.track === track && (track === "video" || /^video-/.test(track ?? "")) ? selectVideoRange(timeline, track ?? "", selected.id, id).map(item => item.id) : [];
         const ids = extendStudioSelection(selectedIds, id, Boolean(shift), range);
