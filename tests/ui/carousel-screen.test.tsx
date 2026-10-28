@@ -2,6 +2,9 @@ import React from "react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { Carousel, newSlide } from "../../src/core/carousel";
+import { CarouselWorkspace } from "../../src/ui/screens/carousel/CarouselWorkspace";
+import { CarouselTextInspector } from "../../src/ui/screens/carousel/CarouselTextInspector";
+import { CarouselOverflowNotice, textOverflowsCanvas } from "../../src/ui/screens/carousel/CarouselOverflow";
 
 vi.mock("../../src/ui/api", () => ({ api: vi.fn(), carouselFileUrl: vi.fn(), watchJobs: vi.fn() }));
 vi.mock("../../src/remotion/CarouselSlide", () => ({ CarouselSlide: () => null }));
@@ -18,7 +21,6 @@ function carousel(stage: "review" | "images") {
 
 describe("캐러셀 화면", () => {
   it("검토 단계에서만 장 더하기·지우기·순서 바꾸기를 제공한다", async () => {
-    const { CarouselWorkspace } = await import("../../src/ui/screens/carousel/CarouselWorkspace");
     const review = renderToStaticMarkup(<CarouselWorkspace carousel={carousel("review")} jobs={[]} onBack={vi.fn()} onUpdate={vi.fn()} onSnackbar={vi.fn()} onError={vi.fn()} />);
     expect(review).toContain("장 더하기");
     expect(review).toContain("장 지우기");
@@ -31,7 +33,6 @@ describe("캐러셀 화면", () => {
   });
 
   it("고른 글 객체의 글과 속성을 인스펙터 맨 위에 표시한다", async () => {
-    const { CarouselTextInspector } = await import("../../src/ui/screens/carousel/CarouselTextInspector");
     const slide = carousel("images").slides[0]!;
     const html = renderToStaticMarkup(<CarouselTextInspector texts={slide.texts} selectedId="body" onSelect={vi.fn()} onChange={vi.fn()} />);
     expect(html.indexOf("본문 글")).toBeLessThan(html.indexOf("제목 글"));
@@ -42,7 +43,6 @@ describe("캐러셀 화면", () => {
   });
 
   it("넘친 글 경고를 표시하고 정상인 장에서는 숨긴다", async () => {
-    const { CarouselOverflowNotice, textOverflowsCanvas } = await import("../../src/ui/screens/carousel/CarouselOverflow");
     expect(textOverflowsCanvas({ left: 80, top: 900, width: 900, height: 600 }, { width: 1080, height: 1350 })).toBe(true);
     expect(textOverflowsCanvas({ left: 80, top: 90, width: 900, height: 60 }, { width: 1080, height: 1350 })).toBe(false);
     expect(renderToStaticMarkup(<CarouselOverflowNotice count={2} />)).toContain("넘친 글이 있는 장 2개");
