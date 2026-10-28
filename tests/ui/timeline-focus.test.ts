@@ -47,7 +47,7 @@ function renderTimeline() {
     playhead: 0, zoom: 4, snap: true, selectedId: null, selectedIds: [],
     onSelect, onPlayhead, onEdit: vi.fn(), onError: vi.fn(),
   });
-  const editor = find(tree, node => node.type === TimelineEditor)!.props as React.ComponentProps<typeof TimelineEditor>;
+  const editor = find(tree, node => node.type === TimelineEditor)!.props as unknown as React.ComponentProps<typeof TimelineEditor>;
   const host = find(tree, node => node.props.className === "studio-timeline-editor")!.props as React.ComponentProps<"div">;
   return { editor, host, onSelect, onPlayhead };
 }
@@ -90,7 +90,7 @@ describe("타임라인 클릭의 버튼·탭 포커스 해제", () => {
 
   it.each([["INPUT", null], ["TEXTAREA", null], ["DIV", "textbox"], ["DIV", "switch"]] as const)("%s role=%s 포커스는 강제로 해제하지 않는다", (tag, role) => {
     const { editor, host } = renderTimeline();
-    const input = new FocusElement(tag, role);
+    const input = new FocusElement(tag, role) as unknown as HTMLElement;
     input.focus();
     host.onPointerDown?.({} as React.PointerEvent<HTMLDivElement>);
     expect(document.activeElement === input).toBe(true);
