@@ -26,7 +26,7 @@ const MainVideo: React.FC<{ src: string; sourceStartFrame: number; playbackRate?
   <Video src={src} trimBefore={sourceStartFrame} playbackRate={playbackRate} muted loop={false} objectFit="cover" style={fill} />
 );
 
-const VideoLayer: React.FC<{ props: U3ShortProps; index: number; sourceStartFrame?: number; playbackRate?: number; style?: TransitionStyle }> = ({ props, index, sourceStartFrame, playbackRate = 1, style }) => {
+const VideoLayer: React.FC<{ props: U3ShortProps; index: number; sourceStartFrame?: number; playbackRate?: number; style?: TransitionStyle }> = ({ props, index, sourceStartFrame, playbackRate, style }) => {
   const sequence = props.render.video[index]!;
   const frame = useCurrentFrame();
   const src = sequence.kind === "meme" ? props.memes[sequence.memeId!] : props.inputs[sequence.inputId!];
@@ -41,7 +41,7 @@ const VideoLayer: React.FC<{ props: U3ShortProps; index: number; sourceStartFram
       <Video src={src} trimBefore={sourceStartFrame} playbackRate={playbackRate} muted objectFit="contain" style={fill} />
     </Loop></AbsoluteFill>;
   }
-  return <AbsoluteFill data-u3-target={sequence.id} style={layerStyle}><MainVideo src={src} sourceStartFrame={sourceStartFrame ?? sequence.sourceStartFrame ?? 0} playbackRate={playbackRate} /></AbsoluteFill>;
+  return <AbsoluteFill data-u3-target={sequence.id} style={layerStyle}><MainVideo src={src} sourceStartFrame={sourceStartFrame ?? sequence.sourceStartFrame ?? 0} playbackRate={playbackRate ?? sequence.playbackRate ?? 1} /></AbsoluteFill>;
 };
 
 const OverlayLayer: React.FC<{ props: U3ShortProps; index: number }> = ({ props, index }) => {
@@ -52,7 +52,7 @@ const OverlayLayer: React.FC<{ props: U3ShortProps; index: number }> = ({ props,
   if (!src) throw new Error(`겹친 영상 URL이 없습니다: ${clip.kind === "meme" ? clip.memeId : clip.inputId}`);
   const style = overlayMediaStyle(clip, { ...edge, opacity: edge.opacity * (clip.opacity ?? 1) }, clip.kind === "meme" ? props.memeAspects?.[clip.memeId!] : undefined);
   if (clip.kind === "photo") return <Img data-u3-target={clip.id} src={src} style={style} />;
-  const video = <Video data-u3-target={clip.id} src={src} muted trimBefore={clip.kind === "video" ? clip.sourceStartFrame ?? 0 : 0} loop={false} objectFit="contain" style={style} />;
+  const video = <Video data-u3-target={clip.id} src={src} muted playbackRate={clip.playbackRate ?? 1} trimBefore={clip.kind === "video" ? clip.sourceStartFrame ?? 0 : 0} loop={false} objectFit="contain" style={style} />;
   if (clip.kind !== "meme") return video;
   const loopFrames = Math.max(1, props.memeFrames[clip.memeId!] ?? clip.durationInFrames);
   return <Loop durationInFrames={loopFrames} times={Math.ceil(clip.durationInFrames / loopFrames)} name="겹친 짤 반복 재생">{video}</Loop>;
@@ -71,10 +71,10 @@ const TransitionLayer: React.FC<{ props: U3ShortProps; transition: RenderTransit
     : transitionStyleAt(transition.kind, progress, "start");
   return <>
     {fromIndex >= 0 ? <Sequence from={transition.startFrame} durationInFrames={transition.durationInFrames} layout="none" name={`전환 나감 ${transition.id}`}>
-      <VideoLayer props={props} index={fromIndex} sourceStartFrame={transition.fromSourceStartFrame} playbackRate={transition.playbackRate} style={outgoing} />
+      <VideoLayer props={props} index={fromIndex} sourceStartFrame={transition.fromSourceStartFrame} playbackRate={transition.fromPlaybackRate ?? transition.playbackRate} style={outgoing} />
     </Sequence> : null}
     {toIndex >= 0 ? <Sequence from={transition.startFrame} durationInFrames={transition.durationInFrames} layout="none" name={`전환 들어옴 ${transition.id}`}>
-      <VideoLayer props={props} index={toIndex} sourceStartFrame={transition.toSourceStartFrame} playbackRate={transition.playbackRate} style={incoming} />
+      <VideoLayer props={props} index={toIndex} sourceStartFrame={transition.toSourceStartFrame} playbackRate={transition.toPlaybackRate ?? transition.playbackRate} style={incoming} />
     </Sequence> : null}
   </>;
 };
@@ -223,9 +223,9 @@ export const U3Short: React.FC<U3ShortProps> = (props) => {
     {props.render.titleBar?.visible ? <BrandTitleBar titleBar={props.render.titleBar} /> : null}
     {props.render.watermark?.visible ? <Img data-u3-target="watermark" src={props.render.watermark.file} style={{ position: "absolute", left: `${props.render.watermark.x * 100}%`, top: `${props.render.watermark.y * 100}%`, width: `${props.render.watermark.width * 100}%`, height: "auto", transform: "translate(-50%, -50%)", opacity: props.render.watermark.opacity }} /> : null}
     {props.render.audio.map((layer) => {
-      const src = layer.track === "source" || layer.track === "stem-voice" || layer.track === "stem-bg"
+      const src = layer.file ?? (layer.track === "source" || layer.track === "stem-voice" || layer.track === "stem-bg"
         ? props.inputs[layer.inputId!]
-        : layer.track === "meme" ? props.memes[layer.inputId!] : layer.file;
+        : layer.track === "meme" ? props.memes[layer.inputId!] : layer.file);
       if (!src) throw new Error(`오디오 URL이 없습니다: ${layer.id}`);
       return <Sequence key={layer.id} from={layer.startFrame} durationInFrames={layer.durationInFrames} layout="none" name={`오디오 ${layer.id}`}>
         <Audio src={src} trimBefore={layer.sourceStartFrame} volume={(frame) => audioVolume(layer, frame)} />

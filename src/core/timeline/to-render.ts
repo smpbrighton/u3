@@ -1,5 +1,7 @@
-import { CAPTION_HIGHLIGHT_DEFAULT, type CaptionClipStyle, type CaptionStyle, type ClipTransition, type ClipTransitionInput, type OverlayClip, type Timeline, type TransitionKind } from "../schema";
-import { clipDuration, overlayDuration } from "./ops";
+import { CAPTION_HIGHLIGHT_DEFAULT, type AudioCache, type CaptionClipStyle, type CaptionStyle, type ClipTransition, type ClipTransitionInput, type OverlayClip, type Timeline, type TransitionKind } from "../schema";
+import { clipDuration, overlayDuration, projectDuration } from "./ops";
+
+import { audioClipLength, cacheKey, clipSpeed } from "./speed";
 
 export const RENDER_FPS = 30;
 
@@ -11,6 +13,7 @@ export interface RenderVideoSequence {
   inputId?: string;
   memeId?: string;
   sourceStartFrame?: number;
+  playbackRate?: number;
   opacity?: number;
   startTransition?: ClipTransition;
   endTransition?: ClipTransition;
@@ -26,6 +29,8 @@ export interface RenderTransition {
   fromSourceStartFrame?: number;
   toSourceStartFrame?: number;
   playbackRate: number;
+  fromPlaybackRate?: number;
+  toPlaybackRate?: number;
 }
 
 export interface RenderVolumeTransition {
@@ -71,6 +76,7 @@ export interface RenderOverlay {
   memeId?: string;
   inputId?: string;
   sourceStartFrame?: number;
+  playbackRate?: number;
   x: number;
   y: number;
   width: number;
@@ -135,7 +141,7 @@ export interface RenderBrandSettings {
   titleBar?: { kind?: "text" | "image"; text?: string; file?: string; height: number; bgColor: string; bgOpacity: number; font: string; fontSize: number; color: string };
 }
 
-export function timelineToRender(timeline: Timeline, brand?: RenderBrandSettings): RenderTimeline {
+export function timelineToRender(timeline: Timeline, brand?: RenderBrandSettings, audioCache?: AudioCache): RenderTimeline {
   let cursorSec = 0;
   const video: RenderVideoSequence[] = [];
   const audio: RenderAudioLayer[] = [];
@@ -156,7 +162,7 @@ export function timelineToRender(timeline: Timeline, brand?: RenderBrandSettings
       video.push({ id: clip.id, kind: "main", startFrame, durationInFrames, inputId: clip.inputId, ...(clip.opacity !== undefined ? { opacity: clip.opacity } : {}), ...transitionProps(clip, durationSec) });
       mainBounds.push({ id: clip.id, startFrame, endFrame, durationInFrames, kind: "main" });
     } else {
-      video.push({ id: clip.id, kind: "main", startFrame, durationInFrames, inputId: clip.inputId, sourceStartFrame: frame(clip.inStartSec), ...(clip.opacity !== undefined ? { opacity: clip.opacity } : {}), ...transitionProps(clip, durationSec) });
+      video.push({ id: clip.id, kind: "main", startFrame, durationInFrames, inputId: clip.inputId, sourceStartFrame: frame(clip.inStartSec), ...(clip.speed !== undefined ? { playbackRate: clipSpeed(clip) } : {}), ...(clip.opacity !== undefined ? { opacity: clip.opacity } : {}), ...transitionProps(clip, durationSec) });
       mainBounds.push({ id: clip.id, startFrame, endFrame, durationInFrames, kind: "main" });
       const separated = stems[clip.inputId];
       if (separated) {
@@ -183,14 +189,15 @@ export function timelineToRender(timeline: Timeline, brand?: RenderBrandSettings
     layer: layerIndex,
     kind: "memeId" in clip ? "meme" : clip.kind,
     startFrame: frame(clip.startSec),
-    durationInFrames: frame(overlayDuration(clip)),
+    durationInFrames: frame(clip.startSec + overlayDuration(clip)) - frame(clip.startSec),
+    ...("inStartSec" in clip && clip.speed !== undefined ? { playbackRate: clipSpeed(clip) } : {}),
     ...( "memeId" in clip ? { memeId: clip.memeId } : { inputId: clip.inputId, ...(clip.kind === "video" ? { sourceStartFrame: frame(clip.inStartSec) } : {}) }),
     x: clip.x, y: clip.y, width: clip.width, ...(clip.opacity !== undefined ? { opacity: clip.opacity } : {}),
     ...transitionProps(clip, overlayDuration(clip)),
   })));
   for (const clip of timeline.overlays.flat().filter((item): item is Extract<OverlayClip, { kind: "video" }> => "kind" in item && item.kind === "video")) {
     const startFrame = frame(clip.startSec);
-    const durationInFrames = frame(clip.inEndSec) - frame(clip.inStartSec);
+    const durationInFrames = frame(clip.startSec + overlayDuration(clip)) - startFrame;
     const separated = stems[clip.inputId];
     if (separated) {
       for (const stem of ["voice", "bg"] as const) {
@@ -205,10 +212,27 @@ export function timelineToRender(timeline: Timeline, brand?: RenderBrandSettings
     const track = timeline.voice.includes(clip) ? "voice" : "sfx";
     const gain = track === "voice" ? timeline.audio.voice : timeline.audio.sfx;
     audio.push({
-      id: clip.id, track, startFrame: frame(clip.startSec), durationInFrames: frame(clip.inEndSec - clip.inStartSec),
+      id: clip.id, track, startFrame: frame(clip.startSec), durationInFrames: frame(clip.startSec + audioClipLength(clip)) - frame(clip.startSec),
       sourceStartFrame: frame(clip.inStartSec), volume: volume(gain, clip.gain), file: clip.file,
-      ...(clip.fadeOutSec ? { volumeTransitions: [{ startFrame: Math.max(frame(clip.startSec), frame(clip.startSec + clip.inEndSec - clip.inStartSec - clip.fadeOutSec)), durationInFrames: frame(clip.fadeOutSec), from: 1, to: 0 }] } : {}),
+      ...(clip.fadeOutSec ? { volumeTransitions: [{ startFrame: Math.max(frame(clip.startSec), frame(clip.startSec + audioClipLength(clip) - clip.fadeOutSec)), durationInFrames: frame(clip.fadeOutSec), from: 1, to: 0 }] } : {}),
     });
+  }
+
+  // 캐시 파일 전체가 배속된 좌표다. 구간·전환 핸들은 파일 재처리 없이 이동한다.
+  const sourceClips = [...timeline.video, ...timeline.overlays.flat()].filter(c => "inStartSec" in c);
+  for (let index = audio.length - 1; index >= 0; index--) {
+    const layer = audio[index]!;
+    const clip = layer.track === "voice" || layer.track === "sfx"
+      ? [...timeline.voice, ...timeline.sfx].find(c => c.id === layer.id)
+      : sourceClips.find(c => ["source", "voice", "bg"].some(suffix => layer.id === `${c.id}-${suffix}`));
+    if (!clip || !("inStartSec" in clip) || clipSpeed(clip) === 1) continue;
+    const sourceId = "file" in clip ? clip.file : "inputId" in clip ? clip.inputId : "";
+    const cache = audioCache?.[cacheKey(sourceId, clipSpeed(clip))];
+    if (!cache) { audio.splice(index, 1); continue; }
+    layer.file = cache.file;
+    layer.sourceStartFrame = frame(clip.inStartSec / clipSpeed(clip));
+    layer.durationInFrames = frame(layer.startFrame / RENDER_FPS + audioClipLength(clip, cache)) - layer.startFrame;
+    if (layer.durationInFrames <= 0) audio.splice(index, 1);
   }
 
   const audioForClip = (id: string) => audio.filter((layer) => layer.id.startsWith(`${id}-`) && layer.track !== "meme");
@@ -231,8 +255,8 @@ export function timelineToRender(timeline: Timeline, brand?: RenderBrandSettings
     const afterFrames = effectFrames - beforeFrames;
     const item: RenderTransition = {
       id: `${left.id}-${right.id}-${effect.kind.kind}`, fromId: left.id, toId: right.id,
-      startFrame, durationInFrames: effectFrames, kind: effect.kind, playbackRate: 0.5,
-      ...(leftSequence.sourceStartFrame !== undefined ? { fromSourceStartFrame: leftSequence.sourceStartFrame + left.durationInFrames - beforeFrames } : {}),
+      startFrame, durationInFrames: effectFrames, kind: effect.kind, playbackRate: 0.5, fromPlaybackRate: 0.5 * clipSpeed(leftClip), toPlaybackRate: 0.5 * clipSpeed(rightClip),
+      ...(leftSequence.sourceStartFrame !== undefined ? { fromSourceStartFrame: leftSequence.sourceStartFrame + Math.round((left.durationInFrames - beforeFrames) * clipSpeed(leftClip)) } : {}),
       ...(rightSequence.sourceStartFrame !== undefined ? { toSourceStartFrame: rightSequence.sourceStartFrame } : {}),
     };
     transitions.push(item);
@@ -250,7 +274,7 @@ export function timelineToRender(timeline: Timeline, brand?: RenderBrandSettings
       const durationInFrames = Math.min(frame(effect.durationSec), Math.floor(first.durationInFrames / 2));
       if (durationInFrames > 0) {
         const sequence = video.find((clip) => clip.id === first.id)!;
-        transitions.push({ id: `${first.id}-start-${effect.kind.kind}`, fromId: null, toId: first.id, startFrame: 0, durationInFrames, kind: effect.kind, playbackRate: 1, ...(sequence.sourceStartFrame !== undefined ? { toSourceStartFrame: sequence.sourceStartFrame } : {}) });
+        transitions.push({ id: `${first.id}-start-${effect.kind.kind}`, fromId: null, toId: first.id, startFrame: 0, durationInFrames, kind: effect.kind, playbackRate: 1, fromPlaybackRate: clipSpeed(timeline.video[0]!), toPlaybackRate: clipSpeed(timeline.video[0]!), ...(sequence.sourceStartFrame !== undefined ? { toSourceStartFrame: sequence.sourceStartFrame } : {}) });
       }
     }
   }
@@ -261,8 +285,8 @@ export function timelineToRender(timeline: Timeline, brand?: RenderBrandSettings
       const durationInFrames = Math.min(frame(effect.durationSec), Math.floor(last.durationInFrames / 2));
       if (durationInFrames > 0) {
         const sequence = video.find((clip) => clip.id === last.id)!;
-        const sourceEnd = sequence.sourceStartFrame === undefined ? undefined : sequence.sourceStartFrame + last.durationInFrames - durationInFrames;
-        transitions.push({ id: `${last.id}-end-${effect.kind.kind}`, fromId: last.id, toId: null, startFrame: last.endFrame - durationInFrames, durationInFrames, kind: effect.kind, playbackRate: 1, ...(sourceEnd !== undefined ? { fromSourceStartFrame: sourceEnd } : {}) });
+        const sourceEnd = sequence.sourceStartFrame === undefined ? undefined : sequence.sourceStartFrame + Math.round((last.durationInFrames - durationInFrames) * clipSpeed(timeline.video.at(-1)!));
+        transitions.push({ id: `${last.id}-end-${effect.kind.kind}`, fromId: last.id, toId: null, startFrame: last.endFrame - durationInFrames, durationInFrames, kind: effect.kind, playbackRate: 1, fromPlaybackRate: clipSpeed(timeline.video.at(-1)!), toPlaybackRate: clipSpeed(timeline.video.at(-1)!), ...(sourceEnd !== undefined ? { fromSourceStartFrame: sourceEnd } : {}) });
       }
     }
   }
@@ -283,12 +307,12 @@ export function timelineToRender(timeline: Timeline, brand?: RenderBrandSettings
     const sequence = video.find((clip) => clip.id === id)!;
     sequence.startFrame = bounds.startFrame;
     sequence.durationInFrames = Math.max(0, bounds.endFrame - bounds.startFrame);
-    if (sequence.sourceStartFrame !== undefined) sequence.sourceStartFrame += bounds.sourceShift;
+    if (sequence.sourceStartFrame !== undefined) sequence.sourceStartFrame += Math.round(bounds.sourceShift * (sequence.playbackRate ?? 1));
     sequence.startTransition = NO_TRANSITION;
     sequence.endTransition = NO_TRANSITION;
   }
   const durationInFrames = Math.max(
-    frame(cursorSec),
+    frame(projectDuration(timeline)),
     ...captions.map((clip) => clip.startFrame + clip.durationInFrames),
     ...audio.map((layer) => layer.startFrame + layer.durationInFrames),
   );
