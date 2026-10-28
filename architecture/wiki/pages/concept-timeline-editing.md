@@ -31,6 +31,7 @@ U3 타임라인은 영상·자막·음성·효과음 트랙을 저장하고, 영
 - 자막 단위 음성 생성과 목소리 트랙 배치는 [로컬 TTS](concept-local-tts.md)에 정리한다. `src/core/tts-clips.ts` `src/ui/screens/Studio.tsx`
 
 ## 관계
+- [자막과 장면 검토](concept-caption-scene-review.md)
 - [로컬 TTS](concept-local-tts.md)
 - [U3 데스크톱 앱](entity-desktop-app.md)
 - [로컬 모델과 리소스](concept-local-models.md)

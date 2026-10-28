@@ -25,6 +25,7 @@
 - 044의 `pnpm verify` 실행 출력과 PNG 픽셀 테스트 통과 또는 skip 결과는 코드에서 못 찾음. WebKit 미리보기와 Chromium PNG의 줄바꿈 비교, 넘침 표시와 받기 전 확인은 미검증이다. 화면 작업은 043에 남아 있다. `architecture/changes/044-carousel-workflow/plan.md` `tests/engine/render-carousel.test.ts` `architecture/changes/044-carousel-workflow/review.md`
 
 ## 관계
+- [자막과 장면 검토](concept-caption-scene-review.md)
 - [U3 데스크톱 앱](entity-desktop-app.md)
 - [타임라인 편집](concept-timeline-editing.md)
 - [로컬 모델과 리소스](concept-local-models.md)

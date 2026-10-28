@@ -13,6 +13,7 @@
 - 패키지 GUI에서 생성·트랙 배치·미리보기 청취의 실행 증거는 코드에서 못 찾음. 새 사용자 환경의 실제 전체 모델 다운로드와 네트워크 차단 상태의 합성도 미검증이다. S1에서 다른 앱과 함께 쓸 때의 실제 여유 메모리는 미측정이다. 서명·공증 검증 증거는 코드에서 못 찾음. `architecture/changes/040-qwen-tts/plan.md` `docs/spikes/qwen-tts.md`
 
 ## 관계
+- [자막과 장면 검토](concept-caption-scene-review.md)
 - [타임라인 편집](concept-timeline-editing.md)
 - [로컬 모델과 리소스](concept-local-models.md)
 - [U3 데스크톱 앱](entity-desktop-app.md)

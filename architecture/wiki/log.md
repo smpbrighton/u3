@@ -60,3 +60,11 @@
 - `index.md`
 - 설계 승인 `480b5ec`, review `1e53186`, 계획 승인 `51bb105`은 구현과 함께 반영했으며 별도 페이지는 없다. `git:480b5ec:` `git:1e53186:` `git:51bb105:`
 - 데이터·저장소·라우트·합성 커밋과 버전 변경을 관련 페이지에 반영했다. `git:34fd789:` `git:e205fb4:` `git:a351ab2:` `git:8e5d3c3:` `git:18f3e6a:`
+
+## [2026-10-28] ingest | 045 caption-scene-review
+- `pages/concept-caption-scene-review.md`
+- `pages/concept-timeline-editing.md`
+- `pages/concept-local-tts.md`
+- `pages/concept-carousel.md`
+- `index.md`
+- 설계 승인 `e4dddee`, review `3b08a83`, 계획 승인 `2e62c87`, 실패 테스트 선행 `9b4fdc6`은 구현과 함께 반영했으며 별도 페이지가 없다.

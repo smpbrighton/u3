@@ -7,6 +7,7 @@
 - [엔진 종료](pages/entity-engine-shutdown.md) — sidecar 종료 정리와 ONNX 런타임 종료 경계.
 
 ## concept
+- [자막과 장면 검토](pages/concept-caption-scene-review.md) — 클립 스타일, 강조 표기, 장면 연결과 검증 상태.
 - [로컬 TTS](pages/concept-local-tts.md) — 자막 음성 생성, 모델과 패키지 검증 상태.
 - [캐러셀 생성](pages/concept-carousel.md) — 검토·이미지 생성 단계, 글 객체·합성과 검증 상태.
 - [자동 업데이트와 릴리스](pages/concept-updates.md) — 확인·설치와 0.2.2 릴리스 실행 증거.
