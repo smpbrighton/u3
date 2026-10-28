@@ -141,3 +141,6 @@
 - `pages/concept-remote-prompts.md`
 - `index.md`
 - `e48f3a4` 테스트와 `4d172e6` 구현을 같은 페이지에 반영했다. `git:e48f3a4:` `git:4d172e6:`
+
+## [2026-10-29] ingest | render 취소 테스트 대기 수정
+- 바뀐 페이지 없음. 테스트만 바꾼 커밋이다. `git:30e7391:`
