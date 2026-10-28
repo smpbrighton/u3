@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BUNDLED_PROMPT_DEFAULTS as local } from "../../src/core/default-prompts";
-import { decidePublish } from "../../scripts/publish-prompts";
+import { decidePublish, isMissingRemote } from "../../scripts/publish-prompts";
 
 describe("기본 프롬프트 공개 판단", () => {
   it("같은 revision과 본문이면 unchanged다", () => {
@@ -16,5 +16,15 @@ describe("기본 프롬프트 공개 판단", () => {
   });
   it("원격 revision만 크고 본문이 같으면 publish다", () => {
     expect(decidePublish({ ...local, revision: local.revision + 1 }, local)).toBe("publish");
+  });
+});
+
+describe("원격 파일 없음 판정", () => {
+  it.each([22, 56])("curl 종료 코드와 관계없이 HTTP 404 면 없음이다: %s", status => {
+    expect(isMissingRemote({ status, stdout: "\n404" })).toBe(true);
+  });
+  it("404 가 아닌 실패는 없음이 아니다", () => {
+    expect(isMissingRemote({ status: 56, stdout: "\n500" })).toBe(false);
+    expect(isMissingRemote({ status: 6, stdout: "" })).toBe(false);
   });
 });
