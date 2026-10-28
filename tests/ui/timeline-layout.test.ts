@@ -12,4 +12,10 @@ describe("studio timeline layout", () => {
     expect(TIMELINE_ACTION_INSET).toBe(2);
     expect(timelineActionHeight()).toBe(TRACK_ROW_HEIGHT - TIMELINE_ACTION_INSET * 2);
   });
+
+  it("10개를 넘는 트랙은 같은 높이에서 내부 스크롤한다", () => {
+    expect(timelineEditorHeight(10)).toBe(TIMELINE_RULER_HEIGHT + 10 * TRACK_ROW_HEIGHT);
+    expect(timelineEditorHeight(11)).toBe(timelineEditorHeight(10));
+    expect(timelineEditorHeight(30)).toBe(timelineEditorHeight(10));
+  });
 });

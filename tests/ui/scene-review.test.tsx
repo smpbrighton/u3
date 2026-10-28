@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
 import { Timeline, CodexScript, MemeMeta } from "../../src/core/schema";
 import { createHistory, pushHistory, undo } from "../../src/core/timeline/history";
-import { SceneReview, SceneMemeChoices, sceneMemeRankRequest } from "../../src/ui/studio/SceneReview";
+import { SceneReview, SceneMemeChoices, SceneSfxChoices, sceneMemeRankRequest } from "../../src/ui/studio/SceneReview";
 
 const controls = vi.hoisted(() => new Map<string, any>());
 vi.mock("../../src/ui/components/ui/button", () => ({ Button: (p: any) => { controls.set(p["aria-label"] ?? String(p.children), p); return <button>{p.children}</button>; } }));
@@ -31,5 +31,14 @@ describe("장면 검토", () => {
     draw(); controls.get("빼기")!.onClick();
     expect(history.present.overlays.flat()).toHaveLength(0);
     expect(undo(history).present).toEqual(timeline);
+  });
+  it("효과음 끄기도 실행 취소 한 번으로 돌아온다", () => {
+    const source = { ...timeline, sfx: [{ id: "scene-0-sfx", sceneIndex: 0, startSec: 0, file: "sfx.wav", inStartSec: 0, inEndSec: 1, gain: 1 }] };
+    let history = createHistory(source);
+    const onChange = vi.fn(next => { history = pushHistory(history, next); });
+    renderToStaticMarkup(<SceneSfxChoices timeline={source} script={script} sceneIndex={0} clipId="scene-0-sfx" items={[]} onChange={onChange} onClose={vi.fn()} />);
+    controls.get("끄기")!.onClick();
+    expect(onChange).toHaveBeenCalledTimes(1); expect(history.present.sfx).toHaveLength(0);
+    expect(undo(history).present).toEqual(source);
   });
 });

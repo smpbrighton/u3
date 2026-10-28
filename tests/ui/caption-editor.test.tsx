@@ -46,4 +46,12 @@ describe("자막 편집기", () => {
     controls.get("구간 반복")!.onCheckedChange(true);
     expect(onLoopChange).toHaveBeenCalledWith(true); expect(onSeek).toHaveBeenCalledWith(5);
   });
+  it("클립 크기를 재정의하고 레이어 스타일로 되돌린다", () => {
+    const timeline = fixture(); const onChange = vi.fn();
+    renderToStaticMarkup(<CaptionEditor timeline={timeline} selectedId="a" playhead={2} onSelect={vi.fn()} onSeek={vi.fn()} onChange={onChange} loop={false} onLoopChange={vi.fn()} />);
+    controls.get("크기")!.onValueChange([1.5]);
+    expect(onChange.mock.calls[0]![0].captions[0].style.sizeScale).toBe(1.5);
+    controls.get("레이어 스타일로 되돌리기")!.onClick();
+    expect(onChange.mock.calls[1]![0].captions[0].style).toBeUndefined();
+  });
 });
