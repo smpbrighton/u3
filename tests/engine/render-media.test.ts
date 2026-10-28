@@ -8,11 +8,36 @@ import { Jobs } from "../../src/engine/jobs";
 import { startMediaServer } from "../../src/engine/pipeline/media-server";
 import { Store } from "../../src/engine/store";
 import { DEFAULT_BRAND_SETTINGS, Project } from "../../src/core/schema";
+import { timelineToRender } from "../../src/core/timeline/to-render";
 
 const fixtureRoot = path.resolve("tests/fixtures/project");
 const token = "render-media-test-token";
 
 describe("render route media", () => {
+  it.each([0.5, 1, 2])("047 %s배는 미리보기와 같은 길이·캐시로 원본 시작과 끝 프레임을 렌더한다", async speed => {
+    const root = await mkdtemp(path.join(os.tmpdir(), "u3-speed-render-"));
+    const store = new Store(root), jobs = new Jobs();
+    const mediaServer = await startMediaServer({ roots: { projects: path.join(root, "projects"), library: path.join(root, "library"), brand: path.join(root, "brand") }, token });
+    try {
+      await store.init(); const p = await store.createProject("배속 렌더");
+      p.inputs = [{ id: "i", kind: "video", file: "input/video.mp4", durationSec: 0.8 }];
+      p.timeline.video = [{ id: "v", kind: "main", inputId: "i", inStartSec: 0, inEndSec: 0.8, speed }];
+      await store.saveProject(p);
+      execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-f", "lavfi", "-i", "color=red:s=108x192:r=30:d=0.4", "-f", "lavfi", "-i", "color=blue:s=108x192:r=30:d=0.4", "-f", "lavfi", "-i", "sine=frequency=440:duration=0.8", "-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0[v]", "-map", "[v]", "-map", "2:a", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", path.join(store.projectDir(p.id), "input/video.mp4")]);
+      const app = createApp({ store, jobs, token, codexPath: async () => null, jevKey: async () => null, mediaServer });
+      const outputPath = path.join(root, "render.mp4");
+      const response = await app.request(`/api/projects/${p.id}/render`, { method: "POST", headers: { authorization: `Bearer ${token}`, "content-type": "application/json" }, body: JSON.stringify({ outputPath }) });
+      expect(response.status).toBe(202); const final = await jobs.wait((await response.json() as { id: string }).id); expect(final.status, final.error ?? "").toBe("done");
+      const saved = await store.requireProject(p.id), preview = timelineToRender(saved.timeline, undefined, saved.audioCache);
+      const probe = JSON.parse(execFileSync("ffprobe", ["-v", "error", "-show_format", "-show_streams", "-of", "json", outputPath], { encoding: "utf8" }));
+      expect(Math.abs(Number(probe.format.duration) - preview.durationInFrames / 30)).toBeLessThanOrEqual(1 / 30);
+      const pixel = (sec: number) => execFileSync("ffmpeg", ["-hide_banner", "-loglevel", "error", "-ss", String(sec), "-i", outputPath, "-vf", "format=rgb24,crop=1:1:540:960", "-frames:v", "1", "-f", "rawvideo", "pipe:1"]);
+      expect(pixel(0)[0]).toBeGreaterThan(230); expect(pixel((preview.durationInFrames - 1) / 30)[2]).toBeGreaterThan(230);
+      expect(probe.streams.some((s: { codec_type: string }) => s.codec_type === "audio")).toBe(true);
+      if (speed !== 1) { expect(saved.audioCache?.[`i:${speed}`]?.file).toMatch(/^cache\/audio\//); expect(preview.audio[0]?.file).toBe(saved.audioCache?.[`i:${speed}`]?.file); }
+      console.log(`047 render speed=${speed} previewFrames=${preview.durationInFrames} mp4Duration=${probe.format.duration}s`);
+    } finally { await jobs.shutdown(); await mediaServer.close(); await rm(root, { recursive: true, force: true }); }
+  }, 90_000);
   it("renders a fixture project through the app media server", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "u3-render-media-"));
     // U3_DATA_DIR may be relative in dev and manual checks; exercise that runtime shape.

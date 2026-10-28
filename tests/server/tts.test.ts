@@ -57,9 +57,10 @@ describe("음성 만들기 API", () => {
     const job = await response.json() as { id: string };
     const finished = await x.jobs.wait(job.id);
     expect(finished.status).toBe("done");
-    expect(finished.result).toEqual(x.items.map(item => ({ captionId: item.captionId, file: `voice/tts-${item.captionId}.wav`, durationSec: 1 })));
+    const results = finished.result as Array<{ captionId: string; file: string; durationSec: number }>;
+    expect(results).toEqual(x.items.map(item => ({ captionId: item.captionId, file: expect.stringMatching(new RegExp(`^voice/tts-${item.captionId}-.+\\.wav$`)), durationSec: 1 })));
     expect((await x.store.getProject(x.project.id))?.timeline).toEqual(before?.timeline);
-    for (const item of x.items) expect((await readFile(path.join(x.store.projectDir(x.project.id), `voice/tts-${item.captionId}.wav`))).length).toBeGreaterThan(44);
+    for (const item of results) expect((await readFile(path.join(x.store.projectDir(x.project.id), item.file))).length).toBeGreaterThan(44);
     expect(x.download).not.toHaveBeenCalled();
   });
 
