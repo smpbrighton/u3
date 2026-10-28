@@ -19,7 +19,7 @@ vi.mock("../../src/remotion/U3Short", () => ({ U3Short: () => null }));
 
 describe("설정 구역", () => {
   const sections = [
-    ["screen", "테마"], ["brand", "워터마크 미리보기"], ["script", "STT 모델"], ["meme", "Jev API 키"],
+    ["screen", "테마"], ["shortcuts", "포인터 자르기"], ["brand", "워터마크 미리보기"], ["script", "STT 모델"], ["meme", "Jev API 키"],
     ["voice", "음성 만들기 모델"], ["imagegen", "동시 실행 수"], ["sound", "재생 시작 딜레이"], ["about", "현재 버전"],
   ];
 
@@ -30,7 +30,7 @@ describe("설정 구역", () => {
     expect(region).toContain(expected);
     for (const [other, marker] of sections) if (other !== section) expect(region).not.toContain(marker);
     expect(markup.match(/aria-current="page"/g)).toHaveLength(1);
-    const labels = ["화면", "브랜드", "대본", "짤", "음성", "이미지 생성", "알림음", "앱 정보"];
+    const labels = ["화면", "단축키", "브랜드", "대본", "짤", "음성", "이미지 생성", "알림음", "앱 정보"];
     const positions = labels.map(label => markup.indexOf(`>${label}</button>`));
     expect(positions.every(position => position >= 0)).toBe(true);
     expect(positions).toEqual([...positions].sort((a, b) => a - b));
