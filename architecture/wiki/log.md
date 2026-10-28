@@ -111,3 +111,11 @@
 - `index.md`
 - 047의 승인·검토·실패 테스트 및 구현 세부 커밋은 배속 페이지에 묶었고 별도 페이지는 없다. `git:60b27ac:` `git:f36ba8c:` `git:92c3eda:` `git:252f79e:` `git:e1ff0ca:` `git:701468e:` `git:1fc7ed4:` `git:1111f4e:` `git:437db16:` `git:9708d36:` `git:20b1879:` `git:35965cb:`
 - release 0.3.3은 릴리스 페이지에 반영했으며 별도 페이지는 없다. `git:93b25bf:`
+
+## [2026-10-28] ingest | 054 carousel-prompts · release 0.3.4
+- `pages/concept-carousel.md`
+- `pages/concept-ui-shell.md`
+- `pages/concept-updates.md`
+- `index.md`
+- 계획·실패 테스트·구현 커밋은 캐러셀과 설정 페이지에 함께 반영했으며 별도 페이지는 없다. `git:2d50706:` `git:1b2661f:` `git:9147c6f:` `git:b78cf38:` `git:19649af:` `git:f840816:` `git:be31984:`
+- release 0.3.4 버전 변경은 릴리스 페이지에 반영했으며 별도 페이지는 없다. `git:e95368c:`

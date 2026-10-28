@@ -10,6 +10,8 @@
 - 사용자 비교 승인과 패키징 통과는 변경 기록에 있다. 별도 패키징 실행 출력은 코드에서 못 찾음. `architecture/changes/043-shadcn-redesign/design.md` `architecture/changes/043-shadcn-redesign/plan.md` `git:ba75727:`
 - 캡처 경로에는 브라우저에서 찍은 다크·라이트 이미지가 있다. 패키징 앱에서 네트워크 차단 후 Pretendard 확인은 미실행이다. 묶음별 verify 출력, 트랙 머리 테스트의 수정 전후 출력, 미리보기와 렌더 일치의 별도 실행 증거는 코드에서 못 찾음. `architecture/changes/043-shadcn-redesign/plan.md` `tests/ui/timeline-track-header-fit.test.ts` `git:172b795:`
 
+- 이미지 생성 설정에서 주제·영상 캐러셀 기획 프롬프트를 각각 편집하고 포커스를 벗어나면 저장한다. 기본값 복원과 글자 수 표시를 제공하며 각 입력은 최대 20,000자다. `src/ui/screens/Settings.tsx` `src/core/carousel-prompt.ts` `git:be31984:`
+- `GET/PUT /api/system/carousel-prompts`는 두 프롬프트와 기본값 여부를 반환한다. PUT은 전달된 항목만 갱신하며 빈 값이나 기본값은 저장 키를 삭제한다. `src/engine/routes/system.ts` `git:19649af:`
 ## 관계
 - [Codex 호환성](concept-codex-compat.md)
 - [U3 데스크톱 앱](entity-desktop-app.md)
@@ -24,3 +26,6 @@
 - `src/ui/settings/settings-save.ts`
 - `src/ui/App.tsx`
 - `git:13a60c5:`
+- `architecture/changes/054-carousel-prompts/plan.md`
+- `src/engine/routes/system.ts`
+- `src/ui/screens/Settings.tsx`
