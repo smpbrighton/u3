@@ -17,7 +17,9 @@ U3는 macOS Apple Silicon 대상 Tauri 2 앱이며 React UI와 Node sidecar 엔�
 - 키 저장 API 테스트는 가짜 security 실행 파일을 사용했다. 실제 login Keychain 저장·교체·삭제와 설정 화면의 저장·삭제 조작은 해당 실행에서 미검증이다. `git:19fcc96:` `git:20d60d0:`
 - 결정 링크: [Jev 키 설정](../../decisions/0024-jev-key-setting.md). `git:1f29af1:`
 
+- 앱의 최소 macOS 버전은 15다. `src-tauri/tauri.conf.json` `git:f65db44:`
 ## 관계
+- [화면 셸과 설정](concept-ui-shell.md)
 - [엔진 종료](entity-engine-shutdown.md)
 - [자동 업데이트와 릴리스](concept-updates.md)
 - [캐러셀 생성](concept-carousel.md)

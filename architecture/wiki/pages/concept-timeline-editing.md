@@ -30,7 +30,9 @@ U3 타임라인은 영상·자막·음성·효과음 트랙을 저장하고, 영
 
 - 자막 단위 음성 생성과 목소리 트랙 배치는 [로컬 TTS](concept-local-tts.md)에 정리한다. `src/core/tts-clips.ts` `src/ui/screens/Studio.tsx`
 
+- 프레임은 입력 순서대로 사진당 1장, 영상당 길이의 초를 올림해 3–10장을 배정한다. 전체 상한은 없다. 길이가 없으면 ffprobe로 확인한다. 미디어 화면과 대본 생성은 같은 배정을 사용한다. `src/engine/pipeline/frames.ts` `src/engine/routes/frames.ts` `src/engine/routes/script.ts` `git:9b95ac1:`
 ## 관계
+- [화면 셸과 설정](concept-ui-shell.md)
 - [자막과 장면 검토](concept-caption-scene-review.md)
 - [로컬 TTS](concept-local-tts.md)
 - [U3 데스크톱 앱](entity-desktop-app.md)

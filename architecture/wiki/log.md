@@ -68,3 +68,13 @@
 - `pages/concept-carousel.md`
 - `index.md`
 - 설계 승인 `e4dddee`, review `3b08a83`, 계획 승인 `2e62c87`, 실패 테스트 선행 `9b4fdc6`은 구현과 함께 반영했으며 별도 페이지가 없다.
+
+## [2026-10-28] ingest | 043 shadcn-redesign
+- `pages/concept-ui-shell.md`
+- `pages/entity-desktop-app.md`
+- `pages/concept-timeline-editing.md`
+- `pages/concept-carousel.md`
+- `pages/concept-caption-scene-review.md`
+- `index.md`
+- 설계·디자인·승인·실패 테스트 선행 커밋은 구현과 검증 상태에 합쳐 반영했으며 별도 페이지가 없다. `git:ea4ff9b:` `git:e2efc7d:` `git:9145478:` `git:2ccda7f:`
+- 패키징 앱의 네트워크 차단 폰트 확인은 미실행이다. 검증 실행 출력과 미리보기·렌더 비교의 별도 증거는 코드에서 못 찾음. `architecture/changes/043-shadcn-redesign/plan.md`
