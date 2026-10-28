@@ -35,11 +35,19 @@ async function setup() {
 }
 
 describe.skipIf(process.platform !== "darwin")("릴리스 dry-run", () => {
+  it("기본 dry-run은 Mac fragment만 만들고 공개 manifest를 만들지 않는다", async () => {
+    const s = await setup();
+    await s.run();
+    expect(await readdir(s.out)).toEqual(["darwin.fragment.json"]);
+    const fragment = JSON.parse(await readFile(path.join(s.out, "darwin.fragment.json"), "utf8"));
+    expect(fragment).toMatchObject({ version: "0.2.1", platform: "darwin-aarch64", asset: "U3.app.tar.gz", signature: s.signature, dryRun: true });
+    expect(await readFile(path.join(s.out, "latest.json"), "utf8").catch(() => null)).toBeNull();
+  });
   it("버전·빌드·서명·공증·업로드를 건너뛰고 latest.json만 만든다", async () => {
     const s = await setup();
     const versionFiles = ["package.json", "src-tauri/tauri.conf.json", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock"];
     const before = await Promise.all(versionFiles.map(file => readFile(path.join(root, file), "utf8")));
-    await s.run();
+    await s.run("0.2.1", ["--mac-only"]);
     expect(await readdir(s.out)).toEqual(["latest.json"]);
     const latest = JSON.parse(await readFile(path.join(s.out, "latest.json"), "utf8"));
     expect(latest).toMatchObject({ version: "0.2.1", notes: "U3 0.2.1", platforms: { "darwin-aarch64": {
