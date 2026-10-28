@@ -1,5 +1,5 @@
 # Review: carousel-workflow
-Author: claude-opus-5-5[1m]. Status: draft. Round: 1.
+Author: claude-opus-5-5[1m]. Status: accepted. Round: 1.
 
 ## 대조한 것
 - 변경: `architecture/changes/044-carousel-workflow/intent.md`, `spec.md`
