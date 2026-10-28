@@ -59,8 +59,10 @@ async function framePixels(file: string, frame: number, out: string, rendered: b
   const left = Math.round(x * width - size / 2);
   const top = Math.round(y * height - size / 2);
   const crop = `crop=${size}:${size}:${left}:${top}${rendered ? ",scale=64:64:flags=area" : ""}`;
-  await execFile("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", file, "-vf", `select=eq(n\\,${frame}),${crop},format=rgb24`, "-fps_mode", "passthrough", "-frames:v", "1", "-f", "rawvideo", out]);
-  return readFile(out);
+  // Windows 번들 ffmpeg 에는 rawvideo 머서가 없다. image2pipe 로 raw 프레임을 stdout 에 받아 파일에도 남긴다.
+  const { stdout } = await execFile("ffmpeg", ["-hide_banner", "-loglevel", "error", "-i", file, "-vf", `select=eq(n\\,${frame}),${crop},format=rgb24`, "-fps_mode", "passthrough", "-frames:v", "1", "-c:v", "rawvideo", "-f", "image2pipe", "pipe:1"], { encoding: "buffer", maxBuffer: 64 * 1024 * 1024 });
+  await writeFile(out, stdout);
+  return stdout;
 }
 
 function pixelMae(a: Buffer, b: Buffer): number {
