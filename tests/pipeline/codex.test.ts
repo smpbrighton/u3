@@ -37,7 +37,7 @@ describe("Codex CLI", () => {
       await writeFile(output, JSON.stringify(validScript));
       return success(JSON.stringify({ type: "turn.completed", usage: { input_tokens: 25, output_tokens: 12 } }));
     });
-    const result = await codexCliRunner({ bin: "fake-codex", run: runner }).runScript({
+    const result = await codexCliRunner({ bin: "fake-codex", model: "gpt-6-luna", run: runner }).runScript({
       prompt: "요약 대본",
       images: ["frame.jpg"],
     });
@@ -126,7 +126,7 @@ describe("Codex CLI", () => {
   });
 
   it("constructs strict output arguments with the required model", () => {
-    expect(codexCliArgs({ schemaFile: "schema.json", outputFile: "output.json", cwd: "/tmp", images: ["one.jpg"] }))
+    expect(codexCliArgs({ schemaFile: "schema.json", outputFile: "output.json", cwd: "/tmp", images: ["one.jpg"], model: "gpt-6-luna" }))
       .toEqual(expect.arrayContaining(["exec", "--output-schema", "schema.json", "--image", "one.jpg", "-m", "gpt-6-luna"]));
   });
 
