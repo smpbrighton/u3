@@ -60,8 +60,10 @@ async function framePixels(file: string, frame: number, out: string, rendered: b
   const top = Math.round(y * height - size / 2);
   const crop = `crop=${size}:${size}:${left}:${top}${rendered ? ",scale=64:64:flags=area" : ""}`;
   // Windows 번들 ffmpeg 에는 rawvideo 머서가 없다. image2pipe 로 raw 프레임을 stdout 에 받아 파일에도 남긴다.
-  const { stdout } = await execFile("ffmpeg", ["-hide_banner", "-loglevel", "error", "-i", file, "-vf", `select=eq(n\\,${frame}),${crop},format=rgb24`, "-fps_mode", "passthrough", "-frames:v", "1", "-c:v", "rawvideo", "-f", "image2pipe", "pipe:1"], { encoding: "buffer", maxBuffer: 64 * 1024 * 1024 });
+  // Windows 번들 ffmpeg 에는 select 필터도 없다. 입력 seek(-ss) 로 프레임 시각을 찾는다(두 입력 모두 30fps).
+  const { stdout } = await execFile("ffmpeg", ["-hide_banner", "-loglevel", "error", ...(frame > 0 ? ["-ss", (frame / 30).toFixed(6)] : []), "-i", file, "-vf", `${crop},format=rgb24`, "-frames:v", "1", "-c:v", "rawvideo", "-f", "image2pipe", "pipe:1"], { encoding: "buffer", maxBuffer: 64 * 1024 * 1024 });
   await writeFile(out, stdout);
+  assert(stdout.length === 64 * 64 * 3, `프레임 추출 결과가 64×64 RGB 가 아닙니다: ${path.basename(file)} frame ${frame} → ${stdout.length} bytes`);
   return stdout;
 }
 
