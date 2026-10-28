@@ -34,7 +34,7 @@ async function setup() {
   return { sig, out, signature, run };
 }
 
-describe("릴리스 dry-run", () => {
+describe.skipIf(process.platform !== "darwin")("릴리스 dry-run", () => {
   it("버전·빌드·서명·공증·업로드를 건너뛰고 latest.json만 만든다", async () => {
     const s = await setup();
     const versionFiles = ["package.json", "src-tauri/tauri.conf.json", "src-tauri/Cargo.toml", "src-tauri/Cargo.lock"];

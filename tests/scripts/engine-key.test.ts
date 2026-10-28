@@ -107,7 +107,7 @@ if (args.includes("tauri")) write(path.join(process.env.CARGO_TARGET_DIR, "relea
   return { run, dir };
 }
 
-describe("패키징 키 검사 연결", () => {
+describe.skipIf(process.platform !== "darwin")("패키징 키 검사 연결", () => {
   it("키가 든 원본 엔진이면 Tauri 빌드 전에 멈춘다", async () => {
     const { run, dir } = await packageFixture("source");
     await expect(run()).rejects.toThrow();

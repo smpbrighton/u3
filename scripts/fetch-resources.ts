@@ -1,4 +1,4 @@
-import { cp, mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
+import { cp, lstat, mkdir, readFile, readdir, rename, writeFile } from "node:fs/promises";
 import { createHash } from "node:crypto";
 import { homedir } from "node:os";
 import { join, resolve } from "node:path";
@@ -6,7 +6,7 @@ import { execFileSync } from "node:child_process";
 import { pathToFileURL } from "node:url";
 
 const root = resolve(import.meta.dirname, "..");
-const target = join(root, "src-tauri/resources");
+const defaultTarget = join(root, "src-tauri/resources");
 const library = process.env.UUU_LIBRARY_DIR ?? "/Volumes/X31/workspace/smp_workspace/uUu/data/library";
 const embed = process.env.UUU_EMBED_DIR ?? "/Volumes/X31/workspace/smp_workspace/uUu/data/cache/meme-embed";
 const mrx = process.env.U3_MRX_MODEL ?? "/Volumes/X31/workspace/smp_workspace/u3-spike-cache/mrx/model/mrx-mask-int8.onnx";
@@ -59,7 +59,27 @@ export async function copyLibrary(source: string, destination: string): Promise<
   }
 }
 
-async function main(): Promise<void> {
+export async function fetchResources(target = defaultTarget, commonOnly = false): Promise<void> {
+  const archiveRoot = process.env.U3_RESOURCE_ROOT;
+  if (archiveRoot) {
+    await validateResourceManifest(archiveRoot);
+    for (const directory of ["library/memes", "library/sfx", "meme-embed", "models", "licenses"]) {
+      if (!(await readdir(join(archiveRoot, directory))).length) throw new Error(`리소스가 비었습니다: ${directory}`);
+    }
+    const licenseRoot = process.env.U3_LICENSE_ROOT ?? join(archiveRoot, "licenses");
+    await requireHash(join(archiveRoot, "models/mrx.int8.onnx"), mrxSha256, "MRX int8 모델");
+    await requireHash(join(archiveRoot, "models/ggml-silero-v6.2.0.bin"), sileroSha256, "Silero VAD 모델");
+    for (const name of ["MIT-MRX.txt", "MIT-whisper.cpp.txt", "MIT-whisper-vad.txt", "OFL-BlackHanSans.txt", "OFL-Pretendard.txt"]) await readFile(join(licenseRoot, name));
+    await mkdir(target, { recursive: true });
+    await copyLibrary(join(archiveRoot, "library"), join(target, "library"));
+    await cp(join(archiveRoot, "meme-embed"), join(target, "library/meme-embed"), { recursive: true });
+    await cp(join(archiveRoot, "models"), join(target, "models"), { recursive: true });
+    await cp(licenseRoot, join(target, "licenses"), { recursive: true });
+    await cp(join(root, "assets/fonts"), join(target, "assets/fonts"), { recursive: true });
+    // Mac의 Swift·MLX 고지는 실제 Mac 리소스를 넣을 때만 아래에서 준비한다.
+    if (process.platform !== "darwin" || commonOnly) return;
+  } else {
+    if (process.platform !== "darwin") throw new Error("Windows 패키징에는 U3_RESOURCE_ROOT가 필요합니다");
   await requireDirectory(library, "UUU_LIBRARY_DIR");
   await requireDirectory(embed, "UUU_EMBED_DIR");
   await mkdir(join(target, "models"), { recursive: true });
@@ -93,6 +113,9 @@ async function main(): Promise<void> {
     ["OFL-Pretendard.txt", "/Volumes/X31/workspace/smp_workspace/uUu/out/ui/fonts/Pretendard-LICENSE.txt"],
   ];
   for (const [name, source] of legalSources) await cp(source, join(notices, name));
+  }
+  const notices = join(target, "licenses");
+  if (commonOnly) return;
   const mlxRoot = join(cache, "u3-tts/checkouts/mlx-swift");
   const qwenSwiftRoot = join(cache, "u3-tts/checkouts/swift-qwen3-tts");
   const mlxLicense = await readFile(join(mlxRoot, "LICENSE"), "utf8");
@@ -113,4 +136,27 @@ async function main(): Promise<void> {
   process.stdout.write("앱 라이브러리와 모델 리소스를 복사하고 체크섬을 확인했습니다.\n");
 }
 
-if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) await main();
+if (process.argv[1] && import.meta.url === pathToFileURL(resolve(process.argv[1])).href) await fetchResources();
+
+export async function resourceFiles(directory: string, prefix = ""): Promise<string[]> {
+  const result: string[] = [];
+  for (const entry of await readdir(directory, { withFileTypes: true })) {
+    const name = prefix ? `${prefix}/${entry.name}` : entry.name;
+    if (entry.isSymbolicLink()) throw new Error("리소스 심볼릭 링크는 허용하지 않습니다");
+    if (entry.isDirectory()) result.push(...await resourceFiles(join(directory, entry.name), name));
+    else if (entry.isFile() && name !== "manifest.json") result.push(name);
+    else if (!entry.isFile()) throw new Error("리소스 파일 형식을 확인하세요");
+  }
+  return result.sort();
+}
+export async function validateResourceManifest(directory: string): Promise<void> {
+  if (!(await lstat(directory)).isDirectory()) throw new Error("리소스 root가 디렉터리가 아닙니다");
+  const manifest = JSON.parse(await readFile(join(directory, "manifest.json"), "utf8")) as { files?: Record<string, string> };
+  if (!manifest.files || !Object.keys(manifest.files).length) throw new Error("리소스 manifest가 비었습니다");
+  for (const [name, hash] of Object.entries(manifest.files)) {
+    if (!name || /[\\:]/.test(name) || name.startsWith("/") || name.split("/").some(part => !part || part === ".." || part === ".") || !/^[a-f0-9]{64}$/.test(hash)) throw new Error("리소스 manifest 경로·hash 오류");
+  }
+  const actual = await resourceFiles(directory);
+  if (JSON.stringify(actual) !== JSON.stringify(Object.keys(manifest.files).sort())) throw new Error("리소스 파일 목록이 manifest와 다릅니다");
+  for (const name of actual) await requireHash(join(directory, name), manifest.files[name]!, "리소스");
+}

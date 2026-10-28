@@ -83,3 +83,17 @@
 
 ## 롤백
 병합 커밋 되돌리기. `release.sh --mac-only` 가 이전 공개 절차와 같아 Mac 배포는 영향 없음. 올린 draft Release 는 삭제, prerelease `resources-<n>` 은 유지해도 `latest` 에 영향 없음. Windows 설치본은 제거 프로그램으로.
+
+
+## 구현 실행 기록
+- 사용자 지시에 따라 047·048 병합을 기다리지 않고 현재 main(0.3.2, 050·051 포함)에 rebase했다. 충돌은 없었다. `CI=true pnpm install --frozen-lockfile`이 통과했다.
+- A: `test-A-fail.log`에서 7개 파일 실패를 확인했다. Windows TTS가 202였고 system에 platform/capabilities가 없었다. 테스트 커밋 뒤 구현했다. 기존 Keychain 인자 순서(050)를 유지했다. `test-A-pass.log`: 9개 파일·44개 테스트 통과. TypeScript 검사 통과.
+- B: `test-B-fail.log`에서 capability가 false/미응답이어도 TTS 화면이 표시되는 실패 5개를 확인했다. 테스트 커밋 뒤 구현했다. `test-B-pass.log`: 3개 파일·21개 테스트 통과.
+- C: descriptor의 순수 조회를 `scripts/build-platforms.ts`로 분리했다. `build-engine.ts`를 import할 때 빌드가 실행되는 기존 구조와 단위 테스트를 분리하기 위한 보조 파일이다. `test-C-fail.log`: descriptor 모듈·manifest 검사가 없어 실패했다. 테스트 커밋 뒤 구현했다. `test-C-pass.log`: 6개 파일·39개 테스트 통과.
+- C의 Windows 검증 분리는 native 계약만 대상으로 한다. dylib·Mach-O·Mac 릴리스와 TTS helper·Keychain helper·POSIX shell fixture·SIGTERM 종료 시험은 Mac에서 유지한다. Windows에서는 F의 실제 helper·종료·TTS 거절 시험으로 검사한다. 공통 API·편집·인증 시험은 유지한다. 기존 테스트 단언은 변경하지 않았다.
+- Whisper v1.9.5 archive SHA-256은 기존 캐시 파일에서 확인한 `ff1a9053feb509ff9d7729703355541ae9690073a6b1c40eb692c962e0dc1720`이다. ggml CMake 소스에서 Windows CPU 옵션을 확인했다.
+- 확인 근거: `node_modules/@tauri-apps/cli`의 `tauri build --help`는 플랫폼 config 자동 병합 후 명시 config 순서대로 덮어쓴다고 설명한다. `tauri-utils-2.10.1/src/config/parse.rs`도 플랫폼 JSON을 merge한다. Windows package에는 Mac bundle config를 전달하지 않는다.
+- 확인 근거: CARGO_HOME registry의 `tauri-plugin-updater-2.14.0/src/{config,updater}.rs`에서 passive는 `/P`, updater는 `/UPDATE`, 재실행은 `/R`이며 `restart_after_install(false)`가 `/R`을 생략함을 확인했다. `on_before_exit`는 installer 실행 전 호출되고 install 성공 뒤 `std::process::exit(0)`한다. `Update::restart_after_install`을 사용할 수 있다. 2.14.0은 현재 target이 없는 manifest를 업데이트 없음으로 처리한다.
+- 확인 근거: `windows-0.62.2/src/Windows/Win32`의 JobObjects·Threading·Security·Cryptography·Authorization·FileSystem·Foundation 소스에서 API 인자와 반환형을 읽었다. Windows cfg 코드는 Mac에서 컴파일하지 못하므로 Windows 컴파일·실행은 미검증이다.
+- 사용자 지시의 순서 8·9·10은 수행하지 않는다. push·PR·CI 실행·리소스 업로드·키 생성/등록·배포·병합·wiki ingest는 감독자에게 남긴다.
+- C: Mac `pnpm package` 종료 코드 0. `package-mac.log`에 앱 1.12 GiB·DMG 542.52 MiB 생성과 최종 `✓ engine key check passed`를 기록했다. SwiftPM 공유 캐시 대기를 거쳤다. 이 package는 ad-hoc 빌드이며 릴리스 서명·공증을 수행하지 않았다. npm staging 캐시 경로도 이후 실행부터 U3_BUILD_CACHE/npm으로 고정했다.
