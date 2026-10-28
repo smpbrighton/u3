@@ -1,3 +1,4 @@
+import { SPAWN_OPTIONS } from "../spawn-options";
 import { spawn } from "node:child_process";
 import { mkdir, rm } from "node:fs/promises";
 import path from "node:path";
@@ -22,7 +23,7 @@ export async function runTts(options: TtsOptions): Promise<Array<{ id: string; f
   await mkdir(options.outDir, { recursive: true });
   try {
     await new Promise<void>((resolve, reject) => {
-      const child = spawn(options.binary, ["--metallib", options.metallib, "--cache-limit-mb", "256"], { stdio: ["pipe", "pipe", "pipe"] });
+      const child = spawn(options.binary, ["--metallib", options.metallib, "--cache-limit-mb", "256"], { ...SPAWN_OPTIONS, stdio: ["pipe", "pipe", "pipe"] });
       const lines = createInterface({ input: child.stdout });
       let stderr = "";
       let failure: Error | undefined;

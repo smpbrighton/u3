@@ -1,7 +1,7 @@
 // 파일 저장소. uUu src/server/store.ts의 키별 잠금과 임시 파일 rename 저장을 옮겼다.
 import { randomBytes } from "node:crypto";
 import { readFile, readdir, mkdir, rename, rm, writeFile } from "node:fs/promises";
-import os from "node:os";
+import { defaultDataDir } from "./platform";
 import path from "node:path";
 import { migrateLibraryReference } from "../core/library-reference";
 import { Project } from "../core/schema";
@@ -35,7 +35,7 @@ export class Store {
   private chains = new Map<string, Promise<unknown>>();
 
   constructor(
-    readonly root = process.env.U3_DATA_DIR ?? path.join(os.homedir(), "Library/Application Support/U3"),
+    readonly root = process.env.U3_DATA_DIR ?? defaultDataDir(),
     private readonly now: () => Date = () => new Date(),
   ) {}
 

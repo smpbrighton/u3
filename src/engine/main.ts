@@ -16,7 +16,9 @@ import { done } from "./jobs";
 import { configuredModelPath } from "./pipeline/model-paths";
 import { installEngineShutdown } from "./shutdown";
 import { renderCarouselSlide } from "./pipeline/render";
-import { readJevKey } from "./jev-key";
+import { createJevKeyStore } from "./jev-key";
+import { createDpapiKeyStore } from "./jev-key-win";
+import { defaultOrigin, enginePlatform, exe } from "./platform";
 
 process.stdin.resume();
 process.on("unhandledRejection", reason => {
@@ -40,7 +42,7 @@ if (!token) throw new Error("U3_TOKEN이 비어 있습니다");
 const store = new Store(); await store.init();
 const prompts = createPromptDefaults({ dataDir: store.root, env: process.env, fetchImpl: fetch });
 const stopPrompts = prompts.start();
-const tauriOrigin = process.env.TAURI_ORIGIN ?? "tauri://localhost";
+const tauriOrigin = process.env.TAURI_ORIGIN ?? defaultOrigin();
 const resourceRoot = process.env.U3_RESOURCE_DIR ?? path.join(process.cwd(), "resources");
 const configuredLibraryRoot = process.env.U3_LIBRARY_DIR ?? path.join(resourceRoot, "library");
 const libraryRoot = path.basename(configuredLibraryRoot) === "library"
@@ -65,7 +67,7 @@ const mediaServer = await startMediaServer({
   token,
   allowedOrigin: tauriOrigin,
 });
-const whisperPath = process.env.U3_WHISPER_CLI ?? path.join(resourceDir, "bin/whisper-cli");
+const whisperPath = process.env.U3_WHISPER_CLI ?? path.join(resourceDir, "bin", exe("whisper-cli"));
 const sileroPath = process.env.U3_SILERO_MODEL ?? path.join(resourceDir, "models/ggml-silero-v6.2.0.bin");
 const whisperModelPath = process.env.U3_WHISPER_MODEL ?? path.join(store.root, "cache/models/ggml-large-v3-turbo-q5_0.bin");
 const transcribeInput = async ({ file, signal }: { file: string; inputId: string; signal?: AbortSignal }) => {
@@ -88,6 +90,9 @@ const transcribeInput = async ({ file, signal }: { file: string; inputId: string
 };
 const jobs = new Jobs();
 const index = memeIndex(store.root, bgeM3Embedder({ cacheDir: path.join(store.root, "cache/models") }), () => import("./pipeline/library").then(({ listMemes }) => listMemes(libraryRoot)));
+const jevKeyStore = enginePlatform() === "win32"
+  ? createDpapiKeyStore({ helperPath: process.env.U3_KEY_STORE_CLI ?? path.join(resourceDir, "bin/u3-key-store.exe"), filePath: path.join(store.root, "secrets/jev-key.dpapi") })
+  : createJevKeyStore();
 const app = createApp({
   promptDefaults: () => prompts.current(),
   store,
@@ -95,7 +100,8 @@ const app = createApp({
   token,
   tauriOrigin,
   codexPath: () => findCodexPath(store),
-  jevKey: readJevKey,
+  jevKey: jevKeyStore.readJevKey,
+  jevKeyStore,
   transcribeInput,
   memeIndex: index,
   mediaServer,

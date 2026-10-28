@@ -1,3 +1,5 @@
+import { codexCommand } from "./codex-path";
+import { SPAWN_OPTIONS } from "../spawn-options";
 import { spawn } from "node:child_process";
 import { copyFile, mkdtemp, readFile, readdir, rm, stat } from "node:fs/promises";
 import os from "node:os";
@@ -153,11 +155,12 @@ export async function runCodexImage(options: CodexImageOptions): Promise<{ outpu
   }
 }
 
-function runProcess(bin: string, args: string[], cwd: string, env: NodeJS.ProcessEnv, prompt: string, timeoutMs: number, signal?: AbortSignal): Promise<ProcessOutput> {
+async function runProcess(bin: string, args: string[], cwd: string, env: NodeJS.ProcessEnv, prompt: string, timeoutMs: number, signal?: AbortSignal): Promise<ProcessOutput> {
+  const command = await codexCommand(bin, args);
   return new Promise((resolve, reject) => {
-    const child = spawn(bin, args, { cwd, env, stdio: ["pipe", "pipe", "pipe"], detached: process.platform !== "win32" });
+    const child = spawn(command.bin, command.args, { ...SPAWN_OPTIONS, cwd, env, stdio: ["pipe", "pipe", "pipe"], detached: process.platform !== "win32" });
     let stdout = ""; let stderr = ""; let aborted = false; let timedOut = false; let overflow = false;
-    const terminate = () => { try { process.kill(-(child.pid ?? 0), "SIGTERM"); } catch { child.kill("SIGTERM"); } };
+    const terminate = () => { try { if (process.platform === "win32") child.kill("SIGTERM"); else process.kill(-(child.pid ?? 0), "SIGTERM"); } catch { child.kill("SIGTERM"); } };
     const timer = setTimeout(() => { timedOut = true; terminate(); }, timeoutMs);
     const onAbort = () => { aborted = true; terminate(); };
     signal?.addEventListener("abort", onAbort, { once: true });

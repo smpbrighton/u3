@@ -1,3 +1,5 @@
+import { codexCommand } from "./codex-path";
+import { SPAWN_OPTIONS } from "../spawn-options";
 // Codex CLI 실행 경계. uUu src/pipeline/codex.ts의 인자·로그인·이벤트·파일 결과 흐름을 옮겼다.
 // Claude 계정 선택, ClaudeRunner, 웹 조사, 참고 이미지 도구는 U3 범위에서 제외했다.
 import { spawn } from "node:child_process";
@@ -110,8 +112,8 @@ export type CodexProcessRunner = (request: {
 export type TranscribeInputResult = { text: string; warning?: string } | null;
 export type TranscribeInput = (input: { file: string; inputId: string; signal?: AbortSignal }) => Promise<TranscribeInputResult>;
 
-export const runCodexProcess: CodexProcessRunner = request => new Promise((resolve, reject) => {
-  const child = spawn(request.bin, request.args, { cwd: request.cwd, env: request.env, stdio: ["pipe", "pipe", "pipe"] });
+export const runCodexProcess: CodexProcessRunner = request => codexCommand(request.bin, request.args).then(command => new Promise((resolve, reject) => {
+  const child = spawn(command.bin, command.args, { ...SPAWN_OPTIONS, cwd: request.cwd, env: request.env, stdio: ["pipe", "pipe", "pipe"] });
   const chunks: string[] = [];
   let stderr = "";
   let bytes = 0;
@@ -146,7 +148,7 @@ export const runCodexProcess: CodexProcessRunner = request => new Promise((resol
     resolve({ code: code ?? -1, stdout: chunks.join(""), stderr, aborted, timedOut, overflow });
   });
   child.stdin.end(request.prompt);
-});
+}));
 
 export interface CodexRunnerOptions {
   bin: string;

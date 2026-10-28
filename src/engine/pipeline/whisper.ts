@@ -1,3 +1,4 @@
+import { SPAWN_OPTIONS } from "../spawn-options";
 import { spawn } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
@@ -11,7 +12,7 @@ export function whisperArgs(options: { model: string; vadModel: string; input: s
 export type WhisperRunner = (options: { bin: string; args: string[]; signal?: AbortSignal }) => Promise<void>;
 
 export const runWhisperCli: WhisperRunner = ({ bin, args, signal }) => new Promise((resolve, reject) => {
-  const child = spawn(bin, args, { stdio: ["ignore", "ignore", "pipe"] });
+  const child = spawn(bin, args, { ...SPAWN_OPTIONS, stdio: ["ignore", "ignore", "pipe"] });
   let stderr = "";
   child.stderr.setEncoding("utf8").on("data", chunk => { stderr = (stderr + chunk).slice(-12_000); });
   const abort = () => child.kill("SIGTERM");

@@ -1,3 +1,4 @@
+import { capabilities } from "../platform";
 import type { Hono } from "hono";
 import { existsSync, renameSync, rmSync } from "node:fs";
 import { mkdtemp, stat } from "node:fs/promises";
@@ -65,6 +66,7 @@ function publish(work: string, files: Array<{ id: string; file: string; duration
 
 export function registerTtsRoutes(app: Hono, context: AppContext): void {
   app.post("/api/projects/:id/tts", async c => {
+    if (!capabilities().tts) throw new HttpError(400, "unsupported-platform", "이 플랫폼에서는 음성 만들기를 지원하지 않습니다");
     const project = await context.store.requireProject(c.req.param("id"));
     const { items } = await parseJson(c, z.object({ items: z.array(z.object({ captionId: z.string().regex(/^[A-Za-z0-9_-]+$/), text: z.string() })).min(1) }));
     if (new Set(items.map(item => item.captionId)).size !== items.length) throw new HttpError(400, "duplicate-id", "자막 id가 중복됐습니다");
