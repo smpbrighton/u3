@@ -4,8 +4,8 @@ import { HugeiconsIcon } from "@hugeicons/react";
 import { Alert02Icon, PlayIcon, RefreshIcon } from "@hugeicons/core-free-icons";
 import { api, brandMediaUrl, watchJob, watchJobs, type EngineJob } from "../api";
 import type { SystemStatus } from "../types";
-import { DEFAULT_SCRIPT_PROMPT, SCRIPT_PROMPT_MAX_LENGTH } from "../../core/script-prompt";
-import { CAROUSEL_PROMPT_MAX_LENGTH, DEFAULT_CAROUSEL_TOPIC_PROMPT, DEFAULT_CAROUSEL_VIDEO_PROMPT } from "../../core/carousel-prompt";
+import { SCRIPT_PROMPT_MAX_LENGTH } from "../../core/script-prompt";
+import { CAROUSEL_PROMPT_MAX_LENGTH } from "../../core/carousel-prompt";
 import { DEFAULT_BRAND_SETTINGS, type BrandSettings } from "../../core/schema";
 import { DEFAULT_TTS_SETTINGS, TTS_SPEAKERS } from "../../core/tts-clips";
 import { BrandPreview } from "../settings/BrandPreview";
@@ -35,10 +35,13 @@ type ModelStatus = {
 
 type CodexModel = { slug: string; displayName: string; efforts: string[] };
 type CodexModelCatalog = { source: "codex-cli" | "fallback"; models: CodexModel[] };
-type ScriptPromptSettings = { prompt: string; isDefault: boolean; rulesPreview: string };
+type PromptSettings = { prompt: string; isDefault: boolean; defaultPrompt: string; newerDefault: boolean };
+type PromptState = Omit<PromptSettings, "isDefault"> & { saved: string };
+const emptyPrompt: PromptState = { prompt: "", defaultPrompt: "", newerDefault: false, saved: "" };
+const promptState = (value: PromptSettings): PromptState => ({ prompt: value.prompt, defaultPrompt: value.defaultPrompt, newerDefault: value.newerDefault, saved: value.prompt });
+type ScriptPromptSettings = PromptSettings & { rulesPreview: string };
 type CarouselPromptKind = "topic" | "video";
-type CarouselPromptSettings = Record<CarouselPromptKind, { prompt: string; isDefault: boolean }>;
-const DEFAULT_CAROUSEL_PROMPTS: Record<CarouselPromptKind, string> = { topic: DEFAULT_CAROUSEL_TOPIC_PROMPT, video: DEFAULT_CAROUSEL_VIDEO_PROMPT };
+type CarouselPromptSettings = Record<CarouselPromptKind, PromptSettings>;
 type ScriptVoiceField = "tone" | "persona";
 type ScriptVoiceSettings = Record<ScriptVoiceField, string>;
 type IntroSfxSetting = { enabled: boolean; ref: string; atSec: number; title: string; durationSec: number };
@@ -68,12 +71,12 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
   const ttsRef = useRef(ttsSettings);
   const [imageOptions, setImageOptions] = useState<ImageOptions>({ model: "flare", quality: "auto", aspect: "4:5", concurrency: 3 });
   const imageRef = useRef(imageOptions);
-  const [carouselPrompts, setCarouselPrompts] = useState(DEFAULT_CAROUSEL_PROMPTS);
+  const [carouselPrompts, setCarouselPrompts] = useState<Record<CarouselPromptKind, PromptState>>({ topic: emptyPrompt, video: emptyPrompt });
   const carouselPromptsRef = useRef(carouselPrompts);
   const [introSfx, setIntroSfx] = useState<IntroSfxSetting>({ enabled: true, ref: "", atSec: 3, title: "띠링- 소리", durationSec: 1.5 });
   const introRef = useRef(introSfx);
   const [notifyItems, setNotifyItems] = useState<Array<{ ref: string; title: string; url: string }>>([]);
-  const [scriptPrompt, setScriptPrompt] = useState(DEFAULT_SCRIPT_PROMPT);
+  const [scriptPrompt, setScriptPrompt] = useState(emptyPrompt);
   const promptRef = useRef(scriptPrompt);
   const [scriptVoice, setScriptVoice] = useState<ScriptVoiceSettings>(DEFAULT_SCRIPT_VOICE);
   const voiceRef = useRef(scriptVoice);
@@ -106,7 +109,7 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
         api<typeof codexSettings>("GET", "/api/system/codex-settings").then(value => { codexRef.current = value; setCodexSettings(value); }),
         api<ImageOptions>("GET", "/api/system/image-options").then(value => { imageRef.current = value; setImageOptions(value); }),
         api<CarouselPromptSettings>("GET", "/api/system/carousel-prompts").then(value => {
-          const next = { topic: value.topic.prompt, video: value.video.prompt };
+          const next = { topic: promptState(value.topic), video: promptState(value.video) };
           carouselPromptsRef.current = next; setCarouselPrompts(next);
         }),
         api<IntroSfxSetting>("GET", "/api/system/intro-sfx").then(value => { introRef.current = value; setIntroSfx(value); }),
@@ -117,7 +120,7 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
           setTitleImageUrl(value.titleBar.file ? await brandMediaUrl(value.titleBar.file) : null);
         }),
         api<CodexModelCatalog>("GET", "/api/system/codex-models").then(setCodexCatalog),
-        api<ScriptPromptSettings>("GET", "/api/system/script-prompt").then(value => { promptRef.current = value.prompt; setScriptPrompt(value.prompt); }),
+        api<ScriptPromptSettings>("GET", "/api/system/script-prompt").then(value => { promptRef.current = promptState(value); setScriptPrompt(promptRef.current); }),
         api<ScriptVoiceSettings>("GET", "/api/system/script-voice").then(value => { voiceRef.current = value; setScriptVoice(value); }),
       ]);
       const rejected = results.find(result => result.status === "rejected");
@@ -207,11 +210,16 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
     void persist("intro-sfx", () => api("PUT", "/api/system/intro-sfx", { enabled: next.enabled, ref: next.ref, atSec: next.atSec }));
   }
 
-  function changePrompt(value: string) { promptRef.current = value; setScriptPrompt(value); }
-  function savePrompt(value = promptRef.current) {
+  function changePrompt(value: string) {
+    promptRef.current = { ...promptRef.current, prompt: value }; setScriptPrompt(promptRef.current);
+  }
+  function savePrompt(raw?: string) {
+    const value = promptRef.current.prompt;
+    if (raw === undefined && value === promptRef.current.saved) return;
     void persist("script-prompt", async () => {
-      const saved = await api<ScriptPromptSettings>("PUT", "/api/system/script-prompt", { prompt: value });
-      if (promptRef.current === value) changePrompt(saved.prompt);
+      const saved = await api<ScriptPromptSettings>("PUT", "/api/system/script-prompt", { prompt: raw ?? value });
+      const next = { ...promptState(saved), prompt: promptRef.current.prompt === value ? saved.prompt : promptRef.current.prompt };
+      promptRef.current = next; setScriptPrompt(next);
     });
   }
   function changeVoice(field: ScriptVoiceField, value: string) {
@@ -222,14 +230,17 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
     void persist("script-voice", async () => { await api<ScriptVoiceSettings>("PUT", "/api/system/script-voice", next); });
   }
   function changeCarouselPrompt(kind: CarouselPromptKind, value: string) {
-    carouselPromptsRef.current = { ...carouselPromptsRef.current, [kind]: value };
+    carouselPromptsRef.current = { ...carouselPromptsRef.current, [kind]: { ...carouselPromptsRef.current[kind], prompt: value } };
     setCarouselPrompts(carouselPromptsRef.current);
   }
-  function saveCarouselPrompt(kind: CarouselPromptKind) {
-    const value = carouselPromptsRef.current[kind];
+  function saveCarouselPrompt(kind: CarouselPromptKind, raw?: string) {
+    const value = carouselPromptsRef.current[kind].prompt;
+    if (raw === undefined && value === carouselPromptsRef.current[kind].saved) return;
     void persist("carousel-prompts", async () => {
-      const saved = await api<CarouselPromptSettings>("PUT", "/api/system/carousel-prompts", { [kind]: value });
-      if (carouselPromptsRef.current[kind] === value) changeCarouselPrompt(kind, saved[kind].prompt);
+      const saved = await api<CarouselPromptSettings>("PUT", "/api/system/carousel-prompts", { [kind]: raw ?? value });
+      const next = { ...promptState(saved[kind]), prompt: carouselPromptsRef.current[kind].prompt === value ? saved[kind].prompt : carouselPromptsRef.current[kind].prompt };
+      carouselPromptsRef.current = { ...carouselPromptsRef.current, [kind]: next };
+      setCarouselPrompts(carouselPromptsRef.current);
     });
   }
 
@@ -335,9 +346,9 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
             <SettingRow label="추론 강도"><SettingsChoice label="추론 강도" value={codexSettings.effort} items={effortOptions.map(effort => ({ value: effort, label: effort }))} disabled={loading} onChange={effort => updateCodex({ ...codexRef.current, effort })} /></SettingRow>
             <ModelDownloadRow label="STT 모델" size="574 MB" available={Boolean(models?.whisper.available)} job={modelJob("whisper")} starting={startingModels.includes("whisper")} disabled={loading} onDownload={() => void download("whisper")} onCancel={jobId => void cancel(jobId)} />
           </SettingsGroup>
-          <SettingsGroup title="대본 프롬프트" action={<Button variant="ghost" size="xs" disabled={loading || scriptPrompt === DEFAULT_SCRIPT_PROMPT} onClick={() => { changePrompt(DEFAULT_SCRIPT_PROMPT); savePrompt(DEFAULT_SCRIPT_PROMPT); }}>기본값으로</Button>}>
-            <Textarea aria-label="대본 프롬프트" maxLength={SCRIPT_PROMPT_MAX_LENGTH} disabled={loading} value={scriptPrompt} onChange={event => changePrompt(event.target.value)} onBlur={() => savePrompt()} className="h-28 text-xs" />
-            <span className="mt-1 text-right text-2xs text-muted-foreground tabular-nums">{scriptPrompt.length.toLocaleString("ko-KR")}/{SCRIPT_PROMPT_MAX_LENGTH.toLocaleString("ko-KR")}</span>
+          <SettingsGroup title={<>대본 프롬프트{scriptPrompt.newerDefault && <span className="text-2xs text-muted-foreground"> 새 기본값이 있어요</span>}</>} action={<Button variant="ghost" size="xs" disabled={loading || scriptPrompt.prompt === scriptPrompt.defaultPrompt} onClick={() => { changePrompt(promptRef.current.defaultPrompt); savePrompt(""); }}>기본값으로</Button>}>
+            <Textarea aria-label="대본 프롬프트" maxLength={SCRIPT_PROMPT_MAX_LENGTH} disabled={loading} value={scriptPrompt.prompt} onChange={event => changePrompt(event.target.value)} onBlur={() => savePrompt()} className="h-28 text-xs" />
+            <span className="mt-1 text-right text-2xs text-muted-foreground tabular-nums">{scriptPrompt.prompt.length.toLocaleString("ko-KR")}/{SCRIPT_PROMPT_MAX_LENGTH.toLocaleString("ko-KR")}</span>
           </SettingsGroup>
           <div className="grid grid-cols-2 gap-4">
             {(["tone", "persona"] as const).map(field => <SettingsGroup key={field} title={field === "tone" ? "말투" : "성격"} action={<Button variant="ghost" size="xs" disabled={loading || !scriptVoice[field]} onClick={() => { changeVoice(field, ""); saveVoice(); }}>기본값으로</Button>}>
@@ -375,9 +386,9 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
               <SettingsIconButton label="동시 실행 수 늘리기" variant="ghost" size="icon-xs" disabled={loading || imageOptions.concurrency >= 10} onClick={() => updateImage({ ...imageRef.current, concurrency: imageRef.current.concurrency + 1 })}>+</SettingsIconButton>
             </div></SettingRow>
           </SettingsGroup>
-          {([["topic", "캐러셀 기획 프롬프트 · 주제로"], ["video", "캐러셀 기획 프롬프트 · 영상으로"]] as const).map(([kind, title]) => <SettingsGroup key={kind} title={title} action={<Button variant="ghost" size="xs" disabled={loading || carouselPrompts[kind] === DEFAULT_CAROUSEL_PROMPTS[kind]} onClick={() => { changeCarouselPrompt(kind, DEFAULT_CAROUSEL_PROMPTS[kind]); saveCarouselPrompt(kind); }}>기본값으로</Button>}>
-            <Textarea aria-label={title} maxLength={CAROUSEL_PROMPT_MAX_LENGTH} disabled={loading} value={carouselPrompts[kind]} onChange={event => changeCarouselPrompt(kind, event.target.value)} onBlur={() => saveCarouselPrompt(kind)} className="h-28 text-xs" />
-            <span className="mt-1 text-right text-2xs text-muted-foreground tabular-nums">{carouselPrompts[kind].length.toLocaleString("ko-KR")}/{CAROUSEL_PROMPT_MAX_LENGTH.toLocaleString("ko-KR")}</span>
+          {([["topic", "캐러셀 기획 프롬프트 · 주제로"], ["video", "캐러셀 기획 프롬프트 · 영상으로"]] as const).map(([kind, title]) => <SettingsGroup key={kind} title={<>{title}{carouselPrompts[kind].newerDefault && <span className="text-2xs text-muted-foreground"> 새 기본값이 있어요</span>}</>} action={<Button variant="ghost" size="xs" disabled={loading || carouselPrompts[kind].prompt === carouselPrompts[kind].defaultPrompt} onClick={() => { changeCarouselPrompt(kind, carouselPromptsRef.current[kind].defaultPrompt); saveCarouselPrompt(kind, ""); }}>기본값으로</Button>}>
+            <Textarea aria-label={title} maxLength={CAROUSEL_PROMPT_MAX_LENGTH} disabled={loading} value={carouselPrompts[kind].prompt} onChange={event => changeCarouselPrompt(kind, event.target.value)} onBlur={() => saveCarouselPrompt(kind)} className="h-28 text-xs" />
+            <span className="mt-1 text-right text-2xs text-muted-foreground tabular-nums">{carouselPrompts[kind].prompt.length.toLocaleString("ko-KR")}/{CAROUSEL_PROMPT_MAX_LENGTH.toLocaleString("ko-KR")}</span>
           </SettingsGroup>)}
         </>}
 

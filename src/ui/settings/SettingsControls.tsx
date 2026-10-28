@@ -8,7 +8,7 @@ import { Tooltip, TooltipContent, TooltipTrigger } from "../components/ui/toolti
 
 export const SettingRow = (props: Omit<ComponentProps<typeof PropertyRow>, "density">) => <PropertyRow density="setting" {...props} />;
 
-export function SettingsGroup({ title, children, action }: { title: string; children: ReactNode; action?: ReactNode }) {
+export function SettingsGroup({ title, children, action }: { title: ReactNode; children: ReactNode; action?: ReactNode }) {
   const id = useId();
   return <section aria-labelledby={id} className="flex min-w-0 flex-col gap-0.5">
     <div className="mb-2 flex min-h-6 items-center justify-between gap-2"><h2 id={id} className="text-[14px] font-bold">{title}</h2>{action}</div>
