@@ -27,6 +27,7 @@ import { CarouselStore } from "./carousel-store";
 import { ImageQueue } from "./image-queue";
 import { registerCaptionRoutes } from "./routes/captions";
 import type { JevKeyStore } from "./jev-key";
+import { registerAudioRoutes } from "./routes/audio";
 import { registerTtsRoutes } from "./routes/tts";
 import type { downloadQwenTts, qwenTtsReady } from "./pipeline/models";
 import type { runTts } from "./pipeline/tts";
@@ -89,6 +90,7 @@ export function createApp(context: AppContext) {
   registerTranscribeRoutes(app, context);
   registerModelRoutes(app, context);
   registerTtsRoutes(app, context);
+  registerAudioRoutes(app, context);
   registerEventRoutes(app, context);
   return app;
 }

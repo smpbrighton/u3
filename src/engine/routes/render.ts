@@ -8,6 +8,8 @@ import { renderShort } from "../pipeline/render";
 import { BrandSettings, DEFAULT_BRAND_SETTINGS } from "../../core/schema";
 import { requireHeavyMediaIdle } from "./tts";
 
+import { prepareProjectAudio } from "../pipeline/audio-speed";
+
 export function registerRenderRoutes(app: Hono, context: AppContext, render: (options: Parameters<typeof renderShort>[0]) => Promise<unknown> = renderShort): void {
   app.post("/api/projects/:id/render", async c => {
     const project = await context.store.getProject(c.req.param("id"));
@@ -37,8 +39,10 @@ export function registerRenderRoutes(app: Hono, context: AppContext, render: (op
         }
         return absolutePath;
       };
+      const audioCache = await prepareProjectAudio(projectFolder, project, jobContext.signal);
       await render({
         timeline: project.timeline,
+        audioCache,
         brand,
         inputs: project.inputs,
         projectFolder,
@@ -48,7 +52,9 @@ export function registerRenderRoutes(app: Hono, context: AppContext, render: (op
         resolveMediaUrl,
         onProgress: progress => jobContext.progress(progress.progress, "영상 내보내기 중"),
       });
-      return done({ outputPath });
+      const latest = await context.store.requireProject(project.id);
+      await context.store.saveProject({ ...latest, audioCache: { ...latest.audioCache, ...audioCache } });
+      return done({ outputPath, audioCache });
     });
     return c.json(job, 202);
   });

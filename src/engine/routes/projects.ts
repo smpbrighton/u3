@@ -4,7 +4,10 @@ import { Project } from "../../core/schema";
 import type { AppContext } from "../app";
 import { HttpError, parseJson } from "../http";
 
+import { pruneAudioCache } from "../pipeline/audio-speed";
+
 export function registerProjectRoutes(app: Hono, context: AppContext): void {
+  const opened = new Set<string>();
   app.get("/api/projects", async c => c.json(await context.store.listProjects()));
 
   app.post("/api/projects", async c => {
@@ -15,6 +18,10 @@ export function registerProjectRoutes(app: Hono, context: AppContext): void {
   app.get("/api/projects/:id", async c => {
     const project = await context.store.getProject(c.req.param("id"));
     if (!project) throw new HttpError(404, "not-found", "프로젝트가 없습니다");
+    if (!opened.has(project.id) && !context.jobs.hasActiveForProject(project.id)) {
+      opened.add(project.id);
+      await pruneAudioCache(context.store.projectDir(project.id), project).catch(error => console.error("[audio-cache]", error));
+    }
     return c.json(project);
   });
 

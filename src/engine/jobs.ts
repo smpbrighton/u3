@@ -4,7 +4,7 @@
 import { randomBytes } from "node:crypto";
 import PQueue from "p-queue";
 
-export type JobKind = "script" | "meme-rank" | "frames" | "render" | "separate" | "transcribe" | "models" | "image" | "tts";
+export type JobKind = "script" | "meme-rank" | "frames" | "render" | "separate" | "transcribe" | "models" | "image" | "tts" | "audio-speed";
 export type JobStatus = "queued" | "running" | "done" | "failed" | "discarded";
 
 export interface Job {

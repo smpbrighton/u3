@@ -2,7 +2,7 @@ import { mkdir } from "node:fs/promises";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { renderMedia, renderStill, selectComposition, type CancelSignal, type RenderMediaProgress } from "@remotion/renderer";
-import type { BrandSettings, Input, Timeline } from "../../core/schema";
+import type { AudioCache, BrandSettings, Input, Timeline } from "../../core/schema";
 import { libraryReferencePath } from "../../core/library-reference";
 import { timelineToRender } from "../../core/timeline/to-render";
 import type { U3ShortProps } from "../../remotion/types";
@@ -10,6 +10,8 @@ import type { Carousel, CarouselSlide } from "../../core/carousel";
 import { carouselHighlightInput } from "../../remotion/carousel-layout";
 import { createMediaRunner, FFPROBE } from "./ffmpeg";
 import { listMemes } from "./library";
+
+import { prepareProjectAudio } from "./audio-speed";
 
 export const REMOTION_ENTRY = fileURLToPath(new URL("../../remotion/index.ts", import.meta.url));
 export const DEFAULT_ASSETS_DIR = fileURLToPath(new URL("../../../assets/", import.meta.url));
@@ -39,6 +41,7 @@ export interface RenderInput extends Input {
 
 export interface RenderShortOptions {
   timeline: Timeline;
+  audioCache?: AudioCache;
   brand?: BrandSettings;
   inputs: readonly RenderInput[];
   projectFolder: string;
@@ -102,7 +105,8 @@ export async function renderShort(options: RenderShortOptions) {
     ...(options.brand.watermark?.file ? { watermark: { ...options.brand.watermark, file: brandFile(options.brand.watermark.file) } } : {}),
     ...(options.brand.titleBar ? { titleBar: { ...options.brand.titleBar, ...(options.brand.titleBar.file ? { file: brandFile(options.brand.titleBar.file) } : {}) } } : {}),
   } : undefined;
-  const render = timelineToRender(options.timeline, brand);
+  const audioCache = await prepareProjectAudio(options.projectFolder, { id: "render", name: "render", savedAt: "", timeline: options.timeline, inputs: [...options.inputs], audioCache: options.audioCache }, options.signal);
+  const render = timelineToRender(options.timeline, brand, audioCache);
   const inputs = Object.fromEntries(options.inputs.map((input) => [input.id, input.url ?? asUrl(input.file, options.projectFolder, options.resolveMediaUrl)]));
   const inputKinds = Object.fromEntries(options.inputs.map((input) => [input.id, input.kind]));
   const memeIds = [...new Set([...render.video.filter((item) => item.kind === "meme").map((item) => item.memeId!), ...render.overlay.filter((item) => item.kind === "meme").map((item) => item.memeId!)])];
@@ -122,6 +126,10 @@ export async function renderShort(options: RenderShortOptions) {
     composition,
     codec: "h264",
     audioCodec: "aac",
+    // AAC 패킷 패딩이 프로젝트 끝 뒤로 컨테이너 길이를 늘리지 않게 한다.
+    ffmpegOverride: ({ type, args }) => type === "stitcher"
+      ? [...args.slice(0, -1), "-t", String(render.durationInFrames / render.fps), args.at(-1)!]
+      : args,
     outputLocation: options.outputPath,
     inputProps: props,
     licenseKey: "free-license",

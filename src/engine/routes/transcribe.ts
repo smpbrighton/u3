@@ -73,6 +73,7 @@ export function registerTranscribeRoutes(app: Hono, context: AppContext, run?: W
         signal: jobContext.signal,
         ...(run ? { run } : {}),
       });
+      // 받아 적기의 입력은 배속 전 원본이다. wordsForAudioClip에서 배속을 한 번 적용한다.
       const words = wordsForAudioClip(clip, parseWhisperOutput(json));
       const endSec = Math.max(clip.startSec + 0.01, ...words.map(word => word.end));
       const fakeTimeline = {
