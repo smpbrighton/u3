@@ -1,5 +1,12 @@
 import type { RenderTimeline } from "../../core/timeline/to-render";
 import type { U3ShortProps } from "../../remotion/types";
+import type { Project } from "../../core/schema";
+
+export function speedSourceMatches(project: Pick<Project, "id" | "inputs" | "timeline">, expected: { projectId: string; sourceId: string; file: string }): boolean {
+  const file = project.inputs.find(input => input.id === expected.sourceId)?.file
+    ?? project.timeline.voice.find(clip => clip.file === expected.sourceId)?.file;
+  return project.id === expected.projectId && file === expected.file;
+}
 
 export type PreviewSources = Pick<U3ShortProps, "inputs" | "overlayInputs" | "memes"> & {
   files: Record<string, string>;

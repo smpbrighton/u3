@@ -43,6 +43,7 @@ import { useBeforeUpdateRestart } from "../update-save";
 import { resolveLibraryDropPosition, resolvePointerDropTarget } from "../studio/library-drop";
 
 import { cacheKey, clipSpeed } from "../../core/timeline/speed";
+import { speedSourceMatches } from "../studio/preview-sources";
 
 interface AudioPreparation extends AudioCacheEntry { key: string; noAudio?: false }
 type AudioTask = { controller: AbortController; jobId?: string; clipId: string; projectId: string };
@@ -63,7 +64,12 @@ export function Studio(props: {
   onCarouselCreated: (carousel: Carousel) => void;
 }) {
   const shortcuts = props.shortcuts ?? DEFAULT_STUDIO_SHORTCUTS;
-  const [audioCache, setAudioCache] = useState<AudioCache>({});
+  const [storedAudioCache, setAudioCache] = useState<AudioCache>({});
+  const preparedFiles = useRef(new Map<string, string>());
+  const audioCache = useMemo(() => Object.fromEntries(Object.entries(storedAudioCache).filter(([key]) => {
+    const input = props.project.inputs.find(i => i.id === key.slice(0, key.lastIndexOf(":")));
+    return !input || preparedFiles.current.get(key) === input.file;
+  })), [storedAudioCache, props.project.inputs]);
   const audioCacheRef = useRef(audioCache);
   audioCacheRef.current = audioCache;
   const project = { ...props.project, audioCache };
@@ -86,7 +92,11 @@ export function Studio(props: {
   const [snap, setSnap] = useState(true);
   const [safeZone, setSafeZone] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [playing, setPlaying] = useState(false);
+  const [playing, setPlayingState] = useState(false);
+  const setPlaying = useCallback((value: boolean) => {
+    if (value) { audioCacheRef.current = {}; setAudioCache({}); knownSilent.current.clear(); }
+    setPlayingState(value);
+  }, []);
   const [recording, setRecording] = useState(false);
   const [exportOpen, setExportOpen] = useState(false);
   const [createCarouselOpen, setCreateCarouselOpen] = useState(false);
@@ -139,6 +149,8 @@ export function Studio(props: {
   }
 
   function cacheResult(result: AudioPreparation, nextTimeline = timelineRef.current) {
+    const sourceId = result.key.slice(0, result.key.lastIndexOf(":"));
+    preparedFiles.current.set(result.key, projectRef.current.inputs.find(i => i.id === sourceId)?.file ?? sourceId);
     const nextCache = { ...audioCacheRef.current, [result.key]: { file: result.file, durationSec: result.durationSec, version: result.version } };
     audioCacheRef.current = nextCache;
     setAudioCache(nextCache);
@@ -162,6 +174,7 @@ export function Studio(props: {
     const clip = track === "voice" ? before.voice.find(c => c.id === clipId) : track === "video" ? before.video.find(c => c.id === clipId) : before.overlays.flat().find(c => c.id === clipId);
     if (!clip || !("inStartSec" in clip) || clipSpeed(clip) === speed) return;
     const sourceId = "file" in clip ? clip.file : "inputId" in clip ? clip.inputId : "";
+    const source = { projectId: projectRef.current.id, sourceId, file: "file" in clip ? clip.file : projectRef.current.inputs.find(i => i.id === sourceId)?.file ?? "" };
     const task: AudioTask = { controller: new AbortController(), clipId, projectId: projectRef.current.id };
     const selection = selectionRevision.current;
     let expected = JSON.stringify(clip);
@@ -182,7 +195,7 @@ export function Studio(props: {
       await api("PUT", `/api/projects/${task.projectId}`, { ...projectRef.current, timeline: preparedTimeline, savedAt: new Date().toISOString() }, task.controller.signal);
       const result = await prepareAudio(sourceId, speed, task, onJob);
       const current = track === "voice" ? timelineRef.current.voice.find(c => c.id === clipId) : [...timelineRef.current.video, ...timelineRef.current.overlays.flat()].find(c => c.id === clipId);
-      if (task.controller.signal.aborted || projectRef.current.id !== task.projectId || selectionRevision.current !== selection || revision.current !== atRevision || JSON.stringify(current) !== expected) return;
+      if (task.controller.signal.aborted || !speedSourceMatches({ ...projectRef.current, timeline: timelineRef.current }, source) || selectionRevision.current !== selection || revision.current !== atRevision || JSON.stringify(current) !== expected) return;
       if (result.noAudio) { knownSilent.current.add(result.key); return; }
       if (track === "voice") {
         const next = setAudioClipSpeed(timelineRef.current, clipId, speed);
@@ -208,12 +221,18 @@ export function Studio(props: {
     };
   }, [project.id]);
 
+  const sourceFilesKey = JSON.stringify(project.inputs.map(i => [i.id, i.file] as const).sort((a, b) => a[0].localeCompare(b[0])));
   useEffect(() => {
-    if (!playing) return;
     audioCacheRef.current = {};
     setAudioCache({});
     knownSilent.current.clear();
-  }, [playing]);
+    cancelSpeed();
+    for (const task of backgroundTasks.current.values()) {
+      task.controller.abort();
+      if (task.jobId) void api("DELETE", `/api/jobs/${task.jobId}`).catch(() => undefined);
+    }
+    backgroundTasks.current.clear();
+  }, [sourceFilesKey]);
 
   const preparationKey = JSON.stringify([...timeline.video, ...timeline.overlays.flat(), ...timeline.voice].filter(c => "inStartSec" in c && clipSpeed(c) !== 1).map(c => [c.id, "file" in c ? c.file : "inputId" in c ? c.inputId : "", clipSpeed(c)]));
   useEffect(() => {
@@ -221,6 +240,7 @@ export function Studio(props: {
     for (const clip of clips) {
       if (!("inStartSec" in clip) || clipSpeed(clip) === 1) continue;
       const sourceId = "file" in clip ? clip.file : "inputId" in clip ? clip.inputId : "";
+      const source = { projectId: project.id, sourceId, file: "file" in clip ? clip.file : project.inputs.find(i => i.id === sourceId)?.file ?? "" };
       const speed = clipSpeed(clip), key = cacheKey(sourceId, speed);
       if (audioCacheRef.current[key] || knownSilent.current.has(key) || backgroundTasks.current.has(key) || speedTask.current?.clipId === clip.id) continue;
       const task: AudioTask = { controller: new AbortController(), clipId: clip.id, projectId: project.id };
@@ -229,7 +249,7 @@ export function Studio(props: {
       if (!speedTask.current) setSpeedJob({ clipId: clip.id, job: null, cancel });
       const onJob = (job: EngineJob) => { if (!speedTask.current && !task.controller.signal.aborted) setSpeedJob({ clipId: clip.id, job, cancel }); };
       void prepareAudio(sourceId, speed, task, onJob).then(result => {
-        if (task.controller.signal.aborted || projectRef.current.id !== task.projectId) return;
+        if (task.controller.signal.aborted || !speedSourceMatches({ ...projectRef.current, timeline: timelineRef.current }, source)) return;
         if (result.noAudio) knownSilent.current.add(key);
         else cacheResult(result);
       }).catch(reason => { if (!task.controller.signal.aborted) props.onSnackbar(reason instanceof Error ? reason.message : String(reason)); }).finally(() => {
@@ -237,7 +257,7 @@ export function Studio(props: {
         if (!speedTask.current) setSpeedJob(current => current?.cancel === cancel ? null : current);
       });
     }
-  }, [project.id, preparationKey, playing]);
+  }, [project.id, preparationKey, playing, sourceFilesKey]);
 
   async function generateTts(captionId?: string) {
     if (ttsTask.current || processingBusy || exportOpen) return;
@@ -308,7 +328,7 @@ export function Studio(props: {
       }
       if (shortcut === "toggle-play") {
         event.preventDefault();
-        if (!event.repeat && !recording) setPlaying((value) => !value);
+        if (!event.repeat && !recording) setPlaying(!playing);
         return;
       }
       if (shortcut === "group" || shortcut === "ungroup") {
@@ -339,7 +359,7 @@ export function Studio(props: {
     };
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [moveHistory, timeline, selected, selectedIds, edit, props.onSnackbar, recording, shortcuts]);
+  }, [moveHistory, timeline, selected, selectedIds, edit, props.onSnackbar, recording, shortcuts, playing, setPlaying]);
 
   async function save(): Promise<boolean> {
     setSaving(true);
@@ -494,7 +514,7 @@ export function Studio(props: {
           setSelected({ id, track }); setSelectedIds([id]);
         }} onEditTimeline={edit} />
         <div className="studio-playback-controls">
-          <Button size="icon" variant="secondary" title={playing ? "일시 정지" : "재생"} aria-label={playing ? "일시 정지" : "재생"} disabled={recording} onClick={() => setPlaying((value) => !value)}><HugeiconsIcon icon={playing ? PauseIcon : PlayIcon} size={18} /></Button>
+          <Button size="icon" variant="secondary" title={playing ? "일시 정지" : "재생"} aria-label={playing ? "일시 정지" : "재생"} disabled={recording} onClick={() => setPlaying(!playing)}><HugeiconsIcon icon={playing ? PauseIcon : PlayIcon} size={18} /></Button>
           <span>{timeLabel(playhead)} / {timeLabel(duration)}</span>
           <StudioSlider label="재생 헤드" min={0} max={duration} step={0.01} value={Math.min(playhead, duration)} onChange={setPlayhead} />
         </div>
