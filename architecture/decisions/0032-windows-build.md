@@ -1,6 +1,6 @@
 # 0032 앱 구조와 Windows 빌드
 
-Status: draft
+Status: accepted
 Source: changes/049-windows-build/spec.md, changes/049-windows-build/plan.md
 Supersedes: 0025
 
