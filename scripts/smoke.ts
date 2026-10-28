@@ -80,6 +80,12 @@ function blendPixelRatio(blend: Buffer, a: Buffer, b: Buffer): number {
   return between / blend.length;
 }
 
+function peakDb(pcm: Buffer): number {
+  let peak = 0;
+  for (let offset = 0; offset + 1 < pcm.length; offset += 2) peak = Math.max(peak, Math.abs(pcm.readInt16LE(offset)));
+  return peak === 0 ? -Infinity : 20 * Math.log10(peak / 32768);
+}
+
 async function main() {
   await mkdir(outputDir, { recursive: true });
   const fixture = Project.parse(JSON.parse(await readFile(path.join(fixtureRoot, "project.json"), "utf8")));
@@ -113,9 +119,11 @@ async function main() {
     assert(Math.abs(actualFrames - expected.durationInFrames) <= 1, `길이가 다릅니다: expected ${expected.durationInFrames} frames, got ${actualFrames}`);
     assert(probe.streams.some((stream) => stream.codec_type === "audio"), "오디오 스트림이 없습니다");
 
-    const { stderr: volumeLog } = await execFile("ffmpeg", ["-hide_banner", "-i", outputPath, "-vn", "-af", "volumedetect", "-c:a", "pcm_s16le", "-f", "null", "-"]);
-    const maxVolume = /max_volume:\s*(-?\d+(?:\.\d+)?) dB/.exec(volumeLog)?.[1];
-    assert(maxVolume !== undefined && Number(maxVolume) > -60, `오디오가 무음이거나 매우 작습니다: ${maxVolume ?? "측정 없음"}`);
+    // Windows 번들 ffmpeg 에는 volumedetect 필터가 없다. PCM 으로 풀어 Node 에서 최대 음량을 잰다.
+    const pcmPath = path.join(outputDir, "u3-short.pcm");
+    await execFile("ffmpeg", ["-hide_banner", "-loglevel", "error", "-y", "-i", outputPath, "-vn", "-ac", "1", "-ar", "48000", "-f", "s16le", "-c:a", "pcm_s16le", pcmPath]);
+    const maxVolume = peakDb(await readFile(pcmPath));
+    assert(Number.isFinite(maxVolume) && maxVolume > -60, `오디오가 무음이거나 매우 작습니다: ${Number.isFinite(maxVolume) ? maxVolume.toFixed(1) : "측정 없음"}`);
 
     const trimmed = expected.video.find((item) => item.id === "video-trimmed");
     assert(trimmed?.sourceStartFrame !== undefined, "자른 영상 구간을 fixture에서 찾지 못했습니다");
@@ -165,7 +173,7 @@ async function main() {
     const outsideMae = pixelMae(outsidePixels, sourceOutsidePixels);
     assert(outsideMae < 12, `겹친 창 바깥에 아래 영상이 보이지 않습니다: MAE ${outsideMae.toFixed(2)}`);
 
-    console.log(`✓ smoke passed: 1080×1920, 30fps, ${actualFrames} frames, audio max ${maxVolume} dB, cut edge source frame ${nearest.sourceFrame} (MAE ${nearest.mae.toFixed(2)}, separation ${minFrameSeparation.toFixed(2)}), dissolve MAE ${transitionMaeBefore.toFixed(2)}/${transitionMaeAfter.toFixed(2)} (${(betweenRatio * 100).toFixed(1)}% in range), overlay center MAE ${overlayMae.toFixed(2)}, outside MAE ${outsideMae.toFixed(2)}`);
+    console.log(`✓ smoke passed: 1080×1920, 30fps, ${actualFrames} frames, audio max ${maxVolume.toFixed(1)} dB, cut edge source frame ${nearest.sourceFrame} (MAE ${nearest.mae.toFixed(2)}, separation ${minFrameSeparation.toFixed(2)}), dissolve MAE ${transitionMaeBefore.toFixed(2)}/${transitionMaeAfter.toFixed(2)} (${(betweenRatio * 100).toFixed(1)}% in range), overlay center MAE ${overlayMae.toFixed(2)}, outside MAE ${outsideMae.toFixed(2)}`);
   } finally {
     await media.close();
   }
