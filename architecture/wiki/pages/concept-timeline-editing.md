@@ -35,7 +35,12 @@ U3 타임라인은 영상·자막·음성·효과음 트랙을 저장하고, 영
 - 타임라인 호스트의 pointerdown과 클립·시간 영역 클릭은 버튼 또는 탭의 포커스를 해제한다. `src/ui/studio/Timeline.tsx` `git:238985c:`
 - 단축키와 포커스 회귀 테스트는 구현 전 실패했고 구현 후 `pnpm verify`가 통과했다. 포커스 시험에는 jsdom 대신 DOM 대역을 사용했다. 배포본 재현과 수동 확인은 Cua Driver가 없어 미검증이며 0.3.2 설치 후 사용자 확인이 남아 있다. WebKit 원인 설명은 코드에 근거한 추정이다. `architecture/changes/051-studio-shortcuts/plan.md` `tests/ui/shortcuts.test.ts` `tests/ui/timeline-focus.test.ts` `git:fde6499:`
 
+- 설정의 여덟 스튜디오 동작은 각각 하나의 키 조합을 저장한다. 입력 중 편집 단축키를 차단하고, 충돌·예약 조합은 저장하지 않는다. 팝오버와 실행 취소·다시 실행의 접근 이름은 현재 조합을 표시한다. `architecture/changes/048-shortcut-settings/spec.md` `src/core/studio-shortcuts.ts` `src/ui/settings/ShortcutSettings.tsx` `src/ui/screens/Studio.tsx` `git:3682e68:`
+- 048의 테스트 파일과 실패 테스트 커밋은 확인했다. 테스트 실행 출력과 `pnpm verify` 통과 증거, 설치본에서 키 변경·재실행·복원 수동 확인은 코드에서 못 찾음. 기존 051 배포본 확인도 미검증으로 남는다. `architecture/changes/048-shortcut-settings/plan.md` `tests/ui/settings-shortcuts.test.tsx` `git:4208b6d:`
+- 결정 링크: [스튜디오 단축키 설정](../../decisions/0030-studio-shortcut-settings.md). `git:d9e905f:`
+
 ## 관계
+- [Codex 호환성](concept-codex-compat.md)
 - [화면 셸과 설정](concept-ui-shell.md)
 - [자막과 장면 검토](concept-caption-scene-review.md)
 - [로컬 TTS](concept-local-tts.md)

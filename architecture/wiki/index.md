@@ -7,6 +7,7 @@
 - [엔진 종료](pages/entity-engine-shutdown.md) — sidecar 종료 정리와 ONNX 런타임 종료 경계.
 
 ## concept
+- [Codex 호환성](pages/concept-codex-compat.md) — 실행 경로, 계정 모델 선택·재시도와 검증 상태.
 - [compositor dylib 경로](pages/concept-compositor-dylib.md) — 패키징·서명 전 경로 검사와 실행 검증 상태.
 - [화면 셸과 설정](pages/concept-ui-shell.md) — 공통 화면, 테마, 설정 저장과 검증 상태.
 - [자막과 장면 검토](pages/concept-caption-scene-review.md) — 클립 스타일, 강조 표기, 장면 연결과 검증 상태.

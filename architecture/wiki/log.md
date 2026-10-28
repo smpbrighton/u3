@@ -93,3 +93,12 @@
 - `index.md`
 - 계획·실패 테스트·구현·실행 기록 커밋은 관련 페이지에 함께 반영했다. `git:46edd84:` `git:47c808c:` `git:b77f387:` `git:b1c0082:` `git:78e1c09:` `git:8cdb4f3:` `git:f572475:` `git:238985c:` `git:fde6499:`
 - release 0.3.1은 버전 변경으로 별도 반영할 페이지가 없다. `git:2cb7f1f:`
+
+## [2026-10-28] ingest | 048 shortcut-settings · 052 codex-compat
+- `pages/concept-timeline-editing.md`
+- `pages/concept-codex-compat.md`
+- `pages/concept-ui-shell.md`
+- `pages/concept-carousel.md`
+- `pages/concept-updates.md`
+- `index.md`
+- 별도 페이지 변경이 없는 커밋: 048·052의 실패 테스트, 승인·검토·계획·결정 및 구현 세부 커밋은 위 페이지에 묶어 반영했다. `f4fcf7a`는 릴리스 페이지에 반영했다.

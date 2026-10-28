@@ -11,6 +11,7 @@
 - 캡처 경로에는 브라우저에서 찍은 다크·라이트 이미지가 있다. 패키징 앱에서 네트워크 차단 후 Pretendard 확인은 미실행이다. 묶음별 verify 출력, 트랙 머리 테스트의 수정 전후 출력, 미리보기와 렌더 일치의 별도 실행 증거는 코드에서 못 찾음. `architecture/changes/043-shadcn-redesign/plan.md` `tests/ui/timeline-track-header-fit.test.ts` `git:172b795:`
 
 ## 관계
+- [Codex 호환성](concept-codex-compat.md)
 - [U3 데스크톱 앱](entity-desktop-app.md)
 - [타임라인 편집](concept-timeline-editing.md)
 - [캐러셀 생성](concept-carousel.md)

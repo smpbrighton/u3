@@ -26,6 +26,7 @@
 
 - 캐러셀 편집 화면은 글·배경·강조를 제공한다. 긴 제목의 카드 레이아웃 테스트가 있다. `src/ui/screens/carousel/CarouselEdit.tsx` `tests/ui/carousel-card-layout.test.tsx` `git:13a60c5:`
 ## 관계
+- [Codex 호환성](concept-codex-compat.md)
 - [화면 셸과 설정](concept-ui-shell.md)
 - [자막과 장면 검토](concept-caption-scene-review.md)
 - [U3 데스크톱 앱](entity-desktop-app.md)
