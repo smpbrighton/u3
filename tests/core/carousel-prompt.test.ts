@@ -6,11 +6,11 @@ import {
 
 describe("캐러셀 기획 프롬프트", () => {
   it.each([
-    [DEFAULT_CAROUSEL_TOPIC_PROMPT, "제공된 주제로 카드별 정보가 분명한 캐러셀을 기획한다."],
-    [DEFAULT_CAROUSEL_VIDEO_PROMPT, "제공된 영상 자막과 장면 정보로 카드별 정보가 분명한 파생 캐러셀을 기획한다."],
-  ])("기본 본문과 10번 규칙을 포함하고 길이 제한 안에 든다", (prompt, firstLine) => {
+    [DEFAULT_CAROUSEL_TOPIC_PROMPT, "주제를 독자에게 건네는 일관된 편집 글로 구성하여 캐러셀을 기획한다.", "10. 출력 전에 각 카드가 따로 읽혀도 의미가 분명한지"],
+    [DEFAULT_CAROUSEL_VIDEO_PROMPT, "제공된 영상 자막과 장면 정보를 독자에게 건네는 일관된 편집 글로 재구성하여 캐러셀을 기획한다.", "11. 출력 전에 각 카드의 독립적인 가독성과 전체 글의 연결·진전을 함께 점검한다."],
+  ])("기본 본문과 마지막 점검 규칙을 포함하고 길이 제한 안에 든다", (prompt, firstLine, lastRule) => {
     expect(prompt.split("\n")[0]).toBe(firstLine);
-    expect(prompt).toContain("10. 사용자 말투를 우선한다. 짧고 자연스러운 표현을 쓰며, 낭독 억양·TTS·영상 자막의 글자 수 규칙을 적용하지 않는다.");
+    expect(prompt).toContain(lastRule);
     expect(CAROUSEL_PROMPT_MAX_LENGTH).toBe(20_000);
     expect(prompt.length).toBeLessThanOrEqual(CAROUSEL_PROMPT_MAX_LENGTH);
   });

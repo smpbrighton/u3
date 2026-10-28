@@ -30,7 +30,7 @@ describe("script prompt settings API", () => {
     const response = await app.request("http://127.0.0.1/api/system/script-prompt", { headers });
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
-      prompt: expect.stringMatching(/^영상 편집에 사용할 장면별 한국어 화면 자막을 작성한다\./),
+      prompt: expect.stringMatching(/^영상 위에서 시청자에게 건네는 한국어 말을 장면별 자막으로 작성한다\./),
       isDefault: true,
       rulesPreview: expect.stringContaining("reaction이 null이 아닌 장면"),
     });
