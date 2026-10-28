@@ -31,6 +31,10 @@ U3 타임라인은 영상·자막·음성·효과음 트랙을 저장하고, 영
 - 자막 단위 음성 생성과 목소리 트랙 배치는 [로컬 TTS](concept-local-tts.md)에 정리한다. `src/core/tts-clips.ts` `src/ui/screens/Studio.tsx`
 
 - 프레임은 입력 순서대로 사진당 1장, 영상당 길이의 초를 올림해 3–10장을 배정한다. 전체 상한은 없다. 길이가 없으면 ffprobe로 확인한다. 미디어 화면과 대본 생성은 같은 배정을 사용한다. `src/engine/pipeline/frames.ts` `src/engine/routes/frames.ts` `src/engine/routes/script.ts` `git:9b95ac1:`
+- 스튜디오 단축키는 글 입력 대상에서 차단한다. 버튼·탭·switch·checkbox·radio에서는 Space를 차단하고 다른 단축키는 판정한다. 물리 키 코드가 없을 때 조합 입력을 차단한다. `src/ui/studio/shortcuts.ts` `git:238985c:`
+- 타임라인 호스트의 pointerdown과 클립·시간 영역 클릭은 버튼 또는 탭의 포커스를 해제한다. `src/ui/studio/Timeline.tsx` `git:238985c:`
+- 단축키와 포커스 회귀 테스트는 구현 전 실패했고 구현 후 `pnpm verify`가 통과했다. 포커스 시험에는 jsdom 대신 DOM 대역을 사용했다. 배포본 재현과 수동 확인은 Cua Driver가 없어 미검증이며 0.3.2 설치 후 사용자 확인이 남아 있다. WebKit 원인 설명은 코드에 근거한 추정이다. `architecture/changes/051-studio-shortcuts/plan.md` `tests/ui/shortcuts.test.ts` `tests/ui/timeline-focus.test.ts` `git:fde6499:`
+
 ## 관계
 - [화면 셸과 설정](concept-ui-shell.md)
 - [자막과 장면 검토](concept-caption-scene-review.md)

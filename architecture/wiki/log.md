@@ -86,3 +86,10 @@
 - `index.md`
 - 계획·실패 테스트·구현·시간 제한 변경은 compositor 페이지에 함께 반영했다. `git:9f8b4d6:` `git:77bc73c:` `git:41c0d1a:` `git:68f04d1:`
 - release 0.3.0 버전 변경은 기존 릴리스 페이지에 반영했으며 별도 페이지는 없다. 실제 배포 증거는 코드에서 못 찾음. `git:418c393:`
+
+## [2026-10-28] ingest | 050 jev-key-order · 051 studio-shortcuts
+- `pages/entity-desktop-app.md`
+- `pages/concept-timeline-editing.md`
+- `index.md`
+- 계획·실패 테스트·구현·실행 기록 커밋은 관련 페이지에 함께 반영했다. `git:46edd84:` `git:47c808c:` `git:b77f387:` `git:b1c0082:` `git:78e1c09:` `git:8cdb4f3:` `git:f572475:` `git:238985c:` `git:fde6499:`
+- release 0.3.1은 버전 변경으로 별도 반영할 페이지가 없다. `git:2cb7f1f:`

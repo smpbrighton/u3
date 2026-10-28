@@ -15,6 +15,8 @@ U3는 macOS Apple Silicon 대상 Tauri 2 앱이며 React UI와 Node sidecar 엔�
 - Jev 키는 login Keychain에 저장하며 실행 중 교체한다. `U3_RESOURCE_DIR`이 없는 개발 환경에서는 `TYPESAFE_API_KEY`가 있으면 우선한다. 설치본에서는 환경 키를 무시하고 Keychain 키를 쓴다. 키가 없거나 Keychain을 읽지 못하면 규칙 점수로 진행한다. `src/engine/jev-key.ts` `src-tauri/src/main.rs` `src/engine/routes/system.ts` `git:8e6e624:`
 - 0.2.0 설치본에서는 launchd의 환경 키가 설정 키보다 먼저 쓰이는 문제가 관찰됐다. W70 테스트는 환경 키가 있어도 저장·삭제 결과를 따르는지 가짜 security 실행 파일로 확인한다. 수정 커밋은 `pnpm verify` 통과를 기록했다. 수정된 설치본의 실제 Keychain 및 설정 화면 시험은 코드에서 못 찾음. `tests/server/jev-key.test.ts` `git:6f4b047:` `git:8e6e624:`
 - 키 저장 API 테스트는 가짜 security 실행 파일을 사용했다. 실제 login Keychain 저장·교체·삭제와 설정 화면의 저장·삭제 조작은 해당 실행에서 미검증이다. `git:19fcc96:` `git:20d60d0:`
+- Jev 키 저장은 `security -i`의 stdin으로 명령을 전달하며, `-w`와 키를 Keychain 이름 앞에 둔다. 키 형식과 명령 길이를 검사한다. `src/engine/jev-key.ts` `git:b77f387:`
+- 순서 검사 추가 후 저장 테스트 6개가 실패했고 수정 후 19개가 통과했다. 실제 `security`에서 테스트 계정으로 저장·조회·삭제를 확인했다. 배포 후 설정 화면의 키 저장은 미검증이다. 해당 변경의 `pnpm verify` 실행 기록은 코드에서 못 찾음. `architecture/changes/050-jev-key-order/plan.md` `tests/server/jev-key.test.ts` `git:47c808c:` `git:b77f387:`
 - 결정 링크: [Jev 키 설정](../../decisions/0024-jev-key-setting.md). `git:1f29af1:`
 
 - 앱의 최소 macOS 버전은 15다. `src-tauri/tauri.conf.json` `git:f65db44:`
