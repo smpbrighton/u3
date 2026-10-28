@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { clipSpeed, playLength } from "./timeline/speed";
 
 export const Input = z.object({
   id: z.string().min(1),
@@ -54,7 +55,7 @@ const VideoClipBase = z.union([
 ]);
 export const VideoClip = VideoClipBase.superRefine((clip, ctx) => {
   if ("durationSec" in clip && (clip.speed ?? 1) !== 1) ctx.addIssue({ code: "custom", path: ["speed"], message: "사진과 짤은 배속을 지원하지 않습니다" });
-  const durationSec = "durationSec" in clip ? clip.durationSec : (clip.inEndSec - clip.inStartSec) / (clip.speed ?? 1);
+  const durationSec = "durationSec" in clip ? clip.durationSec : playLength(clip.inStartSec, clip.inEndSec, clipSpeed(clip));
   if ("inStartSec" in clip && clip.inEndSec <= clip.inStartSec) {
     ctx.addIssue({ code: "custom", path: ["inEndSec"], message: "inEndSec는 inStartSec보다 커야 합니다" });
   }
@@ -94,7 +95,7 @@ export const OverlayClip = z.union([
   OverlayBase.extend({ inputId: z.string().min(1), kind: z.literal("photo"), durationSec: z.number().positive() }),
 ]).superRefine((clip, ctx) => {
   if ("durationSec" in clip && (clip.speed ?? 1) !== 1) ctx.addIssue({ code: "custom", path: ["speed"], message: "사진과 짤은 배속을 지원하지 않습니다" });
-  const durationSec = "durationSec" in clip ? clip.durationSec : (clip.inEndSec - clip.inStartSec) / (clip.speed ?? 1);
+  const durationSec = "durationSec" in clip ? clip.durationSec : playLength(clip.inStartSec, clip.inEndSec, clipSpeed(clip));
   for (const edge of ["startTransition", "endTransition"] as const) {
     const transition = clip[edge];
     if (transition && transition.kind.kind !== "none" && transition.durationSec > durationSec / 2) {

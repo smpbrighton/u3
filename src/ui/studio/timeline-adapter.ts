@@ -1,8 +1,10 @@
-import { captionLayersOf, type ClipTransitionInput, type Input, type Timeline } from "../../core/schema";
+import { captionLayersOf, type AudioCache, type ClipTransitionInput, type Input, type Timeline } from "../../core/schema";
 import { inputDisplayName } from "../../core/input";
-import { clipDuration, videoStartTimes } from "../../core/timeline/ops";
+import { clipDuration, overlayDuration, videoStartTimes } from "../../core/timeline/ops";
 import { sfxLane, sfxRowId } from "../../core/timeline/sfx-lanes";
 import { TRACK_ROW_HEIGHT } from "./timeline-layout";
+
+import { audioClipLength, cacheKey, clipSpeed } from "../../core/timeline/speed";
 
 export interface StudioAction {
   id: string;
@@ -63,12 +65,12 @@ function markGroupEdges(actions: StudioAction[]): StudioAction[] {
   }));
 }
 
-export function timelineToStudioRows(timeline: Timeline): StudioRow[] {
+export function timelineToStudioRows(timeline: Timeline, audioCache?: AudioCache): StudioRow[] {
   const starts = videoStartTimes(timeline);
   const videoActions = markGroupEdges(timeline.video.map((clip) => action(clip.id, starts[clip.id]!, starts[clip.id]! + clipDuration(clip), clip.kind, true, { groupId: clip.groupId, startTransition: clip.startTransition, endTransition: clip.endTransition })));
   const overlayRows = timeline.overlays.map((layer, index) => row(
     `video-${index + 2}`,
-    markGroupEdges(layer.map((clip) => action(clip.id, clip.startSec, clip.startSec + ("durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec), "overlay", true, { groupId: clip.groupId, startTransition: clip.startTransition, endTransition: clip.endTransition }))),
+    markGroupEdges(layer.map((clip) => action(clip.id, clip.startSec, clip.startSec + overlayDuration(clip), "overlay", true, { groupId: clip.groupId, startTransition: clip.startTransition, endTransition: clip.endTransition }))),
     TRACK_ROW_HEIGHT,
     `영상 ${index + 2}`,
   )).reverse();
@@ -97,8 +99,8 @@ export function timelineToStudioRows(timeline: Timeline): StudioRow[] {
     ...(sourceActions.length ? [row("source", sourceActions)] : []),
     ...(stemVoice.length ? [row("stem-voice", stemVoice)] : []),
     ...(stemBg.length ? [row("stem-bg", stemBg)] : []),
-    row("voice", timeline.voice.map((clip) => action(clip.id, clip.startSec, clip.startSec + clip.inEndSec - clip.inStartSec, "voice"))),
-    ...[...new Set([0, ...timeline.sfx.map(sfxLane)])].sort((a, b) => a - b).map((lane, index, lanes) => row(sfxRowId(lane, lanes), timeline.sfx.filter((clip) => sfxLane(clip) === lane).map((clip) => action(clip.id, clip.startSec, clip.startSec + clip.inEndSec - clip.inStartSec, "sfx")), TRACK_ROW_HEIGHT, lane === 0 ? "효과음" : `효과음 ${index + 1}`)),
+    row("voice", timeline.voice.map((clip) => action(clip.id, clip.startSec, clip.startSec + audioClipLength(clip, audioCache?.[cacheKey(clip.file, clipSpeed(clip))]), "voice"))),
+    ...[...new Set([0, ...timeline.sfx.map(sfxLane)])].sort((a, b) => a - b).map((lane, index, lanes) => row(sfxRowId(lane, lanes), timeline.sfx.filter((clip) => sfxLane(clip) === lane).map((clip) => action(clip.id, clip.startSec, clip.startSec + audioClipLength(clip, audioCache?.[cacheKey(clip.file, clipSpeed(clip))]), "sfx")), TRACK_ROW_HEIGHT, lane === 0 ? "효과음" : `효과음 ${index + 1}`)),
   ];
 }
 

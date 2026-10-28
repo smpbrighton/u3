@@ -45,6 +45,7 @@ export async function prepareSpeedAudio(options: { projectDir: string; sourceAbs
   };
   const cached = await checkedDuration(destination).catch(() => null);
   cancelled();
+  if (await audioVersion(sourceAbs) !== version) throw new Error("처리 중 원본 음성이 바뀌었습니다");
   if (cached !== null) return { key, file, durationSec: cached, version };
   await mkdir(path.dirname(destination), { recursive: true });
   const temporary = path.join(projectDir, `cache/audio/.tmp-${randomUUID()}.wav`);

@@ -1,9 +1,9 @@
 import { Timeline as TimelineEditor, type TimelineState } from "@xzdarcy/react-timeline-editor";
 import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react";
-import type { Input, Timeline as TimelineData } from "../../core/schema";
+import type { AudioCache, Input, Timeline as TimelineData } from "../../core/schema";
 import { VolumeIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { moveAudioClip, moveCaptionClip, moveOverlayClip, overlayDuration, splitOverlayClip, splitVideoClip, trimAudioClip, trimCaptionClip, trimOverlayClip, trimVideoClip, videoStartTimes } from "../../core/timeline/ops";
+import { clipDuration, projectDuration, moveAudioClip, moveCaptionClip, moveOverlayClip, overlayDuration, splitOverlayClip, splitVideoClip, trimAudioClip, trimCaptionClip, trimOverlayClip, trimVideoClip, videoStartTimes } from "../../core/timeline/ops";
 import { labelForAction, timelineToStudioRows, reorderVideoByStart, type StudioAction, type MemeLabel, type SfxLabel } from "./timeline-adapter";
 import { api, type EngineJob } from "../api";
 import { ttsOverflow } from "../../core/tts-clips";
@@ -34,6 +34,7 @@ function blurTimelineControlFocus() {
 export function Timeline(props: {
   timeline: TimelineData;
   shortcuts?: StudioShortcutTable;
+  audioCache?: AudioCache;
   inputs?: readonly Input[];
   playhead: number;
   zoom: number;
@@ -65,10 +66,10 @@ export function Timeline(props: {
   const [scrollTop, setScrollTop] = useState(0);
   const [editingCaption, setEditingCaption] = useState<string | null>(null);
   const [editorKey, setEditorKey] = useState(0);
-  const rows = useMemo(() => timelineToStudioRows(props.timeline), [props.timeline]);
+  const rows = useMemo(() => timelineToStudioRows(props.timeline, props.audioCache), [props.timeline, props.audioCache]);
   const displayRows = useMemo(() => withNewVideoTrackRow(rows), [rows]);
   const tracks = timelineTrackLabels(displayRows);
-  const ttsWarnings = new Set(ttsOverflow(props.timeline).map(clip => clip.id));
+  const ttsWarnings = new Set(ttsOverflow(props.timeline, props.audioCache).map(clip => clip.id));
   const starts = useMemo(() => videoStartTimes(props.timeline), [props.timeline]);
   const data = displayRows.map((item) => ({ ...item, actions: item.actions.map((action) => ({ ...action, selected: props.selectedIds.includes(action.id) })) }));
 
@@ -193,7 +194,7 @@ export function Timeline(props: {
       } else {
         const selectedOverlay = props.selectedId ? findOverlayInLayers(props.timeline.overlays, props.selectedId)?.clip : undefined;
         const overlayClip = selectedOverlay && props.playhead > selectedOverlay.startSec && props.playhead < selectedOverlay.startSec + overlayDuration(selectedOverlay) ? selectedOverlay : undefined;
-        const videoClip = props.timeline.video.find((clip) => props.playhead > starts[clip.id]! && props.playhead < starts[clip.id]! + ("durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec));
+        const videoClip = props.timeline.video.find((clip) => props.playhead > starts[clip.id]! && props.playhead < starts[clip.id]! + clipDuration(clip));
         targetId = overlayClip?.id ?? videoClip?.id;
         atSec = props.playhead;
       }
@@ -285,7 +286,7 @@ export function Timeline(props: {
           scaleWidth={scaleWidthForZoom(props.zoom)}
           scaleSplitCount={5}
           rowHeight={TRACK_ROW_HEIGHT}
-          minScaleCount={Math.max(20, Math.ceil((Math.max(1, ...props.timeline.video.map((clip) => starts[clip.id]! + ("durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec)), ...props.timeline.overlays.flatMap((layer) => layer.map((clip) => clip.startSec + overlayDuration(clip)))) / 10)))}
+          minScaleCount={Math.max(20, Math.ceil(projectDuration(props.timeline, props.audioCache) / 10))}
           gridSnap={props.snap}
           dragLine={props.snap}
           autoScroll
@@ -297,8 +298,8 @@ export function Timeline(props: {
             const label = labelForAction(action.id, props.timeline, props.inputs, sfxItems, memeItems);
             const textClip = captionLayersOf(props.timeline).flatMap(l => [...l.main, ...l.sub]).find(c => c.id === item.id);
             const marker = { position: "absolute" as const, top: 1, width: 0, height: 0, borderLeft: "5px solid transparent", borderRight: "5px solid transparent", borderBottom: "6px solid var(--muted-foreground)" };
-            return <div style={actionStyle(item)} title={ttsWarnings.has(item.id) ? `${label} · 다음 음성과 겹쳐요` : label}>
-              {ttsWarnings.has(item.id) ? <span className="studio-tts-warning" aria-label="다음 음성과 겹쳐요">!</span> : null}
+            return <div style={actionStyle(item)} title={ttsWarnings.has(item.id) ? `${label} · 자막보다 음성이 길어요` : label}>
+              {ttsWarnings.has(item.id) ? <span className="studio-tts-warning" aria-label="자막보다 음성이 길어요">!</span> : null}
               {item.startTransition?.kind.kind === "dissolve" ? <span aria-label="시작 디졸브" style={{ ...marker, left: 3 }} /> : null}
               {editingCaption === item.id && textClip ? <TextInput autoFocus aria-label="자막 바로 고치기" defaultValue={textClip.text} className="h-5 min-w-0 rounded-none border-0 bg-transparent p-0 text-xs" onPointerDown={e => e.stopPropagation()} onBlur={e => { props.onEdit(updateCaption(props.timeline, textClip.id, { text: e.target.value })); setEditingCaption(null); }} onKeyDown={e => { e.stopPropagation(); if (e.key === "Enter") e.currentTarget.blur(); if (e.key === "Escape") { e.currentTarget.value = textClip.text; e.currentTarget.blur(); } }} /> : <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{label}</span>}
               {item.endTransition?.kind.kind === "dissolve" ? <span aria-label="끝 디졸브" style={{ ...marker, right: 3 }} /> : null}

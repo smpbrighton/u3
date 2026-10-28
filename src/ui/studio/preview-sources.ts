@@ -17,6 +17,7 @@ export function hasAllRenderSources(render: RenderTimeline, sources: PreviewSour
   if (!hasOverlaySources) return false;
 
   return render.audio.every((layer) => {
+    if (layer.file) return Boolean(sources.files[layer.file] || layer.file.startsWith("http"));
     if (layer.track === "source" || layer.track === "stem-voice" || layer.track === "stem-bg") {
       return Boolean(sources.inputs[layer.inputId!]);
     }

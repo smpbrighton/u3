@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { captionLayersOf, withCaptionLayers, type Timeline, type TextClip, type CaptionLayer } from "../../core/schema";
-import { addCaptionClip, setCaptionRange, splitCaptionClip, videoDuration } from "../../core/timeline/ops";
+import { addCaptionClip, setCaptionRange, splitCaptionClip, projectDuration } from "../../core/timeline/ops";
 import { plainCaptionText } from "../../core/captions";
 import { Button } from "../components/ui/button";
 import { Slider } from "../components/ui/slider";
@@ -29,10 +29,10 @@ export function CaptionEditor(p: { timeline: Timeline; selectedId: string | null
   const choose = (c: TextClip) => { p.onSelect(c.id, `${layer.id}-${layer.sub.some(s => s.id === c.id) ? "sub" : "main"}`); p.onSeek(c.startSec); };
   const row = clip && layer.sub.some(c => c.id === clip.id) ? layer.sub : layer.main;
   const lower = clip ? Math.max(0, ...row.filter(c => c.startSec < clip.startSec).map(c => c.endSec)) : 0;
-  const upper = clip ? Math.min(videoDuration(p.timeline), ...row.filter(c => c.id !== clip.id && c.startSec >= clip.startSec).map(c => c.startSec)) : 0;
+  const upper = clip ? Math.min(projectDuration(p.timeline), ...row.filter(c => c.id !== clip.id && c.startSec >= clip.startSec).map(c => c.startSec)) : 0;
   const [range, setRange] = useState<number[] | null>(null);
   useEffect(() => setRange(null), [clip?.id, clip?.startSec, clip?.endSec]);
-  const canAdd = p.playhead >= 0 && !layer.main.some(c => c.startSec <= p.playhead && c.endSec > p.playhead) && Math.min(3, videoDuration(p.timeline) - p.playhead, ...layer.main.filter(c => c.startSec > p.playhead).map(c => c.startSec - p.playhead)) >= 0.3 - 1e-9;
+  const canAdd = p.playhead >= 0 && !layer.main.some(c => c.startSec <= p.playhead && c.endSec > p.playhead) && Math.min(3, projectDuration(p.timeline) - p.playhead, ...layer.main.filter(c => c.startSec > p.playhead).map(c => c.startSec - p.playhead)) >= 0.3 - 1e-9;
   return <div className="flex min-h-0 flex-col gap-3" aria-label="자막 편집기">
     <PropertyRow label="레이어"><StudioSelect label="레이어" value={layer.id} items={layers.map(l => ({ value: l.id, label: l.name }))} onChange={id => { setLayerId(id); const l = layers.find(l => l.id === id)!; const first = l.main[0] ?? l.sub[0]; if (first) { p.onSelect(first.id, `${id}-${l.main.length ? "main" : "sub"}`); p.onSeek(first.startSec); } }} /></PropertyRow>
     <div role="listbox" aria-label="자막 목록" tabIndex={0} className="max-h-44 shrink-0 overflow-y-auto rounded-md" onKeyDown={e => {

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import type { Project, Timeline as TimelineData, VideoClip } from "../../core/schema";
-import { videoDuration, videoStartTimes, VIDEO_TRACK_REQUIRED_MESSAGE } from "../../core/timeline/ops";
+import type { AudioCache, AudioCacheEntry, Project, Timeline as TimelineData, VideoClip } from "../../core/schema";
+import { clipDuration, projectDuration, setAudioClipSpeed, setOverlayClipSpeed, setVideoClipSpeed, videoDuration, videoStartTimes, VIDEO_TRACK_REQUIRED_MESSAGE } from "../../core/timeline/ops";
 import { createHistory, pushHistory, redo, undo, type TimelineHistory } from "../../core/timeline/history";
 import { Button } from "../components/ui/button";
 import { BusyButton } from "../components/u3/BusyButton";
@@ -13,7 +13,7 @@ import type { StudioTab } from "../studio/LibraryPanel";
 import "../studio/studio.css";
 import { Preview } from "../studio/Preview";
 import { Timeline } from "../studio/Timeline";
-import { Inspector } from "../studio/Inspector";
+import { Inspector, type SpeedJob } from "../studio/Inspector";
 import { LibraryPanel, type LibraryDragItem } from "../studio/LibraryPanel";
 import { api, watchJob, type EngineJob } from "../api";
 import { applyTtsResults, ttsItemsFromTimeline, type TtsResult } from "../../core/tts-clips";
@@ -42,6 +42,11 @@ import { audioGroupForRow, nextSfxLane, sfxLane, sfxRowId } from "../../core/tim
 import { useBeforeUpdateRestart } from "../update-save";
 import { resolveLibraryDropPosition, resolvePointerDropTarget } from "../studio/library-drop";
 
+import { cacheKey, clipSpeed } from "../../core/timeline/speed";
+
+interface AudioPreparation extends AudioCacheEntry { key: string; noAudio?: false }
+type AudioTask = { controller: AbortController; jobId?: string; clipId: string; projectId: string };
+
 interface MemeItem { id: string; emotion: string; situations: string[]; description?: string; durationSec?: number; url: string }
 interface SfxItem { id: string; category: string; title: string; file: string; ref: string; url: string; durationSec: number }
 
@@ -58,10 +63,22 @@ export function Studio(props: {
   onCarouselCreated: (carousel: Carousel) => void;
 }) {
   const shortcuts = props.shortcuts ?? DEFAULT_STUDIO_SHORTCUTS;
+  const [audioCache, setAudioCache] = useState<AudioCache>({});
+  const audioCacheRef = useRef(audioCache);
+  audioCacheRef.current = audioCache;
+  const project = { ...props.project, audioCache };
+  const projectRef = useRef(project);
+  projectRef.current = project;
+  const revision = useRef(0);
+  const selectionRevision = useRef(0);
+  const speedTask = useRef<AudioTask | null>(null);
+  const [speedJob, setSpeedJob] = useState<SpeedJob | null>(null);
+  const backgroundTasks = useRef(new Map<string, AudioTask>());
+  const knownSilent = useRef(new Set<string>());
   const [loopCaption, setLoopCaption] = useState(false);
   const [processingBusy, setProcessingBusy] = useState(false);
-  const savedTimeline = useRef(JSON.stringify(props.project.timeline));
-  const [history, setHistory] = useState<TimelineHistory>(() => createHistory(props.project.timeline));
+  const savedTimeline = useRef(JSON.stringify(project.timeline));
+  const [history, setHistory] = useState<TimelineHistory>(() => createHistory(project.timeline));
   const [playhead, setPlayhead] = useState(0);
   const [selected, setSelected] = useState<{ id: string | null; track: string | null }>({ id: null, track: null });
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -81,8 +98,8 @@ export function Studio(props: {
   const [ttsJob, setTtsJob] = useState<EngineJob | null>(null);
   const [ttsStarting, setTtsStarting] = useState(false);
   const ttsBusy = ttsStarting || Boolean(ttsJob && ["running", "queued"].includes(ttsJob.status));
-  const duration = useMemo(() => Math.max(0.1, videoDuration(timeline)), [timeline]);
-  const render = useMemo(() => timelineToRender(timeline), [timeline]);
+  const duration = useMemo(() => Math.max(0.1, projectDuration(timeline, audioCache)), [timeline, audioCache]);
+  const render = useMemo(() => timelineToRender(timeline, undefined, audioCache), [timeline, audioCache]);
   const starts = useMemo(() => videoStartTimes(timeline), [timeline]);
 
   useEffect(() => {
@@ -90,13 +107,14 @@ export function Studio(props: {
   }, [render.durationInFrames, render.fps]);
 
   useEffect(() => {
-    savedTimeline.current = JSON.stringify(props.project.timeline);
-    setHistory(createHistory(props.project.timeline));
+    savedTimeline.current = JSON.stringify(project.timeline);
+    setHistory(createHistory(project.timeline));
     setSelected({ id: null, track: null });
     setSelectedIds([]);
-  }, [props.project.id]);
+  }, [project.id]);
 
   const edit = useCallback((next: TimelineData) => {
+    revision.current++;
     setHistory((current) => JSON.stringify(next) === JSON.stringify(current.present) ? current : pushHistory(current, next));
   }, []);
 
@@ -109,7 +127,117 @@ export function Studio(props: {
       task?.controller.abort();
       if (task?.jobId) void api("DELETE", `/api/jobs/${task.jobId}`).catch(() => undefined);
     };
-  }, [props.project.id]);
+  }, [project.id]);
+
+  function cancelSpeed() {
+    const task = speedTask.current;
+    if (!task) return;
+    task.controller.abort();
+    if (task.jobId) void api("DELETE", `/api/jobs/${task.jobId}`).catch(() => undefined);
+    speedTask.current = null;
+    setSpeedJob(null);
+  }
+
+  function cacheResult(result: AudioPreparation, nextTimeline = timelineRef.current) {
+    const nextCache = { ...audioCacheRef.current, [result.key]: { file: result.file, durationSec: result.durationSec, version: result.version } };
+    audioCacheRef.current = nextCache;
+    setAudioCache(nextCache);
+    props.onProject({ ...projectRef.current, timeline: nextTimeline, audioCache: nextCache });
+  }
+
+  async function prepareAudio(sourceId: string, speed: number, task: AudioTask, onJob: (job: EngineJob) => void) {
+    const started = await api<EngineJob>("POST", `/api/projects/${task.projectId}/audio/prepare`, { sourceId, speed }, task.controller.signal);
+    task.jobId = started.id;
+    if (task.controller.signal.aborted) { await api("DELETE", `/api/jobs/${started.id}`); throw new Error("배속 준비를 취소했습니다"); }
+    onJob(started);
+    const finished = await watchJob(started.id, onJob, task.controller.signal);
+    if (task.controller.signal.aborted || finished.status === "discarded") throw new Error("배속 준비를 취소했습니다");
+    if (finished.status !== "done") throw new Error(finished.error ?? "배속 준비를 마치지 못했어요.");
+    return finished.result as AudioPreparation | { key: string; version: string; noAudio: true };
+  }
+
+  async function setSpeed(clipId: string, track: "video" | "overlay" | "voice", speed: number) {
+    if (speedTask.current) return;
+    const before = timelineRef.current;
+    const clip = track === "voice" ? before.voice.find(c => c.id === clipId) : track === "video" ? before.video.find(c => c.id === clipId) : before.overlays.flat().find(c => c.id === clipId);
+    if (!clip || !("inStartSec" in clip) || clipSpeed(clip) === speed) return;
+    const sourceId = "file" in clip ? clip.file : "inputId" in clip ? clip.inputId : "";
+    const task: AudioTask = { controller: new AbortController(), clipId, projectId: projectRef.current.id };
+    const selection = selectionRevision.current;
+    let expected = JSON.stringify(clip);
+    let preparedTimeline = before;
+    try {
+      if (track !== "voice") {
+        const next = track === "video" ? setVideoClipSpeed(before, clipId, speed) : setOverlayClipSpeed(before, clipId, speed);
+        preparedTimeline = next;
+        edit(next);
+        expected = JSON.stringify([...next.video, ...next.overlays.flat()].find(c => c.id === clipId));
+        if (speed === 1) return;
+      }
+      const atRevision = revision.current;
+      speedTask.current = task;
+      setSpeedJob({ clipId, job: null, cancel: cancelSpeed });
+      const onJob = (job: EngineJob) => { if (speedTask.current === task) setSpeedJob({ clipId, job, cancel: cancelSpeed }); };
+      // 준비 라우트는 저장된 원본 식별자로만 파일을 찾는다.
+      await api("PUT", `/api/projects/${task.projectId}`, { ...projectRef.current, timeline: preparedTimeline, savedAt: new Date().toISOString() }, task.controller.signal);
+      const result = await prepareAudio(sourceId, speed, task, onJob);
+      const current = track === "voice" ? timelineRef.current.voice.find(c => c.id === clipId) : [...timelineRef.current.video, ...timelineRef.current.overlays.flat()].find(c => c.id === clipId);
+      if (task.controller.signal.aborted || projectRef.current.id !== task.projectId || selectionRevision.current !== selection || revision.current !== atRevision || JSON.stringify(current) !== expected) return;
+      if (result.noAudio) { knownSilent.current.add(result.key); return; }
+      if (track === "voice") {
+        const next = setAudioClipSpeed(timelineRef.current, clipId, speed);
+        cacheResult(result, next);
+        edit(next);
+      } else cacheResult(result);
+    } catch (reason) { if (!task.controller.signal.aborted) props.onSnackbar(reason instanceof Error ? reason.message : String(reason)); }
+    finally { if (speedTask.current === task) { speedTask.current = null; setSpeedJob(null); } }
+  }
+
+  useEffect(() => { selectionRevision.current++; cancelSpeed(); }, [selected.id, selected.track]);
+  useEffect(() => {
+    audioCacheRef.current = {};
+    setAudioCache({});
+    knownSilent.current.clear();
+    return () => {
+      cancelSpeed();
+      for (const task of backgroundTasks.current.values()) {
+        task.controller.abort();
+        if (task.jobId) void api("DELETE", `/api/jobs/${task.jobId}`).catch(() => undefined);
+      }
+      backgroundTasks.current.clear();
+    };
+  }, [project.id]);
+
+  useEffect(() => {
+    if (!playing) return;
+    audioCacheRef.current = {};
+    setAudioCache({});
+    knownSilent.current.clear();
+  }, [playing]);
+
+  const preparationKey = JSON.stringify([...timeline.video, ...timeline.overlays.flat(), ...timeline.voice].filter(c => "inStartSec" in c && clipSpeed(c) !== 1).map(c => [c.id, "file" in c ? c.file : "inputId" in c ? c.inputId : "", clipSpeed(c)]));
+  useEffect(() => {
+    const clips = [...timelineRef.current.video, ...timelineRef.current.overlays.flat(), ...timelineRef.current.voice];
+    for (const clip of clips) {
+      if (!("inStartSec" in clip) || clipSpeed(clip) === 1) continue;
+      const sourceId = "file" in clip ? clip.file : "inputId" in clip ? clip.inputId : "";
+      const speed = clipSpeed(clip), key = cacheKey(sourceId, speed);
+      if (audioCacheRef.current[key] || knownSilent.current.has(key) || backgroundTasks.current.has(key) || speedTask.current?.clipId === clip.id) continue;
+      const task: AudioTask = { controller: new AbortController(), clipId: clip.id, projectId: project.id };
+      backgroundTasks.current.set(key, task);
+      const cancel = () => { task.controller.abort(); if (task.jobId) void api("DELETE", `/api/jobs/${task.jobId}`).catch(() => undefined); setSpeedJob(current => current?.clipId === clip.id ? null : current); };
+      if (!speedTask.current) setSpeedJob({ clipId: clip.id, job: null, cancel });
+      const onJob = (job: EngineJob) => { if (!speedTask.current && !task.controller.signal.aborted) setSpeedJob({ clipId: clip.id, job, cancel }); };
+      void prepareAudio(sourceId, speed, task, onJob).then(result => {
+        if (task.controller.signal.aborted || projectRef.current.id !== task.projectId) return;
+        if (result.noAudio) knownSilent.current.add(key);
+        else cacheResult(result);
+      }).catch(reason => { if (!task.controller.signal.aborted) props.onSnackbar(reason instanceof Error ? reason.message : String(reason)); }).finally(() => {
+        if (backgroundTasks.current.get(key) === task) backgroundTasks.current.delete(key);
+        if (!speedTask.current) setSpeedJob(current => current?.cancel === cancel ? null : current);
+      });
+    }
+  }, [project.id, preparationKey, playing]);
 
   async function generateTts(captionId?: string) {
     if (ttsTask.current || processingBusy || exportOpen) return;
@@ -120,16 +248,22 @@ export function Studio(props: {
     setTtsJob(null);
     setTtsStarting(true);
     try {
-      const started = await api<EngineJob>("POST", `/api/projects/${props.project.id}/tts`, { items });
+      await api("PUT", `/api/projects/${project.id}`, { ...projectRef.current, timeline: timelineRef.current, savedAt: new Date().toISOString() }, task.controller.signal);
+      const started = await api<EngineJob>("POST", `/api/projects/${project.id}/tts`, { items });
       task.jobId = started.id;
       if (task.controller.signal.aborted) { await api("DELETE", `/api/jobs/${started.id}`); return; }
       setTtsJob(started);
       const final = await watchJob(started.id, setTtsJob, task.controller.signal);
       if (task.controller.signal.aborted || final.status === "discarded") return;
       if (final.status !== "done") throw new Error(final.error ?? "음성을 만들지 못했어요.");
-      const next = applyTtsResults(timelineRef.current, final.result as TtsResult[]);
+      const results = final.result as TtsResult[];
+      const nextCache = { ...audioCacheRef.current };
+      for (const result of results) if (result.cache) nextCache[result.cache.key] = result.cache;
+      audioCacheRef.current = nextCache;
+      setAudioCache(nextCache);
+      const next = applyTtsResults(timelineRef.current, results);
       edit(next);
-      const saved = await api<Project>("PUT", `/api/projects/${props.project.id}`, { ...props.project, timeline: next, savedAt: new Date().toISOString() });
+      const saved = await api<Project>("PUT", `/api/projects/${project.id}`, { ...projectRef.current, audioCache: nextCache, timeline: next, savedAt: new Date().toISOString() });
       if (task.controller.signal.aborted) return;
       savedTimeline.current = JSON.stringify(next);
       props.onProject(saved);
@@ -154,6 +288,7 @@ export function Studio(props: {
   }, [edit, history.present, playhead]);
 
   const moveHistory = useCallback((direction: "undo" | "redo") => {
+    revision.current++;
     setHistory((current) => direction === "undo" ? undo(current) : redo(current));
   }, []);
 
@@ -209,7 +344,7 @@ export function Studio(props: {
   async function save(): Promise<boolean> {
     setSaving(true);
     try {
-      const saved = await api<Project>("PUT", `/api/projects/${props.project.id}`, { ...props.project, timeline, savedAt: new Date().toISOString() });
+      const saved = await api<Project>("PUT", `/api/projects/${project.id}`, { ...project, timeline, savedAt: new Date().toISOString() });
       savedTimeline.current = JSON.stringify(timeline);
       props.onProject(saved);
       props.onSnackbar("저장했어요");
@@ -224,7 +359,7 @@ export function Studio(props: {
   });
 
   function addVideo(inputId: string, at = videoDuration(timeline)) {
-    const input = props.project.inputs.find((item) => item.id === inputId);
+    const input = project.inputs.find((item) => item.id === inputId);
     if (!input) return;
     const clip: VideoClip = input.kind === "video"
       ? { id: crypto.randomUUID(), kind: "main", inputId, inStartSec: 0, inEndSec: input.durationSec ?? 1 }
@@ -263,7 +398,7 @@ export function Studio(props: {
       setSelected({ id: common.id, track: `video-${findOverlayInLayers(overlays, common.id)!.layer + 2}` }); setSelectedIds([common.id]);
       return;
     }
-    const input = props.project.inputs.find((item) => item.id === source.id);
+    const input = project.inputs.find((item) => item.id === source.id);
     if (!input) return;
     const overlay = input.kind === "video"
       ? { ...common, kind: "video" as const, inputId: input.id, inStartSec: 0, inEndSec: Math.min(input.durationSec ?? remaining, remaining) }
@@ -308,8 +443,8 @@ export function Studio(props: {
       if (target.kind !== "timeline") return;
       const targetTrack = position?.track ?? "other";
       const startsAt = videoStartTimes(timeline);
-      const hitsVideoClip = timeline.video.some((clip) => atSec >= startsAt[clip.id]! && atSec < startsAt[clip.id]! + ("durationSec" in clip ? clip.durationSec : clip.inEndSec - clip.inStartSec));
-      const decision = decideOverlayDrop({ source: { kind: props.project.inputs.find((input) => input.id === item.id)?.kind ?? "video", id: item.id }, targetTrack: targetTrack === "video" ? "video" : /^video-(?:[2-9]|[1-9]\d+)$/.test(targetTrack) ? "overlay" : "other", hitsVideoClip, atSec, videoDurationSec: videoDuration(timeline) });
+      const hitsVideoClip = timeline.video.some((clip) => atSec >= startsAt[clip.id]! && atSec < startsAt[clip.id]! + clipDuration(clip));
+      const decision = decideOverlayDrop({ source: { kind: project.inputs.find((input) => input.id === item.id)?.kind ?? "video", id: item.id }, targetTrack: targetTrack === "video" ? "video" : /^video-(?:[2-9]|[1-9]\d+)$/.test(targetTrack) ? "overlay" : "other", hitsVideoClip, atSec, videoDurationSec: videoDuration(timeline) });
       if (decision.kind === "overlay") addOverlay({ type: "input", id: item.id }, decision.startSec, /^video-(?:[2-9]|[1-9]\d+)$/.test(targetTrack) ? Number(targetTrack.slice(6)) - 2 : undefined);
       else if (decision.kind === "append-video") addVideo(item.id, decision.startSec);
     } catch { props.onError("클립을 추가하지 못했어요."); }
@@ -344,16 +479,16 @@ export function Studio(props: {
   return <section className="u3-shell studio-screen" aria-label="스튜디오">
     <header className="studio-header">
       <Button className="studio-back-button" variant="ghost" title="2 대본" aria-label="대본으로 돌아가기" onClick={props.onBack}><HugeiconsIcon icon={ArrowLeft01Icon} size={18} /></Button>
-      <strong className="studio-project-name">{props.project.name}</strong>
+      <strong className="studio-project-name">{project.name}</strong>
       <Popover.Root><Popover.Trigger asChild><Button variant="ghost" size="icon" title="알림" aria-label={`알림 ${props.notifications?.length ?? 0}개`} className="relative"><HugeiconsIcon icon={Notification03Icon} size={18} />{props.notifications?.length ? <span className="absolute top-0 right-0 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-u3-solid px-0.5 text-[10px] font-bold text-u3-solid-foreground">{props.notifications.length}</span> : null}</Button></Popover.Trigger><Popover.Portal><Popover.Content className="u3-shell z-50 grid w-80 gap-2 rounded-lg border border-border bg-popover p-4 text-xs text-foreground shadow-lg" align="end" sideOffset={8}><strong>알림</strong>{props.notifications?.length ? props.notifications.map((message, i) => <p key={i}>{message}</p>) : <p className="text-muted-foreground">알림이 없어요</p>}</Popover.Content></Popover.Portal></Popover.Root>
       <Button variant="outline" onClick={() => setCreateCarouselOpen(true)}>캐러셀 만들기</Button>
       <Button variant="secondary" disabled={saving} aria-busy={saving} onClick={() => void save()}>저장{savedTimeline.current !== JSON.stringify(timeline) ? <span className="size-1.5 rounded-full bg-foreground" aria-label="저장하지 않은 변경" /> : null}</Button>
       <BusyButton variant="default" disabled={ttsBusy || processingBusy || recording} title={ttsBusy || processingBusy ? "다른 작업이 끝난 뒤 시작할 수 있어요" : undefined} onClick={() => void save().then(saved => { if (saved) setExportOpen(true); })}>mp4 내보내기</BusyButton>
     </header>
     <div className="studio-workspace">
-      <LibraryPanel initialTab={props.initialTab} onSelect={(id, track) => { setSelected({ id, track }); setSelectedIds([id]); }} onSeek={setPlayhead} onEdit={edit} loop={loopCaption} onLoopChange={setLoopCaption} onGenerateTts={() => void generateTts()} ttsBusy={ttsBusy} processingBusy={processingBusy} project={{ ...props.project, timeline }} selectedId={selected.id} playhead={playhead} onAddVoice={addVoice} onRecordingChange={(active) => { setRecording(active); if (active) setPlaying(false); }} onAddVideo={(id) => addVideo(id)} onSelectMeme={(meme) => addMeme(meme, timeline.video.find((clip) => clip.id === selected.id && clip.kind === "meme")?.id)} onAddSfx={addSfx} onPointerDrop={(item, x, y) => void addLibraryItemAt(item, x, y)} onPointerMove={updateLibraryDropGuide} onPointerCancel={() => setLibraryDropGuide(null)} onProject={props.onProject} onError={props.onError} onSnackbar={props.onSnackbar} />
+      <LibraryPanel initialTab={props.initialTab} onSelect={(id, track) => { setSelected({ id, track }); setSelectedIds([id]); }} onSeek={setPlayhead} onEdit={edit} loop={loopCaption} onLoopChange={setLoopCaption} onGenerateTts={() => void generateTts()} ttsBusy={ttsBusy} processingBusy={processingBusy} project={{ ...project, timeline }} selectedId={selected.id} playhead={playhead} onAddVoice={addVoice} onRecordingChange={(active) => { setRecording(active); if (active) setPlaying(false); }} onAddVideo={(id) => addVideo(id)} onSelectMeme={(meme) => addMeme(meme, timeline.video.find((clip) => clip.id === selected.id && clip.kind === "meme")?.id)} onAddSfx={addSfx} onPointerDrop={(item, x, y) => void addLibraryItemAt(item, x, y)} onPointerMove={updateLibraryDropGuide} onPointerCancel={() => setLibraryDropGuide(null)} onProject={props.onProject} onError={props.onError} onSnackbar={props.onSnackbar} />
       <section className="studio-preview-area" aria-label="미리보기">
-        <Preview loopRange={loopCaption ? (() => { const clip = captionLayersOf(timeline).flatMap(l => [...l.main, ...l.sub]).find(c => c.id === selected.id); return clip ? { startSec: clip.startSec, endSec: clip.endSec } : null; })() : null} project={{ ...props.project, timeline }} time={playhead} playing={playing} muteOriginal={recording} onTime={setPlayhead} onPlaying={setPlaying} selectedId={selected.id} selectedIds={selectedIds} safeZone={safeZone} onSelectTarget={(id, kind) => {
+        <Preview loopRange={loopCaption ? (() => { const clip = captionLayersOf(timeline).flatMap(l => [...l.main, ...l.sub]).find(c => c.id === selected.id); return clip ? { startSec: clip.startSec, endSec: clip.endSec } : null; })() : null} project={{ ...project, timeline }} time={playhead} playing={playing} muteOriginal={recording} onTime={setPlayhead} onPlaying={setPlaying} selectedId={selected.id} selectedIds={selectedIds} safeZone={safeZone} onSelectTarget={(id, kind) => {
           const found = findOverlayInLayers(timeline.overlays, id);
           const track = kind === "caption" ? `${captionLayersOf(timeline).find(l => [...l.main, ...l.sub].some(c => c.id === id))?.id}-${captionLayersOf(timeline).some(l => l.sub.some(c => c.id === id)) ? "sub" : "main"}` : kind === "caption-layer" ? "caption-layer" : kind === "watermark" ? "brand" : `video-${(found?.layer ?? 0) + 2}`;
           setSelected({ id, track }); setSelectedIds([id]);
@@ -364,7 +499,7 @@ export function Studio(props: {
           <StudioSlider label="재생 헤드" min={0} max={duration} step={0.01} value={Math.min(playhead, duration)} onChange={setPlayhead} />
         </div>
       </section>
-      <Inspector onOpenSettings={props.onOpenSettings} onProcessingChange={setProcessingBusy} onDelete={() => { let next = timeline; for (const id of selectedIds) { const result = deleteStudioSelection(next, studioTrackForClip(next, id, selected.track ?? ""), id); if (result.blocked) { props.onSnackbar(VIDEO_TRACK_REQUIRED_MESSAGE); return; } next = result.timeline; } edit(next); setSelected({ id: null, track: null }); setSelectedIds([]); }} project={{ ...props.project, timeline }} selectedId={selected.id} selectedIds={selectedIds} selectedTrack={selected.track} timeline={timeline} onChange={edit} onProject={props.onProject} onSnackbar={props.onSnackbar} onUngroup={() => edit(ungroupVideoClips(timeline, selectedIds))} onGenerateTts={id => void generateTts(id)} ttsBusy={ttsBusy} />
+      <Inspector onSpeed={(id, track, speed) => void setSpeed(id, track, speed)} speedJob={speedJob} onOpenSettings={props.onOpenSettings} onProcessingChange={setProcessingBusy} onDelete={() => { let next = timeline; for (const id of selectedIds) { const result = deleteStudioSelection(next, studioTrackForClip(next, id, selected.track ?? ""), id); if (result.blocked) { props.onSnackbar(VIDEO_TRACK_REQUIRED_MESSAGE); return; } next = result.timeline; } edit(next); setSelected({ id: null, track: null }); setSelectedIds([]); }} project={{ ...project, timeline }} selectedId={selected.id} selectedIds={selectedIds} selectedTrack={selected.track} timeline={timeline} onChange={edit} onProject={props.onProject} onSnackbar={props.onSnackbar} onUngroup={() => edit(ungroupVideoClips(timeline, selectedIds))} onGenerateTts={id => void generateTts(id)} ttsBusy={ttsBusy} />
     </div>
     <Toolbar className="studio-edit-toolbar" aria-label="편집 도구">
       <Button
@@ -398,16 +533,16 @@ export function Studio(props: {
     </Toolbar>
     <div className="studio-timeline-drop">
       {libraryDropGuide ? <div className="studio-library-drop-guide" style={{ left: libraryDropGuide.x, top: libraryDropGuide.top, height: libraryDropGuide.height }} /> : null}
-      <Timeline shortcuts={shortcuts} timeline={timeline} inputs={props.project.inputs} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} selectedIds={selectedIds} onGenerateTts={() => void generateTts()} onCancelTts={() => void cancelTts()} ttsBusy={ttsBusy} ttsJob={ttsJob} onSelect={(id, track, shift) => {
+      <Timeline shortcuts={shortcuts} audioCache={audioCache} timeline={timeline} inputs={project.inputs} playhead={playhead} zoom={zoom} snap={snap} selectedId={selected.id} selectedIds={selectedIds} onGenerateTts={() => void generateTts()} onCancelTts={() => void cancelTts()} ttsBusy={ttsBusy} ttsJob={ttsJob} onSelect={(id, track, shift) => {
         if (!id) { setSelected({ id: null, track: null }); setSelectedIds([]); return; }
         const range = shift && selected.id && selected.track === track && (track === "video" || /^video-/.test(track ?? "")) ? selectVideoRange(timeline, track ?? "", selected.id, id).map(item => item.id) : [];
         const ids = extendStudioSelection(selectedIds, id, Boolean(shift), range);
         const expanded = expandVideoGroupSelection(timeline, ids);
         setSelected({ id, track }); setSelectedIds(expanded);
-      }} onPlayhead={setPlayhead} onEdit={edit} onError={props.onError} onBlocked={props.onSnackbar} onZoomChange={setZoom} onMute={toggleMute} inputDurations={Object.fromEntries(props.project.inputs.map((input) => [input.id, input.durationSec ?? 1]))} />
+      }} onPlayhead={setPlayhead} onEdit={edit} onError={props.onError} onBlocked={props.onSnackbar} onZoomChange={setZoom} onMute={toggleMute} inputDurations={Object.fromEntries(project.inputs.map((input) => [input.id, input.durationSec ?? 1]))} />
     </div>
-    {exportOpen ? <ExportDialog projectId={props.project.id} projectName={props.project.name} timelineLength={Math.max(duration, ...timeline.voice.map(clip => clip.startSec + clip.inEndSec - clip.inStartSec), ...timeline.sfx.map(clip => clip.startSec + clip.inEndSec - clip.inStartSec))} onClose={() => setExportOpen(false)} onSnackbar={props.onSnackbar} /> : null}
-    <DerivedCarouselDialog open={createCarouselOpen} projectId={props.project.id} onClose={() => setCreateCarouselOpen(false)} onCreated={props.onCarouselCreated} onError={props.onError} />
+    {exportOpen ? <ExportDialog projectId={project.id} projectName={project.name} timelineLength={duration} onClose={() => setExportOpen(false)} onSnackbar={props.onSnackbar} /> : null}
+    <DerivedCarouselDialog open={createCarouselOpen} projectId={project.id} onClose={() => setCreateCarouselOpen(false)} onCreated={props.onCarouselCreated} onError={props.onError} />
   </section>;
 }
 

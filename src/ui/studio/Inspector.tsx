@@ -1,6 +1,6 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { DEFAULT_BRAND_SETTINGS, captionLayersOf, withCaptionLayers, type AudioClip, type BrandSettings, type ClipTransitionInput, type OverlayClip, type Project, type Timeline as TimelineData, type TransitionKind } from "../../core/schema";
-import { deleteOverlayClip, moveVideoClip, overlayDuration, videoDuration, videoStartTimes, trimVideoClip, setCaptionRange } from "../../core/timeline/ops";
+import { clipDuration, deleteOverlayClip, moveVideoClip, overlayDuration, videoDuration, videoStartTimes, trimVideoClip, setCaptionRange } from "../../core/timeline/ops";
 import { findOverlayInLayers, updateOverlayInLayers } from "../../core/timeline/overlay-layers";
 import { BusyButton } from "../components/u3/BusyButton";
 import { Button } from "../components/ui/button";
@@ -18,9 +18,14 @@ import { CaptionStyleEditor } from "./CaptionStyleEditor";
 import { ttsOverflow } from "../../core/tts-clips";
 import { plainCaptionText } from "../../core/captions";
 
+import { clipSpeed, sourceAt, timelineOffsetOf } from "../../core/timeline/speed";
+
+export type SpeedJob = { clipId: string; job: EngineJob | null; cancel: () => void };
+
 interface SfxItem { id: string; category: string; title: string; file: string; ref: string; url: string; durationSec: number }
 type TranscriptResult = { captions: TimelineData["captions"]; replaced: TimelineData["captions"] };
 export function Inspector(props: {
+  onSpeed?: (clipId: string, track: "video" | "overlay" | "voice", speed: number) => void; speedJob?: SpeedJob | null;
   project: Project; selectedId: string | null; selectedIds: readonly string[]; selectedTrack: string | null; timeline: TimelineData;
   onChange: (timeline: TimelineData) => void; onProject: (project: Project) => void; onSnackbar: (message: string) => void; onUngroup: () => void;
   onDelete: () => void; onGenerateTts?: (captionId: string) => void; ttsBusy?: boolean; onProcessingChange?: (busy: boolean) => void; onOpenSettings?: () => void;
@@ -187,6 +192,7 @@ export function Inspector(props: {
   };
 
   const jobLine = busy ? <div className="studio-job" role="status"><span>{job?.message ?? "준비 중"}</span><Progress value={(job?.progress ?? 0) * 100} /><Button variant="outline" size="xs" disabled={!job?.cancellable} onClick={() => void cancelJob()}>취소</Button></div> : null;
+  const speedControl = (clipId: string, track: "video" | "overlay" | "voice", speed: number) => props.selectedIds.length <= 1 ? <SpeedControl key={clipId} value={speed} onChange={v => props.onSpeed?.(clipId, track, v)} job={props.speedJob?.clipId === clipId ? props.speedJob : undefined} /> : null;
   const family = (id: string) => props.timeline.video.some(c => c.id === id) ? "video" : props.timeline.overlays.flat().some(c => c.id === id) ? "overlay" : layers.some(l => [...l.main, ...l.sub].some(c => c.id === id)) ? "caption" : props.timeline.voice.some(c => c.id === id) ? "voice" : "audio";
   if (new Set(props.selectedIds.map(family)).size > 1) return <InspectorShell title={`선택 ${props.selectedIds.length}개`} error={error} {...dialogProps}><OpacityControl value={opacityValue} count={selectedOpacityIds.length} onChange={updateOpacity} /><Button variant="ghost" className="text-u3-danger-text" onClick={props.onDelete}>삭제</Button></InspectorShell>;
   if (caption && selectedLayer) return <InspectorShell title="이 자막" error={error} {...dialogProps}>
@@ -203,8 +209,9 @@ export function Inspector(props: {
     const count = overlay.groupId ? [...props.timeline.video, ...props.timeline.overlays.flat()].filter(c => c.groupId === overlay.groupId).length : 0;
     return <InspectorShell title="겹친 영상" error={error} {...dialogProps}>
       <OpacityControl value={opacityValue} count={selectedOpacityIds.length} onChange={updateOpacity} />
+      {"inStartSec" in overlay && speedControl(overlay.id, "overlay", clipSpeed(overlay))}
       <RangeRow label="시작 시각" display={`${overlay.startSec.toFixed(1)}초`} min={0} max={Math.max(0, videoDuration(props.timeline) - duration)} step={0.1} value={overlay.startSec} onChange={startSec => update({ startSec })} />
-      <PropertyRow label="길이" value="초"><StudioTextInput label="길이" inputMode="decimal" value={String(duration)} onChange={raw => { const v = Number(raw); if (v > 0 && v <= videoDuration(props.timeline) - overlay.startSec) update("durationSec" in overlay ? { durationSec: v } : { inEndSec: overlay.inStartSec + v }); }} /></PropertyRow>
+      <PropertyRow label="길이" value="초"><StudioTextInput label="길이" inputMode="decimal" value={String(duration)} onChange={raw => { const v = Number(raw); if (v > 0 && v <= videoDuration(props.timeline) - overlay.startSec) update("durationSec" in overlay ? { durationSec: v } : { inEndSec: sourceAt(overlay, v) }); }} /></PropertyRow>
       <RangeRow label="가로 위치" display={`${Math.round(overlay.x * 100)}%`} min={0} max={1} step={0.01} value={overlay.x} onChange={x => update({ x })} />
       <RangeRow label="세로 위치" display={`${Math.round(overlay.y * 100)}%`} min={0} max={1} step={0.01} value={overlay.y} onChange={y => update({ y })} />
       <RangeRow label="폭" display={`${Math.round(overlay.width * 100)}%`} min={0.1} max={1} step={0.01} value={overlay.width} onChange={width => update({ width })} />
@@ -216,11 +223,12 @@ export function Inspector(props: {
   }
   if (video) {
     const start = videoStarts[video.id]!;
-    const duration = "durationSec" in video ? video.durationSec : video.inEndSec - video.inStartSec;
+    const duration = clipDuration(video);
     const groupCount = video.groupId ? [...props.timeline.video, ...props.timeline.overlays.flat()].filter(c => c.groupId === video.groupId).length : 0;
-    const editTrim = (edge: "start" | "end", raw: string) => { if (raw.trim() && Number.isFinite(Number(raw))) { try { props.onChange(trimVideoClip(props.timeline, video.id, edge, start + Number(raw) - ("inStartSec" in video ? video.inStartSec : 0), video.kind === "main" ? props.project.inputs.find(i => i.id === video.inputId)?.durationSec : undefined)); } catch (e) { setError(String(e)); } } };
+    const editTrim = (edge: "start" | "end", raw: string) => { if (raw.trim() && Number.isFinite(Number(raw))) { try { props.onChange(trimVideoClip(props.timeline, video.id, edge, start + ("inStartSec" in video ? timelineOffsetOf(video, Number(raw)) : Number(raw)), video.kind === "main" ? props.project.inputs.find(i => i.id === video.inputId)?.durationSec : undefined)); } catch (e) { setError(String(e)); } } };
     return <InspectorShell title={video.kind === "meme" ? "짤" : "영상 클립"} error={error} {...dialogProps}>
       <OpacityControl value={opacityValue} count={selectedOpacityIds.length} onChange={updateOpacity} />
+      {"inStartSec" in video && speedControl(video.id, "video", clipSpeed(video))}
       {video.kind === "main" && "inStartSec" in video && <><PropertyRow label="원본 시작" value="초"><StudioTextInput label="원본 시작" inputMode="decimal" value={String(video.inStartSec)} onChange={v => editTrim("start", v)} /></PropertyRow><PropertyRow label="원본 끝" value="초"><StudioTextInput label="원본 끝" inputMode="decimal" value={String(video.inEndSec)} onChange={v => editTrim("end", v)} /></PropertyRow></>}
       {video.kind === "meme" && <><RangeRow label="길이" display={`${duration.toFixed(1)}초`} min={0.5} max={4} step={0.1} value={duration} onChange={durationSec => props.onChange({ ...props.timeline, video: props.timeline.video.map(c => c.id === video.id ? { ...video, durationSec } : c) })} /><PropertyRow label="순서"><Button variant="outline" size="xs" onClick={() => props.onChange(moveVideoClip(props.timeline, video.id, Math.max(0, props.timeline.video.indexOf(video) - 1)))}>앞으로</Button><Button variant="outline" size="xs" onClick={() => props.onChange(moveVideoClip(props.timeline, video.id, Math.min(props.timeline.video.length - 1, props.timeline.video.indexOf(video) + 1)))}>뒤로</Button></PropertyRow></>}
       <TransitionControl label="Start Transition" value={video.startTransition} durationSec={duration} onChange={value => updateVideoTransition(video.id, "startTransition", value, props.timeline, props.onChange)} />
@@ -233,13 +241,15 @@ export function Inspector(props: {
   if (voiceClip || sfxClip) {
     const clip = voiceClip ?? sfxClip!; const track = voiceClip ? "voice" : "sfx";
     return <InspectorShell title={track === "voice" ? "음성" : "효과음"} error={error} {...dialogProps}>
+      {voiceClip && speedControl(voiceClip.id, "voice", clipSpeed(voiceClip))}
       <GainControl label="트랙 볼륨" gain={audioGain[track].gain} muted={audioGain[track].muted} onChange={v => updateGain(track, v)} onMute={() => toggleMute(track)} />
       <GainControl label="클립 볼륨" gain={clip.gain} onChange={v => updateClip(clip.id, { gain: v }, track)} />
       {track === "sfx" && <PropertyRow label="효과음"><StudioSelect label="효과음 바꾸기" value={clip.file} items={sfxItems.map(i => ({ value: i.ref, label: i.title }))} onChange={v => { const item = sfxItems.find(i => i.ref === v); if (item) updateClip(clip.id, { file: item.ref, inStartSec: 0, inEndSec: item.durationSec }, "sfx"); }} /></PropertyRow>}
-      {track === "voice" && <><BusyButton variant="outline" disabled={blocked} title={blockedTitle} onClick={() => void createCaptions()}>자막 만들기</BusyButton>{clip.id.startsWith("tts-") && <><BusyButton variant="outline" disabled={blocked} title={blockedTitle} onClick={() => props.onGenerateTts?.(clip.id.slice(4))}>다시 만들기</BusyButton>{ttsOverflow(props.timeline).some(c => c.id === clip.id) && <p role="status" className="text-xs text-muted-foreground">다음 음성과 겹쳐요</p>}</>}{jobLine}</>}
+      {track === "voice" && <><BusyButton variant="outline" disabled={blocked} title={blockedTitle} onClick={() => void createCaptions()}>자막 만들기</BusyButton>{clip.id.startsWith("tts-") && <><BusyButton variant="outline" disabled={blocked} title={blockedTitle} onClick={() => props.onGenerateTts?.(clip.id.slice(4))}>다시 만들기</BusyButton>{ttsOverflow(props.timeline, props.project.audioCache).some(c => c.id === clip.id) && <p role="status" className="text-xs text-muted-foreground">자막보다 음성이 길어요</p>}</>}{jobLine}</>}
     </InspectorShell>;
   }
   if (sourceClip && input) return <InspectorShell title={separated ? "분리한 소리" : "원본 소리"} error={error} {...dialogProps}>
+    <PropertyRow label="배속" value={`${clipSpeed(sourceClip).toFixed(2)}×`} />
     {separated ? <>{(["voice", "bg"] as const).map(stem => <GainControl key={stem} label={stem === "voice" ? "목소리 볼륨" : "배경 볼륨"} gain={separated[stem].gain} muted={separated[stem].muted} onChange={gain => props.onChange({ ...props.timeline, audio: { ...audioGain, stems: { ...audioGain.stems, [input.id]: { ...separated, [stem]: { ...separated[stem], gain } } } } })} onMute={() => props.onChange({ ...props.timeline, audio: { ...audioGain, stems: { ...audioGain.stems, [input.id]: { ...separated, [stem]: { ...separated[stem], muted: !separated[stem].muted } } } } })} />)}<BusyButton variant="outline" disabled={blocked} title={blockedTitle} onClick={() => void revertSeparate()}>분리 되돌리기</BusyButton></> : <><GainControl label="볼륨" gain={audioGain.source.gain} muted={audioGain.source.muted} onChange={v => updateGain("source", v)} onMute={() => toggleMute("source")} /><BusyButton variant="outline" disabled={blocked} title={blockedTitle} onClick={() => void startSeparate()}>음성 분리</BusyButton></>}
     <PropertySection title="받아 적기"><PropertyRow label="대상"><StudioSelect label="받아 적기 대상" value={sttTarget} items={[{ value: "source", label: separated ? "목소리" : "원본 소리" }, { value: "voice", label: "음성" }]} onChange={v => setSttTarget(v as "source" | "voice")} /></PropertyRow><BusyButton variant="outline" disabled={blocked} title={blockedTitle} onClick={() => void createCaptions()}>자막 만들기</BusyButton>{jobLine}</PropertySection>
   </InspectorShell>;
@@ -337,3 +347,26 @@ function InspectorShell(p: { title: string; error?: string | null; confirmation?
 }
 function OpacityControl(p: { value: number; count: number; onChange: (value: number) => void }) { return <RangeRow label="투명도" display={`${Math.round(p.value * 100)}%`} min={0} max={1} step={0.01} value={p.value} onChange={p.onChange} />; }
 function GainControl(p: { label: string; gain: number; muted?: boolean; onChange: (value: number) => void; onMute?: () => void }) { return <><RangeRow label={p.label} display={`${Math.round(p.gain * 100)}%`} min={0} max={1.5} step={0.01} value={p.gain} onChange={p.onChange} />{p.onMute && <SwitchRow label="음소거" checked={Boolean(p.muted)} onChange={p.onMute} />}</>; }
+
+
+export function parseSpeedInput(raw: string): number {
+  const value = Number(raw);
+  if (!raw.trim() || !Number.isFinite(value) || value < 0.5 || value > 2 || Math.abs(value * 20 - Math.round(value * 20)) > 1e-8) throw new RangeError("0.50–2.00 사이에서 0.05 단위로 입력해 주세요");
+  return value;
+}
+
+function SpeedControl(p: { value: number; onChange: (value: number) => void; job?: SpeedJob }) {
+  const [draft, setDraft] = useState(p.value.toFixed(2));
+  const [error, setError] = useState<string | null>(null);
+  const escaped = useRef(false);
+  useEffect(() => { setDraft(p.value.toFixed(2)); setError(null); }, [p.value]);
+  const commit = () => {
+    if (escaped.current) { escaped.current = false; return; }
+    try { const value = parseSpeedInput(draft); setDraft(value.toFixed(2)); setError(null); if (value !== p.value) p.onChange(value); }
+    catch (e) { setError((e as Error).message); }
+  };
+  return <><PropertyRow label="배속" value={`${p.value.toFixed(2)}×`}><StudioTextInput label="배속" inputMode="decimal" value={draft} disabled={Boolean(p.job)} aria-invalid={Boolean(error)} onChange={setDraft} onBlur={commit} onKeyDown={e => {
+    if (e.key === "Enter") { e.preventDefault(); e.currentTarget.blur(); }
+    if (e.key === "Escape") { e.stopPropagation(); escaped.current = true; setDraft(p.value.toFixed(2)); setError(null); e.currentTarget.blur(); }
+  }} /></PropertyRow>{error && <p role="alert" className="text-xs text-destructive">{error}</p>}{p.job && <div className="studio-job" role="status"><span>{p.job.job?.message ?? "배속 준비 중"}</span><Progress value={(p.job.job?.progress ?? 0) * 100} /><Button variant="outline" size="xs" onClick={p.job.cancel}>취소</Button></div>}</>;
+}

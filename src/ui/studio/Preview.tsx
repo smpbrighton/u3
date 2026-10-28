@@ -44,7 +44,7 @@ export function Preview(props: {
   useEffect(() => setPreviewTimeline(props.project.timeline), [props.project.timeline]);
   const [brand, setBrand] = useState<BrandSettings>(DEFAULT_BRAND_SETTINGS);
   const [sources, setSources] = useState<{ inputs: Record<string, string>; memes: Record<string, string>; memeAspects: Record<string, number>; files: Record<string, string> }>({ inputs: {}, memes: {}, memeAspects: {}, files: {} });
-  const render = useMemo(() => timelineToRender(previewTimeline, brand), [previewTimeline, brand]);
+  const render = useMemo(() => timelineToRender(previewTimeline, brand, props.project.audioCache), [previewTimeline, brand, props.project.audioCache]);
   const titleBarHeight = render.titleBar?.visible ? render.titleBar.height : undefined;
   const targets = useMemo<PreviewEditTarget[]>(() => {
     const currentFrame = Math.round(props.time * render.fps);

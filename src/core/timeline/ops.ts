@@ -1,7 +1,7 @@
-import { captionLayersOf, withCaptionLayers, Speed, type AudioClip, type OverlayClip, type TextClip, type Timeline, type VideoClip } from "../schema";
+import { captionLayersOf, withCaptionLayers, Speed, type AudioCache, type AudioClip, type OverlayClip, type TextClip, type Timeline, type VideoClip } from "../schema";
 import { findOverlayInLayers, removeOverlayFromLayers, updateOverlayInLayers } from "./overlay-layers";
 
-import { audioClipLength, clipSpeed, playLength, sourceAt } from "./speed";
+import { audioClipLength, cacheKey, clipSpeed, playLength, sourceAt } from "./speed";
 
 export const VIDEO_TRACK_REQUIRED_MESSAGE = "영상 1에는 클립이 하나 이상 있어야 합니다";
 
@@ -256,8 +256,8 @@ export function deleteAudioClip(clips: readonly AudioClip[], clipId: string): Au
 }
 
 
-export function projectDuration(timeline: Timeline): number {
-  return Math.max(videoDuration(timeline), ...captionLayersOf(timeline).flatMap(l => [...l.main, ...l.sub]).map(c => c.endSec), ...[...timeline.voice, ...timeline.sfx].map(c => c.startSec + audioClipLength(c)));
+export function projectDuration(timeline: Timeline, audioCache?: AudioCache): number {
+  return Math.max(videoDuration(timeline), ...captionLayersOf(timeline).flatMap(l => [...l.main, ...l.sub]).map(c => c.endSec), ...[...timeline.voice, ...timeline.sfx].map(c => c.startSec + audioClipLength(c, audioCache?.[cacheKey(c.file, clipSpeed(c))])));
 }
 
 function requireFrames(start: number, length: number): void {

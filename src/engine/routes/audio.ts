@@ -6,6 +6,8 @@ import { HttpError, parseJson } from "../http";
 import { done } from "../jobs";
 import { audioVersion, prepareSpeedAudio, projectAudioPath } from "../pipeline/audio-speed";
 import { startHeavyMedia } from "./tts";
+import { cacheKey } from "../../core/timeline/speed";
+import { ffprobe } from "../pipeline/ffmpeg";
 
 export function registerAudioRoutes(app: Hono, context: AppContext): void {
   app.post("/api/projects/:id/audio/prepare", async c => {
@@ -22,6 +24,7 @@ export function registerAudioRoutes(app: Hono, context: AppContext): void {
     const job = await startHeavyMedia(context, { kind: "audio-speed", projectId: project.id, label: "배속 준비", cancellable: true }, async ctx => {
       ctx.progress(0, "배속 준비 중");
       if (await audioVersion(sourceAbs) !== version) throw new Error("원본 음성이 바뀌었습니다");
+      if (input && !(await ffprobe(sourceAbs)).streams.some(s => s.codec_type === "audio")) return done({ key: cacheKey(sourceId, speed), version, noAudio: true });
       const result = await prepareSpeedAudio({ projectDir, sourceAbs, sourceId, speed, signal: ctx.signal });
       return done(result);
     }, c.req.raw.signal);

@@ -312,7 +312,7 @@ export function timelineToRender(timeline: Timeline, brand?: RenderBrandSettings
     sequence.endTransition = NO_TRANSITION;
   }
   const durationInFrames = Math.max(
-    frame(projectDuration(timeline)),
+    frame(projectDuration(timeline, audioCache)),
     ...captions.map((clip) => clip.startFrame + clip.durationInFrames),
     ...audio.map((layer) => layer.startFrame + layer.durationInFrames),
   );
