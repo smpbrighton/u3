@@ -37,9 +37,10 @@ if [[ "$PLATFORM" == darwin ]]; then
   NAME=whisper-cli
 else
   # runner 이미지의 Visual Studio 버전이 바뀌어도 되게 generator 를 고정하지 않는다(CMake 기본값 = 설치된 최신 VS).
+  # 호스트 CPU 탐지는 끄되 q5_0 추론에 쓰는 GGML 기본 x64 SIMD 커널은 유지한다.
   cmake -S "$SOURCE" -B "$BUILD" -A x64 \
     -DBUILD_SHARED_LIBS=OFF -DGGML_METAL=OFF -DGGML_CUDA=OFF -DGGML_NATIVE=OFF \
-    -DGGML_AVX=OFF -DGGML_AVX2=OFF -DGGML_FMA=OFF -DGGML_F16C=OFF
+    -DGGML_AVX=ON -DGGML_AVX2=ON -DGGML_FMA=ON -DGGML_F16C=ON
   cmake --build "$BUILD" --config Release --target whisper-cli --parallel
   BIN="$BUILD/bin/Release/whisper-cli.exe"
   NAME=whisper-cli.exe

@@ -53,3 +53,9 @@ CI 빌드 설정은 `rawvideo` encoder와 `image2pipe` muxer를 활성화한다.
 - 로그 1200–1215의 workflow 정규식 실패는 CRLF를 LF로 정규화했다. 권한 단언은 유지했다. 로그 1249–1257의 DPAPI 실패는 Windows PowerShell의 Security 모듈 로드 실패다. 시험에서 CI와 같은 `pwsh`를 사용하고 PowerShell 오류를 종료 코드 실패로 처리했다. helper 제품 코드는 수정하지 않았다.
 - 로그 1180·1221의 두 5초 초과에는 각각 1197행 EBUSY와 1234행 ENOTEMPTY가 뒤따른다. 배속 시험은 세 속도의 결과를 이미 출력했고, 음성 준비 시험에서는 종료되지 않은 비동기 요청이 정리된 파일을 읽어 ENOENT를 냈다(899행). 두 시험의 제한만 30초로 늘렸다. 정리 동작과 제품 코드는 바꾸지 않았다. Windows 재실행으로 인과관계를 확인한다.
 - Whisper native 실행에는 stderr 진단도 남긴다. 앱 일반 실행에는 출력하지 않는다. 취소 실패 메시지는 마지막 stderr 2000자를 포함한다. 모델·fixture·한국어 결과 단언과 CLI 인자·Windows 빌드 옵션은 유지했다.
+
+### CI 1/6: 40818736706 (`4ae6621`)
+
+- [실행 로그](https://github.com/smpbrighton/u3/actions/runs/40818736706): 975개 시험 통과, Whisper 1개 실패(`out/windows-ci1.log:1961–1964`). MRX와 사용자 DACL·CRLF 권한 검사·두 ffmpeg 시험은 통과했다. EBUSY·ENOTEMPTY는 재발하지 않았다.
+- Whisper는 다운로드·SHA-256 검사를 13.182초에 완료했고(1492행), ffmpeg 변환 뒤 CLI를 13.284초에 시작했다(1495행). 모델·WAV 경로는 유효했다. CPU 4 threads로 5초 입력을 읽었고(1574–1576행), VAD는 756.04ms에 완료했다(1619행). 1639행의 오디오 축소 뒤 추론이 390초 안에 끝나지 않았다. stdin·다운로드·VAD·출력 JSON 대기가 지연 원인은 아니다.
+- system_info에는 BMI2·OPENMP만 있고 AVX·AVX2·FMA·F16C가 없다(1574행). Windows 빌드가 해당 네 옵션을 OFF로 덮어쓴다. 고정 v1.9.5 ggml CMake 소스의 MSVC 분기는 AVX2 옵션으로 `/arch:AVX2`와 GGML_AVX2·GGML_FMA·GGML_F16C 정의를 추가한다. 기존 실패 native 시험을 유지하고 빌드에서 네 옵션을 ON으로 설정했다. `GGML_NATIVE=OFF`, 정적 링크, Metal·CUDA 비활성화는 유지한다. CPU 커널 비활성화가 지연 원인이라는 판단은 다음 Windows 실행으로 검증한다.
