@@ -269,3 +269,10 @@ test result: ok. 13 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out; fin
 render: 100%
 ✓ smoke passed: 1080×1920, 30fps, 138 frames, audio max -4.2 dB, cut edge source frame 60 (MAE 1.67, separation 46.67), dissolve MAE 130.00/0.33 (100.0% in range), overlay center MAE 37.67, outside MAE 9.33
 ✓ verify passed
+
+## 감독자 증명 (2026-10-29, 로컬 ad-hoc 패키지 0.3.8 빌드)
+- 증명 2: 엔진 node 를 kill -9 → 3초 안에 새 엔진 pid, engine.log 에 「이전 엔진 종료: signal: 9 (SIGKILL)」, 스낵바 「엔진을 다시 시작했어요. 마지막 작업을 다시 해 주세요」, 홈 썸네일이 새 포트로 다시 로드됨(evidence/restart-snack.png).
+- 증명 3: 5분 안 네 번째 kill → 엔진 없음, 배너 「엔진이 반복해서 멈췄어요. 앱을 다시 시작해 주세요」(evidence/restart-stop.png).
+- 로그에 token·Bearer 문자열 0건.
+- 증명 4(막대 드래그 뒤 cmd+z): GUI 조작 도구(cua-driver)가 없어 실기 미검증. tests/ui/studio-history-gesture.test.tsx 로만 확인.
+- 정상 종료 중 재시작 차단: Rust 시험으로만 확인, 실기 미검증.
