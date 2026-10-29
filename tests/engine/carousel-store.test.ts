@@ -110,7 +110,7 @@ describe("carousel review storage", () => {
     const slide = { ...newSlide(source, "4:5"), sceneNumber: 2, background: { kind: "frame" as const, sec: 4, cropY: 0.2, status: "done" as const, frame: { file: "frames/s.png" } } };
     const c = await store.createCarousel({ name: "영상", source, stage: "review", aspect: "4:5", slides: [slide] });
     const result = await store.replacePlan(c.id, { caption: "게시 글", slides: [{ title: "새 제목", body: "새 본문", imagePrompt: "" }] });
-    expect(result.slides[0]!.background).toEqual(slide.background);
+    expect(result.slides[0]!.background).toEqual({ ...slide.background, mode: "ai", generatedStatus: "idle" });
     expect(result.slides[0]!.sceneNumber).toBe(2);
     expect(result.slides[0]!.texts.map(t => t.text)).toEqual(["새 제목", "새 본문"]);
     expect(result.caption).toBe("게시 글");

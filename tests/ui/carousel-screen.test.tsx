@@ -5,6 +5,9 @@ import { Carousel, newSlide } from "../../src/core/carousel";
 import { CarouselWorkspace } from "../../src/ui/screens/carousel/CarouselWorkspace";
 import { CarouselTextInspector } from "../../src/ui/screens/carousel/CarouselTextInspector";
 import { CarouselOverflowNotice, textOverflowsCanvas } from "../../src/ui/screens/carousel/CarouselOverflow";
+import { BackgroundSection } from "../../src/ui/screens/carousel/BackgroundSection";
+import { canDownloadSlides } from "../../src/ui/screens/carousel/derived-ui-state";
+import { slideImage, slideStatus } from "../../src/ui/screens/carousel/workflow";
 
 vi.mock("../../src/ui/api", () => ({ api: vi.fn(), carouselFileUrl: vi.fn(), watchJobs: vi.fn() }));
 vi.mock("../../src/remotion/CarouselSlide", () => ({ CarouselSlide: () => null }));
@@ -20,6 +23,31 @@ function carousel(stage: "review" | "images") {
 }
 
 describe("캐러셀 화면", () => {
+  it("AI 모드는 다시 만들기와 모드 선택을 보이고 세로 자르기를 숨긴다", () => {
+    const slide = newSlide({ kind: "project", projectId: "p", projectName: "영상" }, "4:5");
+    if (slide.background.kind !== "frame") throw new Error("frame 필요");
+    const props = { frame: slide.background, duration: 10, sourceAvailable: true, busy: false, onChange: vi.fn(), onCommit: vi.fn(), onReextract: vi.fn(), onRegenerate: vi.fn(), onModeChange: vi.fn() };
+    const ai = renderToStaticMarkup(<BackgroundSection {...props} />);
+    for (const text of ["AI 이미지", "원본 장면", "이 시각으로 다시 만들기", ">다시 만들기<"]) expect(ai).toContain(text);
+    expect(ai).not.toContain("세로 자르기");
+    const frame = renderToStaticMarkup(<BackgroundSection {...props} frame={{ ...slide.background, mode: "frame" }} />);
+    expect(frame).toContain("세로 자르기"); expect(frame).toContain("이 시각으로 다시 뽑기");
+    expect(frame).not.toContain(">다시 만들기<");
+  });
+  it("영상 검토 화면도 장별 지시문을 고칠 수 있다", () => {
+    const source = { kind: "project" as const, projectId: "p", projectName: "영상" };
+    const value = { ...carousel("review"), source, slides: [newSlide(source, "4:5"), { ...newSlide(source, "4:5"), id: "slide-2" }] };
+    const html = renderToStaticMarkup(<CarouselWorkspace carousel={value} jobs={[]} onBack={vi.fn()} onUpdate={vi.fn()} onSnackbar={vi.fn()} onError={vi.fn()} />);
+    expect(html).toContain('aria-label="1장 이미지 지시문"'); expect(html).toContain('aria-label="2장 이미지 지시문"');
+  });
+  it("완료 표시·미리보기·받기는 생성 이미지 상태를 따른다", () => {
+    const slide = newSlide({ kind: "project", projectId: "p", projectName: "영상" }, "4:5");
+    if (slide.background.kind !== "frame") throw new Error("frame 필요");
+    slide.background.frame = { file: "frame.png", version: 1 }; slide.background.status = "done";
+    expect(slideStatus(slide)).toBe("idle"); expect(slideImage(slide)).toBeUndefined(); expect(canDownloadSlides([slide])).toBe(false);
+    slide.background.generatedStatus = "done"; slide.background.generated = { file: "generated.png", version: 1, frameVersion: 1 };
+    expect(slideStatus(slide)).toBe("done"); expect(slideImage(slide)?.file).toBe("generated.png"); expect(canDownloadSlides([slide])).toBe(true);
+  });
   it("검토 단계에서만 장 더하기·지우기·순서 바꾸기를 제공한다", async () => {
     const review = renderToStaticMarkup(<CarouselWorkspace carousel={carousel("review")} jobs={[]} onBack={vi.fn()} onUpdate={vi.fn()} onSnackbar={vi.fn()} onError={vi.fn()} />);
     expect(review).toContain("장 더하기");

@@ -115,6 +115,7 @@ describe("carousel review workflow", () => {
   });
   it("cancels by the slide id in the job key even when sceneIndex points elsewhere", async () => {
     const { req, derived, jobs, carousels } = await setup(); const { c } = await derived();
+    await req(`/api/carousels/${c.id}/slides/slide-1`, "PATCH", { background: { mode: "frame" } });
     const job = jobs.startImage({ projectId: c.id, sceneIndex: 1, key: `carousel:${c.id}:slide-1`, label: "대기", cancellable: true }, async ctx => {
       await new Promise((_, reject) => { if (ctx.signal.aborted) reject(new Error("취소")); else ctx.signal.addEventListener("abort", () => reject(new Error("취소")), { once: true }); });
       return { kind: "done" };

@@ -29,8 +29,13 @@ describe("캐러셀 기획 프롬프트", () => {
 
   it("영상 본문 뒤에 요청 장수와 자료 JSON을 붙인다", () => {
     const material = { scenes: [{ sceneNumber: 1, caption: "상품" }], captionLayersMain: ["자막"], title: "제목", videoDurationSec: 5 };
-    expect(carouselVideoPrompt({ basePrompt: "저장한 영상 지침", count: 2, material }))
-      .toBe(`저장한 영상 지침\n\n요청 장수: 2\n자료: ${JSON.stringify(material)}`);
+    const prompt = carouselVideoPrompt({ basePrompt: "저장한 영상 지침", count: 2, material });
+    expect(prompt.startsWith(`저장한 영상 지침\n\n요청 장수: 2\n자료: ${JSON.stringify(material)}\n\n`)).toBe(true);
+    expect(prompt).toContain("imagePrompt");
+    expect(prompt).toContain("style");
+    expect(DEFAULT_CAROUSEL_VIDEO_PROMPT).not.toContain("새 배경 이미지 제작 지시문을 추가하지 않는다");
+    expect(DEFAULT_CAROUSEL_VIDEO_PROMPT).toContain("target");
+    expect(DEFAULT_CAROUSEL_VIDEO_PROMPT).toContain("실제 화면");
   });
 
   it("저장한 비어 있지 않은 문자열은 그대로 쓰고 나머지는 기본값으로 바꾼다", () => {

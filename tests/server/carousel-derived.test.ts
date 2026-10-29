@@ -53,10 +53,12 @@ describe("video derived carousel API", () => {
     const prefix = `${saved === "remote" ? "원격 영상 지침" : saved ?? DEFAULT_CAROUSEL_VIDEO_PROMPT}\n\n요청 장수: 2\n자료: `;
     for (const [input] of derivePlan.mock.calls) {
       expect(input.prompt.startsWith(prefix)).toBe(true);
-      expect(JSON.parse(input.prompt.slice(prefix.length))).toMatchObject({
+      expect(JSON.parse(input.prompt.slice(prefix.length).split("\n\n")[0]!)).toMatchObject({
         scenes: [{ sceneNumber: 1, caption: "상품을 보여 줍니다" }, { sceneNumber: 2, caption: "다음 장면" }],
         captionLayersMain: expect.any(Array), title: "시험 영상", videoDurationSec: expect.any(Number),
       });
+      expect(input.prompt).toContain("imagePrompt");
+      expect(input.prompt).toContain("style");
     }
   });
 
@@ -92,6 +94,8 @@ describe("video derived carousel API", () => {
     const response = await app.request(`/api/projects/${project.id}/carousel`, { method: "POST", headers, body: JSON.stringify({ count: 2 }) });
     expect(response.status).toBe(201);
     const result = await response.json() as { carousel: { id: string; slides: Array<{ id: string }> } };
+    // 원본 장면의 동기 재추출 계약은 명시적인 frame 모드에서 유지한다.
+    for (const slide of result.carousel.slides) await app.request(`/api/carousels/${result.carousel.id}/slides/${slide.id}`, { method: "PATCH", headers, body: JSON.stringify({ background: { mode: "frame" } }) });
     const generation = await app.request(`/api/carousels/${result.carousel.id}/generate`, { method: "POST", headers, body: "{}" });
     const started = await generation.json() as { jobs: Array<{ id: string }> };
     await Promise.all(started.jobs.map(job => jobs.wait(job.id)));
