@@ -28,7 +28,7 @@ function result(output: CodexScript, warnings = [{ inputId: "video", warning: "�
   return { output, usage: { input_tokens: 10, output_tokens: 5 }, transcriptWarnings: warnings };
 }
 
-async function recommend(defaults?: PromptDefaults, voice: Record<string, string> = { scriptTone: "말투 설정", scriptPersona: "성격 설정" }) {
+async function recommend(defaults?: PromptDefaults, voice: Record<string, string | undefined> = { scriptTone: "말투 설정", scriptPersona: "성격 설정" }) {
   const root = await mkdtemp(path.join(os.tmpdir(), "u3-script-style-"));
   roots.push(root);
   const store = new Store(root);

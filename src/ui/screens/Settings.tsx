@@ -43,9 +43,9 @@ type ScriptPromptSettings = PromptSettings & { rulesPreview: string };
 type CarouselPromptKind = "topic" | "video";
 type CarouselPromptSettings = Record<CarouselPromptKind, PromptSettings>;
 type ScriptVoiceField = "tone" | "persona";
-type ScriptVoiceSettings = Record<ScriptVoiceField, string>;
+type ScriptVoiceSettings = Record<ScriptVoiceField, PromptSettings>;
+type EditablePromptKind = "script" | ScriptVoiceField | CarouselPromptKind;
 type IntroSfxSetting = { enabled: boolean; ref: string; atSec: number; title: string; durationSec: number };
-const DEFAULT_SCRIPT_VOICE: ScriptVoiceSettings = { tone: "", persona: "" };
 type ImageOptions = { model: "flare" | "sunburst"; quality: "low" | "medium" | "high" | "auto"; aspect: "4:5" | "1:1" | "9:16" | "16:9"; concurrency: number };
 
 const SECTIONS = [["screen", "화면"], ["shortcuts", "단축키"], ["brand", "브랜드"], ["script", "대본"], ["meme", "짤"], ["voice", "음성"], ["imagegen", "이미지 생성"], ["sound", "알림음"], ["about", "앱 정보"]] as const;
@@ -78,7 +78,7 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
   const [notifyItems, setNotifyItems] = useState<Array<{ ref: string; title: string; url: string }>>([]);
   const [scriptPrompt, setScriptPrompt] = useState(emptyPrompt);
   const promptRef = useRef(scriptPrompt);
-  const [scriptVoice, setScriptVoice] = useState<ScriptVoiceSettings>(DEFAULT_SCRIPT_VOICE);
+  const [scriptVoice, setScriptVoice] = useState<Record<ScriptVoiceField, PromptState>>({ tone: emptyPrompt, persona: emptyPrompt });
   const voiceRef = useRef(scriptVoice);
   const [brand, setBrand] = useState<BrandSettings>(DEFAULT_BRAND_SETTINGS);
   const brandRef = useRef(brand);
@@ -86,7 +86,9 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
   const [watermarkUrl, setWatermarkUrl] = useState<string | null>(null);
   const [titleImageUrl, setTitleImageUrl] = useState<string | null>(null);
   const saves = useRef(new SettingsSaves()).current;
-  useBeforeUpdateRestart(() => saves.flush());
+  const promptTimers = useRef(new Map<EditablePromptKind, ReturnType<typeof setTimeout>>());
+  const pendingPrompts = useRef(new Map<EditablePromptKind, { raw: string }>());
+  useBeforeUpdateRestart(() => { flushPromptSaves(); return saves.flush(); });
 
   const fail = useCallback((reason: unknown) => {
     const message = reason instanceof Error ? reason.message : String(reason);
@@ -121,7 +123,10 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
         }),
         api<CodexModelCatalog>("GET", "/api/system/codex-models").then(setCodexCatalog),
         api<ScriptPromptSettings>("GET", "/api/system/script-prompt").then(value => { promptRef.current = promptState(value); setScriptPrompt(promptRef.current); }),
-        api<ScriptVoiceSettings>("GET", "/api/system/script-voice").then(value => { voiceRef.current = value; setScriptVoice(value); }),
+        api<ScriptVoiceSettings>("GET", "/api/system/script-voice").then(value => {
+          const next = { tone: promptState(value.tone), persona: promptState(value.persona) };
+          voiceRef.current = next; setScriptVoice(next);
+        }),
       ]);
       const rejected = results.find(result => result.status === "rejected");
       if (rejected?.status === "rejected") fail(rejected.reason);
@@ -138,6 +143,8 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
     }), controller.signal).catch(() => undefined);
     return () => controller.abort();
   }, []);
+
+  useEffect(() => () => { flushPromptSaves(); }, []);
 
   async function refreshCodex() {
     setCodexChecking(true);
@@ -210,34 +217,66 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
     void persist("intro-sfx", () => api("PUT", "/api/system/intro-sfx", { enabled: next.enabled, ref: next.ref, atSec: next.atSec }));
   }
 
+  function clearPromptTimer(kind: EditablePromptKind) {
+    clearTimeout(promptTimers.current.get(kind));
+    promptTimers.current.delete(kind);
+  }
+  function schedulePrompt(kind: EditablePromptKind, save: () => void) {
+    clearPromptTimer(kind);
+    promptTimers.current.set(kind, setTimeout(() => {
+      promptTimers.current.delete(kind);
+      save();
+    }, 1000));
+  }
+  function persistPrompt(kind: EditablePromptKind, resource: string, value: string, saved: string, raw: string | undefined, save: (text: string) => Promise<void>) {
+    clearPromptTimer(kind);
+    const pending = pendingPrompts.current.get(kind);
+    if (raw === undefined && (pending ? pending.raw === value : value === saved)) return;
+    const request = { raw: raw ?? value };
+    pendingPrompts.current.set(kind, request);
+    void persist(resource, async () => {
+      try { await save(request.raw); }
+      finally { if (pendingPrompts.current.get(kind) === request) pendingPrompts.current.delete(kind); }
+    });
+  }
+  function flushPromptSaves() {
+    savePrompt();
+    for (const field of ["tone", "persona"] as const) saveVoice(field);
+    for (const kind of ["topic", "video"] as const) saveCarouselPrompt(kind);
+  }
   function changePrompt(value: string) {
     promptRef.current = { ...promptRef.current, prompt: value }; setScriptPrompt(promptRef.current);
+    schedulePrompt("script", () => savePrompt());
   }
   function savePrompt(raw?: string) {
     const value = promptRef.current.prompt;
-    if (raw === undefined && value === promptRef.current.saved) return;
-    void persist("script-prompt", async () => {
-      const saved = await api<ScriptPromptSettings>("PUT", "/api/system/script-prompt", { prompt: raw ?? value });
+    persistPrompt("script", "script-prompt", value, promptRef.current.saved, raw, async text => {
+      const saved = await api<ScriptPromptSettings>("PUT", "/api/system/script-prompt", { prompt: text });
       const next = { ...promptState(saved), prompt: promptRef.current.prompt === value ? saved.prompt : promptRef.current.prompt };
       promptRef.current = next; setScriptPrompt(next);
     });
   }
   function changeVoice(field: ScriptVoiceField, value: string) {
-    voiceRef.current = { ...voiceRef.current, [field]: value }; setScriptVoice(voiceRef.current);
+    voiceRef.current = { ...voiceRef.current, [field]: { ...voiceRef.current[field], prompt: value } }; setScriptVoice(voiceRef.current);
+    schedulePrompt(field, () => saveVoice(field));
   }
-  function saveVoice() {
-    const next = { ...voiceRef.current };
-    void persist("script-voice", async () => { await api<ScriptVoiceSettings>("PUT", "/api/system/script-voice", next); });
+  function saveVoice(field: ScriptVoiceField, raw?: string) {
+    const value = voiceRef.current[field].prompt;
+    persistPrompt(field, "script-voice", value, voiceRef.current[field].saved, raw, async text => {
+      const saved = await api<ScriptVoiceSettings>("PUT", "/api/system/script-voice", { [field]: text });
+      const next = { ...promptState(saved[field]), prompt: voiceRef.current[field].prompt === value ? saved[field].prompt : voiceRef.current[field].prompt };
+      voiceRef.current = { ...voiceRef.current, [field]: next }; setScriptVoice(voiceRef.current);
+    });
   }
   function changeCarouselPrompt(kind: CarouselPromptKind, value: string) {
     carouselPromptsRef.current = { ...carouselPromptsRef.current, [kind]: { ...carouselPromptsRef.current[kind], prompt: value } };
     setCarouselPrompts(carouselPromptsRef.current);
+    schedulePrompt(kind, () => saveCarouselPrompt(kind));
   }
   function saveCarouselPrompt(kind: CarouselPromptKind, raw?: string) {
     const value = carouselPromptsRef.current[kind].prompt;
-    if (raw === undefined && value === carouselPromptsRef.current[kind].saved) return;
-    void persist("carousel-prompts", async () => {
-      const saved = await api<CarouselPromptSettings>("PUT", "/api/system/carousel-prompts", { [kind]: raw ?? value });
+    persistPrompt(kind, "carousel-prompts", value, carouselPromptsRef.current[kind].saved, raw, async text => {
+      const saved = await api<CarouselPromptSettings>("PUT", "/api/system/carousel-prompts", { [kind]: text });
       const next = { ...promptState(saved[kind]), prompt: carouselPromptsRef.current[kind].prompt === value ? saved[kind].prompt : carouselPromptsRef.current[kind].prompt };
       carouselPromptsRef.current = { ...carouselPromptsRef.current, [kind]: next };
       setCarouselPrompts(carouselPromptsRef.current);
@@ -352,8 +391,8 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
             <span className="mt-1 text-right text-2xs text-muted-foreground tabular-nums">{scriptPrompt.prompt.length.toLocaleString("ko-KR")}/{SCRIPT_PROMPT_MAX_LENGTH.toLocaleString("ko-KR")}</span>
           </SettingsGroup>
           <div className="grid grid-cols-2 gap-4">
-            {(["tone", "persona"] as const).map(field => <SettingsGroup key={field} title={field === "tone" ? "말투" : "성격"} action={<Button variant="ghost" size="xs" disabled={loading || !scriptVoice[field]} onClick={() => { changeVoice(field, ""); saveVoice(); }}>기본값으로</Button>}>
-              <Textarea aria-label={field === "tone" ? "말투" : "성격"} placeholder={field === "tone" ? "친구에게 말하듯 짧은 반말" : "솔직하고 장난기 있는 20대 직장인"} maxLength={4000} disabled={loading} value={scriptVoice[field]} onChange={event => changeVoice(field, event.target.value)} onBlur={saveVoice} className="min-h-16 text-xs" />
+            {(["tone", "persona"] as const).map(field => <SettingsGroup key={field} title={<>{field === "tone" ? "말투" : "성격"}{scriptVoice[field].newerDefault && <span className="text-2xs text-muted-foreground"> 새 기본값이 있어요</span>}</>} action={<Button variant="ghost" size="xs" disabled={loading || scriptVoice[field].prompt === scriptVoice[field].defaultPrompt} onClick={() => { changeVoice(field, voiceRef.current[field].defaultPrompt); saveVoice(field, ""); }}>기본값으로</Button>}>
+              <Textarea aria-label={field === "tone" ? "말투" : "성격"} maxLength={4000} disabled={loading} value={scriptVoice[field].prompt} onChange={event => changeVoice(field, event.target.value)} onBlur={() => saveVoice(field)} className="min-h-16 text-xs" />
             </SettingsGroup>)}
           </div>
         </>}
