@@ -21,7 +21,10 @@ const FrameHighlight = z.object({
 });
 const FrameBackground = z.object({
   kind: z.literal("frame"), sec: z.number().min(0), cropY: z.number().min(0).max(1),
+  mode: z.enum(["ai", "frame"]).default("frame"),
   frame: CarouselImage.optional(), highlight: FrameHighlight.optional(),
+  generated: z.object({ file: z.string().min(1), version: z.number().int().positive(), frameVersion: z.number().int().positive() }).optional(),
+  generatedStatus: z.enum(["queued", "running", "done", "failed", "idle"]).default("idle"), generatedError: z.string().optional(),
   status: z.enum(["queued", "running", "done", "failed", "idle"]).default("idle"), error: z.string().optional(),
 });
 export const CarouselBackground = z.discriminatedUnion("kind", [GeneratedBackground, FrameBackground]);
@@ -71,12 +74,24 @@ export const CarouselSlide = z.object({
 });
 export type CarouselSlide = z.infer<typeof CarouselSlide>;
 
+/** 미리보기·받기·작업 상태가 같은 배경을 사용한다. */
+export function visibleBackground(slide: CarouselSlide): { file?: string; status: CarouselSlide["status"]; error?: string } {
+  const background = slide.background;
+  if (background.kind === "generated") return { file: (background.image ?? slide.image)?.file, status: slide.status, error: slide.error };
+  const image = background.mode === "ai" ? background.generated : background.frame;
+  return {
+    file: background.highlight?.style === "ai-outline" && background.highlight.image ? background.highlight.image.file : image?.file,
+    status: background.mode === "ai" ? background.generatedStatus : background.status,
+    error: background.mode === "ai" ? background.generatedError : background.error,
+  };
+}
+
 export function newSlide(source: z.infer<typeof CarouselSource>, aspect: CarouselAspect, previous?: CarouselSlide): CarouselSlide {
   return CarouselSlide.parse({
     id: previous ? `${previous.id}-next` : "slide-1", texts: defaultTexts(aspect),
     ...(source.kind === "project" ? { sceneNumber: previous?.sceneNumber ?? 1 } : {}),
     background: source.kind === "project"
-      ? { kind: "frame", sec: previous?.background.kind === "frame" ? previous.background.sec : 0, cropY: 0.5, highlight: { style: "none", target: "" } }
+      ? { kind: "frame", mode: "ai", sec: previous?.background.kind === "frame" ? previous.background.sec : 0, cropY: 0.5, highlight: { style: "none", target: "" } }
       : { kind: "generated" },
   });
 }

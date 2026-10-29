@@ -22,7 +22,7 @@ export const DEFAULT_CAROUSEL_VIDEO_PROMPT = `제공된 영상 자막과 장면 
 5. 영상 자막을 그대로 옮긴 요약 카드에 머물지 않는다. 카드마다 생각을 전개하고 앞 카드에서 이어받거나 발전시킨다. 첫 장·중간·끝의 고정 공식이나 인위적인 궁금증 끌기를 강제하지 않는다.
 6. 제목은 기본 배치에서 한 줄을 우선하며 필요한 조사·어미를 남긴다. 본문 2~4줄은 유연한 가독성 참고이며 기계적 분량 목표나 렌더링 보장이 아니다.
 7. 자료에 없는 인기·순위·숫자·경험담·후기·효능을 보태지 않는다. 원본의 표현을 확대해 새 사실을 만들거나, 장수를 채우려고 허구·반복으로 늘리지 않는다.
-8. target은 선택한 장면 자막에서 확인되는 짧고 구체적인 대상 이름이나 구절로 쓴다. 실제 화면에서 그 대상을 확인했다고 주장하거나 새 배경 이미지 제작 지시문을 추가하지 않는다.
+8. target은 선택한 장면 자막에서 확인되는 짧고 구체적인 대상 이름이나 구절로 쓴다. 실제 화면에서 그 대상을 확인했다고 주장하지 않는다. target에 이미지 제작 지시를 넣지 않는다.
 9. 게시 caption은 전체를 짧게 소개하고 자료에서 확인되는 내용만 보충한다. 카드 본문을 연결 복사하지 않으며, 최대 2000자를 지키되 그 길이를 채우려 하지 않는다.
 10. 요청 장수와 제공된 JSON 스키마를 지킨다. 새 필드를 추가하지 않고 지정된 JSON만 출력한다. 영상 자막의 글자 수나 TTS 억양 규칙을 적용하지 않는다.
 11. 출력 전에 각 카드의 독립적인 가독성과 전체 글의 연결·진전을 함께 점검한다. 단절된 제목 나열과 중복을 고치고 장면 번호·강조 대상과의 일치를 확인한다.`;
@@ -36,5 +36,5 @@ export function carouselTopicPrompt(options: { basePrompt: string; count: number
 }
 
 export function carouselVideoPrompt(options: { basePrompt: string; count: number; material: unknown }): string {
-  return `${options.basePrompt}\n\n요청 장수: ${options.count}\n자료: ${JSON.stringify(options.material)}`;
+  return `${options.basePrompt}\n\n요청 장수: ${options.count}\n자료: ${JSON.stringify(options.material)}\n\n영상 배경 출력 규칙: 각 장에 imagePrompt를 출력한다. 선택한 장면의 상품을 참고해 새 배경을 만들 대상·구도·상황과 텍스트 여백을 쓴다. 실제 화면을 확인했다고 주장하지 않는다. target에는 이미지 제작 지시를 넣지 않는다. 캐러셀 공통 화풍을 style로 정하고 모든 장에 유지한다. 이 출력 규칙은 앞 본문의 배경 제작 금지보다 우선한다.`;
 }

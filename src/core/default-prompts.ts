@@ -3,8 +3,8 @@ import { DEFAULT_SCRIPT_PROMPT, DEFAULT_SCRIPT_TONE, DEFAULT_SCRIPT_PERSONA } fr
 import { DEFAULT_CAROUSEL_TOPIC_PROMPT, DEFAULT_CAROUSEL_VIDEO_PROMPT } from "./carousel-prompt";
 
 export const PROMPT_SCHEMA = 1;
-export const PROMPT_REVISION = 2;
-export const PROMPT_TEXT_HASH = "9fd6f5724e4990178c03574e4b7a4ade5b1d528bd3d1c0ca3fc92f972b9c219d";
+export const PROMPT_REVISION = 3;
+export const PROMPT_TEXT_HASH = "2342499d73061e8753645b61718ff9a9815f027e1a34ebd6b1f09386e5b00654";
 
 const PromptText = z.string().trim().min(1).max(20_000);
 export const PromptDefaultsFile = z.object({
