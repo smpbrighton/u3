@@ -149,4 +149,40 @@ describe("060 영상 참고 이미지 생성", () => {
     const restarted = await new CarouselStore(root).requireCarousel(c.id);
     expect(restarted.slides[0]!.background).toMatchObject({ status: "done", generatedStatus: "failed", generatedError: "앱이 닫혀 중단됨" });
   });
+  it("모드가 없는 저장본은 API에서도 원본 장면으로 유지한다", async () => {
+    const { c, base, req, wait, get, carousels, generateImage } = await setup();
+    const file = path.join(carousels.carouselDir(c.id), "carousel.json");
+    const raw = JSON.parse(await readFile(file, "utf8"));
+    for (const slide of raw.slides) delete slide.background.mode;
+    await writeFile(file, JSON.stringify(raw));
+    expect((await get()).slides.every(s => s.background.kind === "frame" && s.background.mode === "frame")).toBe(true);
+    await wait(await req(`${base}/generate`, "POST", {}));
+    expect(generateImage).not.toHaveBeenCalled();
+  });
+  it("강조 API는 생성 이미지를 입력으로 쓰고 생성 파일과 윤곽 파일을 따로 보존한다", async () => {
+    const { c, base, req, wait, get, carousels, generateImage, askBox } = await setup();
+    await wait(await req(`${base}/generate`, "POST", { slideIds: ["slide-1"] }));
+    const generatedFile = visibleBackground((await get()).slides[0]!).file!;
+    const absolute = path.join(carousels.carouselDir(c.id), generatedFile);
+    expect((await req(`${base}/slides/slide-1/highlight`, "POST", { style: "border", target: "상품" })).status).toBe(200);
+    expect(askBox).toHaveBeenLastCalledWith(expect.objectContaining({ imagePath: absolute }));
+    await wait(await req(`${base}/slides/slide-1/highlight`, "POST", { style: "ai-outline", target: "상품" }));
+    expect(generateImage).toHaveBeenLastCalledWith(expect.objectContaining({ referenceImage: absolute, instruction: expect.stringContaining("흰 윤곽") }));
+    const outline = visibleBackground((await get()).slides[0]!).file!;
+    expect(outline).not.toBe(generatedFile);
+    expect(await readFile(absolute, "utf8")).toBe("generated");
+    expect(await readdir(path.join(carousels.carouselDir(c.id), "images"))).toEqual(["slide-1-1.png", "slide-1-gen-1.png"]);
+  });
+  it("다시 만들기가 실패해도 같은 프레임의 생성 파일은 모드 전환으로 재사용한다", async () => {
+    const { base, req, wait, get, generateImage } = await setup();
+    await wait(await req(`${base}/generate`, "POST", { slideIds: ["slide-1"] }));
+    const file = visibleBackground((await get()).slides[0]!).file;
+    generateImage.mockRejectedValueOnce(new Error("다시 만들기 실패"));
+    await wait(await req(`${base}/slides/slide-1/regenerate`, "POST", {}));
+    await req(`${base}/slides/slide-1`, "PATCH", { background: { mode: "frame" } });
+    const reused = await req(`${base}/slides/slide-1`, "PATCH", { background: { mode: "ai" } });
+    expect(reused.status).toBe(200);
+    expect(generateImage).toHaveBeenCalledTimes(2);
+    expect(visibleBackground((await get()).slides[0]!)).toMatchObject({ file, status: "done", error: undefined });
+  });
 });

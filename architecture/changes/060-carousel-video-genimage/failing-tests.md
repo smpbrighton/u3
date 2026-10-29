@@ -54,3 +54,16 @@ AssertionError: expected { kind: 'frame', sec: 4, …(3) } to deeply equal { kin
 ```
 
 기존 단언 변경은 spec이 바꾼 동작에 한정했다. 영상 기획의 자료 JSON 뒤 고정 꼬리, revision 3, 재기획의 AI 기본값을 반영했다. 원본 장면의 동기 재추출·취소 시험에는 frame 모드를 명시했다.
+
+## 재사용 경로 추가 확인
+
+생성 실패 후 같은 프레임의 생성 파일로 돌아가는 경로를 추가 시험했다. 구현 수정 전에 종료 코드 1과 다음 출력을 확인했다.
+
+```text
+FAIL 다시 만들기가 실패해도 같은 프레임의 생성 파일은 모드 전환으로 재사용한다
+AssertionError: expected 202 to be 200
+Test Files 1 failed (1)
+Tests 1 failed | 9 passed (10)
+```
+
+전체 검증에서 기존 `caption-plain.test.ts`의 AI 시각 재추출 단언도 확인했다. spec의 비동기 응답에 맞춰 200을 202로 바꾸고 작업 완료를 기다린다. Jev 대상 글 단언은 유지한다. 기존 시험 데이터에 새 스키마의 `mode: "frame"`과 `generatedStatus: "idle"`을 추가했다. 단언을 삭제하거나 약하게 바꾸지 않았다.
