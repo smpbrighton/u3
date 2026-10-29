@@ -4,6 +4,7 @@ export type Project = CoreProject;
 export type Input = CoreInput;
 
 export interface SystemStatus {
+  logFile: string;
   platform: "darwin" | "win32";
   capabilities: { tts: boolean };
   codex: { installed: boolean; loggedIn: boolean; version?: string | null; outdated?: boolean };

@@ -56,6 +56,7 @@ export async function api<T = void>(method: Method, path: string, body?: unknown
     response = await fetch(url, init);
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
+    resetConnection();
     throw new Error(`엔진에 연결하지 못했습니다: ${error instanceof Error ? error.message : String(error)}`);
   }
   const text = await response.text();

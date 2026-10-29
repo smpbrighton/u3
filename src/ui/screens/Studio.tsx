@@ -2,7 +2,8 @@ import type { SystemStatus } from "../types";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { AudioCache, AudioCacheEntry, Project, Timeline as TimelineData, VideoClip } from "../../core/schema";
 import { clipDuration, projectDuration, setAudioClipSpeed, setOverlayClipSpeed, setVideoClipSpeed, videoDuration, videoStartTimes, VIDEO_TRACK_REQUIRED_MESSAGE } from "../../core/timeline/ops";
-import { createHistory, pushHistory, redo, undo, type TimelineHistory } from "../../core/timeline/history";
+import { createHistory, pushHistory, replacePresent, redo, undo, type TimelineHistory } from "../../core/timeline/history";
+import { HistoryGestureContext } from "../studio/history-gesture";
 import { Button } from "../components/ui/button";
 import { BusyButton } from "../components/u3/BusyButton";
 import { Toolbar } from "../components/u3/Toolbar";
@@ -87,6 +88,13 @@ export function Studio(props: {
   const [processingBusy, setProcessingBusy] = useState(false);
   const savedTimeline = useRef(JSON.stringify(project.timeline));
   const [history, setHistory] = useState<TimelineHistory>(() => createHistory(project.timeline));
+  const historyRef = useRef(history);
+  historyRef.current = history;
+  const gestureStart = useRef<TimelineHistory | null>(null);
+  const historyGesture = useMemo(() => ({
+    begin: () => { gestureStart.current = historyRef.current; },
+    end: () => { gestureStart.current = null; },
+  }), []);
   const [playhead, setPlayhead] = useState(0);
   const [selected, setSelected] = useState<{ id: string | null; track: string | null }>({ id: null, track: null });
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
@@ -120,6 +128,7 @@ export function Studio(props: {
 
   useEffect(() => {
     savedTimeline.current = JSON.stringify(project.timeline);
+    historyGesture.end();
     setHistory(createHistory(project.timeline));
     setSelected({ id: null, track: null });
     setSelectedIds([]);
@@ -127,7 +136,11 @@ export function Studio(props: {
 
   const edit = useCallback((next: TimelineData) => {
     revision.current++;
-    setHistory((current) => JSON.stringify(next) === JSON.stringify(current.present) ? current : pushHistory(current, next));
+    const start = gestureStart.current;
+    setHistory((current) => {
+      if (JSON.stringify(next) === JSON.stringify(current.present)) return current;
+      return start && current !== start ? replacePresent(current, next) : pushHistory(current, next);
+    });
   }, []);
 
   useEffect(() => {
@@ -312,6 +325,7 @@ export function Studio(props: {
 
   const moveHistory = useCallback((direction: "undo" | "redo") => {
     revision.current++;
+    historyGesture.end();
     setHistory((current) => direction === "undo" ? undo(current) : redo(current));
   }, []);
 
@@ -499,7 +513,7 @@ export function Studio(props: {
     }
   }
 
-  return <section className="u3-shell studio-screen" aria-label="스튜디오">
+  return <HistoryGestureContext.Provider value={historyGesture}><section className="u3-shell studio-screen" aria-label="스튜디오">
     <header className="studio-header">
       <Button className="studio-back-button" variant="ghost" title="2 대본" aria-label="대본으로 돌아가기" onClick={props.onBack}><HugeiconsIcon icon={ArrowLeft01Icon} size={18} /></Button>
       <strong className="studio-project-name">{project.name}</strong>
@@ -566,7 +580,7 @@ export function Studio(props: {
     </div>
     {exportOpen ? <ExportDialog projectId={project.id} projectName={project.name} timelineLength={duration} onClose={() => setExportOpen(false)} onSnackbar={props.onSnackbar} /> : null}
     <DerivedCarouselDialog open={createCarouselOpen} projectId={project.id} onClose={() => setCreateCarouselOpen(false)} onCreated={props.onCarouselCreated} onError={props.onError} />
-  </section>;
+  </section></HistoryGestureContext.Provider>;
 }
 
 

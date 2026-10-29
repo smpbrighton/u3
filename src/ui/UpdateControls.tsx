@@ -6,6 +6,9 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "./comp
 import { cn } from "./components/ui/utils";
 import { SettingRow, SettingsGroup } from "./settings/SettingsControls";
 import { updateLine, type UpdateSnapshot } from "./updater";
+import { revealItemInDir } from "@tauri-apps/plugin-opener";
+import { api } from "./api";
+import type { SystemStatus } from "./types";
 
 export function UpdateSidebar(props: { status: UpdateSnapshot | null; collapsed?: boolean; disabled: boolean; onRestart: () => void }) {
   const line = updateLine(props.status);
@@ -35,11 +38,18 @@ export function UpdateSidebar(props: { status: UpdateSnapshot | null; collapsed?
   );
 }
 
-export function AppInfo(props: { status: UpdateSnapshot | null; onCheck: () => void }) {
+export function AppInfo(props: { status: UpdateSnapshot | null; onCheck: () => void; logFile?: string; onError?: (message: string) => void }) {
+  async function openLogs() {
+    try {
+      const file = props.logFile ?? (await api<SystemStatus>("GET", "/api/system")).logFile;
+      await revealItemInDir(file);
+    } catch (reason) { props.onError?.(reason instanceof Error ? reason.message : String(reason)); }
+  }
   return <SettingsGroup title="앱 정보">
     <SettingRow label="현재 버전"><span className="text-sm tabular-nums">{props.status?.currentVersion ?? "—"}</span></SettingRow>
     <SettingRow label="마지막 확인" value={<Button variant="outline" size="sm" disabled={!props.status || props.status.checking} onClick={props.onCheck}><HugeiconsIcon icon={RefreshIcon} aria-hidden="true" className="size-4" />지금 확인</Button>}>
       <span className="text-xs text-muted-foreground">{props.status?.lastCheckedAt ? <time dateTime={new Date(props.status.lastCheckedAt).toISOString()}>{new Date(props.status.lastCheckedAt).toLocaleString("ko-KR")}</time> : "아직 확인하지 않았어요"}</span>
     </SettingRow>
+    <SettingRow label="로그 폴더 열기"><Button variant="outline" size="sm" onClick={openLogs}>로그 폴더 열기</Button></SettingRow>
   </SettingsGroup>;
 }

@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { invoke, isTauri } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { api, resetConnection } from "./api";
 import { Video01Icon, CarouselHorizontalIcon, Settings02Icon, Loading03Icon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
@@ -53,6 +54,22 @@ export function App() {
   const saves = useRef(new RestartSaves()).current;
   const restart = useRef(new RestartController({ getBusy: () => api<{ busy: boolean }>("GET", "/api/system/busy"), saves, restart: restartUpdate })).current;
   const receiveUpdate = useRef(updateReceiver(setUpdate, notifyError)).current;
+
+  useEffect(() => {
+    if (!isTauri()) return;
+    let active = true;
+    const stops: (() => void)[] = [];
+    for (const event of ["engine-restarted", "engine-stopped"] as const) {
+      void listen(event, () => {
+        if (!active) return;
+        resetConnection();
+        setConnectionAttempt(attempt => attempt + 1);
+        if (event === "engine-restarted") notify("엔진을 다시 시작했어요. 마지막 작업을 다시 해 주세요");
+      }).then(stop => { if (active) stops.push(stop); else stop(); })
+        .catch(reason => { if (active) notifyError(String(reason)); });
+    }
+    return () => { active = false; stops.forEach(stop => stop()); };
+  }, [notify, notifyError]);
 
   useEffect(() => {
     let active = true;

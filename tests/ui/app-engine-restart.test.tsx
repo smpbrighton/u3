@@ -9,6 +9,11 @@ const env = vi.hoisted(() => ({
 vi.mock("react", async original => {
   const actual = await original<typeof import("react")>();
   return { ...actual,
+    useCallback: (callback: unknown, deps: unknown[]) => {
+      const i = env.cursor++;
+      if (!env.hooks[i] || deps.some((v, n) => !Object.is(v, env.hooks[i].deps[n]))) env.hooks[i] = { callback, deps };
+      return env.hooks[i].callback;
+    },
     useState: (initial: unknown) => {
       const i = env.cursor++;
       if (!(i in env.hooks)) env.hooks[i] = typeof initial === "function" ? initial() : initial;

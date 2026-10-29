@@ -1,4 +1,5 @@
-import type { ComponentProps } from "react";
+import { useContext, type ComponentProps } from "react";
+import { HistoryGestureContext } from "../../studio/history-gesture";
 import { Input } from "../ui/input";
 import { Textarea } from "../ui/textarea";
 import { Slider } from "../ui/slider";
@@ -7,7 +8,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from ".
 import { PropertyRow } from "./PropertyRow";
 
 export function StudioSlider(p: { label: string; value: number; min: number; max: number; step: number; disabled?: boolean; onChange: (value: number) => void }) {
-  return <Slider aria-label={p.label} min={p.min} max={p.max} step={p.step} value={[p.value]} disabled={p.disabled} onValueChange={([v]) => { if (v !== undefined) p.onChange(v); }} />;
+  const gesture = useContext(HistoryGestureContext);
+  return <Slider aria-label={p.label} min={p.min} max={p.max} step={p.step} value={[p.value]} disabled={p.disabled}
+    onPointerDown={() => { if (!p.disabled) gesture?.begin(); }}
+    onValueCommit={() => gesture?.end()}
+    onPointerCancel={() => gesture?.end()}
+    onLostPointerCapture={() => gesture?.end()}
+    onValueChange={([v]) => { if (v !== undefined) p.onChange(v); }} />;
 }
 export function StudioSwitch(p: { label: string; checked: boolean; onChange: (checked: boolean) => void; disabled?: boolean }) {
   return <Switch aria-label={p.label} checked={p.checked} onCheckedChange={p.onChange} disabled={p.disabled} />;

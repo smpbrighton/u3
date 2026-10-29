@@ -21,6 +21,10 @@ export function pushHistory(history: TimelineHistory, next: Timeline): TimelineH
   return { past, present: snapshot(next), future: [] };
 }
 
+export function replacePresent(history: TimelineHistory, next: Timeline): TimelineHistory {
+  return { past: history.past, present: snapshot(next), future: [] };
+}
+
 export function undo(history: TimelineHistory): TimelineHistory {
   if (!history.past.length) return { past: [...history.past], present: snapshot(history.present), future: history.future.map(snapshot) };
   const previous = history.past.at(-1)!;

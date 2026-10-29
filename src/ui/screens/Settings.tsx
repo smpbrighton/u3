@@ -439,7 +439,7 @@ export function Settings(props: { shortcuts?: StudioShortcutTable; onShortcuts?:
           </SettingRow>
           <SettingsSlider label="재생 시작 딜레이" value={introSfx.atSec} min={0} max={10} step={0.1} suffix="초" disabled={loading} onChange={atSec => updateIntro({ ...introRef.current, atSec })} />
         </SettingsGroup>}
-        {visibleSection === "about" && <AppInfo status={props.update} onCheck={props.onCheckUpdate} />}
+        {visibleSection === "about" && <AppInfo status={props.update} onCheck={props.onCheckUpdate} logFile={status?.logFile} onError={props.onError} />}
       </div>
     </div>
   </section>;
