@@ -2,9 +2,17 @@ import { execFileSync } from "node:child_process";
 import { mkdir, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
+import type { z } from "zod";
 import { BUNDLED_PROMPT_DEFAULTS, PROMPT_SCHEMA, PromptDefaultsFile, type PromptDefaults } from "../src/core/default-prompts";
 
-export function decidePublish(remote: PromptDefaults | null, local: PromptDefaults): "unchanged" | "publish" {
+// revision 1 파일에는 말투·성격이 없다. 읽기만 허용하고 본문 비교에서 다른 것으로 본다.
+const RemotePromptFile = PromptDefaultsFile.partial({ tone: true, persona: true });
+type RemotePrompts = z.infer<typeof RemotePromptFile>;
+export function parseRemote(value: unknown): RemotePrompts {
+  return RemotePromptFile.parse(value);
+}
+
+export function decidePublish(remote: RemotePrompts | null, local: PromptDefaults): "unchanged" | "publish" {
   if (!remote) return "publish";
   const sameText = remote.script === local.script && remote.tone === local.tone && remote.persona === local.persona && remote.carouselTopic === local.carouselTopic && remote.carouselVideo === local.carouselVideo;
   if (remote.revision === local.revision && sameText) return "unchanged";
@@ -23,7 +31,7 @@ function command(bin: string, args: string[]): string {
   return execFileSync(bin, args, { cwd: root, encoding: "utf8", stdio: ["ignore", "pipe", "pipe"] });
 }
 
-function readRemote(url: string): PromptDefaults | null {
+function readRemote(url: string): RemotePrompts | null {
   let text: string;
   try {
     text = command("curl", ["-fsSL", "--max-time", "30", "--max-filesize", String(512 * 1024), "--write-out", "\n%{http_code}", url]);
@@ -31,7 +39,7 @@ function readRemote(url: string): PromptDefaults | null {
     if (isMissingRemote(error as { status?: number; stdout?: string })) return null;
     throw error;
   }
-  return PromptDefaultsFile.parse(JSON.parse(text.slice(0, text.lastIndexOf("\n"))));
+  return parseRemote(JSON.parse(text.slice(0, text.lastIndexOf("\n"))));
 }
 
 async function main(): Promise<void> {
