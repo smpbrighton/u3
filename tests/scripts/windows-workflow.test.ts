@@ -15,3 +15,8 @@ it("draft Release 를 읽는 job 은 contents 쓰기 권한을 가진다", () =>
     expect(job(name), name).toMatch(/\n    permissions:\n      contents: write\n/);
   }
 });
+
+// publish job 은 Linux 에서 공개 스크립트만 돈다. onnxruntime-node 설치 스크립트가 Linux CUDA 패키지를 받다 실패한다(run 40825453652).
+it("publish job 은 onnxruntime-node 추가 설치를 건너뛴다", () => {
+  expect(job("publish")).toMatch(/ONNXRUNTIME_NODE_INSTALL: skip\n/);
+});
