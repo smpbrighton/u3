@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { BUNDLED_PROMPT_DEFAULTS as local } from "../../src/core/default-prompts";
-import { decidePublish, isMissingRemote } from "../../scripts/publish-prompts";
+import { decidePublish, isMissingRemote, parseRemote } from "../../scripts/publish-prompts";
 
 describe("기본 프롬프트 공개 판단", () => {
   it("같은 revision과 본문이면 unchanged다", () => {
@@ -19,6 +19,19 @@ describe("기본 프롬프트 공개 판단", () => {
   });
   it("원격 revision만 크고 본문이 같으면 publish다", () => {
     expect(decidePublish({ ...local, revision: local.revision + 1 }, local)).toBe("publish");
+  });
+});
+
+describe("원격 파일 읽기", () => {
+  it("말투·성격이 없는 이전 revision 파일을 읽고 publish 로 판단한다", () => {
+    const { tone: _tone, persona: _persona, ...previous } = { ...local, revision: local.revision - 1 };
+    const remote = parseRemote(previous);
+    expect(remote).toEqual(previous);
+    expect(decidePublish(remote, local)).toBe("publish");
+  });
+  it("필수 본문이 빠진 파일은 거부한다", () => {
+    const { script: _script, ...broken } = local;
+    expect(() => parseRemote(broken)).toThrow();
   });
 });
 
