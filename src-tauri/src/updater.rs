@@ -127,6 +127,7 @@ pub fn update_restart(app: AppHandle) -> Result<(), String> {
         runtime.model.stop();
         runtime.restart = true;
     }
+    crate::begin_engine_shutdown(&app);
     #[cfg(windows)]
     app.exit(0);
     #[cfg(not(windows))]

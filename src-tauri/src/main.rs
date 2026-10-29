@@ -11,10 +11,10 @@ use std::io::{BufRead, BufReader, Error, ErrorKind};
 #[cfg(debug_assertions)]
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
-use std::sync::Mutex;
+use std::sync::{Mutex, atomic::{AtomicBool, Ordering}};
 use std::thread::sleep;
 use std::time::{Duration, Instant};
-use tauri::{Manager, State};
+use tauri::{Emitter, Manager, State};
 #[cfg(target_os = "macos")]
 use tauri::menu::{Menu, PredefinedMenuItem, Submenu};
 
@@ -70,17 +70,88 @@ fn spawn_engine(command: &mut Command, token: &str) -> Result<EngineChild, Error
 
 struct EngineProcess {
     child: Mutex<Option<EngineChild>>,
-    connection: Option<EngineConnection>,
-    startup_error: Option<String>,
+    connection: Mutex<Option<EngineConnection>>,
+    startup_error: Mutex<Option<String>>,
+    stopping: AtomicBool,
+}
+
+const RESTART_WINDOW: Duration = Duration::from_secs(5 * 60);
+const ENGINE_STOPPED: &str = "엔진이 반복해서 멈췄어요. 앱을 다시 시작해 주세요";
+
+fn restart_allowed(restarts: &[Instant], now: Instant) -> bool {
+    restarts.iter().filter(|at| now.saturating_duration_since(**at) < RESTART_WINDOW).count() < 3
+}
+
+impl EngineProcess {
+    fn begin_shutdown(&self) { self.stopping.store(true, Ordering::SeqCst); }
+
+    fn restart_permitted(&self, restarts: &[Instant], now: Instant) -> bool {
+        !self.stopping.load(Ordering::SeqCst) && restart_allowed(restarts, now)
+    }
+}
+
+fn watch_engine(app: tauri::AppHandle) {
+    std::thread::spawn(move || {
+        let mut restarts = Vec::new();
+        loop {
+            sleep(Duration::from_secs(1));
+            let engine = app.state::<EngineProcess>();
+            let mut child = engine.child.lock().unwrap();
+            if engine.stopping.load(Ordering::SeqCst) { return; }
+            let previous_exit = match child.as_mut().map(|child| child.try_wait()) {
+                Some(Ok(Some(status))) => status.to_string(),
+                Some(Ok(None)) => continue,
+                Some(Err(error)) => {
+                    // 상태를 읽지 못한 자식을 남긴 채 새 엔진을 띄우지 않는다.
+                    if let Some(child) = child.as_mut() {
+                        let _ = child.kill();
+                        let _ = child.wait();
+                    }
+                    error.to_string()
+                }
+                None => return,
+            };
+            child.take(); // Windows Job도 닫아 이전 엔진의 자식을 정리한다.
+            *engine.connection.lock().unwrap() = None;
+            let now = Instant::now();
+            restarts.retain(|at| now.saturating_duration_since(*at) < RESTART_WINDOW);
+            if !engine.restart_permitted(&restarts, now) {
+                if engine.stopping.load(Ordering::SeqCst) { return; }
+                *engine.startup_error.lock().unwrap() = Some(ENGINE_STOPPED.into());
+                let _ = app.emit("engine-stopped", ());
+                return;
+            }
+            restarts.push(now);
+            match start_engine(&app, Some(&previous_exit)) {
+                Ok((mut next_child, connection)) => {
+                    // start_engine 중 종료 요청이 들어왔으면 새 연결을 공개하지 않는다.
+                    if engine.stopping.load(Ordering::SeqCst) {
+                        stop_child(&mut next_child);
+                        return;
+                    }
+                    *child = Some(next_child);
+                    *engine.startup_error.lock().unwrap() = None;
+                    *engine.connection.lock().unwrap() = Some(connection);
+                    let _ = app.emit("engine-restarted", ());
+                }
+                Err(error) => {
+                    if engine.stopping.load(Ordering::SeqCst) { return; }
+                    *engine.startup_error.lock().unwrap() = Some(format!("U3 엔진을 시작하지 못했습니다: {error}"));
+                    let _ = app.emit("engine-stopped", ());
+                    return;
+                }
+            }
+        }
+    });
 }
 
 #[tauri::command]
 fn engine_connection(engine: State<'_, EngineProcess>) -> Result<EngineConnection, String> {
-    engine.connection.clone().ok_or_else(|| engine.startup_error.clone().unwrap_or_else(|| "엔진 연결 정보가 없습니다".to_string()))
+    engine.connection.lock().unwrap().clone().ok_or_else(|| engine.startup_error.lock().unwrap().clone().unwrap_or_else(|| "엔진 연결 정보가 없습니다".to_string()))
 }
 
 #[cfg(debug_assertions)]
-fn start_engine() -> Result<(EngineChild, EngineConnection), Box<dyn std::error::Error>> {
+fn start_engine(_app: &tauri::AppHandle, previous_exit: Option<&str>) -> Result<(EngineChild, EngineConnection), Box<dyn std::error::Error>> {
     let token = uuid::Uuid::new_v4().to_string();
     let root = PathBuf::from(env!("CARGO_MANIFEST_DIR"))
         .parent()
@@ -94,19 +165,8 @@ fn start_engine() -> Result<(EngineChild, EngineConnection), Box<dyn std::error:
         .stdin(Stdio::piped())
         .stdout(Stdio::piped())
         .stderr(Stdio::inherit());
-    let mut child = spawn_engine(&mut command, &token)?;
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| Error::new(ErrorKind::Other, "엔진 stdout을 열지 못했습니다"))?;
-    let mut line = String::new();
-    BufReader::new(stdout).read_line(&mut line)?;
-    let port = line
-        .trim()
-        .strip_prefix("PORT ")
-        .ok_or_else(|| Error::new(ErrorKind::InvalidData, "엔진이 PORT 응답을 보내지 않았습니다"))?
-        .parse::<u16>()?;
-    Ok((child, EngineConnection { port, token }))
+    previous_exit_env(&mut command, previous_exit);
+    connect_engine(command, token)
 }
 
 #[cfg(any(not(debug_assertions), test))]
@@ -138,17 +198,31 @@ fn bundled_engine_command(resources: &std::path::Path, token: &str) -> Result<Co
 }
 
 #[cfg(not(debug_assertions))]
-fn start_engine(app: &tauri::AppHandle) -> Result<(EngineChild, EngineConnection), Box<dyn std::error::Error>> {
+fn start_engine(app: &tauri::AppHandle, previous_exit: Option<&str>) -> Result<(EngineChild, EngineConnection), Box<dyn std::error::Error>> {
     let token = uuid::Uuid::new_v4().to_string();
     let resources = app.path().resource_dir()?.join("resources");
     let mut command = bundled_engine_command(&resources, &token)?;
     #[cfg(windows)]
     command.env("U3_DATA_DIR", app.path().app_local_data_dir()?);
+    previous_exit_env(&mut command, previous_exit);
+    connect_engine(command, token)
+}
+
+fn previous_exit_env(command: &mut Command, previous_exit: Option<&str>) {
+    command.env_remove("U3_PREVIOUS_EXIT");
+    if let Some(status) = previous_exit { command.env("U3_PREVIOUS_EXIT", status); }
+}
+
+fn connect_engine(mut command: Command, token: String) -> Result<(EngineChild, EngineConnection), Box<dyn std::error::Error>> {
     let mut child = spawn_engine(&mut command, &token)?;
-    let stdout = child
-        .stdout
-        .take()
-        .ok_or_else(|| Error::new(ErrorKind::Other, "엔진 stdout을 열지 못했습니다"))?;
+    let stdout = match child.stdout.take() {
+        Some(stdout) => stdout,
+        None => {
+            let _ = child.kill();
+            let _ = child.wait();
+            return Err(Box::new(Error::other("엔진 stdout을 열지 못했습니다")));
+        }
+    };
     let mut line = String::new();
     let port = BufReader::new(stdout)
         .read_line(&mut line)
@@ -183,36 +257,21 @@ fn main() {
         .setup(|app| {
             #[cfg(target_os = "macos")]
             app.set_menu(macos_menu(app)?)?;
-            #[cfg(debug_assertions)]
-            {
-                let (child, connection) = start_engine()?;
-                app.manage(EngineProcess {
-                    child: Mutex::new(Some(child)),
-                    connection: Some(connection),
-                    startup_error: None,
-                });
-            }
-            #[cfg(not(debug_assertions))]
-            {
-                match start_engine(app.handle()) {
-                    Ok((child, connection)) => {
-                        app.manage(EngineProcess {
-                            child: Mutex::new(Some(child)),
-                            connection: Some(connection),
-                            startup_error: None,
-                        });
-                    }
-                    Err(error) => {
-                        let message = format!("U3 엔진을 시작하지 못했습니다: {error}");
-                        eprintln!("{message}");
-                        app.manage(EngineProcess {
-                            child: Mutex::new(None),
-                            connection: None,
-                            startup_error: Some(message),
-                        });
-                    }
+            let (child, connection, startup_error) = match start_engine(app.handle(), None) {
+                Ok((child, connection)) => (Some(child), Some(connection), None),
+                Err(error) => {
+                    let message = format!("U3 엔진을 시작하지 못했습니다: {error}");
+                    eprintln!("{message}");
+                    (None, None, Some(message))
                 }
-            }
+            };
+            app.manage(EngineProcess {
+                child: Mutex::new(child),
+                connection: Mutex::new(connection),
+                startup_error: Mutex::new(startup_error),
+                stopping: AtomicBool::new(false),
+            });
+            watch_engine(app.handle().clone());
             updater::setup(app.handle());
             Ok(())
         });
@@ -225,6 +284,7 @@ fn main() {
                 updater::focus(app);
             }
             if let tauri::RunEvent::Exit = event {
+                begin_engine_shutdown(app);
                 updater::stop(app);
                 stop_engine(app);
                 updater::install_on_exit(app);
@@ -322,26 +382,31 @@ mod bundled_engine_tests {
     }
 }
 
+pub(crate) fn begin_engine_shutdown(app: &tauri::AppHandle) {
+    if let Some(engine) = app.try_state::<EngineProcess>() { engine.begin_shutdown(); }
+}
+
 pub(crate) fn stop_engine(app: &tauri::AppHandle) {
-                if let Some(engine) = app.try_state::<EngineProcess>() {
-                    if let Ok(mut child) = engine.child.lock() {
-                        if let Some(mut child) = child.take() {
-                            drop(child.stdin.take());
-                            let deadline = Instant::now() + ENGINE_EXIT_TIMEOUT;
-                            loop {
-                                match child.try_wait() {
-                                    Ok(Some(_)) => break,
-                                    Ok(None) if Instant::now() < deadline => {
-                                        sleep(ENGINE_EXIT_POLL_INTERVAL)
-                                    }
-                                    Ok(None) | Err(_) => {
-                                        let _ = child.kill();
-                                        let _ = child.wait();
-                                        break;
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
+    begin_engine_shutdown(app);
+    if let Some(engine) = app.try_state::<EngineProcess>() {
+        if let Ok(mut child) = engine.child.lock() {
+            if let Some(mut child) = child.take() { stop_child(&mut child); }
+        }
+    }
+}
+
+fn stop_child(child: &mut EngineChild) {
+    drop(child.stdin.take());
+    let deadline = Instant::now() + ENGINE_EXIT_TIMEOUT;
+    loop {
+        match child.try_wait() {
+            Ok(Some(_)) => break,
+            Ok(None) if Instant::now() < deadline => sleep(ENGINE_EXIT_POLL_INTERVAL),
+            Ok(None) | Err(_) => {
+                let _ = child.kill();
+                let _ = child.wait();
+                break;
+            }
+        }
+    }
 }
