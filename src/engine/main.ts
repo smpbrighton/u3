@@ -19,11 +19,10 @@ import { renderCarouselSlide } from "./pipeline/render";
 import { createJevKeyStore } from "./jev-key";
 import { createDpapiKeyStore } from "./jev-key-win";
 import { defaultOrigin, enginePlatform, exe } from "./platform";
+import { installEngineLog } from "./engine-log";
+import packageInfo from "../../package.json";
 
 process.stdin.resume();
-process.on("unhandledRejection", reason => {
-  console.error("[engine] unhandled rejection", reason);
-});
 
 // Tauri는 U3_TOKEN 환경 변수로 일회용 토큰을 준다. 개발 실행은 stdin 첫 줄에서 읽는다.
 async function readToken(): Promise<string> {
@@ -39,7 +38,10 @@ async function readToken(): Promise<string> {
 }
 const token = await readToken();
 if (!token) throw new Error("U3_TOKEN이 비어 있습니다");
-const store = new Store(); await store.init();
+const store = new Store();
+const logSecrets = new Set([token]);
+installEngineLog({ dir: path.join(store.root, "logs"), version: packageInfo.version, secrets: () => [...logSecrets] });
+await store.init();
 const prompts = createPromptDefaults({ dataDir: store.root, env: process.env, fetchImpl: fetch });
 const stopPrompts = prompts.start();
 const tauriOrigin = process.env.TAURI_ORIGIN ?? defaultOrigin();
@@ -90,9 +92,21 @@ const transcribeInput = async ({ file, signal }: { file: string; inputId: string
 };
 const jobs = new Jobs();
 const index = memeIndex(store.root, bgeM3Embedder({ cacheDir: path.join(store.root, "cache/models") }), () => import("./pipeline/library").then(({ listMemes }) => listMemes(libraryRoot)));
-const jevKeyStore = enginePlatform() === "win32"
+const keyStore = enginePlatform() === "win32"
   ? createDpapiKeyStore({ helperPath: process.env.U3_KEY_STORE_CLI ?? path.join(resourceDir, "bin/u3-key-store.exe"), filePath: path.join(store.root, "secrets/jev-key.dpapi") })
   : createJevKeyStore();
+const jevKeyStore = {
+  ...keyStore,
+  readJevKey: async () => {
+    const key = await keyStore.readJevKey();
+    if (key) logSecrets.add(key);
+    return key;
+  },
+  saveJevKey: async (key: string) => {
+    logSecrets.add(key);
+    await keyStore.saveJevKey(key);
+  },
+};
 const app = createApp({
   promptDefaults: () => prompts.current(),
   store,

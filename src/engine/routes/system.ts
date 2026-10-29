@@ -184,6 +184,7 @@ export function registerSystemRoutes(app: Hono, context: AppContext): void {
     const codex = bin ? await codexLoginStatus(bin) : { installed: false, loggedIn: false, version: null, outdated: false };
     return c.json({
       platform: enginePlatform(),
+      logFile: path.join(context.store.root, "logs", "engine.log"),
       capabilities: capabilities(),
       codex,
       jev: await jevStatus(),
