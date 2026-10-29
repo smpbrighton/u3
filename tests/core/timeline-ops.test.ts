@@ -155,6 +155,15 @@ describe("058 타임라인 크기 조절", () => {
     expect(trimAudioClip([clip], "a", "start", toSec, 6)[0]).toMatchObject({ startSec: 0, inStartSec: 1.5, inEndSec: 5 });
   });
 
+  it.each([[1, "start"], [1, "end"], [1.5, "start"], [1.5, "end"]] as const)("%s배 오디오의 %s 경계는 소수점 시각에서도 파일 범위를 넘지 않는다", (speed, edge) => {
+    const clip: AudioClip = { id: "a", startSec: 1.1, file: "v.wav", inStartSec: 0.3, inEndSec: 4, gain: 1, speed };
+    const toSec = clampAudioTrim(clip, edge, edge === "start" ? -10 : 20, 6.1);
+    const next = trimAudioClip([clip], "a", edge, toSec, 6.1)[0]!;
+    expect(next.inStartSec).toBeGreaterThanOrEqual(0);
+    expect(next.inEndSec).toBeLessThanOrEqual(6.1);
+    expect(edge === "start" ? next.inStartSec : next.inEndSec).toBeCloseTo(edge === "start" ? 0 : 6.1, 12);
+  });
+
   it("오디오의 0프레임 트림은 기존 규칙으로 거절한다", () => {
     const clip: AudioClip = { id: "a", startSec: 2, file: "v.wav", inStartSec: 0, inEndSec: 3, gain: 1, speed: 1.5 };
     for (const [edge, toSec] of [["start", 3.999], ["end", 2.001]] as const) {
