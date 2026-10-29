@@ -144,3 +144,12 @@
 
 ## [2026-10-29] ingest | render 취소 테스트 대기 수정
 - 바뀐 페이지 없음. 테스트만 바꾼 커밋이다. `git:30e7391:`
+
+## [2026-10-29] ingest | 049 Windows 빌드와 0.3.7
+- [Windows 빌드와 검증](pages/concept-windows-build.md)
+- [U3 데스크톱 앱](pages/entity-desktop-app.md)
+- [자동 업데이트와 릴리스](pages/concept-updates.md)
+- [로컬 TTS](pages/concept-local-tts.md)
+- [Codex 호환성](pages/concept-codex-compat.md)
+- [index](index.md)
+- 049의 테스트 선행·계획 승인·CI 수정 커밋은 위 페이지에 기능과 검증 상태로 통합했다. 별도 페이지가 필요한 나머지 커밋은 없다.

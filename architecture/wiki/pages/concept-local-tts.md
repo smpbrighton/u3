@@ -12,7 +12,10 @@
 - 구현 검증 기록은 `pnpm verify` 통과와 `.app`·`.dmg` 패키징 성공을 보고한다. 패키지 도우미와 실제 모델을 사용한 API smoke 결과는 7.36초 WAV다. 패키징 로그는 공증을 건너뛰었다고 표시한다. `architecture/changes/040-qwen-tts/plan.md` `git:910cddc:`
 - 패키지 GUI에서 생성·트랙 배치·미리보기 청취의 실행 증거는 코드에서 못 찾음. 새 사용자 환경의 실제 전체 모델 다운로드와 네트워크 차단 상태의 합성도 미검증이다. S1에서 다른 앱과 함께 쓸 때의 실제 여유 메모리는 미측정이다. 서명·공증 검증 증거는 코드에서 못 찾음. `architecture/changes/040-qwen-tts/plan.md` `docs/spikes/qwen-tts.md`
 
+- 엔진 capability는 macOS에서 TTS를 제공하고 Windows에서 제공하지 않는다. Windows UI는 capability에 따라 TTS 설정과 생성 동작을 숨긴다. 직접 API 거절 및 기존 음성 재생의 Windows 실기기 시험은 미실행이다. `src/engine/platform.ts` `src/engine/routes/tts.ts` `src/ui/screens/Settings.tsx` `src/ui/screens/Studio.tsx` `architecture/changes/049-windows-build/checklist.md` `git:cea4036:`
+
 ## 관계
+- [Windows 빌드와 검증](concept-windows-build.md)
 - [클립 배속](concept-playback-speed.md)
 - [자막과 장면 검토](concept-caption-scene-review.md)
 - [타임라인 편집](concept-timeline-editing.md)

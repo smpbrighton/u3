@@ -21,7 +21,13 @@
 - 0.3.6 커밋은 앱과 Tauri의 버전 설정을 변경했다. 실제 배포·서명·공증·설치 실행 증거는 코드에서 못 찾음. `package.json` `src-tauri/Cargo.toml` `src-tauri/Cargo.lock` `src-tauri/tauri.conf.json` `git:a5c6d92:`
 - 결정 링크: [자동 업데이트](../../decisions/0021-auto-update.md). `git:b9f7c76:`
 
+- 두 플랫폼 릴리스의 fragment는 버전·commit·자산 hash와 서명 버전을 검사해 하나의 `latest.json`과 `SHA256SUMS.txt`를 만든다. 테스트는 fragment 불일치와 자산 변조를 거절한다. `scripts/publish-release.ts` `tests/scripts/publish-release.test.ts` `architecture/changes/049-windows-build/test-E-pass.log` `git:efbbc7b:`
+- Windows 설치 및 두 버전 업데이트, 실제 통합 manifest로 기존 Mac 설치본 업데이트는 체크리스트에서 미실행이다. 리소스 권리 확인 전 archive 업로드는 blocked이며 Windows updater 키 등록은 사용자 소유 단계다. `architecture/changes/049-windows-build/checklist.md` `architecture/changes/049-windows-build/plan.md` `git:6c454aa:`
+- 0.3.7 커밋은 버전 설정을 변경했다. 해당 커밋의 실제 배포·서명·공증·설치 실행 증거는 코드에서 못 찾음. `package.json` `src-tauri/tauri.conf.json` `git:bed1571:`
+- 결정 링크: [Windows 빌드](../../decisions/0032-windows-build.md), [릴리스 흐름](../../decisions/0033-release-flow.md). `git:e3a80f4:`
+
 ## 관계
+- [Windows 빌드와 검증](concept-windows-build.md)
 - [원격 기본 프롬프트](concept-remote-prompts.md)
 - [compositor dylib 경로](concept-compositor-dylib.md)
 - [U3 데스크톱 앱](entity-desktop-app.md)

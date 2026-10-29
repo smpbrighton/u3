@@ -7,6 +7,7 @@
 - [엔진 종료](pages/entity-engine-shutdown.md) — sidecar 종료 정리와 ONNX 런타임 종료 경계.
 
 ## concept
+- [Windows 빌드와 검증](pages/concept-windows-build.md) — 플랫폼 빌드, 설치와 검증·미검증 상태.
 - [원격 기본 프롬프트](pages/concept-remote-prompts.md) — 받기·캐시·사용자 설정, 404 판정과 공개 검증 상태.
 - [Codex 호환성](pages/concept-codex-compat.md) — 실행 경로, 계정 모델 선택·재시도와 검증 상태.
 - [compositor dylib 경로](pages/concept-compositor-dylib.md) — 패키징·서명 전 경로 검사와 실행 검증 상태.

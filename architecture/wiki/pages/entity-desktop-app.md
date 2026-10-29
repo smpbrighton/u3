@@ -1,7 +1,7 @@
 # U3 데스크톱 앱
 
 ## 요약
-U3는 macOS Apple Silicon 대상 Tauri 2 앱이며 React UI와 Node sidecar 엔진으로 동작한다. 엔진은 `127.0.0.1` 임의 포트에서 일회용 토큰과 허용 Origin을 확인한다. `architecture/changes/001-desktop-studio/spec.md` `src-tauri/src/main.rs` `src/engine/main.ts` `src/engine/app.ts` `git:1cfc7e35c4af2fa3d58d6a017a83d21556c39740:`
+U3는 macOS Apple Silicon과 Windows x64 대상 Tauri 2 앱이며 React UI와 Node sidecar 엔진으로 동작한다. 엔진은 `127.0.0.1` 임의 포트에서 일회용 토큰과 허용 Origin을 확인한다. `architecture/changes/049-windows-build/spec.md` `src-tauri/src/main.rs` `src/engine/main.ts` `src/engine/app.ts` `git:ec2dbac:`
 
 ## 내용
 - 설치 앱에서 codex 호출, Jev 판정, 음성 분리, 받아 적기, 내보내기를 수동 확인했다. 미실행·부분 항목도 남아 있다. `docs/manual-check.md` `git:1cfc7e35c4af2fa3d58d6a017a83d21556c39740:`
@@ -22,7 +22,11 @@ U3는 macOS Apple Silicon 대상 Tauri 2 앱이며 React UI와 Node sidecar 엔�
 - 앱의 최소 macOS 버전은 15다. `src-tauri/tauri.conf.json` `git:f65db44:`
 - compositor dylib 처리와 패키징된 ffprobe 검증은 [compositor dylib 경로](concept-compositor-dylib.md)에 있다. `scripts/build-engine.ts` `git:41c0d1a:`
 
+- Windows 엔진은 기본 데이터 경로로 `LOCALAPPDATA/ai.brightongroup.u3`를 쓰고 Tauri Origin을 `http://tauri.localhost`로 설정한다. Windows Jev 키는 DPAPI 도우미에 stdin으로 전달한다. `src/engine/platform.ts` `src/engine/jev-key-win.ts` `native/u3-key-store/src/windows.rs` `git:ec2dbac:`
+- Windows 앱은 Job Object로 엔진 자손 종료를 처리한다. Windows 설치·실행과 DPAPI·프로세스 종료의 실기기 검증은 미실행이다. `src-tauri/src/job.rs` `architecture/changes/049-windows-build/checklist.md` `git:ec2dbac:`
+
 ## 관계
+- [Windows 빌드와 검증](concept-windows-build.md)
 - [compositor dylib 경로](concept-compositor-dylib.md)
 - [화면 셸과 설정](concept-ui-shell.md)
 - [엔진 종료](entity-engine-shutdown.md)

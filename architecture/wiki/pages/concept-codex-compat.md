@@ -10,7 +10,10 @@ Codex 실행 파일 탐색과 계정 모델 선택은 대본, 자막 및 캐러�
 - CLI 버전이 0.159.3 미만이면 업데이트 경고를 표시하고 대본 생성을 막는다. 버전을 읽지 못하면 outdated로 판정하지 않는다. 설치 파일을 찾지 못한 경우와 로그인 확인 실패를 구분한다. `src/core/codex-model.ts` `src/engine/pipeline/codex-path.ts` `src/ui/components/u3/CodexWarning.tsx` `src/ui/screens/Script.tsx` `git:e3c7fd2:`
 - 실패 테스트와 구현 커밋은 확인했다. 테스트 실행 출력과 `pnpm verify` 통과 증거는 코드에서 못 찾음. 설치본에서 자동 경로 탐색과 모델 전환을 확인한 실행 증거도 코드에서 못 찾음. `architecture/changes/052-codex-compat/plan.md` `tests/server/codex-models.test.ts` `git:58ae8a1:`
 
+- Windows 경로 탐색은 native 실행 파일과 npm `codex.cmd` shim을 다룬다. Windows 실기기에서 두 경로와 로그인 성공은 미실행이다. `src/engine/pipeline/codex-path.ts` `tests/engine/codex-path.test.ts` `architecture/changes/049-windows-build/checklist.md` `git:9a58a0a:`
+
 ## 관계
+- [Windows 빌드와 검증](concept-windows-build.md)
 - [화면 셸과 설정](concept-ui-shell.md)
 - [타임라인 편집](concept-timeline-editing.md)
 - [캐러셀 생성](concept-carousel.md)
