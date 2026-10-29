@@ -24,6 +24,7 @@
 - 두 플랫폼 릴리스의 fragment는 버전·commit·자산 hash와 서명 버전을 검사해 하나의 `latest.json`과 `SHA256SUMS.txt`를 만든다. 테스트는 fragment 불일치와 자산 변조를 거절한다. `scripts/publish-release.ts` `tests/scripts/publish-release.test.ts` `architecture/changes/049-windows-build/test-E-pass.log` `git:efbbc7b:`
 - Windows 설치 및 두 버전 업데이트, 실제 통합 manifest로 기존 Mac 설치본 업데이트는 체크리스트에서 미실행이다. 리소스 권리 확인 전 archive 업로드는 blocked이며 Windows updater 키 등록은 사용자 소유 단계다. `architecture/changes/049-windows-build/checklist.md` `architecture/changes/049-windows-build/plan.md` `git:6c454aa:`
 - 0.3.7 커밋은 버전 설정을 변경했다. 해당 커밋의 실제 배포·서명·공증·설치 실행 증거는 코드에서 못 찾음. `package.json` `src-tauri/tauri.conf.json` `git:bed1571:`
+- 0.3.8 커밋은 네 버전 설정을 변경했다. 사용자 제공 사실에 따르면 태그 push로 시작한 [Windows build run 40813927617](https://github.com/smpbrighton/u3/actions/runs/40813927617)은 draft Release 조회에서 실패했다. 해당 버전의 실제 배포·서명·공증·설치 실행 증거는 코드에서 못 찾음. `package.json` `src-tauri/Cargo.toml` `src-tauri/Cargo.lock` `src-tauri/tauri.conf.json` `git:8db8e74:`
 - 결정 링크: [Windows 빌드](../../decisions/0032-windows-build.md), [릴리스 흐름](../../decisions/0033-release-flow.md). `git:e3a80f4:`
 
 ## 관계

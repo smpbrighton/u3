@@ -161,3 +161,10 @@
 - `pages/concept-windows-build.md`
 - `index.md`
 - 계획·실패 테스트·구현 및 이전 원격 파일 호환 커밋은 기존 페이지에 반영했으며 별도 페이지는 없다. `git:6f700e8:` `git:186a249:` `git:517cf59:` `git:9456024:` `git:62973e9:` `git:22ecacb:`
+
+## [2026-10-29] ingest | Windows draft Release 권한 및 release 0.3.8
+- `pages/concept-windows-build.md`
+- `pages/concept-updates.md`
+- `index.md`
+- 테스트 추가와 권한 수정은 Windows 빌드 페이지에 함께 반영했다. 별도 페이지는 없다. `git:4798e89:` `git:ace19d2:`
+- 0.3.8 버전 변경은 릴리스 페이지에 반영했다. 별도 페이지는 없다. `git:8db8e74:`
