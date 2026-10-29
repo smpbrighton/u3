@@ -3,6 +3,8 @@ import { promptHash } from "./prompt-defaults";
 
 export const PROMPT_SETTINGS = [
   { kind: "script", key: "scriptPrompt", baseKey: "scriptPromptBaseHash", field: "script" },
+  { kind: "tone", key: "scriptTone", baseKey: "scriptToneBaseHash", field: "tone" },
+  { kind: "persona", key: "scriptPersona", baseKey: "scriptPersonaBaseHash", field: "persona" },
   { kind: "topic", key: "carouselTopicPrompt", baseKey: "carouselTopicPromptBaseHash", field: "carouselTopic" },
   { kind: "video", key: "carouselVideoPrompt", baseKey: "carouselVideoPromptBaseHash", field: "carouselVideo" },
 ] as const;

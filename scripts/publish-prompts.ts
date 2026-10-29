@@ -6,7 +6,7 @@ import { BUNDLED_PROMPT_DEFAULTS, PROMPT_SCHEMA, PromptDefaultsFile, type Prompt
 
 export function decidePublish(remote: PromptDefaults | null, local: PromptDefaults): "unchanged" | "publish" {
   if (!remote) return "publish";
-  const sameText = remote.script === local.script && remote.carouselTopic === local.carouselTopic && remote.carouselVideo === local.carouselVideo;
+  const sameText = remote.script === local.script && remote.tone === local.tone && remote.persona === local.persona && remote.carouselTopic === local.carouselTopic && remote.carouselVideo === local.carouselVideo;
   if (remote.revision === local.revision && sameText) return "unchanged";
   if (remote.revision >= local.revision && !sameText) throw new Error("기본 프롬프트를 바꿨으면 PROMPT_REVISION 을 올리세요");
   return "publish";

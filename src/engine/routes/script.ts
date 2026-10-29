@@ -11,6 +11,7 @@ import { extractFrames, frameAllocation, frameInputsWithDuration } from "../pipe
 import { listMemes } from "../pipeline/library";
 import { formatScriptInputGuide, validateScriptForInputs } from "../pipeline/script-validation";
 import { buildScriptPrompt } from "../../core/script-prompt";
+import { promptState } from "../prompt-settings";
 import { checkScriptStyle } from "../../core/script-style";
 import { escapeCaptionStars } from "../../core/captions";
 import { CODEX_MIN_VERSION, isCodexOutdated } from "../../core/codex-model";
@@ -56,9 +57,10 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
     const job = context.jobs.enqueue("대본 추천", async ({ signal, progress }) => {
       progress(0.1, "Codex 실행 중");
       const settings = await context.store.readSettings();
+      const defaults = await context.promptDefaults!();
       const voice = {
-        tone: typeof settings.scriptTone === "string" ? settings.scriptTone : "",
-        persona: typeof settings.scriptPersona === "string" ? settings.scriptPersona : "",
+        tone: promptState(settings, defaults, "tone").prompt,
+        persona: promptState(settings, defaults, "persona").prompt,
       };
       const inputs = await frameInputsWithDuration(project.inputs, context.store.projectDir(project.id));
       const counts = frameAllocation(inputs);
@@ -121,7 +123,7 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
       };
       const prompt = buildScriptPrompt({
         mode,
-        basePrompt: typeof settings.scriptPrompt === "string" && settings.scriptPrompt.trim() ? settings.scriptPrompt : (await context.promptDefaults!()).script,
+        basePrompt: promptState(settings, defaults, "script").prompt,
         userPrompt,
         voice,
         formatRules: formatScriptInputGuide(inputs, frameTimes, emotions),

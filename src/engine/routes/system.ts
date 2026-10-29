@@ -35,6 +35,10 @@ function carouselPromptSettings(settings: Record<string, unknown>, defaults: Pro
   return { topic: promptState(settings, defaults, "topic"), video: promptState(settings, defaults, "video") };
 }
 
+function scriptVoiceSettings(settings: Record<string, unknown>, defaults: PromptDefaults) {
+  return { tone: promptState(settings, defaults, "tone"), persona: promptState(settings, defaults, "persona") };
+}
+
 export function registerSystemRoutes(app: Hono, context: AppContext): void {
   const shortcutPlatform = (): Platform => process.platform === "darwin" ? "mac" : "win";
 
@@ -261,11 +265,8 @@ export function registerSystemRoutes(app: Hono, context: AppContext): void {
   });
 
   app.get("/api/system/script-voice", async c => {
-    const settings = await context.store.readSettings();
-    return c.json({
-      tone: typeof settings.scriptTone === "string" ? settings.scriptTone : "",
-      persona: typeof settings.scriptPersona === "string" ? settings.scriptPersona : "",
-    });
+    const defaults = await context.promptDefaults!();
+    return c.json(scriptVoiceSettings(await context.store.readSettings(), defaults));
   });
 
   app.get("/api/system/tts-settings", async c => c.json(ttsSettingsOf(await context.store.readSettings())));
@@ -278,16 +279,17 @@ export function registerSystemRoutes(app: Hono, context: AppContext): void {
 
   app.put("/api/system/script-voice", async c => {
     const value = await parseJson(c, z.object({
-      tone: z.string().max(4000),
-      persona: z.string().max(4000),
+      tone: z.string().max(4000).optional(),
+      persona: z.string().max(4000).optional(),
     }));
+    const defaults = await context.promptDefaults!();
     const settings = await context.store.readSettings();
-    await context.store.saveSettings({
-      ...settings,
-      scriptTone: value.tone,
-      scriptPersona: value.persona,
-    });
-    return c.json(value);
+    for (const kind of ["tone", "persona"] as const) {
+      const raw = value[kind];
+      if (raw !== undefined) applyPrompt(settings, defaults, kind, raw);
+    }
+    await context.store.saveSettings(settings);
+    return c.json(scriptVoiceSettings(settings, defaults));
   });
 
   app.put("/api/system/codex-settings", async c => {
