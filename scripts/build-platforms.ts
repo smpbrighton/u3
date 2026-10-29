@@ -4,6 +4,11 @@ export const platforms = {
   "darwin-arm64": { nodeArchive: "node-v24.13.0-darwin-arm64.tar.gz", nodeBinary: "bin/node", compositor: "@remotion/compositor-darwin-arm64", onnx: "darwin/arm64", extension: "" },
   "win32-x64": { nodeArchive: "node-v24.13.0-win-x64.zip", nodeBinary: "node.exe", compositor: "@remotion/compositor-win32-x64-msvc", onnx: "win32/x64", extension: ".exe" },
 } as const;
+// Git Bash 의 GNU tar 는 "D:\..." 를 원격 호스트로 읽고 zip 도 풀지 못한다. Windows 는 System32 의 bsdtar 를 쓴다.
+export function archiveTar(platform: string, env: Record<string, string | undefined>, paths: Pick<typeof import("node:path"), "join"> = path): string {
+  return platform === "win32" ? paths.join(env.SystemRoot ?? "C:\\Windows", "System32", "tar.exe") : "tar";
+}
+
 export function buildPlatform(platform: string, arch: string) {
   const descriptor = platforms[`${platform}-${arch}` as keyof typeof platforms];
   if (!descriptor) throw new Error(`지원하지 않는 빌드 플랫폼입니다: ${platform}-${arch}`);

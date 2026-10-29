@@ -5,6 +5,8 @@ function Checked([scriptblock]$Command) {
     if ($LASTEXITCODE -ne 0) { throw "명령이 실패했습니다: 종료 코드 $LASTEXITCODE" }
 }
 $resourceReady = $false
+# Git Bash 의 GNU tar 가 PATH 앞에 있으면 D: 경로를 원격으로 읽는다. System32 의 bsdtar 를 쓴다.
+$tar = Join-Path $env:SystemRoot 'System32\tar.exe'
 if ($env:U3_RESOURCE_SHA256 -match '^[a-fA-F0-9]{64}$' -and $env:U3_RESOURCE_VERSION -match '^[1-9][0-9]*$') {
     $archiveDir = Join-Path $env:U3_BUILD_CACHE 'archives'
     New-Item -ItemType Directory -Force $archiveDir | Out-Null
@@ -14,7 +16,7 @@ if ($env:U3_RESOURCE_SHA256 -match '^[a-fA-F0-9]{64}$' -and $env:U3_RESOURCE_VER
     Checked { gh release download "resources-$env:U3_RESOURCE_VERSION" --repo smpbrighton/u3 --pattern $name --dir $archiveDir --clobber }
     $archive = Join-Path $archiveDir $name
     if ((Get-FileHash -LiteralPath $archive -Algorithm SHA256).Hash -ne $env:U3_RESOURCE_SHA256) { throw '리소스 archive SHA-256 오류' }
-    $entries = & tar -tf $archive
+    $entries = & $tar -tf $archive
     if ($LASTEXITCODE -ne 0) { throw '리소스 archive 목록 오류' }
     foreach ($entry in $entries) {
         if ($entry -match '(^[/\\]|:|(^|[/\\])\.\.([/\\]|$))') { throw '리소스 archive 경로 오류' }
@@ -22,7 +24,7 @@ if ($env:U3_RESOURCE_SHA256 -match '^[a-fA-F0-9]{64}$' -and $env:U3_RESOURCE_VER
     $env:U3_RESOURCE_ROOT = Join-Path $env:U3_BUILD_CACHE "resources-$env:U3_RESOURCE_VERSION"
     if (Test-Path $env:U3_RESOURCE_ROOT) { Remove-Item -Recurse -Force $env:U3_RESOURCE_ROOT }
     New-Item -ItemType Directory $env:U3_RESOURCE_ROOT | Out-Null
-    Checked { tar -xzf $archive -C $env:U3_RESOURCE_ROOT }
+    Checked { & $tar -xzf $archive -C $env:U3_RESOURCE_ROOT }
     $resourceReady = $true
 } elseif (-not $AllowNoResources) {
     throw '릴리스에는 U3_RESOURCE_VERSION과 U3_RESOURCE_SHA256 등록이 필요합니다'

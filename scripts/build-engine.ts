@@ -1,4 +1,4 @@
-import { buildPlatform, npmCliCandidates } from "./build-platforms";
+import { archiveTar, buildPlatform, npmCliCandidates } from "./build-platforms";
 import { cp, chmod, mkdtemp, mkdir, readFile, rm, writeFile } from "node:fs/promises";
 import { existsSync, realpathSync } from "node:fs";
 import { createHash } from "node:crypto";
@@ -48,7 +48,7 @@ async function installNodeRuntime(): Promise<string> {
     .find(match => match?.[2] === nodeArchive)?.[1];
   if (!expected) fail("Node SHASUMS256.txt에 배포 파일 해시가 없습니다.");
   if (await sha256(archive) !== expected) fail("Node 공식 배포본 SHA-256 검사가 실패했습니다.");
-  execFileSync("tar", ["-xf", archive, "--strip-components=1", "-C", nodeCache]);
+  execFileSync(archiveTar(process.platform, process.env), ["-xf", archive, "--strip-components=1", "-C", nodeCache]);
   return nodeBinary;
 }
 
