@@ -1,6 +1,6 @@
 # 0034 기본 프롬프트 원격 갱신
 
-Status: accepted
+Status: superseded-by 0035
 Source: changes/055-remote-prompts/spec.md
 
 ## 맥락
