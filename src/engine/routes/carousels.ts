@@ -130,10 +130,11 @@ export function registerCarouselRoutes(app: Hono, context: AppContext): void {
     const modeChanged = previous?.background.kind === "frame" && slide.background.kind === "frame" && previous.background.mode !== slide.background.mode;
     if (modeChanged && updated.stage === "images" && slide.background.kind === "frame") {
       const background = slide.background;
-      if (background.mode === "ai" && (!background.generated || background.generated.frameVersion !== background.frame?.version || background.generatedStatus !== "done")) {
+      if (background.mode === "ai" && (!background.generated || background.generated.frameVersion !== background.frame?.version)) {
         const job = await queueDerived(updated, slide, !background.frame);
         return c.json({ job }, 202);
       }
+      if (background.mode === "ai") await store.updateSlideEngineFields(id, slideId, backgroundStatus(slide, "done"));
       await automaticBox(context, store, id, slideId);
       return c.json(await store.requireCarousel(id));
     }
