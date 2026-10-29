@@ -174,3 +174,10 @@
 - `pages/concept-timeline-editing.md`
 - `index.md`
 - 계획·실패 테스트·구현·검증 기록은 해당 페이지에 통합했다. 별도 페이지가 필요한 커밋은 없다. `git:b7dcbb2:` `git:7fcaa05:` `git:b08b742:` `git:c510819:` `git:f6d8d48:` `git:31e51df:` `git:b24bf7f:` `git:863ed98:` `git:0f96192:` `git:541dbef:`
+
+## [2026-10-29] ingest | 049 Windows CI와 native 보정
+- `pages/concept-windows-build.md`
+- `pages/concept-local-models.md`
+- `index.md`
+- tar 실패 테스트 `f797e50`은 구현과 함께 기존 페이지에 반영했다. 별도 반영 페이지는 없다. `git:f797e50:` `git:279f4f8:`
+- MRX 회귀 단언·Windows 시험 환경 수정·Whisper 커널·취소 문구를 기존 페이지에 통합했다. 별도 페이지가 필요한 커밋은 없다. `git:2ca4c8f:` `git:4ae6621:` `git:6e5bd03:` `git:bdec109:`
