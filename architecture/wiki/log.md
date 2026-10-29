@@ -181,3 +181,12 @@
 - `index.md`
 - tar 실패 테스트 `f797e50`은 구현과 함께 기존 페이지에 반영했다. 별도 반영 페이지는 없다. `git:f797e50:` `git:279f4f8:`
 - MRX 회귀 단언·Windows 시험 환경 수정·Whisper 커널·취소 문구를 기존 페이지에 통합했다. 별도 페이지가 필요한 커밋은 없다. `git:2ca4c8f:` `git:4ae6621:` `git:6e5bd03:` `git:bdec109:`
+
+## [2026-10-29] ingest | 1.0.0 릴리스와 059 엔진 요청 로그
+- `pages/entity-engine-shutdown.md`
+- `pages/concept-windows-build.md`
+- `pages/concept-updates.md`
+- `index.md`
+- 059 계획·실패 테스트·구현은 엔진 페이지에 통합했다. 별도 페이지는 없다. `git:09c3e03:` `git:7938b30:` `git:54baef7:`
+- publish 실패 테스트와 수정은 Windows 페이지에 통합했다. 별도 페이지는 없다. `git:9bcb94e:` `git:cf31bbc:`
+- 1.0.0 버전 커밋은 릴리스 페이지에 반영했다. 별도 페이지는 없다. `git:72bdd03:`

@@ -15,6 +15,11 @@ Node sidecar는 stdin 종료 또는 SIGTERM에서 진행 작업과 서버 자원
 - 로컬 ad-hoc 0.3.8에서 강제 종료 후 새 프로세스·알림·새 포트의 홈 썸네일을 확인했고 네 번째 종료에서 중단 배너를 확인했다. 기록은 로그에 token·Bearer 문자열이 없었다고 명시한다. 설정·스튜디오 요청과 스튜디오 미리보기의 재시작 후 성공 증거는 코드에서 못 찾음. `architecture/changes/057-engine-restart-undo/verify.log` `architecture/changes/057-engine-restart-undo/evidence/restart-snack.png` `architecture/changes/057-engine-restart-undo/evidence/restart-stop.png` `git:31e51df:`
 - 057의 `pnpm verify`와 Rust 테스트는 통과했다. 정상 종료 중 재시작 차단은 Rust 테스트로만 확인했다. 테스터 PC의 실제 원인과 Windows 실기기 재시작은 미검증이다. `architecture/changes/057-engine-restart-undo/verify.log` `architecture/changes/057-engine-restart-undo/plan.md` `git:31e51df:`
 
+- API 요청 기록은 OPTIONS를 제외한다. GET이 아닌 요청은 도착과 종료 상태·시간을 기록하고 GET은 400 이상 또는 5초 초과일 때 종료만 기록한다. 경로의 쿼리와 요청 본문은 기록하지 않는다. 인증·호스트·Origin 검사 앞에서 기록한다. `src/engine/http.ts` `src/engine/app.ts` `git:54baef7:`
+- UI fetch 실패는 AbortError를 제외하고 연결을 초기화한 뒤 실패 메서드·쿼리를 뺀 경로·오류 문구를 client-log로 한 번 보고한다. 보고 실패는 버리고 다시 보고하지 않는다. 서버는 문자열 길이를 검사하고 제어 문자와 경로 쿼리를 제거한다. `src/ui/api.ts` `src/engine/routes/system.ts` `git:54baef7:`
+- 요청 로그와 client-log의 경계 조건을 검사하는 테스트가 추가됐다. 해당 변경의 실패 테스트 출력과 `pnpm verify` 실행 증거는 코드에서 못 찾음. `tests/engine/request-log.test.ts` `tests/server/client-log.test.ts` `tests/ui/api-connection.test.ts` `architecture/changes/059-engine-request-log/plan.md` `git:7938b30:`
+- 캐러셀 프레임 재생성의 Load failed 실제 원인은 미확인이다. 새 버전 설치 후 재현 시 로그 확인은 미검증이다. `architecture/changes/059-engine-request-log/plan.md` `git:09c3e03:`
+
 ## 관계
 - [U3 데스크톱 앱](entity-desktop-app.md)
 - [로컬 모델과 리소스](concept-local-models.md)

@@ -14,12 +14,15 @@ Windows x64 빌드는 플랫폼별 Node·compositor·ONNX 리소스와 NSIS 설�
 - Windows 11 실기기의 설치·제거, SmartScreen·보안 정책, 한글 경로, 마이크·폰트·테마, Codex·편집·캐러셀·STT·음성 분리, TTS 제한, DPAPI·보안 경계·프로세스 정리 및 업데이트는 미실행이다. checklist의 세부 미실행 항목을 유지한다. `architecture/changes/049-windows-build/checklist.md` `git:6c454aa:`
 - CI 설치 smoke는 Tauri 창·마이크·기본 Known Folder·SmartScreen·업데이트를 검증하지 않는다. 리소스 archive는 prerelease `resources-1`에 올라갔고 Actions 변수 `U3_RESOURCE_VERSION=1`과 `U3_RESOURCE_SHA256`이 등록되었다. `GitHub Release resources-1` Windows updater 키 생성·등록은 사용자 소유 단계다. `scripts/windows-install-smoke.ps1` `architecture/changes/049-windows-build/checklist.md` `architecture/changes/049-windows-build/plan.md`
 - Windows workflow의 `inspect`는 draft Release 조회를 위해 `contents: write`를 받는다. 회귀 테스트는 `inspect`, `windows-release`, `publish` 세 job의 쓰기 권한 선언을 검사한다. 테스트 실행 결과는 코드에서 못 찾음. `.github/workflows/windows-build.yml` `tests/scripts/windows-workflow.test.ts` `git:4798e89:` `git:ace19d2:`
-- 사용자 제공 실행 사실에 따르면 `v0.3.8` 태그 push로 시작한 Windows build run [40813927617](https://github.com/smpbrighton/u3/actions/runs/40813927617)의 `inspect`는 `contents: read` 토큰으로 draft Release를 찾지 못해 `release not found`로 실패했다. 권한 수정 후 실제 Windows workflow 성공 증거는 코드에서 못 찾음. `.github/workflows/windows-build.yml` `git:ace19d2:`
+- 사용자 제공 실행 사실에 따르면 `v0.3.8` 태그 push로 시작한 Windows build run [40813927617](https://github.com/smpbrighton/u3/actions/runs/40813927617)의 `inspect`는 `contents: read` 토큰으로 draft Release를 찾지 못해 `release not found`로 실패했다. 권한 수정 후 이 버전의 Windows workflow 성공 증거는 코드에서 못 찾음. `.github/workflows/windows-build.yml` `git:ace19d2:`
 - Windows Node zip과 리소스 archive는 System32 `tar.exe`로 검사·압축 해제한다. Node와 리소스 archive는 각각 SHA-256을 확인하고 리소스 archive는 경로도 검사한다. `scripts/build-platforms.ts` `scripts/build-engine.ts` `scripts/windows-build.ps1` `git:279f4f8:`
 - Windows Whisper는 호스트 CPU 탐지를 끄고 AVX·AVX2·FMA·F16C 커널을 켠다. 이전 CI run 40818736706에서는 모델 다운로드와 VAD가 완료됐지만 추론이 390초 안에 끝나지 않았다. `scripts/build-whisper.sh` `architecture/changes/049-windows-build/ci-verification.md` `git:6e5bd03:`
 - 사용자 제공 실행 사실에 따르면 PR #2의 [Windows CI run 40821431526](https://github.com/smpbrighton/u3/actions/runs/40821431526)은 리소스를 포함한 NSIS 패키징, native 시험 9개, `pnpm verify`, 설치 smoke를 통과했다. CI 실행 원문은 코드에서 못 찾음. 이 실행 뒤 `bdec109`는 Mac `pnpm verify`만 통과했으며 Windows 재검증은 확인되지 않았다. `architecture/changes/049-windows-build/ci-verification.md` `tests/windows/native.test.ts` `git:bdec109:`
-- Windows 11 실기기와 Release 서명·공개는 미검증이다. 기존 checklist의 개별 미실행·blocked 항목은 유지한다. `architecture/changes/049-windows-build/checklist.md` `architecture/changes/049-windows-build/plan.md` `git:6e5bd03:`
+- Windows 11 실기기와 Release 공개는 미검증이다. 기존 checklist의 개별 미실행·blocked 항목은 유지한다. `architecture/changes/049-windows-build/checklist.md` `architecture/changes/049-windows-build/plan.md` `git:6e5bd03:`
 - 결정 링크: [Windows 빌드](../../decisions/0032-windows-build.md), [릴리스 흐름](../../decisions/0033-release-flow.md). `git:e3a80f4:`
+
+- 사용자 제공 사실에 따르면 `v1.0.0` 태그 [run 40825453652](https://github.com/smpbrighton/u3/actions/runs/40825453652)의 `windows-release`는 패키징·native·설치 검증·updater 서명·draft 업로드를 통과했다. CI 실행 원문은 코드에서 못 찾음. `.github/workflows/windows-build.yml` `git:72bdd03:`
+- 같은 run의 `publish`는 onnxruntime-node postinstall의 Linux CUDA 패키지 다운로드 실패로 멈췄다. 이후 publish 설치 단계는 `ONNXRUNTIME_NODE_INSTALL: skip`을 설정하며 회귀 테스트가 선언을 검사한다. 수정 후 해당 workflow 실행 증거는 코드에서 못 찾음. `.github/workflows/windows-build.yml` `tests/scripts/windows-workflow.test.ts` `git:9bcb94e:` `git:cf31bbc:`
 
 ## 관계
 - [U3 데스크톱 앱](entity-desktop-app.md)

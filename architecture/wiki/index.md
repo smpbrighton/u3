@@ -4,10 +4,10 @@
 
 ## entity
 - [U3 데스크톱 앱](pages/entity-desktop-app.md) — 앱 구조, Jev Keychain 저장 순서와 검증 상태.
-- [엔진 종료](pages/entity-engine-shutdown.md) — sidecar 종료 정리, 재시작 감시와 로그 및 검증 상태.
+- [엔진 종료](pages/entity-engine-shutdown.md) — sidecar 종료·재시작과 요청 및 연결 실패 로그의 검증 상태.
 
 ## concept
-- [Windows 빌드와 검증](pages/concept-windows-build.md) — 플랫폼 빌드, Windows CI 실행 증거와 실기기·Release 미검증 상태.
+- [Windows 빌드와 검증](pages/concept-windows-build.md) — 플랫폼 빌드, Windows CI와 릴리스 실행 증거 및 미검증 상태.
 - [원격 기본 프롬프트](pages/concept-remote-prompts.md) — 다섯 기본값의 받기·캐시·사용자 설정과 공개 검증 상태.
 - [Codex 호환성](pages/concept-codex-compat.md) — 실행 경로, 계정 모델 선택·재시도와 검증 상태.
 - [compositor dylib 경로](pages/concept-compositor-dylib.md) — 패키징·서명 전 경로 검사와 실행 검증 상태.
