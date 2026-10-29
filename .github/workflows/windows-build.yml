@@ -20,6 +20,9 @@ jobs:
   inspect:
     if: github.event_name != 'pull_request'
     runs-on: ubuntu-latest
+    # draft Release 는 쓰기 권한 토큰에만 보인다.
+    permissions:
+      contents: write
     timeout-minutes: 60
     outputs:
       build: ${{ steps.meta.outputs.build }}
