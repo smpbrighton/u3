@@ -67,3 +67,11 @@ Tests 1 failed | 9 passed (10)
 ```
 
 전체 검증에서 기존 `caption-plain.test.ts`의 AI 시각 재추출 단언도 확인했다. spec의 비동기 응답에 맞춰 200을 202로 바꾸고 작업 완료를 기다린다. Jev 대상 글 단언은 유지한다. 기존 시험 데이터에 새 스키마의 `mode: "frame"`과 `generatedStatus: "idle"`을 추가했다. 단언을 삭제하거나 약하게 바꾸지 않았다.
+
+## 최종 검증
+
+`pnpm verify`가 종료 코드 0으로 끝났다. JavaScript 시험 1089개가 통과했고 10개는 기존 조건에 따라 건너뛰었다. TypeScript, Rust check·test, smoke가 통과했다. 마지막 줄은 `✓ verify passed`다.
+
+사용자 허용에 따라 계획의 파일 목록 밖인 `src/engine/main.ts`(PNG 합성 파일 선택)와 `src/engine/app.ts`(주입 서비스 타입)를 연결했다. 다른 계획 밖 변경은 하지 않았다.
+
+실제 Codex·Jev·네트워크 생성, 상품 동일성, Windows 실기기는 검증하지 않았다. push·원격 프롬프트 공개·릴리스·설치는 실행하지 않았다. plan 5–6은 담당 세션에 남긴다.

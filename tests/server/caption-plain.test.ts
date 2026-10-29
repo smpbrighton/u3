@@ -73,7 +73,10 @@ describe("자막 글 소비 경로", () => {
     expect(askBox).toHaveBeenCalledTimes(2);
     expect(askBox).toHaveBeenCalledWith(expect.objectContaining({ target: "상품" }));
     const url = `/api/carousels/${carousel.id}/slides/${carousel.slides[0]!.id}`;
-    expect((await req(`${url}/frame`, "POST", { sec: 0.5, cropY: 0.5 })).status).toBe(200);
+    const reextracted = await req(`${url}/frame`, "POST", { sec: 0.5, cropY: 0.5 });
+    expect(reextracted.status).toBe(202);
+    const { job } = await reextracted.json() as { job: { id: string } };
+    expect((await jobs.wait(job.id)).status).toBe("done");
     expect((await req(`${url}/highlight`, "POST", { style: "border", target: "*새 대상*" })).status).toBe(200);
     expect(askBox).toHaveBeenLastCalledWith(expect.objectContaining({ target: "새 대상" }));
   });

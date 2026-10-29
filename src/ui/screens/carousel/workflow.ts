@@ -1,4 +1,5 @@
 import type { Carousel, CarouselAspect, CarouselSlide } from "../../../core/carousel";
+import { visibleBackground } from "../../../core/carousel";
 import type { Project } from "../../../core/schema";
 import { api } from "../../api";
 
@@ -26,11 +27,10 @@ export async function eligibleProjects(): Promise<Project[]> {
   return checked.filter((project): project is Project => project !== null);
 }
 
-export function slideStatus(slide: CarouselSlide) { return slide.background.kind === "frame" ? slide.background.status : slide.status; }
+export function slideStatus(slide: CarouselSlide) { return visibleBackground(slide).status; }
 export function slideImage(slide: CarouselSlide) {
-  return slide.background.kind === "frame"
-    ? (slide.background.highlight?.style === "ai-outline" ? slide.background.highlight.image : slide.background.frame)
-    : slide.background.image ?? slide.image;
+  const file = visibleBackground(slide).file;
+  return file ? { file } : undefined;
 }
 export function statusLabel(slide: CarouselSlide) {
   if (slide.error === "지시문 없음") return "지시문 없음";

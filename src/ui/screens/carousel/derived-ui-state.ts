@@ -1,4 +1,5 @@
 import type { CarouselBox, CarouselSlide } from "../../../core/carousel";
+import { visibleBackground } from "../../../core/carousel";
 
 export function showsBackgroundSection(slide: CarouselSlide | undefined): boolean {
   return slide?.background.kind === "frame";
@@ -9,9 +10,7 @@ export function canReextractFrame(background: { kind: "generated" | "frame" }, s
 }
 
 export function canDownloadSlides(slides: readonly CarouselSlide[]): boolean {
-  return slides.some(slide => slide.background.kind === "generated"
-    ? !!(slide.background.image ?? slide.image) && slide.status === "done"
-    : !!(slide.background.highlight?.style === "ai-outline" ? slide.background.highlight.image : slide.background.frame) && slide.background.status === "done");
+  return slides.some(slide => { const visible = visibleBackground(slide); return !!visible.file && visible.status === "done"; });
 }
 
 export function frameTimeRange(durationSec: number): { min: number; max: number; step: number } {

@@ -11,13 +11,17 @@ type Frame = Extract<CarouselSlide["background"], { kind: "frame" }>;
 export function BackgroundSection(props: {
   frame: Frame; duration: number; sourceAvailable: boolean; busy: boolean;
   onChange: (fields: { sec?: number; cropY?: number }) => void; onCommit: () => void; onReextract: () => void;
+  onModeChange: (mode: "ai" | "frame") => void; onRegenerate: () => void;
 }) {
   const range = frameTimeRange(props.duration);
+  const ai = props.frame.mode === "ai";
   return <>
+    <PropertyRow label="배경"><div className="flex gap-1" role="group" aria-label="배경">{([["ai", "AI 이미지"], ["frame", "원본 장면"]] as const).map(([mode, label]) => <Button key={mode} variant={props.frame.mode === mode ? "solid" : "outline"} size="xs" disabled={props.busy} aria-pressed={props.frame.mode === mode} onClick={() => props.onModeChange(mode)}>{label}</Button>)}</div></PropertyRow>
+    {ai && <Button variant="solid" size="sm" className="my-1 w-full" disabled={props.busy || !props.frame.frame} onClick={props.onRegenerate}>다시 만들기</Button>}
     <RangeRow label="시각" value={Math.min(range.max, props.frame.sec)} min={range.min} max={range.max} step={range.step} unit="초" disabled={!range.max || props.busy} onChange={sec => props.onChange({ sec })} onCommit={props.onCommit} />
-    <Button variant="outline" size="sm" className="my-1 w-full" disabled={!props.sourceAvailable || props.busy} onClick={props.onReextract}>이 시각으로 다시 뽑기</Button>
+    <Button variant="outline" size="sm" className="my-1 w-full" disabled={!props.sourceAvailable || props.busy} onClick={props.onReextract}>{ai ? "이 시각으로 다시 만들기" : "이 시각으로 다시 뽑기"}</Button>
     {!props.sourceAvailable && <p className="my-1 text-xs text-muted-foreground">원본 영상이 없어요</p>}
-    <RangeRow label="세로 자르기" value={props.frame.cropY * 100} onChange={value => props.onChange({ cropY: value / 100 })} onCommit={props.onCommit} />
+    {!ai && <RangeRow label="세로 자르기" value={props.frame.cropY * 100} onChange={value => props.onChange({ cropY: value / 100 })} onCommit={props.onCommit} />}
   </>;
 }
 

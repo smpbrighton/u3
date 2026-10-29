@@ -3,6 +3,7 @@ import { isTauri } from "@tauri-apps/api/core";
 import { open } from "@tauri-apps/plugin-dialog";
 import { Player } from "@remotion/player";
 import type { Carousel, CarouselLogo, CarouselSlide as Slide } from "../../../core/carousel";
+import { visibleBackground } from "../../../core/carousel";
 import { videoDuration } from "../../../core/timeline/ops";
 import { CarouselSlide } from "../../../remotion/CarouselSlide";
 import { carouselCanvasSize, carouselHighlightInput } from "../../../remotion/carousel-layout";
@@ -43,7 +44,8 @@ export function CarouselEdit(props: WorkspaceProps) {
   const frame = current?.background.kind === "frame" ? current.background : null;
   const source = useCarouselSource(draft.source);
   const sourceDuration = draft.source.kind === "project" ? derivedFrameDuration(draft.source.durationSec, source.project ? videoDuration(source.project.timeline) : undefined, draft.slides) : 0;
-  const imageUrl = useCarouselFile(draft.id, current ? slideImage(current)?.file ?? frame?.frame?.file : undefined);
+  const imageUrl = useCarouselFile(draft.id, current ? slideImage(current)?.file : undefined);
+  const backgroundError = current ? visibleBackground(current).error : undefined;
   const logoUrl = useCarouselFile(draft.id, current?.logo?.file);
   const canvas = carouselCanvasSize(draft.aspect);
   const base = `/api/carousels/${encodeURIComponent(draft.id)}`;
@@ -92,7 +94,24 @@ export function CarouselEdit(props: WorkspaceProps) {
     if (commit) run(() => editor.saveSlide(current.id));
   }
   async function regenerate() {
-    await operation(async () => { await api("POST", `${base}/generate`, { slideIds: [current!.id] }); return api<Carousel>("GET", base); });
+    await operation(async () => {
+      if (frame?.mode === "ai") await api("POST", `${selectedBase}/regenerate`, {});
+      else await api("POST", `${base}/generate`, { slideIds: [current!.id] });
+      return api<Carousel>("GET", base);
+    });
+  }
+  async function changeMode(mode: "ai" | "frame") {
+    await operation(async () => {
+      await api("PATCH", selectedBase, { background: { mode } });
+      return api<Carousel>("GET", base);
+    });
+  }
+  async function reextract() {
+    if (!frame) return;
+    await operation(async () => {
+      await api("POST", `${selectedBase}/frame`, { sec: frame.sec, cropY: frame.cropY });
+      return api<Carousel>("GET", base);
+    });
   }
   async function download(skipIncomplete: boolean) {
     setConfirmDownload(false); setDownloading(true);
@@ -111,7 +130,7 @@ export function CarouselEdit(props: WorkspaceProps) {
       <main className="flex min-h-0 min-w-0 flex-col items-center justify-center gap-3 overflow-hidden rounded-lg bg-card p-4">
         {current && <>
           <div className="relative min-h-0 w-full max-w-[512px]" style={{ aspectRatio: `${canvas.width} / ${canvas.height}`, maxHeight: "100%", width: `min(100%, calc((100dvh - 220px) * ${canvas.width / canvas.height}))` }}>
-            <div className="carousel-player absolute inset-0 overflow-hidden rounded bg-muted shadow-lg"><Player component={CarouselSlide} inputProps={{ imageUrl, texts: current.texts, logo: current.logo, logoUrl, brightness: current.brightness, shade: current.shade, aspect: draft.aspect, frameCropY: frame?.cropY, highlight: carouselHighlightInput(frame?.highlight) }} durationInFrames={1} fps={30} compositionWidth={canvas.width} compositionHeight={canvas.height} controls={false} clickToPlay={false} doubleClickToFullscreen={false} style={{ width: "100%", height: "100%" }} /></div>
+            <div className="carousel-player absolute inset-0 overflow-hidden rounded bg-muted shadow-lg"><Player component={CarouselSlide} inputProps={{ imageUrl, texts: current.texts, logo: current.logo, logoUrl, brightness: current.brightness, shade: current.shade, aspect: draft.aspect, frameCropY: frame?.mode === "ai" ? undefined : frame?.cropY, highlight: carouselHighlightInput(frame?.highlight) }} durationInFrames={1} fps={30} compositionWidth={canvas.width} compositionHeight={canvas.height} controls={false} clickToPlay={false} doubleClickToFullscreen={false} style={{ width: "100%", height: "100%" }} /></div>
             {frame?.highlight?.box && frame.highlight.style !== "none" && <HighlightLayer box={frame.highlight.box} selected={textId === null} onSelect={() => setTextId(null)} onChange={(box, commit) => { editor.changeSlide(current.id, { background: { highlight: { box } } }); if (commit) run(() => saveHighlight({ box })); }} />}
             <CarouselTextLayer texts={current.texts} aspect={draft.aspect} selectedId={textId} overflow={overflow.map[current.id] ?? []} onSelect={setTextId} onChange={(text, commit) => { editor.changeSlide(current.id, { texts: current.texts.map(t => t.id === text.id ? text : t) }); if (commit) run(() => editor.saveSlide(current.id)); }} />
           </div>
@@ -131,11 +150,11 @@ export function CarouselEdit(props: WorkspaceProps) {
         <PropertySection title="배경">
           <RangeRow label="밝기" value={current.brightness * 100} min={20} max={200} onChange={value => editor.changeSlide(current.id, { brightness: value / 100 })} onCommit={() => run(() => editor.saveSlide(current.id))} />
           <RangeRow label="음영" value={current.shade * 100} max={90} onChange={value => editor.changeSlide(current.id, { shade: value / 100 })} onCommit={() => run(() => editor.saveSlide(current.id))} />
-          {frame ? <BackgroundSection frame={frame} duration={sourceDuration} sourceAvailable={Boolean(source.project)} busy={busy || Boolean(slideWorking)} onChange={background => editor.changeSlide(current.id, { background })} onCommit={() => run(() => editor.saveSlide(current.id))} onReextract={() => run(() => operation(() => api<Carousel>("POST", `${selectedBase}/frame`, { sec: frame.sec, cropY: frame.cropY })))} /> : <>
+          {frame ? <BackgroundSection frame={frame} duration={sourceDuration} sourceAvailable={Boolean(source.project)} busy={busy || Boolean(slideWorking)} onChange={background => editor.changeSlide(current.id, { background })} onCommit={() => run(() => editor.saveSlide(current.id))} onReextract={() => run(reextract)} onRegenerate={() => run(regenerate)} onModeChange={mode => run(() => changeMode(mode))} /> : <>
             <TextBlock label="이미지 지시문" className="min-h-35" value={current.imagePrompt} maxLength={4000} onChange={e => editor.changeSlide(current.id, { imagePrompt: e.target.value })} onBlur={() => run(() => editor.saveSlide(current.id))} />
             <Button variant="solid" className="my-2 w-full" disabled={!current.imagePrompt.trim() || busy || Boolean(slideWorking)} onClick={() => run(regenerate)}>다시 만들기</Button>
           </>}
-          {(frame?.error || current.error) && <p role="alert" className="my-1 text-xs text-destructive">{frame?.error || current.error}{current.error === "지시문 없음" ? " · 지시문을 입력해 주세요" : " · 다시 만들어 주세요"}</p>}
+          {backgroundError && <p role="alert" className="my-1 text-xs text-destructive">{backgroundError}</p>}
           {slideWorking && <p role="status" className="my-1 text-xs text-muted-foreground">{slideStatus(current) === "queued" ? "대기 중" : "생성 중"}</p>}
         </PropertySection>
         {frame && <HighlightSection frame={frame} busy={busy || Boolean(slideWorking)} onChange={(patch, commit) => { if (patch.style) run(() => saveHighlight(patch)); else { editor.changeSlide(current.id, { background: { highlight: patch } }); if (commit) run(() => saveHighlight(patch)); } }} onCommit={() => run(() => saveHighlight({}))} onAiCreate={() => run(() => saveHighlight({ style: "ai-outline" }, true))} onDrawBox={() => run(() => saveHighlight({ box: defaultHighlightBox() }))} />}

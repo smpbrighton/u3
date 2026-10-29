@@ -3,7 +3,7 @@ import { canDownloadSlides, canReextractFrame, defaultHighlightBox, derivedFrame
 import { newSlide, type CarouselSlide } from "../../src/core/carousel";
 
 const generated = { kind: "generated" as const };
-const frame = { kind: "frame" as const, sec: 2.4, cropY: 0.5, status: "done" as const };
+const frame = { kind: "frame" as const, mode: "frame" as const, generatedStatus: "idle" as const, sec: 2.4, cropY: 0.5, status: "done" as const };
 
 describe("derived carousel UI state", () => {
   it("shows the background editor only for frame slides", () => {
