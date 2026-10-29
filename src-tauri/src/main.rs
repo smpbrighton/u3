@@ -270,6 +270,28 @@ mod bundled_engine_tests {
     use super::*;
 
     #[test]
+    fn restart_budget_allows_three_restarts_in_five_minutes() {
+        let now = Instant::now();
+        assert!(restart_allowed(&[], now));
+        assert!(restart_allowed(&[now, now], now));
+        assert!(!restart_allowed(&[now, now, now], now));
+        assert!(restart_allowed(&[now, now, now], now + Duration::from_secs(300)));
+    }
+
+    #[test]
+    fn exit_and_update_restart_prevent_respawn_even_when_a_crash_was_already_observed() {
+        for _path in ["exit", "update_restart"] {
+            let engine = EngineProcess {
+                child: Mutex::new(None), connection: Mutex::new(None), startup_error: Mutex::new(None),
+                stopping: std::sync::atomic::AtomicBool::new(false),
+            };
+            assert!(engine.restart_permitted(&[], Instant::now()));
+            engine.begin_shutdown();
+            assert!(!engine.restart_permitted(&[], Instant::now()));
+        }
+    }
+
+    #[test]
     fn packaged_engine_runs_node_directly_with_the_existing_arguments_and_environment() {
         let resources = std::env::temp_dir().join(format!("u3 engine resources {}", uuid::Uuid::new_v4()));
         std::fs::create_dir_all(&resources).unwrap();

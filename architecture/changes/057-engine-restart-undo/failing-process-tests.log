@@ -1,0 +1,27 @@
+
+ RUN  v5.0.5 /Volumes/X31/workspace/smp_workspace/u3-057-engine-restart-undo
+
+ ❯ tests/engine/process.test.ts (4 tests | 1 failed | 1 skipped) 4702ms
+   ❯ engine process lifecycle (4)
+     × exits after its parent closes stdin 585ms
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/engine/process.test.ts > engine process lifecycle > exits after its parent closes stdin
+Error: ENOENT: no such file or directory, open '/Volumes/X31/.cache/u3/tmp/u3-engine-process-test-Ix57Nb/logs/engine.log'
+ ❯ tests/engine/process.test.ts:41:17
+     39|     });
+     40|
+     41|     const log = await readFile(path.join(dataRoot, "logs/engine.log"),…
+       |                 ^
+     42|     expect(log).toContain("이전 엔진 종료: signal: 9");
+     43|     expect(log.includes("secret")).toBe(false);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/1]⎯
+
+
+ Test Files  1 failed (1)
+      Tests  1 failed | 2 passed | 1 skipped (4)
+   Start at  12:59:06
+   Duration  4.82s (tests 99%, transform 1%)
+

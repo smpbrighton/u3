@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
@@ -17,7 +17,7 @@ describe("engine process lifecycle", () => {
     const dataRoot = await mkdtemp(path.join(os.tmpdir(), "u3-engine-process-test-"));
     const child = spawn(process.execPath, ["--import", "tsx", "src/engine/main.ts"], {
       cwd: process.cwd(),
-      env: { ...process.env, U3_TOKEN: "secret", U3_DATA_DIR: dataRoot },
+      env: { ...process.env, U3_TOKEN: "secret", U3_DATA_DIR: dataRoot, U3_PREVIOUS_EXIT: "signal: 9" },
       stdio: ["pipe", "pipe", "pipe"],
     });
     children.add(child);
@@ -38,6 +38,9 @@ describe("engine process lifecycle", () => {
       });
     });
 
+    const log = await readFile(path.join(dataRoot, "logs/engine.log"), "utf8");
+    expect(log).toContain("이전 엔진 종료: signal: 9");
+    expect(log.includes("secret")).toBe(false);
     child.stdin.end();
     const exitSignal = await new Promise<NodeJS.Signals | null>((resolve, reject) => {
       const timeout = setTimeout(() => reject(new Error("엔진이 stdin 종료 뒤 2초 안에 끝나지 않았습니다")), 2_000);

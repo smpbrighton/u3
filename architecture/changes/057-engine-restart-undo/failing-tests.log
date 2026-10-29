@@ -1,0 +1,198 @@
+
+ RUN  v5.0.5 /Volumes/X31/workspace/smp_workspace/u3-057-engine-restart-undo
+
+ ❯ tests/engine/engine-log.test.ts (0 test)
+ ❯ tests/core/history.test.ts (4 tests | 1 failed) 4ms
+   ❯ timeline history (4)
+     × 제스처 중 현재 값만 바꾸고 한 번의 undo·redo로 양 끝을 복원한다 2ms
+ ❯ tests/ui/api-connection.test.ts (3 tests | 1 failed) 20ms
+   × fetch 실패 요청은 재전송하지 않고 다음 호출에서 연결을 다시 조회한다 17ms
+ ❯ tests/server/system.test.ts (1 test | 1 failed) 28ms
+   × system은 엔진 platform과 capabilities를 반환한다 28ms
+ ❯ tests/ui/app-info-log.test.tsx (1 test | 1 failed) 34ms
+   × 로그 버튼을 유지하고 reveal 성공·없는 파일 오류를 처리한다 33ms
+ ❯ tests/ui/app-engine-restart.test.tsx (2 tests | 2 failed) 44ms
+   × 재시작 이벤트는 스낵바와 연결 재조회·상태 조회를 실행한다 37ms
+   × 재시작 상한 이벤트는 재연결 오류 배너를 표시한다 6ms
+ ❯ tests/ui/studio-history-gesture.test.tsx (5 tests | 2 failed) 423ms
+   × 50→70 드래그는 실행 취소 한 번으로 50, 다시 실행으로 70이 된다 123ms
+   × 긴 드래그도 이전 편집을 밀어내지 않는다 263ms
+
+⎯⎯⎯⎯⎯⎯ Failed Suites 1 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/engine/engine-log.test.ts [ tests/engine/engine-log.test.ts ]
+Error: Cannot find module '../../src/engine/engine-log' imported from /Volumes/X31/workspace/smp_workspace/u3-057-engine-restart-undo/tests/engine/engine-log.test.ts
+ ❯ tests/engine/engine-log.test.ts:6:1
+      4| import path from "node:path";
+      5| import { afterEach, expect, it } from "vitest";
+      6| import { createEngineLog } from "../../src/engine/engine-log";
+       | ^
+      7|
+      8| const roots: string[] = [];
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[1/9]⎯
+
+
+⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+
+ FAIL  tests/core/history.test.ts > timeline history > 제스처 중 현재 값만 바꾸고 한 번의 undo·redo로 양 끝을 복원한다
+TypeError: replacePresent is not a function
+ ❯ tests/core/history.test.ts:11:13
+      9|     let state = pushHistory(createHistory(timeline(0.5)), timeline(0.5…
+     10|     const next = timeline(0.7);
+     11|     state = replacePresent(state, next);
+       |             ^
+     12|     next.audio.source.gain = 0;
+     13|     expect(state.past).toHaveLength(1);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[2/9]⎯
+
+ FAIL  tests/server/system.test.ts > system은 엔진 platform과 capabilities를 반환한다
+AssertionError: expected { platform: 'darwin', …(3) } to match object { Object (logFile) }
+(15 matching properties omitted from actual)
+
+- Expected
++ Received
+
+  {
+-   "logFile": "/Volumes/X31/.cache/u3/tmp/u3-system-ERB2HC/logs/engine.log",
++   "capabilities": {
++     "tts": true,
++   },
++   "codex": {
++     "installed": false,
++     "loggedIn": false,
++     "outdated": false,
++     "version": null,
++   },
++   "jev": {
++     "available": false,
++     "boxModel": "jev-1.14.0",
++     "enabled": true,
++     "hasKey": false,
++     "keyHint": null,
++     "model": "jev-1.13.0",
++   },
++   "platform": "darwin",
+  }
+
+ ❯ tests/server/system.test.ts:14:108
+     12|     const store = new Store(root); await store.init();
+     13|     const app = createApp({ store, jobs: new Jobs(), token: "test", co…
+     14|     expect(await (await app.request("/api/system", { headers: { author…
+       |                                                                                                            ^
+     15|     vi.stubGlobal("process", { ...process, platform: "win32" });
+     16|     expect(await (await app.request("/api/system", { headers: { author…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[3/9]⎯
+
+ FAIL  tests/ui/api-connection.test.ts > fetch 실패 요청은 재전송하지 않고 다음 호출에서 연결을 다시 조회한다
+AssertionError: expected "vi.fn()" to be called 2 times, but got 1 times
+ ❯ tests/ui/api-connection.test.ts:15:25
+     13|   bridge.invoke.mockResolvedValue({ port: 2345, token: "second" });
+     14|   await expect(api("GET", "/api/system")).resolves.toEqual({ ok: true …
+     15|   expect(bridge.invoke).toHaveBeenCalledTimes(2);
+       |                         ^
+     16|   expect((fetch.mock.calls[1]![1] as RequestInit).headers).toEqual(exp…
+     17|   expect(new Headers(fetch.mock.calls[1]![1].headers).get("authorizati…
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[4/9]⎯
+
+ FAIL  tests/ui/app-engine-restart.test.tsx > 재시작 이벤트는 스낵바와 연결 재조회·상태 조회를 실행한다
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/ui/app-engine-restart.test.tsx:55:48
+     53| it("재시작 이벤트는 스낵바와 연결 재조회·상태 조회를 실행한다", async () => {
+     54|   await draw();
+     55|   expect(env.handlers.has("engine-restarted")).toBe(true);
+       |                                                ^
+     56|   const before = env.invoke.mock.calls.length;
+     57|   env.handlers.get("engine-restarted")!();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[5/9]⎯
+
+ FAIL  tests/ui/app-engine-restart.test.tsx > 재시작 상한 이벤트는 재연결 오류 배너를 표시한다
+AssertionError: expected false to be true // Object.is equality
+
+- Expected
++ Received
+
+- true
++ false
+
+ ❯ tests/ui/app-engine-restart.test.tsx:68:46
+     66| it("재시작 상한 이벤트는 재연결 오류 배너를 표시한다", async () => {
+     67|   await draw();
+     68|   expect(env.handlers.has("engine-stopped")).toBe(true);
+       |                                              ^
+     69|   env.invoke.mockRejectedValue(new Error("엔진이 반복해서 멈췄어요. 앱을 다시 시작해 주세요…
+     70|   env.handlers.get("engine-stopped")!();
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[6/9]⎯
+
+ FAIL  tests/ui/app-info-log.test.tsx > 로그 버튼을 유지하고 reveal 성공·없는 파일 오류를 처리한다
+AssertionError: expected '<section aria-labelledby="_R_0_" clas…' to contain '로그 폴더 열기'
+
+Expected: "로그 폴더 열기"
+Received: "<section aria-labelledby="_R_0_" class="flex min-w-0 flex-col gap-0.5"><div class="mb-2 flex min-h-6 items-center justify-between gap-2"><h2 id="_R_0_" class="text-[14px] font-bold">앱 정보</h2></div><div data-slot="property-row" class="grid min-w-0 items-center h-10 gap-x-4 border-b border-border grid-cols-[160px_minmax(0,1fr)]"><span class="truncate text-muted-foreground text-sm">현재 버전</span><div class="flex min-w-0 items-center gap-2 justify-start"><span class="text-sm tabular-nums">—</span></div></div><div data-slot="property-row" class="grid min-w-0 items-center h-10 gap-x-4 border-b border-border grid-cols-[160px_minmax(0,1fr)_auto]"><span class="truncate text-muted-foreground text-sm">마지막 확인</span><div class="flex min-w-0 items-center gap-2 justify-start"><span class="text-xs text-muted-foreground">아직 확인하지 않았어요</span></div><span class="text-right text-xs tabular-nums min-w-11"><button><svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" color="currentColor" class="size-4" aria-hidden="true"><path d="M20.0092 2V5.13219C20.0092 5.42605 19.6418 5.55908 19.4537 5.33333C17.6226 3.2875 14.9617 2 12 2C6.47715 2 2 6.47715 2 12C2 17.5228 6.47715 22 12 22C17.5228 22 22 17.5228 22 12" stroke="currentColor" stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"></path></svg>지금 확인</button></span></div></section>"
+
+ ❯ tests/ui/app-info-log.test.tsx:12:16
+     10|   const props = { status: null, onCheck: vi.fn(), logFile: "/data/logs…
+     11|   const html = renderToStaticMarkup(<AppInfo {...props} />);
+     12|   expect(html).toContain("로그 폴더 열기");
+       |                ^
+     13|   const button = view.buttons.find(p => p.children === "로그 폴더 열기")!;
+     14|   expect(button.disabled).not.toBe(true);
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[7/9]⎯
+
+ FAIL  tests/ui/studio-history-gesture.test.tsx > 50→70 드래그는 실행 취소 한 번으로 50, 다시 실행으로 70이 된다
+AssertionError: expected 0.69 to be 0.5 // Object.is equality
+
+- Expected
++ Received
+
+- 0.5
++ 0.69
+
+ ❯ tests/ui/studio-history-gesture.test.tsx:62:39
+     60|   for (let n = 51; n <= 70; n++) v.value(n / 100);
+     61|   v.slider().onValueCommit?.([0.7]);
+     62|   v.button("실행 취소"); expect(v.gain()).toBe(0.5);
+       |                                       ^
+     63|   v.button("다시 실행"); expect(v.gain()).toBe(0.7);
+     64| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[8/9]⎯
+
+ FAIL  tests/ui/studio-history-gesture.test.tsx > 긴 드래그도 이전 편집을 밀어내지 않는다
+AssertionError: expected 1.79 to be 0.6 // Object.is equality
+
+- Expected
++ Received
+
+- 0.6
++ 1.79
+
+ ❯ tests/ui/studio-history-gesture.test.tsx:78:39
+     76|   for (let n = 61; n <= 180; n++) v.value(n / 100);
+     77|   v.slider().onValueCommit?.([1.8]);
+     78|   v.button("실행 취소"); expect(v.gain()).toBe(0.6);
+       |                                       ^
+     79|   v.button("실행 취소"); expect(v.gain()).toBe(0.5);
+     80| });
+
+⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯⎯[9/9]⎯
+
+
+ Test Files  7 failed (7)
+      Tests  8 failed | 8 passed (16)
+   Start at  12:58:31
+   Duration  1.79s (import 75%, transform 14%, tests 11%)
+

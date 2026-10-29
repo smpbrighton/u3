@@ -1,0 +1,20 @@
+import React from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { expect, it, vi } from "vitest";
+import { AppInfo } from "../../src/ui/UpdateControls";
+const view = vi.hoisted(() => ({ reveal: vi.fn(), buttons: [] as React.ComponentProps<"button">[] }));
+vi.mock("@tauri-apps/plugin-opener", () => ({ revealItemInDir: view.reveal }));
+vi.mock("../../src/ui/components/ui/button", () => ({ Button: (p: React.ComponentProps<"button">) => { view.buttons.push(p); return <button>{p.children}</button>; } }));
+it("로그 버튼을 유지하고 reveal 성공·없는 파일 오류를 처리한다", async () => {
+  const onError = vi.fn();
+  const props = { status: null, onCheck: vi.fn(), logFile: "/data/logs/engine.log", onError };
+  const html = renderToStaticMarkup(<AppInfo {...props} />);
+  expect(html).toContain("로그 폴더 열기");
+  const button = view.buttons.find(p => p.children === "로그 폴더 열기")!;
+  expect(button.disabled).not.toBe(true);
+  await button.onClick!({} as never);
+  expect(view.reveal).toHaveBeenCalledWith(props.logFile);
+  view.reveal.mockRejectedValueOnce(new Error("ENOENT"));
+  await button.onClick!({} as never);
+  expect(onError).toHaveBeenCalledWith("ENOENT");
+});

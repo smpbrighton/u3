@@ -1,10 +1,20 @@
 import { describe, expect, it } from "vitest";
 import type { Timeline } from "../../src/core/schema";
-import { createHistory, pushHistory, redo, undo } from "../../src/core/timeline/history";
+import { createHistory, pushHistory, redo, undo, replacePresent } from "../../src/core/timeline/history";
 
 const timeline = (gain: number): Timeline => ({ video: [], overlays: [], captions: [], voice: [], sfx: [], audio: { source: { gain, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } } });
 
 describe("timeline history", () => {
+  it("제스처 중 현재 값만 바꾸고 한 번의 undo·redo로 양 끝을 복원한다", () => {
+    let state = pushHistory(createHistory(timeline(0.5)), timeline(0.51));
+    const next = timeline(0.7);
+    state = replacePresent(state, next);
+    next.audio.source.gain = 0;
+    expect(state.past).toHaveLength(1);
+    expect(undo(state).present.audio.source.gain).toBe(0.5);
+    expect(redo(undo(state)).present.audio.source.gain).toBe(0.7);
+    expect(replacePresent(undo(state), timeline(0.6)).future).toEqual([]);
+  });
   it("스냅숏을 실행 취소·다시 실행하고 새 편집은 다시 실행 스택을 비운다", () => {
     let state = pushHistory(createHistory(timeline(1)), timeline(0.5));
     state = undo(state);
