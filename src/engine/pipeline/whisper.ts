@@ -26,7 +26,7 @@ export const runWhisperCli: WhisperRunner = ({ bin, args, signal }) => new Promi
   });
   child.on("close", code => {
     signal?.removeEventListener("abort", abort);
-    if (signal?.aborted) reject(new Error(`받아 적기를 취소했습니다: ${stderr.trim().slice(-2000)}`));
+    if (signal?.aborted) reject(new Error("받아 적기를 취소했습니다"));
     else if (code !== 0) reject(new Error(`whisper-cli가 실패했습니다 (종료 코드 ${code}): ${stderr.trim().slice(-500)}`));
     else resolve();
   });
