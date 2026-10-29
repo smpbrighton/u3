@@ -41,7 +41,7 @@ describe("carousel text objects", () => {
     expect(topic.imagePrompt).toBe("");
     expect(topic.background).toEqual({ kind: "generated" });
     const previous = { ...newSlide({ kind: "project", projectId: "p", projectName: "영상" }, "4:5"), sceneNumber: 3,
-      background: { kind: "frame" as const, sec: 8, cropY: 0.2, status: "done" as const, highlight: { style: "border" as const, target: "상품" } } };
+      background: { kind: "frame" as const, mode: "frame" as const, generatedStatus: "idle" as const, sec: 8, cropY: 0.2, status: "done" as const, highlight: { style: "border" as const, target: "상품" } } };
     const derived = newSlide({ kind: "project", projectId: "p", projectName: "영상" }, "4:5", previous);
     expect(derived.sceneNumber).toBe(3);
     expect(derived.background).toMatchObject({ kind: "frame", sec: 8, cropY: 0.5, highlight: { style: "none", target: "" } });

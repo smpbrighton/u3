@@ -57,8 +57,8 @@ export interface AppContext {
   carouselServices?: {
     refine(input: { topic: string }, signal?: AbortSignal): Promise<{ candidates: Array<{ topic: string; angle: string }>; usage: Record<string, number> }>;
     plan(input: { topic: string; count: number; style?: string }, signal?: AbortSignal): Promise<{ caption?: string; style?: string; slides: Array<{ title: string; body: string; imagePrompt: string }>; topic?: string; usage: Record<string, number> }>;
-    generateImage(input: { prompt: string; style: string; model: ImageModel; quality: ImageQuality; aspect: ImageAspect; output: string; signal?: AbortSignal }): Promise<{ output: string; usage: Record<string, number> } | Buffer>;
-    derivePlan?(input: { projectId: string; count: number; prompt: string }, signal?: AbortSignal): Promise<{ caption?: string; slides: Array<{ sceneNumber: number; title: string; body: string; target: string }>; usage: Record<string, number> }>;
+    generateImage(input: { prompt: string; style: string; model: ImageModel; quality: ImageQuality; aspect: ImageAspect; output: string; referenceImage?: string; instruction?: string; signal?: AbortSignal }): Promise<{ output: string; usage: Record<string, number> } | Buffer>;
+    derivePlan?(input: { projectId: string; count: number; prompt: string }, signal?: AbortSignal): Promise<{ caption?: string; style?: string; slides: Array<{ sceneNumber: number; title: string; body: string; target: string; imagePrompt?: string }>; usage: Record<string, number> }>;
     renderFrame?(input: { project: import("../core/schema").Project; sec: number; outputPath: string }): Promise<void>;
     askBox?(input: { imagePath: string; target: string; enabled: boolean }): Promise<import("./pipeline/jev-box").JevBoxResult>;
   };

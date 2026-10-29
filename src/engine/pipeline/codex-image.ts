@@ -56,6 +56,10 @@ export function outlinePrompt(input: { instruction: string; referenceImage?: str
   return `Use the built-in image_gen tool once. ${reference}Use ${model} at ${input.quality} quality, requested size ${size.width}×${size.height} (${input.aspect}).\n\n${input.instruction}\n\nSave the resulting PNG to exactly this path: ${input.output}`;
 }
 
+export function referencePrompt(input: { prompt: string; style: string; referenceImage: string; model: ImageModel; quality: ImageQuality; aspect: ImageAspect; output: string }): string {
+  return outlinePrompt({ ...input, instruction: `Visual style: ${input.style}\nImage direction: ${input.prompt}\n\n참고 사진의 상품을 같은 상품으로 그린다(종류·색·모양·패키지 형태).\n새 글자·숫자·로고·워터마크를 만들지 않는다. 상품에 원래 있는 글자는 그대로 두되 재현은 보장하지 않는다.\n사람은 손 정도만 그리고 얼굴은 그리지 않는다.` });
+}
+
 export function validatePng(data: Buffer, aspect: ImageAspect): { width: number; height: number } {
   const signature = Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]);
   if (data.length < 24 || !data.subarray(0, 8).equals(signature)) throw new Error("Codex 결과가 PNG 파일이 아닙니다");
@@ -123,7 +127,9 @@ export async function runCodexImage(options: CodexImageOptions): Promise<{ outpu
     args.push("-");
     const prompt = options.instruction && options.referenceImage
       ? outlinePrompt({ instruction: options.instruction, referenceImage: referenceImage!, model: options.imageModel, quality: options.quality, aspect: options.aspect, output: outputTemp })
-      : imagePrompt({ prompt: options.prompt, style: options.style, model: options.imageModel, quality: options.quality, aspect: options.aspect, output: outputTemp });
+      : referenceImage
+        ? referencePrompt({ prompt: options.prompt, style: options.style, referenceImage, model: options.imageModel, quality: options.quality, aspect: options.aspect, output: outputTemp })
+        : imagePrompt({ prompt: options.prompt, style: options.style, model: options.imageModel, quality: options.quality, aspect: options.aspect, output: outputTemp });
     const result = await runProcess(options.bin, args, workDir, env, prompt, options.timeoutMs ?? 10 * 60_000, options.signal);
     const events = parseImageEvents(result.stdout);
     if (result.aborted || options.signal?.aborted) throw new Error("이미지 생성을 취소했습니다");

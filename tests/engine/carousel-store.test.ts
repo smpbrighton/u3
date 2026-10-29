@@ -34,7 +34,7 @@ describe("CarouselStore", () => {
   it("merges user highlight edits with engine-owned frame and preserves a manually edited box", async () => {
     const store = await storeWith();
     const created = await store.createCarousel({ name: "영상", source: { kind: "project", projectId: "p1", projectName: "프로젝트" }, aspect: "4:5", slides: [
-      { id: "s1", texts: defaultTexts("4:5"), background: { kind: "frame", sec: 2, cropY: 0.5, status: "idle", highlight: { style: "border", target: "상품", box: { left: 0.1, top: 0.2, right: 0.6, bottom: 0.8 } } } },
+      { id: "s1", texts: defaultTexts("4:5"), background: { kind: "frame", mode: "frame", generatedStatus: "idle", sec: 2, cropY: 0.5, status: "idle", highlight: { style: "border", target: "상품", box: { left: 0.1, top: 0.2, right: 0.6, bottom: 0.8 } } } },
     ] });
     await store.updateSlideEngineFields(created.id, "s1", { background: { frame: { file: "frames/s1-1.png" }, highlight: { box: { left: 0.2, top: 0.3, right: 0.7, bottom: 0.9 } }, status: "done" } });
     await store.updateSlideUserFields(created.id, "s1", { background: { kind: "frame", sec: 5, cropY: 0.4, highlight: { style: "dim", target: "수정한 대상", box: { left: 0.15, top: 0.25, right: 0.65, bottom: 0.85 } } } });
@@ -107,7 +107,7 @@ describe("carousel review storage", () => {
   it("preserves the frame, scene and user image when replacing a plan", async () => {
     const store = await storeWith();
     const source = { kind: "project" as const, projectId: "p", projectName: "영상" };
-    const slide = { ...newSlide(source, "4:5"), sceneNumber: 2, background: { kind: "frame" as const, sec: 4, cropY: 0.2, status: "done" as const, frame: { file: "frames/s.png" } } };
+    const slide = { ...newSlide(source, "4:5"), sceneNumber: 2, background: { kind: "frame" as const, mode: "frame" as const, generatedStatus: "idle" as const, sec: 4, cropY: 0.2, status: "done" as const, frame: { file: "frames/s.png" } } };
     const c = await store.createCarousel({ name: "영상", source, stage: "review", aspect: "4:5", slides: [slide] });
     const result = await store.replacePlan(c.id, { caption: "게시 글", slides: [{ title: "새 제목", body: "새 본문", imagePrompt: "" }] });
     expect(result.slides[0]!.background).toEqual({ ...slide.background, mode: "ai", generatedStatus: "idle" });

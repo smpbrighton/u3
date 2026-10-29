@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { mkdir, readFile, readdir, rename, rm, writeFile } from "node:fs/promises";
 import { defaultDataDir } from "./platform";
 import path from "node:path";
-import { Carousel, CarouselSlide, defaultTexts, newSlide, type Carousel as CarouselData } from "../core/carousel";
+import { Carousel, CarouselSlide, defaultTexts, newSlide, visibleBackground, type Carousel as CarouselData } from "../core/carousel";
 import { HttpError } from "./http";
 
 async function writeAtomic(file: string, data: string | Buffer): Promise<void> {
@@ -20,8 +20,8 @@ async function writeAtomic(file: string, data: string | Buffer): Promise<void> {
 type NewSlide = Pick<CarouselSlide, "id" | "texts"> & Partial<Omit<CarouselSlide, "id" | "texts">>;
 type NewCarousel = { id?: string; name: string; source?: CarouselData["source"]; topic?: string; refinedTopic?: string; aspect: CarouselData["aspect"]; style?: string; caption?: string; stage?: "review"; slides: NewSlide[] };
 type UserHighlightFields = Partial<NonNullable<Extract<CarouselSlide["background"], { kind: "frame" }>["highlight"]>>;
-type UserSlideFields = Partial<Pick<CarouselSlide, "texts" | "logo" | "brightness" | "shade" | "sceneNumber" | "imagePrompt">> & { background?: { kind?: "frame"; sec?: number; cropY?: number; highlight?: UserHighlightFields } };
-type EngineSlideFields = Partial<Pick<CarouselSlide, "image" | "status" | "error">> & { background?: { frame?: Extract<CarouselSlide["background"], { kind: "frame" }>["frame"]; status?: "queued" | "running" | "done" | "failed" | "idle"; error?: string; highlight?: UserHighlightFields } };
+type UserSlideFields = Partial<Pick<CarouselSlide, "texts" | "logo" | "brightness" | "shade" | "sceneNumber" | "imagePrompt">> & { background?: { kind?: "frame"; mode?: "ai" | "frame"; sec?: number; cropY?: number; highlight?: UserHighlightFields } };
+type EngineSlideFields = Partial<Pick<CarouselSlide, "image" | "status" | "error">> & { background?: Partial<Pick<Extract<CarouselSlide["background"], { kind: "frame" }>, "frame" | "status" | "error" | "generatedStatus" | "generatedError">> & { highlight?: UserHighlightFields } };
 
 export class CarouselStore {
   private chains = new Map<string, Promise<unknown>>();
@@ -66,14 +66,20 @@ export class CarouselStore {
   private async recover(value: CarouselData): Promise<CarouselData> {
     if (this.hasActiveForCarousel(value.id)) return value;
     const slides = value.slides.map(slide => {
+      const visible = visibleBackground(slide);
+      const visiblePending = visible.status === "queued" || visible.status === "running";
       const legacyPending = slide.status === "queued" || slide.status === "running";
       if (slide.background.kind === "frame") {
         const framePending = slide.background.status === "queued" || slide.background.status === "running";
-        return legacyPending || framePending
-          ? { ...slide, status: legacyPending ? "failed" as const : slide.status, error: legacyPending ? "앱이 닫혀 중단됨" : slide.error, background: framePending ? { ...slide.background, status: "failed" as const, error: "앱이 닫혀 중단됨" } : slide.background }
+        const generatedPending = slide.background.generatedStatus === "queued" || slide.background.generatedStatus === "running";
+        return legacyPending || framePending || generatedPending
+          ? { ...slide, status: legacyPending ? "failed" as const : slide.status, error: legacyPending ? "앱이 닫혀 중단됨" : slide.error, background: { ...slide.background,
+            ...(framePending ? { status: "failed" as const, error: "앱이 닫혀 중단됨" } : {}),
+            ...(generatedPending ? { generatedStatus: "failed" as const, generatedError: "앱이 닫혀 중단됨" } : {}),
+          } }
           : slide;
       }
-      return legacyPending ? { ...slide, status: "failed" as const, error: "앱이 닫혀 중단됨" } : slide;
+      return visiblePending ? { ...slide, status: "failed" as const, error: "앱이 닫혀 중단됨" } : slide;
     });
     if (slides.every((slide, index) => slide === value.slides[index])) return value;
     const recovered = Carousel.parse({ ...value, slides, savedAt: this.now().toISOString() });
@@ -111,7 +117,7 @@ export class CarouselStore {
     const id = input.id ?? `${now.getTime().toString(36)}-${randomBytes(4).toString("hex")}`;
     const value = Carousel.parse({ ...input, stage: input.stage ?? "review", slides: input.slides.map(slide => ({
       ...slide,
-      background: slide.background ?? (input.source?.kind === "project" ? { kind: "frame", sec: 0, cropY: 0.5 } : { kind: "generated", ...(slide.image ? { image: slide.image } : {}) }),
+      background: slide.background ?? (input.source?.kind === "project" ? { kind: "frame", mode: "ai", sec: 0, cropY: 0.5 } : { kind: "generated", ...(slide.image ? { image: slide.image } : {}) }),
     })), id, createdAt: now.toISOString(), savedAt: now.toISOString() });
     return this.lock(id, async () => {
       if (await this.readRaw(id)) throw new HttpError(409, "exists", `같은 id의 캐러셀이 있습니다: ${id}`);
@@ -147,7 +153,7 @@ export class CarouselStore {
           ...slide, texts: defaultTexts(current.aspect).map(text => ({ ...text, text: text.role === "title" ? item.title : item.body })),
           imagePrompt: item.imagePrompt ?? slide.imagePrompt, sceneNumber: item.sceneNumber ?? slide.sceneNumber,
           background: slide.background.kind === "frame" ? {
-            ...slide.background, sec: item.sec ?? slide.background.sec,
+            ...slide.background, mode: "ai" as const, sec: item.sec ?? slide.background.sec,
             ...(item.target !== undefined ? { highlight: { ...slide.background.highlight, style: slide.background.highlight?.style ?? "border", target: item.target } } : {}),
           } : slide.background,
         };
@@ -256,7 +262,10 @@ export class CarouselStore {
             ...userHighlight,
             ...(userHighlight.box ? { boxManual: true } : {}),
           } : background.highlight;
-          background = { ...background, sec: patch.sec ?? background.sec, cropY: patch.cropY ?? background.cropY, highlight: mergedHighlight };
+          const modeChanged = patch.mode !== undefined && patch.mode !== background.mode;
+          if (modeChanged && background.highlight?.image) await rm(path.join(this.carouselDir(id), background.highlight.image.file), { force: true });
+          background = { ...background, mode: patch.mode ?? background.mode, sec: patch.sec ?? background.sec, cropY: patch.cropY ?? background.cropY,
+            highlight: modeChanged && mergedHighlight ? { ...mergedHighlight, box: undefined, boxManual: undefined, image: undefined } : mergedHighlight };
         }
       }
       const slide = CarouselSlide.parse({ ...currentSlide, ...Object.fromEntries(Object.entries(allowed).filter(([, value]) => value !== undefined)), background });
@@ -297,7 +306,15 @@ export class CarouselStore {
     return this.saveBackgroundVersion(id, slideId, png, "images", "highlight");
   }
 
-  async clearAutomaticHighlight(id: string, slideId: string, clearBox: boolean): Promise<CarouselData> {
+  async saveGeneratedVersion(id: string, slideId: string, png: Buffer): Promise<CarouselData> {
+    return this.saveBackgroundVersion(id, slideId, png, "images", "generated");
+  }
+
+  async clearBackgroundHighlight(id: string, slideId: string): Promise<CarouselData> {
+    return this.clearAutomaticHighlight(id, slideId, true, true);
+  }
+
+  async clearAutomaticHighlight(id: string, slideId: string, clearBox: boolean, clearManual = false): Promise<CarouselData> {
     return this.lock(id, async () => {
       const current = await this.readRaw(id);
       if (!current) throw new HttpError(404, "not-found", `캐러셀이 없습니다: ${id}`);
@@ -310,7 +327,7 @@ export class CarouselStore {
       const nextHighlight = highlight ? {
         ...highlight,
         image: undefined,
-        ...(clearBox && !highlight.boxManual ? { box: undefined } : {}),
+        ...(clearBox && (clearManual || !highlight.boxManual) ? { box: undefined, ...(clearManual ? { boxManual: undefined } : {}) } : {}),
       } : undefined;
       const slides = current.slides.slice();
       slides[index] = CarouselSlide.parse({ ...slide, background: { ...slide.background, highlight: nextHighlight } });
@@ -320,7 +337,7 @@ export class CarouselStore {
     });
   }
 
-  private async saveBackgroundVersion(id: string, slideId: string, png: Buffer, directory: "frames" | "images", field: "frame" | "highlight"): Promise<CarouselData> {
+  private async saveBackgroundVersion(id: string, slideId: string, png: Buffer, directory: "frames" | "images", field: "frame" | "highlight" | "generated"): Promise<CarouselData> {
     if (!/^[A-Za-z0-9_-]+$/.test(slideId)) throw new HttpError(400, "invalid-slide-id", "slide id가 파일 이름에 쓸 수 없습니다");
     return this.lock(id, async () => {
       const current = await this.readRaw(id);
@@ -329,18 +346,22 @@ export class CarouselStore {
       if (index < 0) throw new HttpError(404, "slide-not-found", `장이 없습니다: ${slideId}`);
       const slide = current.slides[index]!;
       if (slide.background.kind !== "frame") throw new HttpError(400, "wrong-background", "frame 배경 장이 아닙니다");
-      const old = field === "frame" ? slide.background.frame : slide.background.highlight?.image;
+      const old = field === "frame" ? slide.background.frame : field === "generated" ? slide.background.generated : slide.background.highlight?.image;
       const version = (old?.version ?? 0) + 1;
-      const relative = `${directory}/${slideId}-${version}.png`;
+      const relative = `${directory}/${slideId}${field === "generated" ? "-gen" : ""}-${version}.png`;
+      if (field === "generated" && !slide.background.frame?.version) throw new HttpError(409, "frame-missing", "참고 프레임이 없습니다");
       await writeAtomic(path.join(this.carouselDir(id), relative), png);
+      const clearedHighlight = slide.background.highlight ? { ...slide.background.highlight, image: undefined, box: undefined, boxManual: undefined } : undefined;
       const background = field === "frame"
-        ? { ...slide.background, frame: { file: relative, version }, status: "done" as const, error: undefined, highlight: slide.background.highlight ? { ...slide.background.highlight, image: undefined, box: slide.background.highlight.boxManual ? slide.background.highlight.box : undefined } : undefined }
-        : { ...slide.background, status: "done" as const, error: undefined, highlight: { ...slide.background.highlight, style: "ai-outline" as const, image: { file: relative, version } } };
+        ? { ...slide.background, frame: { file: relative, version }, status: "done" as const, error: undefined, highlight: clearedHighlight }
+        : field === "generated"
+          ? { ...slide.background, generated: { file: relative, version, frameVersion: slide.background.frame!.version! }, generatedStatus: "done" as const, generatedError: undefined, highlight: clearedHighlight }
+          : { ...slide.background, ...(slide.background.mode === "ai" ? { generatedStatus: "done" as const, generatedError: undefined } : { status: "done" as const, error: undefined }), highlight: { ...slide.background.highlight, style: "ai-outline" as const, image: { file: relative, version } } };
       const slides = current.slides.slice(); slides[index] = CarouselSlide.parse({ ...slide, background });
       const next = Carousel.parse({ ...current, slides, savedAt: this.now().toISOString() });
       await this.write(next);
       if (old?.file) await rm(path.join(this.carouselDir(id), old.file), { force: true });
-      if (field === "frame" && slide.background.highlight?.image?.file) {
+      if (field !== "highlight" && slide.background.highlight?.image?.file) {
         await rm(path.join(this.carouselDir(id), slide.background.highlight.image.file), { force: true });
       }
       return next;
