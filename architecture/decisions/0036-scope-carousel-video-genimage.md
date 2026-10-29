@@ -1,6 +1,6 @@
 # 0036 범위: 영상 파생 캐러셀 배경을 장면 참고 AI 이미지로
 
-Status: draft
+Status: accepted
 Source: changes/060-carousel-video-genimage/spec.md
 Supersedes: 0026
 

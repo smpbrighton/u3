@@ -1,6 +1,6 @@
 # 0026 범위: 0022 에 캐러셀 검토 단계·글 객체·게시 캡션 추가
 
-Status: accepted
+Status: superseded-by 0036
 Source: changes/044-carousel-workflow/spec.md
 Supersedes: 0022
 
