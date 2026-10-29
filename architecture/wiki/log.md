@@ -168,3 +168,9 @@
 - `index.md`
 - 테스트 추가와 권한 수정은 Windows 빌드 페이지에 함께 반영했다. 별도 페이지는 없다. `git:4798e89:` `git:ace19d2:`
 - 0.3.8 버전 변경은 릴리스 페이지에 반영했다. 별도 페이지는 없다. `git:8db8e74:`
+
+## [2026-10-29] ingest | 057 엔진 재시작과 058 타임라인 크기 조절
+- `pages/entity-engine-shutdown.md`
+- `pages/concept-timeline-editing.md`
+- `index.md`
+- 계획·실패 테스트·구현·검증 기록은 해당 페이지에 통합했다. 별도 페이지가 필요한 커밋은 없다. `git:b7dcbb2:` `git:7fcaa05:` `git:b08b742:` `git:c510819:` `git:f6d8d48:` `git:31e51df:` `git:b24bf7f:` `git:863ed98:` `git:0f96192:` `git:541dbef:`

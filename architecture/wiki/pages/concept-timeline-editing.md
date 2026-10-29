@@ -42,6 +42,11 @@ U3 타임라인은 영상·자막·음성·효과음 트랙을 저장하고, 영
 - 048의 테스트 파일과 실패 테스트 커밋은 확인했다. 테스트 실행 출력과 `pnpm verify` 통과 증거, 설치본에서 키 변경·재실행·복원 수동 확인은 코드에서 못 찾음. 기존 051 배포본 확인도 미검증으로 남는다. `architecture/changes/048-shortcut-settings/plan.md` `tests/ui/settings-shortcuts.test.tsx` `git:4208b6d:`
 - 결정 링크: [스튜디오 단축키 설정](../../decisions/0030-studio-shortcut-settings.md). `git:d9e905f:`
 
+- 스튜디오 Slider의 pointer 제스처는 첫 편집만 과거 이력에 넣고 나머지는 현재 상태를 교체한다. 제스처가 끝나면 다음 편집은 별도 이력이 된다. `src/ui/components/u3/StudioControls.tsx` `src/ui/screens/Studio.tsx` `src/core/timeline/history.ts` `git:f6d8d48:`
+- 자막 크기 조절은 같은 줄의 다른 자막과 영상 길이 및 최소 0.1초 범위에서 양쪽 끝을 조절한다. 오디오 크기 조절은 배속을 반영해 원본 파일 경계로 제한하며 부동소수점 경계 오차도 보정한다. 편집 오류는 표시하고 편집기를 다시 마운트한다. `src/core/timeline/ops.ts` `src/ui/studio/Timeline.tsx` `git:541dbef:`
+- 058 이전에는 오디오 trim이 `doEdit`의 예외 처리 밖에서 실행됐다. 파일 길이를 넘기는 효과음 조절 예외가 interactjs 종료 콜백 밖으로 전파된 것이 커서 고착의 원인이라는 설명은 추정이며 실기 미확인이다. `git:541dbef:` `architecture/changes/058-timeline-trim-fixes/plan.md`
+- 057 Slider 드래그 뒤 실행 취소는 UI 테스트로만 확인했고 실기 확인은 막혔다. 058 효과음 커서 고착과 자막 늘리기도 설치본 실기 확인이 남았다. 058의 `pnpm verify` 실행 증거는 코드에서 못 찾음. `architecture/changes/057-engine-restart-undo/verify.log` `architecture/changes/058-timeline-trim-fixes/plan.md` `tests/ui/studio-history-gesture.test.tsx` `tests/ui/timeline-resize.test.tsx` `git:541dbef:`
+
 ## 관계
 - [원격 기본 프롬프트](concept-remote-prompts.md)
 - [클립 배속](concept-playback-speed.md)

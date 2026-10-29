@@ -4,7 +4,7 @@
 
 ## entity
 - [U3 데스크톱 앱](pages/entity-desktop-app.md) — 앱 구조, Jev Keychain 저장 순서와 검증 상태.
-- [엔진 종료](pages/entity-engine-shutdown.md) — sidecar 종료 정리와 ONNX 런타임 종료 경계.
+- [엔진 종료](pages/entity-engine-shutdown.md) — sidecar 종료 정리, 재시작 감시와 로그 및 검증 상태.
 
 ## concept
 - [Windows 빌드와 검증](pages/concept-windows-build.md) — 플랫폼 빌드, draft Release 조회 권한과 검증·미검증 상태.
@@ -18,7 +18,7 @@
 - [자동 업데이트와 릴리스](pages/concept-updates.md) — 확인·설치와 버전별 릴리스 실행 증거.
 - [로컬 모델과 리소스](pages/concept-local-models.md) — bge-m3·Whisper의 받기, 대체 경로와 실행 측정.
 - [클립 배속](pages/concept-playback-speed.md) — 클립 길이·오디오 캐시·미리보기와 검증 상태.
-- [타임라인 편집](pages/concept-timeline-editing.md) — 대본 기본 프롬프트·말투 검사, 타임라인 편집·단축키와 검증 상태.
+- [타임라인 편집](pages/concept-timeline-editing.md) — 대본 기본 프롬프트·말투 검사, 타임라인 편집·드래그 이력·크기 조절과 검증 상태.
 - [홈 카드와 내보내기 경고](pages/concept-home-export.md) — 프로젝트 카드 썸네일 선택과 내보내기 덮어쓰기 경고.
 
 ## answer
