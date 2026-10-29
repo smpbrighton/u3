@@ -192,6 +192,16 @@ export function setCaptionRange(timeline: Timeline, clipId: string, startSec: nu
     ? { ...item, [row]: item[row].map(current => current.id === clipId ? { ...current, startSec: start, endSec: end } : current) } : item));
 }
 
+export function resizeCaptionClip(timeline: Timeline, clipId: string, edge: "start" | "end", toSec: number): Timeline {
+  if (!Number.isFinite(toSec)) throw new RangeError("자막 시각은 유한한 수여야 합니다");
+  const { clip } = captionRow(timeline, clipId);
+  const start = edge === "start" ? Math.min(toSec, clip.endSec - 0.1) : clip.startSec;
+  const end = edge === "end" ? Math.min(toSec, videoDuration(timeline)) : clip.endSec;
+  const next = setCaptionRange(timeline, clipId, start, end);
+  const resized = captionRow(next, clipId).clip;
+  return resized.startSec === clip.startSec && resized.endSec === clip.endSec ? timeline : next;
+}
+
 export function splitCaptionClip(timeline: Timeline, clipId: string, atSec: number, ids: readonly [string, string] = [`${clipId}-a`, `${clipId}-b`]): Timeline {
   const { layer, row, clip } = captionRow(timeline, clipId);
   if (!(atSec > clip.startSec && atSec < clip.endSec)) throw new RangeError("자르기 위치는 자막 클립 안쪽이어야 합니다");
@@ -221,6 +231,23 @@ export function moveCaptionClip(timeline: Timeline, clipId: string, startSec: nu
   if (startSec < 0) throw new RangeError("시작 시각은 0 이상이어야 합니다");
   const next = { ...clip, startSec, endSec: startSec + clip.endSec - clip.startSec };
   return layer ? withCaptionLayers(timeline, captionLayersOf(timeline).map((item) => item.id === layer.id ? { ...item, [row]: item[row].map((current) => current.id === clipId ? next : current) } : item)) : { ...timeline, captions: timeline.captions.map((item) => item.id === clipId ? next : item) };
+}
+
+export function clampAudioTrim(clip: AudioClip, edge: "start" | "end", toSec: number, fileDurationSec: number): number {
+  if (!Number.isFinite(fileDurationSec) || fileDurationSec <= 0) throw new RangeError("오디오 파일 길이가 필요합니다");
+  if (!Number.isFinite(toSec)) throw new RangeError("오디오 시각은 유한한 수여야 합니다");
+  const source = sourceAt(clip, toSec - clip.startSec);
+  let bounded = edge === "start"
+    ? Math.max(0, source < 0 ? clip.startSec - clip.inStartSec / clipSpeed(clip) : toSec)
+    : source > fileDurationSec ? clip.startSec + (fileDurationSec - clip.inStartSec) / clipSpeed(clip) : toSec;
+  // 원본 좌표로 되돌릴 때 반올림 오차가 파일 경계를 넘지 않게 한다.
+  const boundedSource = sourceAt(clip, bounded - clip.startSec);
+  const rounding = Number.EPSILON * Math.max(1, Math.abs(bounded), clip.startSec);
+  if (edge === "start" && boundedSource < 0) bounded += rounding;
+  if (edge === "end" && boundedSource > fileDurationSec) bounded -= rounding;
+  requireFrames(edge === "start" ? bounded : clip.startSec,
+    edge === "start" ? clip.startSec + audioClipLength(clip) - bounded : bounded - clip.startSec);
+  return bounded;
 }
 
 export function trimAudioClip(clips: readonly AudioClip[], clipId: string, edge: "start" | "end", toSec: number, fileDurationSec: number): AudioClip[] {

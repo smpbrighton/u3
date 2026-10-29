@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState, type CSSProperties } from "react"
 import type { AudioCache, Input, Timeline as TimelineData } from "../../core/schema";
 import { VolumeIcon } from "@hugeicons/core-free-icons";
 import { HugeiconsIcon } from "@hugeicons/react";
-import { clipDuration, projectDuration, moveAudioClip, moveCaptionClip, moveOverlayClip, overlayDuration, splitOverlayClip, splitVideoClip, trimAudioClip, trimCaptionClip, trimOverlayClip, trimVideoClip, videoStartTimes } from "../../core/timeline/ops";
+import { clampAudioTrim, clipDuration, projectDuration, moveAudioClip, moveCaptionClip, moveOverlayClip, overlayDuration, resizeCaptionClip, splitOverlayClip, splitVideoClip, trimAudioClip, trimOverlayClip, trimVideoClip, videoStartTimes } from "../../core/timeline/ops";
 import { labelForAction, timelineToStudioRows, reorderVideoByStart, type StudioAction, type MemeLabel, type SfxLabel } from "./timeline-adapter";
 import { api, type EngineJob } from "../api";
 import { ttsOverflow } from "../../core/tts-clips";
@@ -233,7 +233,10 @@ export function Timeline(props: {
       }
       props.onEdit(next);
     }
-    catch (error) { props.onError(error instanceof Error ? error.message : String(error)); }
+    catch (error) {
+      props.onError(error instanceof Error ? error.message : String(error));
+      resetEditor();
+    }
   };
   const actionStyle = (action: StudioAction) => ({
     background: action.effectId === "main" ? "var(--u3-clip-video)" : action.effectId === "meme" ? "var(--u3-clip-meme)" : action.effectId === "overlay" ? (props.timeline.overlays.flat().some(c => c.id === action.id && "memeId" in c) ? "var(--u3-clip-meme)" : "var(--u3-clip-video)") : action.effectId === "caption" ? "var(--u3-clip-caption)" : tracks.find(t => t.id === action.effectId)?.color ?? "var(--muted)",
@@ -360,13 +363,17 @@ export function Timeline(props: {
               if (clip?.kind === "main" && "inStartSec" in clip) doEdit(() => trimVideoClip(props.timeline, action.id, edge, toSec, props.inputDurations?.[clip.inputId]));
               else if (clip) doEdit(() => trimVideoClip(props.timeline, action.id, edge, toSec));
             } else if (/^video-(?:[2-9]|[1-9]\d+)$/.test(row.id)) doEdit(() => trimOverlayClip(props.timeline, action.id, edge, dir === "left" ? start : end));
-            else if (row.id === "captions" || /-main$|-sub$/.test(row.id)) doEdit(() => trimCaptionClip(props.timeline, action.id, edge, dir === "left" ? start : end));
+            else if (row.id === "captions" || /-main$|-sub$/.test(row.id)) doEdit(() => resizeCaptionClip(props.timeline, action.id, edge, dir === "left" ? start : end));
             else if (row.id === "voice" || row.id === "sfx" || /^sfx-\d+$/.test(row.id)) {
               const clips = row.id === "voice" ? props.timeline.voice : props.timeline.sfx;
               const clip = clips.find((item) => item.id === action.id);
               if (!clip) return;
-              const updated = trimAudioClip(clips, clip.id, edge, dir === "left" ? start : end, props.audioDurations?.[clip.file] ?? clip.inEndSec);
-              doEdit(() => row.id === "voice" ? { ...props.timeline, voice: updated } : { ...props.timeline, sfx: normalizeSfxLanes(updated) });
+              doEdit(() => {
+                const fileDuration = props.audioDurations?.[clip.file] ?? clip.inEndSec;
+                const toSec = clampAudioTrim(clip, edge, dir === "left" ? start : end, fileDuration);
+                const updated = trimAudioClip(clips, clip.id, edge, toSec, fileDuration);
+                return row.id === "voice" ? { ...props.timeline, voice: updated } : { ...props.timeline, sfx: normalizeSfxLanes(updated) };
+              });
             }
           }}
           onDoubleClickAction={(event, { action, row }) => {
