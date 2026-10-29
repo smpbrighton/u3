@@ -47,6 +47,21 @@ export function isLocalHostname(hostname: string): boolean {
   return LOCAL_HOSTNAMES.has(hostname) || hostname.endsWith(".localhost");
 }
 
+export function requestLog(write?: (line: string) => void): MiddlewareHandler {
+  return async (c, next) => {
+    const method = c.req.method;
+    if (!write || method === "OPTIONS") return next();
+    const started = performance.now();
+    const path = c.req.path;
+    if (method !== "GET") write(`[req] → ${method} ${path}`);
+    await next();
+    const elapsed = performance.now() - started;
+    if (method !== "GET" || c.res.status >= 400 || elapsed > 5000) {
+      write(`[req] ← ${c.res.status} ${method} ${path} ${Math.round(elapsed)}ms`);
+    }
+  };
+}
+
 /** uUu Host 검사에 Tauri Origin 허용 목록을 더했다. */
 export function localOnly(tauriOrigin?: string): MiddlewareHandler {
   return async (c, next) => {

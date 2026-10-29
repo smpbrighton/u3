@@ -7,7 +7,7 @@ import type { MemeIndex } from "./pipeline/meme-embed";
 import type { MediaServer } from "./pipeline/media-server";
 import type { TranscribeInput } from "./pipeline/codex";
 import type { ImageAspect, ImageModel, ImageQuality } from "./pipeline/codex-image";
-import { cors, errorBody, localOnly, onError, tokenGuard } from "./http";
+import { cors, errorBody, localOnly, onError, requestLog, tokenGuard } from "./http";
 import { registerEventRoutes } from "./routes/events";
 import { registerProjectRoutes } from "./routes/projects";
 import { registerInputRoutes } from "./routes/inputs";
@@ -34,6 +34,7 @@ import type { downloadQwenTts, qwenTtsReady } from "./pipeline/models";
 import type { runTts } from "./pipeline/tts";
 
 export interface AppContext {
+  log?: (line: string) => void;
   promptDefaults?: () => Promise<PromptDefaults>;
   store: Store;
   jobs: Jobs;
@@ -71,6 +72,7 @@ export function createApp(context: AppContext) {
   const app = new Hono();
   app.onError(onError);
   app.notFound(c => c.json(errorBody("not-found", "요청 경로가 없습니다"), 404));
+  app.use("/api/*", requestLog(context.log));
   app.use("/api/*", localOnly(context.tauriOrigin));
   app.use("/api/*", cors(context.tauriOrigin));
   app.use("/api/*", tokenGuard(context.token));

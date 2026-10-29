@@ -40,7 +40,7 @@ const token = await readToken();
 if (!token) throw new Error("U3_TOKEN이 비어 있습니다");
 const store = new Store();
 const logSecrets = new Set([token]);
-installEngineLog({ dir: path.join(store.root, "logs"), version: packageInfo.version, secrets: () => [...logSecrets] });
+const log = installEngineLog({ dir: path.join(store.root, "logs"), version: packageInfo.version, secrets: () => [...logSecrets] });
 await store.init();
 const prompts = createPromptDefaults({ dataDir: store.root, env: process.env, fetchImpl: fetch });
 const stopPrompts = prompts.start();
@@ -108,6 +108,7 @@ const jevKeyStore = {
   },
 };
 const app = createApp({
+  log: log.write,
   promptDefaults: () => prompts.current(),
   store,
   jobs,

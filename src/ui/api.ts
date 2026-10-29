@@ -57,7 +57,12 @@ export async function api<T = void>(method: Method, path: string, body?: unknown
   } catch (error) {
     if (error instanceof DOMException && error.name === "AbortError") throw error;
     resetConnection();
-    throw new Error(`엔진에 연결하지 못했습니다: ${error instanceof Error ? error.message : String(error)}`);
+    const message = error instanceof Error ? error.message : String(error);
+    const requestPath = path.split(/[?#]/, 1)[0];
+    if (requestPath !== "/api/system/client-log") {
+      void api("POST", "/api/system/client-log", { method, path: requestPath.slice(0, 500), message: message.slice(0, 500) }).catch(() => undefined);
+    }
+    throw new Error(`엔진에 연결하지 못했습니다: ${message}`);
   }
   const text = await response.text();
   const data = text ? JSON.parse(text) as unknown : null;

@@ -42,6 +42,19 @@ function scriptVoiceSettings(settings: Record<string, unknown>, defaults: Prompt
 export function registerSystemRoutes(app: Hono, context: AppContext): void {
   const shortcutPlatform = (): Platform => process.platform === "darwin" ? "mac" : "win";
 
+  app.post("/api/system/client-log", async c => {
+    const { method, path, message } = await parseJson(c, z.object({
+      method: z.string().max(200),
+      path: z.string().max(500),
+      message: z.string().max(500),
+    }));
+    const singleLine = (value: string) => value.replace(/[\x00-\x1f\x7f]/g, " ");
+    const requestPath = path.split(/[?#]/, 1)[0];
+    const errorMessage = message.replace(/[?#]\S*/g, "");
+    context.log?.(`[ui] 연결 실패 ${singleLine(method)} ${singleLine(requestPath)} : ${singleLine(errorMessage)}`);
+    return c.json({ ok: true });
+  });
+
   app.get("/api/system/studio-shortcuts", async c => {
     const settings = await context.store.readSettings();
     return c.json({ bindings: parseStudioShortcuts(settings.studioShortcuts, shortcutPlatform()) });
