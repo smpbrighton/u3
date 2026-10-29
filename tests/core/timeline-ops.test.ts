@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
-import { Timeline, type OverlayClip } from "../../src/core/schema";
-import { deleteCaptionClip, deleteOverlayClip, deleteVideoClip, moveAudioClip, moveCaptionClip, moveOverlayClip, moveVideoClip, splitOverlayClip, splitVideoClip, trimAudioClip, trimCaptionClip, trimOverlayClip, trimVideoClip, videoStartTimes } from "../../src/core/timeline/ops";
+import { Timeline, captionLayersOf, withCaptionLayers, type AudioClip, type OverlayClip } from "../../src/core/schema";
+import { clampAudioTrim, deleteCaptionClip, deleteOverlayClip, deleteVideoClip, moveAudioClip, moveCaptionClip, moveOverlayClip, moveVideoClip, resizeCaptionClip, splitOverlayClip, splitVideoClip, trimAudioClip, trimCaptionClip, trimOverlayClip, trimVideoClip, videoStartTimes } from "../../src/core/timeline/ops";
 
 const empty = (): Timeline => ({ video: [], overlays: [], captions: [], voice: [], sfx: [], audio: { source: { gain: 1, muted: false }, voice: { gain: 1, muted: false }, sfx: { gain: 1, muted: false } } });
 const base = (): Timeline => ({ ...empty(), video: [
@@ -89,5 +89,76 @@ describe("timeline ops", () => {
     expect(splitOverlayClip(timeline, "o", 3).overlays[0]).toMatchObject([{ id: "o-a", inEndSec: 4 }, { id: "o-b", startSec: 3, inStartSec: 4 }]);
     expect(deleteOverlayClip(timeline, "o").overlays).toEqual([]);
     expect(() => moveOverlayClip(timeline, "o", 7)).toThrow();
+  });
+});
+
+describe("058 타임라인 크기 조절", () => {
+  const captions = (): Timeline => ({ ...base(), captions: [
+    { id: "prev", startSec: 0, endSec: 2, text: "앞" },
+    { id: "c", startSec: 3, endSec: 4, text: "말", style: { color: "#123456" }, sceneIndex: 1 },
+    { id: "next", startSec: 6, endSec: 8, text: "뒤" },
+  ] });
+
+  it.each([
+    ["start", 2.5, 2.5, 4], ["end", 5, 3, 5],
+    ["start", -10, 2, 4], ["end", 20, 3, 6],
+    ["start", 3.5, 3.5, 4], ["end", 3.5, 3, 3.5],
+    ["start", 10, 3.9, 4], ["end", -10, 3, 3.1],
+  ] as const)("자막 %s를 %s초로 끌면 잡은 쪽만 %s–%s초로 맞춘다", (edge, toSec, startSec, endSec) => {
+    const before = captions();
+    const next = resizeCaptionClip(before, "c", edge, toSec);
+    expect(next.captions[1]).toEqual({ ...before.captions[1], startSec, endSec });
+    expect(next.captions[0]).toEqual(before.captions[0]);
+    expect(next.captions[2]).toEqual(before.captions[2]);
+    expect(before.captions[1]).toMatchObject({ startSec: 3, endSec: 4 });
+  });
+
+  it("다른 자막 줄과 긴 오디오가 있어도 영상 시작과 끝에서 멈춘다", () => {
+    const before = captions();
+    before.voice = [{ id: "voice", startSec: 0, file: "v.wav", inStartSec: 0, inEndSec: 20, gain: 1 }];
+    const layer = captionLayersOf(before)[0]!;
+    const layered = withCaptionLayers(before, [{ ...layer, sub: [{ id: "sub", startSec: 3, endSec: 4, text: "서브" }] }]);
+    expect(resizeCaptionClip(layered, "sub", "start", -10).captionLayers?.[0]?.sub[0]).toMatchObject({ startSec: 0, endSec: 4 });
+    expect(resizeCaptionClip(layered, "sub", "end", 30).captionLayers?.[0]?.sub[0]).toMatchObject({ startSec: 3, endSec: 9 });
+    expect(resizeCaptionClip(layered, "sub", "end", 30).captions).toEqual(layered.captions);
+  });
+
+  it("범위가 그대로면 같은 timeline을 반환하고 잘못된 자막과 시각은 거절한다", () => {
+    const before = captions();
+    expect(resizeCaptionClip(before, "c", "end", 4)).toBe(before);
+    const bounded = resizeCaptionClip(before, "c", "end", 20);
+    expect(resizeCaptionClip(bounded, "c", "end", 20)).toBe(bounded);
+    expect(() => resizeCaptionClip(before, "missing", "end", 5)).toThrow(/찾을 수 없습니다/u);
+    expect(() => resizeCaptionClip(before, "c", "start", NaN)).toThrow(RangeError);
+    expect(() => resizeCaptionClip(before, "c", "end", Infinity)).toThrow(RangeError);
+    expect(() => trimCaptionClip(before, "c", "end", 5)).toThrow(/늘리는 트림/u);
+  });
+
+  it.each([1, 1.5])("%s배 오디오는 원본 양끝에서 멈추고 반대쪽 경계를 유지한다", speed => {
+    const clip: AudioClip = { id: "a", startSec: 2, file: "v.wav", inStartSec: 1.5, inEndSec: 4.5, gain: 1, speed };
+    const start = clampAudioTrim(clip, "start", -20, 6);
+    expect(start).toBe(2 - 1.5 / speed);
+    expect(trimAudioClip([clip], "a", "start", start, 6)[0]).toEqual({ ...clip, startSec: start, inStartSec: 0 });
+    const end = clampAudioTrim(clip, "end", 20, 6);
+    expect(end).toBe(2 + 4.5 / speed);
+    expect(trimAudioClip([clip], "a", "end", end, 6)[0]).toEqual({ ...clip, inEndSec: 6 });
+    expect(clampAudioTrim(clip, "start", 2.5, 6)).toBe(2.5);
+    expect(clampAudioTrim(clip, "end", 3, 6)).toBe(3);
+    expect(clip).toMatchObject({ startSec: 2, inStartSec: 1.5, inEndSec: 4.5 });
+    expect(() => trimAudioClip([clip], "a", "end", 20, 6)).toThrow(/파일 길이/u);
+  });
+
+  it("오디오 시작은 타임라인 0초보다 앞에 놓지 않는다", () => {
+    const clip: AudioClip = { id: "a", startSec: 0.5, file: "v.wav", inStartSec: 2, inEndSec: 5, gain: 1 };
+    const toSec = clampAudioTrim(clip, "start", -10, 6);
+    expect(toSec).toBe(0);
+    expect(trimAudioClip([clip], "a", "start", toSec, 6)[0]).toMatchObject({ startSec: 0, inStartSec: 1.5, inEndSec: 5 });
+  });
+
+  it("오디오의 0프레임 트림은 기존 규칙으로 거절한다", () => {
+    const clip: AudioClip = { id: "a", startSec: 2, file: "v.wav", inStartSec: 0, inEndSec: 3, gain: 1, speed: 1.5 };
+    for (const [edge, toSec] of [["start", 3.999], ["end", 2.001]] as const) {
+      expect(() => trimAudioClip([clip], "a", edge, clampAudioTrim(clip, edge, toSec, 6), 6)).toThrow(/1프레임/u);
+    }
   });
 });
