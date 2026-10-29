@@ -43,3 +43,9 @@ CI 빌드 설정은 `rawvideo` encoder와 `image2pipe` muxer를 활성화한다.
 ## 후속 CI 확인
 
 이번 수정은 실패한 Vitest 9개 파일을 다룬다. `scripts/smoke.ts`는 여전히 `select`, `volumedetect`, `rawvideo` muxer를 사용한다. CI의 번들 활성화 목록과 Mac 번들 조회에는 이 기능들이 없다. Windows CI가 Vitest 다음 단계에 도달하면 smoke 호환성을 별도로 확인해야 한다.
+
+## run 40815199068 후속 수정
+
+- 기존 실패 로그 `windows-ci-run1.log:1237–1243`에서 MRX 배경 WAV가 0 bytes였다. `writeFloatWav`는 WAV Transform의 `finish`에서 반환하며 파일 WriteStream의 완료를 기다리지 않는다. Mac에서 반환 직후 동기 읽기로 같은 결함을 재현했다(`out/mrx-write-fail.log`: 실제 0, 기대 176444 bytes). Windows native 시험에 반환 직후 입력·목소리·배경 WAV의 전체 길이와 RIFF/data 길이 단언을 먼저 추가했다.
+- 같은 로그 1262–1269의 Whisper 600초 초과에는 다운로드·변환·추론 단계 정보가 없다. native 시험에 다운로드 진행률, SHA-256 확인 완료, CLI 시작/종료, JSON 읽기 완료 진단을 추가했다. 다운로드 180초와 변환·추론 390초의 취소 신호로 실패 단계를 구분한다. 기존 600초 제한과 실제 한국어 단어 결과 단언은 유지한다.
+- Windows Whisper 빌드 로그 181행은 `/arch:SSE4.2`만 사용한다. AVX·AVX2·FMA·F16C를 끈 상태다. 이는 추론 지연의 후보이며, 다운로드 지연과 구분하기 전에는 원인으로 확정하지 않는다.

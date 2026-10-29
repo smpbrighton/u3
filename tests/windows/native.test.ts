@@ -108,7 +108,12 @@ describe.skipIf(!enabled)("Windows packaged native", () => {
     expect(Number(probe.format.duration)).toBeGreaterThan(0);
   }, 120_000);
   it("실제 MRX CPU 모델로 음성을 분리하고 세션을 닫는다", async () => {
-    const script = `import {writeFloatWav,separateWav} from './src/engine/pipeline/separate.ts'; await writeFloatWav(${JSON.stringify(path.join(root, "무음.wav"))},new Float32Array(44100)); await separateWav({modelPath:${JSON.stringify(path.join(resources, "models/mrx.int8.onnx"))},inputPath:${JSON.stringify(path.join(root, "무음.wav"))},voicePath:${JSON.stringify(path.join(root, "목소리.wav"))},bgPath:${JSON.stringify(path.join(root, "배경.wav"))}}); process.stdout.write('MRX_DONE'); process.exit(0);`;
+    const script = `import {readFileSync} from 'node:fs'; import assert from 'node:assert/strict'; import {writeFloatWav,separateWav} from './src/engine/pipeline/separate.ts';
+      const input=${JSON.stringify(path.join(root, "무음.wav"))},voice=${JSON.stringify(path.join(root, "목소리.wav"))},bg=${JSON.stringify(path.join(root, "배경.wav"))};
+      const complete=file=>{const wav=readFileSync(file); assert.equal(wav.length,44+44100*4,'writeFloatWav 반환 전에 PCM 쓰기가 끝나야 합니다: '+file); assert.equal(wav.toString('ascii',0,4),'RIFF'); assert.equal(wav.readUInt32LE(40),44100*4);};
+      await writeFloatWav(input,new Float32Array(44100)); complete(input);
+      await separateWav({modelPath:${JSON.stringify(path.join(resources, "models/mrx.int8.onnx"))},inputPath:input,voicePath:voice,bgPath:bg});
+      complete(voice); complete(bg); process.stdout.write('MRX_DONE'); process.exit(0);`;
     expect((await run(path.join(resources, "node.exe"), ["--import", "tsx", "--input-type=module", "-e", script], 300_000)).stdout).toContain("MRX_DONE");
     expect((await stat(path.join(root, "목소리.wav"))).size).toBeGreaterThan(44);
     expect((await stat(path.join(root, "배경.wav"))).size).toBeGreaterThan(44);
@@ -153,10 +158,23 @@ describe.skipIf(!enabled)("Windows packaged native", () => {
     const fixture = "tests/fixtures/project/input/ko-5s.wav";
     expect(digest(await readFile(fixture))).toBe("9b4b267c50118bc4e154402590404ab5e3694f7092151d952d49163736e68347");
     const { downloadWhisper } = await import("../../src/engine/pipeline/models");
-    const { transcribeAudio } = await import("../../src/engine/pipeline/whisper");
+    const { transcribeAudio, runWhisperCli } = await import("../../src/engine/pipeline/whisper");
     const { parseWhisperOutput } = await import("../../src/core/transcript");
-    const modelPath = await downloadWhisper({ cacheDir: path.join(process.env.U3_BUILD_CACHE!, "native-models") });
-    const output = await transcribeAudio({ file: path.resolve(fixture), whisperPath: path.join(resources, "bin/whisper-cli.exe"), modelPath, vadModelPath: path.join(resources, "models/ggml-silero-v6.2.0.bin") });
+    const started = Date.now();
+    const log = (message: string) => console.error(`[Windows Whisper ${(Date.now() - started) / 1000}s] ${message}`);
+    log("모델 다운로드 시작");
+    let lastProgress = -1;
+    const modelPath = await downloadWhisper({ cacheDir: path.join(process.env.U3_BUILD_CACHE!, "native-models"), signal: AbortSignal.timeout(180_000), onProgress: progress => {
+      const step = Math.floor(progress * 10);
+      if (step > lastProgress) { lastProgress = step; log(`모델 다운로드 ${step * 10}%`); }
+    } });
+    log(`모델 다운로드·SHA-256 확인 완료: ${(await stat(modelPath)).size} bytes`);
+    const output = await transcribeAudio({ file: path.resolve(fixture), whisperPath: path.join(resources, "bin/whisper-cli.exe"), modelPath, vadModelPath: path.join(resources, "models/ggml-silero-v6.2.0.bin"), signal: AbortSignal.timeout(390_000), run: async options => {
+      log(`ffmpeg 변환 완료·CLI 시작: ${JSON.stringify(options.args)}`);
+      await runWhisperCli(options);
+      log("CLI 종료·JSON 읽기 시작");
+    } });
+    log("JSON 읽기 완료");
     expect(parseWhisperOutput(output).length).toBeGreaterThan(0);
   }, 600_000);
   it("stdin 종료 뒤 엔진이 0으로 종료하고 데이터 파일 잠금을 해제한다", async () => {
