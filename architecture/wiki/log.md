@@ -190,3 +190,10 @@
 - 059 계획·실패 테스트·구현은 엔진 페이지에 통합했다. 별도 페이지는 없다. `git:09c3e03:` `git:7938b30:` `git:54baef7:`
 - publish 실패 테스트와 수정은 Windows 페이지에 통합했다. 별도 페이지는 없다. `git:9bcb94e:` `git:cf31bbc:`
 - 1.0.0 버전 커밋은 릴리스 페이지에 반영했다. 별도 페이지는 없다. `git:72bdd03:`
+
+## [2026-10-29] ingest | 060 영상 참고 AI 배경
+- `pages/concept-carousel.md`
+- `pages/concept-remote-prompts.md`
+- `index.md`
+- intent·spec·review·plan 승인과 결정 대체는 기존 페이지의 출처와 결정 링크에 통합했다. 별도 페이지는 없다. `git:2ef7bdf:` `git:af38a13:` `git:50ba99e:` `git:30b5ad6:`
+- 실패 테스트·구현·회귀 테스트·검증 기록은 기존 페이지에 통합했다. 별도 페이지는 없다. `git:d52a2d3:` `git:ba33c59:` `git:1a33e3e:` `git:24485e2:` `git:6fcb919:` `git:83a16ca:`

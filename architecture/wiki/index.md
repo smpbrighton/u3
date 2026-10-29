@@ -14,7 +14,7 @@
 - [화면 셸과 설정](pages/concept-ui-shell.md) — 공통 화면, 테마, 프롬프트 자동 저장과 검증 상태.
 - [자막과 장면 검토](pages/concept-caption-scene-review.md) — 클립 스타일, 강조 표기, 장면 연결과 검증 상태.
 - [로컬 TTS](pages/concept-local-tts.md) — 자막 음성 생성, 모델과 패키지 검증 상태.
-- [캐러셀 생성](pages/concept-carousel.md) — 기본 기획 프롬프트, 검토·이미지 생성 단계와 검증 상태.
+- [캐러셀 생성](pages/concept-carousel.md) — 영상 참고 AI 배경, 검토·이미지 생성 단계와 검증 상태.
 - [자동 업데이트와 릴리스](pages/concept-updates.md) — 확인·설치와 버전별 릴리스 실행 증거.
 - [로컬 모델과 리소스](pages/concept-local-models.md) — bge-m3·Whisper·MRX의 실행 경로와 검증 상태.
 - [클립 배속](pages/concept-playback-speed.md) — 클립 길이·오디오 캐시·미리보기와 검증 상태.
