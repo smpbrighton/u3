@@ -1,3 +1,4 @@
+import { BUNDLED_PROMPT_DEFAULTS } from "../../src/core/default-prompts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { cp, mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
@@ -28,7 +29,7 @@ async function setup(jevEnabled = true, remote = false) {
     expect(prompt).not.toContain("data:image");
     return { caption: "영상 게시 캡션", slides: Array.from({ length: count }, (_, i) => ({ sceneNumber: i + 1, title: `제목 ${i + 1}`, body: `본문 ${i + 1}`, target: "상품" })), usage: {} };
   });
-  const app = createApp({ promptDefaults: remote ? async () => ({ schema: 1, revision: 2, script: "대본", carouselTopic: "주제", carouselVideo: "원격 영상 지침" }) : undefined, store, jobs, token: "test-token", codexPath: async () => null, jevKey: async () => "fixture-jev-key",
+  const app = createApp({ promptDefaults: remote ? async () => ({ ...BUNDLED_PROMPT_DEFAULTS, schema: 1, revision: 2, script: "대본", carouselTopic: "주제", carouselVideo: "원격 영상 지침" }) : undefined, store, jobs, token: "test-token", codexPath: async () => null, jevKey: async () => "fixture-jev-key",
     carouselServices: {
       refine: async () => ({ candidates: [], usage: {} }), plan: async () => ({ style: "", slides: [], usage: {} }), generateImage: async () => Buffer.from([]),
       derivePlan,

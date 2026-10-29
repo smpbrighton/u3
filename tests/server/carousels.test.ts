@@ -1,3 +1,4 @@
+import { BUNDLED_PROMPT_DEFAULTS } from "../../src/core/default-prompts";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { mkdir, mkdtemp, readdir, rm } from "node:fs/promises";
 import os from "node:os";
@@ -38,7 +39,7 @@ describe("carousels API", () => {
     const store = new Store(root);
     await store.saveSettings({ carouselTopicPrompt: saved === "remote" ? undefined : saved, scriptPrompt: "섞지 않을 대본 지침", scriptTone: "섞지 않을 말투" });
     runner.run.mockReset().mockResolvedValue({ output: { caption: "게시 캡션", slides: Array.from({ length: 2 }, () => ({ title: "제목", body: "본문", imagePrompt: "이미지" })) }, usage: {} });
-    const app = createApp({ promptDefaults: saved === "remote" ? async () => ({ schema: 1, revision: 2, script: "대본", carouselTopic: "원격 주제 지침", carouselVideo: "영상" }) : undefined, store, jobs: new Jobs(), token: "test-token", codexPath: async () => path.join(root, "fake-codex"), jevKey: async () => null });
+    const app = createApp({ promptDefaults: saved === "remote" ? async () => ({ ...BUNDLED_PROMPT_DEFAULTS, schema: 1, revision: 2, script: "대본", carouselTopic: "원격 주제 지침", carouselVideo: "영상" }) : undefined, store, jobs: new Jobs(), token: "test-token", codexPath: async () => path.join(root, "fake-codex"), jevKey: async () => null });
     const created = await app.request("/api/carousels", { method: "POST", headers, body: JSON.stringify({ topic: "바다", style: "수채화", slideCount: 2 }) });
     const { id } = await created.json() as { id: string };
     const planned = await app.request(`/api/carousels/${id}/plan`, { method: "POST", headers, body: JSON.stringify({ topic: "하늘" }) });

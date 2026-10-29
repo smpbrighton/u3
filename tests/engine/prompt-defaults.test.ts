@@ -48,7 +48,6 @@ describe("원격 기본 프롬프트", () => {
   it("캐시 revision이 bundled보다 작거나 같으면 bundled를 쓴다", async () => {
     const { prompts } = await setup(installed, { ...bundled, script: "같은 revision의 다른 본문" });
     expect(await prompts.current()).toEqual(bundled);
-    // 현재 bundled가 revision 1이므로 더 작은 유효 캐시는 없다. 0은 무효 캐시 시험에서 검증한다.
   });
 
   it("새 앱의 bundled revision이 캐시보다 크면 bundled를 쓴다", async () => {
@@ -132,4 +131,15 @@ describe("원격 기본 프롬프트", () => {
   it("프롬프트 hash는 SHA-256 hex다", () => {
     expect(promptHash("기준 본문")).toBe(createHash("sha256").update("기준 본문").digest("hex"));
   });
+});
+
+it("말투·성격이 없는 revision 1 캐시와 원격 파일을 무시하고 bundled를 쓴다", async () => {
+  const legacy = { schema: 1, revision: 1, script: "옛 대본", carouselTopic: "옛 주제", carouselVideo: "옛 영상" };
+  const { prompts, fetchImpl, file } = await setup(installed, legacy);
+  expect(await prompts.current()).toEqual(bundled);
+  fetchImpl.mockResolvedValue(Response.json(legacy));
+  await prompts.refresh();
+  expect(await prompts.current()).toEqual(bundled);
+  expect(JSON.parse(await readFile(file, "utf8"))).toEqual(legacy);
+  expect(console.error).toHaveBeenCalled();
 });

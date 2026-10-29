@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 import { DEFAULT_CAROUSEL_TOPIC_PROMPT, DEFAULT_CAROUSEL_VIDEO_PROMPT } from "../../src/core/carousel-prompt";
-import type { PromptDefaults } from "../../src/core/default-prompts";
+import { BUNDLED_PROMPT_DEFAULTS, type PromptDefaults } from "../../src/core/default-prompts";
 import { afterEach, describe, expect, it } from "vitest";
 import { mkdtemp, rm } from "node:fs/promises";
 import os from "node:os";
@@ -33,7 +33,7 @@ describe("script prompt settings API", () => {
     const response = await app.request("http://127.0.0.1/api/system/script-prompt", { headers });
     expect(response.status).toBe(200);
     expect(await response.json()).toMatchObject({
-      prompt: expect.stringMatching(/^영상 위에서 시청자에게 건네는 한국어 말을 장면별 자막으로 작성한다\./),
+      prompt: expect.stringMatching(/^내가 찍은 일상 릴스에 내가 친구에게 바로 보내는 짧고 자연스러운 한국어 SNS 속말 자막을 쓴다\./),
       isDefault: true,
       rulesPreview: expect.stringContaining("reaction이 null이 아닌 장면"),
     });
@@ -75,7 +75,7 @@ describe("script prompt settings API", () => {
   });
 });
 
-const remoteDefaults: PromptDefaults = { schema: 1, revision: 2, script: "원격 대본", carouselTopic: DEFAULT_CAROUSEL_TOPIC_PROMPT, carouselVideo: DEFAULT_CAROUSEL_VIDEO_PROMPT };
+const remoteDefaults: PromptDefaults = { ...BUNDLED_PROMPT_DEFAULTS, schema: 1, revision: 2, script: "원격 대본", carouselTopic: DEFAULT_CAROUSEL_TOPIC_PROMPT, carouselVideo: DEFAULT_CAROUSEL_VIDEO_PROMPT };
 const hash = (text: string) => createHash("sha256").update(text).digest("hex");
 describe("대본의 원격 기본값", () => {
   it("미수정 사용자는 갱신한 기본값을 따르고 PUT은 현재 기본값과 기준 hash를 반환한다", async () => {

@@ -1,3 +1,4 @@
+import { BUNDLED_PROMPT_DEFAULTS } from "../../src/core/default-prompts";
 import { createHash } from "node:crypto";
 import { DEFAULT_SCRIPT_PROMPT } from "../../src/core/script-prompt";
 import type { PromptDefaults } from "../../src/core/default-prompts";
@@ -108,7 +109,7 @@ describe("캐러셀 기획 프롬프트 설정 API", () => {
 
 describe("캐러셀의 원격 기본값", () => {
   it("세 프롬프트 중 바뀐 본문의 수정 사용자에게만 표시하고 초기화는 기준 hash도 지운다", async () => {
-    let current: PromptDefaults = { schema: 1, revision: 2, script: DEFAULT_SCRIPT_PROMPT, carouselTopic: "원격 주제", carouselVideo: "원격 영상" };
+    let current: PromptDefaults = { ...BUNDLED_PROMPT_DEFAULTS, schema: 1, revision: 2, script: DEFAULT_SCRIPT_PROMPT, carouselTopic: "원격 주제", carouselVideo: "원격 영상" };
     const { app, store } = await appAt(async () => current);
     const get = async () => (await app.request(endpoint, { headers })).json();
     const put = async (body: unknown) => (await app.request(endpoint, { method: "PUT", headers, body: JSON.stringify(body) })).json();

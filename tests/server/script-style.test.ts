@@ -1,4 +1,4 @@
-import type { PromptDefaults } from "../../src/core/default-prompts";
+import { BUNDLED_PROMPT_DEFAULTS, type PromptDefaults } from "../../src/core/default-prompts";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
@@ -28,13 +28,13 @@ function result(output: CodexScript, warnings = [{ inputId: "video", warning: "�
   return { output, usage: { input_tokens: 10, output_tokens: 5 }, transcriptWarnings: warnings };
 }
 
-async function recommend(defaults?: PromptDefaults) {
+async function recommend(defaults?: PromptDefaults, voice: Record<string, string> = { scriptTone: "말투 설정", scriptPersona: "성격 설정" }) {
   const root = await mkdtemp(path.join(os.tmpdir(), "u3-script-style-"));
   roots.push(root);
   const store = new Store(root);
   const project = await store.createProject("대본");
   await store.saveProject({ ...project, inputs: [{ id: "video", kind: "video", file: "input.mp4", durationSec: 3 }] });
-  await store.saveSettings({ scriptPrompt: defaults ? undefined : "저장한 기본 지침", scriptTone: "말투 설정", scriptPersona: "성격 설정", scriptReview: "읽지 않을 옛 검수 설정" });
+  await store.saveSettings({ scriptPrompt: defaults ? undefined : "저장한 기본 지침", ...voice, scriptReview: "읽지 않을 옛 검수 설정" });
   const jobs = new Jobs();
   const app = createApp({ promptDefaults: defaults ? async () => defaults : undefined, store, jobs, token: "token", codexPath: async () => "fake-codex", jevKey: async () => null, resourceDir: path.join(root, "resources"), transcribeInput: async () => ({ text: "" }) });
   const response = await app.request(`/api/projects/${project.id}/script/recommend`, {
@@ -130,6 +130,22 @@ describe("대본 검사와 한 번 재생성", () => {
 
 it("대본 생성은 주입한 현재 기본값으로 시작한다", async () => {
   runScript.mockResolvedValue(result(script("직접 써 봤어. 너는 어때? 😊")));
-  await recommend({ schema: 1, revision: 2, script: "원격 대본 지침", carouselTopic: "원격 주제", carouselVideo: "원격 영상" });
+  await recommend({ ...BUNDLED_PROMPT_DEFAULTS, schema: 1, revision: 2, script: "원격 대본 지침", carouselTopic: "원격 주제", carouselVideo: "원격 영상" });
   expect(runScript.mock.calls[0]![0].prompt.startsWith("원격 대본 지침\n\n")).toBe(true);
+});
+
+it.each([{}, { scriptTone: " ", scriptPersona: "" }])("미설정·빈 말투·성격은 bundled 기본값을 대본에 넣는다: %j", async voice => {
+  runScript.mockResolvedValue(result(script("직접 써 봤어. 너는 어때? 😊")));
+  await recommend(undefined, voice);
+  const prompt = runScript.mock.calls[0]![0].prompt;
+  expect(prompt).toContain(`말투:\n${BUNDLED_PROMPT_DEFAULTS.tone}`);
+  expect(prompt).toContain(`성격:\n${BUNDLED_PROMPT_DEFAULTS.persona}`);
+});
+
+it("현재 원격 말투·성격을 대본에 넣는다", async () => {
+  runScript.mockResolvedValue(result(script("직접 써 봤어. 너는 어때? 😊")));
+  await recommend({ ...BUNDLED_PROMPT_DEFAULTS, tone: "원격 말투", persona: "원격 성격" }, {});
+  const prompt = runScript.mock.calls[0]![0].prompt;
+  expect(prompt).toContain("말투:\n원격 말투");
+  expect(prompt).toContain("성격:\n원격 성격");
 });

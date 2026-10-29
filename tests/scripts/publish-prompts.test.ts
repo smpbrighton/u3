@@ -9,6 +9,9 @@ describe("기본 프롬프트 공개 판단", () => {
   it.each([0, 1])("원격 revision이 같거나 크고 본문이 다르면 실패한다: %s", delta => {
     expect(() => decidePublish({ ...local, revision: local.revision + delta, carouselVideo: "다른 본문" }, local)).toThrow(/PROMPT_REVISION/);
   });
+  it.each(["tone", "persona"] as const)("%s만 다르고 revision이 같으면 실패한다", field => {
+    expect(() => decidePublish({ ...local, [field]: "다른 본문" }, local)).toThrow(/PROMPT_REVISION/);
+  });
   it("원격이 없거나 revision이 작으면 publish다", () => {
     expect(decidePublish(null, local)).toBe("publish");
     expect(decidePublish(local, { ...local, revision: local.revision + 1, script: "갱신한 본문" })).toBe("publish");
