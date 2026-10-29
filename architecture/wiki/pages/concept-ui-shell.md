@@ -12,6 +12,9 @@
 
 - 이미지 생성 설정에서 주제·영상 캐러셀 기획 프롬프트를 각각 편집하고 포커스를 벗어나면 저장한다. 기본값 복원과 글자 수 표시를 제공하며 각 입력은 최대 20,000자다. `src/ui/screens/Settings.tsx` `src/core/carousel-prompt.ts` `git:be31984:`
 - `GET/PUT /api/system/carousel-prompts`는 두 프롬프트와 기본값 여부를 반환한다. PUT은 전달된 항목만 갱신하며 빈 값이나 기본값은 저장 키를 삭제한다. `src/engine/routes/system.ts` `git:19649af:`
+- 대본·말투·성격·주제 캐러셀·영상 캐러셀의 다섯 입력란은 마지막 입력 1초 뒤 저장한다. blur와 화면 해제에도 남은 변경을 저장하며 늦은 응답이 새 입력을 덮지 않도록 한다. `src/ui/screens/Settings.tsx` `tests/ui/settings-autosave.test.tsx` `git:9456024:`
+- 말투·성격은 기본값 복원과 새 기본값 표시를 지원한다. 056 검증 기록은 UI 테스트 44개 통과를 보고하지만 설치본 UI는 미검증이다. `src/engine/routes/system.ts` `architecture/changes/056-voice-default-prompts/validation.md` `git:9456024:`
+
 ## 관계
 - [원격 기본 프롬프트](concept-remote-prompts.md)
 - [Codex 호환성](concept-codex-compat.md)

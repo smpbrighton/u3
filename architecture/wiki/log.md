@@ -153,3 +153,11 @@
 - [Codex 호환성](pages/concept-codex-compat.md)
 - [index](index.md)
 - 049의 테스트 선행·계획 승인·CI 수정 커밋은 위 페이지에 기능과 검증 상태로 통합했다. 별도 페이지가 필요한 나머지 커밋은 없다.
+
+## [2026-10-29] ingest | 056 말투·성격 기본값과 프롬프트 자동 저장
+- `pages/concept-remote-prompts.md`
+- `pages/concept-ui-shell.md`
+- `pages/concept-timeline-editing.md`
+- `pages/concept-windows-build.md`
+- `index.md`
+- 계획·실패 테스트·구현 및 이전 원격 파일 호환 커밋은 기존 페이지에 반영했으며 별도 페이지는 없다. `git:6f700e8:` `git:186a249:` `git:517cf59:` `git:9456024:` `git:62973e9:` `git:22ecacb:`

@@ -8,10 +8,10 @@
 
 ## concept
 - [Windows 빌드와 검증](pages/concept-windows-build.md) — 플랫폼 빌드, 설치와 검증·미검증 상태.
-- [원격 기본 프롬프트](pages/concept-remote-prompts.md) — 받기·캐시·사용자 설정, 404 판정과 공개 검증 상태.
+- [원격 기본 프롬프트](pages/concept-remote-prompts.md) — 다섯 기본값의 받기·캐시·사용자 설정과 공개 검증 상태.
 - [Codex 호환성](pages/concept-codex-compat.md) — 실행 경로, 계정 모델 선택·재시도와 검증 상태.
 - [compositor dylib 경로](pages/concept-compositor-dylib.md) — 패키징·서명 전 경로 검사와 실행 검증 상태.
-- [화면 셸과 설정](pages/concept-ui-shell.md) — 공통 화면, 테마, 캐러셀 프롬프트 설정과 검증 상태.
+- [화면 셸과 설정](pages/concept-ui-shell.md) — 공통 화면, 테마, 프롬프트 자동 저장과 검증 상태.
 - [자막과 장면 검토](pages/concept-caption-scene-review.md) — 클립 스타일, 강조 표기, 장면 연결과 검증 상태.
 - [로컬 TTS](pages/concept-local-tts.md) — 자막 음성 생성, 모델과 패키지 검증 상태.
 - [캐러셀 생성](pages/concept-carousel.md) — 기본 기획 프롬프트, 검토·이미지 생성 단계와 검증 상태.

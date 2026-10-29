@@ -22,7 +22,7 @@ U3 타임라인은 영상·자막·음성·효과음 트랙을 저장하고, 영
 - 라이브러리 상황 검색은 후보를 먼저 표시하고 Jev 판정 결과를 반영한다. 판정 실패 시 후보를 유지한다. `src/engine/routes/library.ts` `src/ui/studio/library-request.ts` `architecture/changes/024-library-situation-search/plan.md`
 - 시험 화면에서 자막 글꼴 로딩 후 측정과 짤 선택 상자 크기를 확인했다. 타이틀 이미지의 MP4 패딩도 확인했다. 저장 후 반복 알림 경고는 당시 범위 밖으로 남겼으며 현재 해소 여부는 코드에서 못 찾음. `git:ace838c:` `git:242f3b1:`
 
-- 대본 기본 프롬프트는 장면 자막의 생각이 이어지도록 요청하고, 길이는 구간의 표시 시간과 읽는 호흡에 맞추도록 지시한다. 고정 글자 수를 맞추려고 조사·어미를 빼지 않도록 하며, 영어 subCaption은 의미와 말투를 보존하도록 지시한다. 저장한 사용자 프롬프트가 우선한다. `src/core/script-prompt.ts` `src/engine/routes/script.ts` `git:4087bdb:`
+- 대본 기본 프롬프트는 친구에게 보내는 속말과 장면별 새 반응을 요청하며, 말투·성격 기본값 또는 사용자가 저장한 값을 대본 생성에 포함한다. `src/core/script-prompt.ts` `src/engine/routes/script.ts` `src/engine/prompt-settings.ts` `git:517cf59:`
 - 기본 대본 프롬프트의 변경에 맞춰 core·서버 테스트를 수정했다. 이 커밋의 테스트 실행 출력과 실제 대본 생성 검증 증거는 코드에서 못 찾음. `tests/core/script-prompt.test.ts` `tests/server/script-prompt.test.ts` `git:4087bdb:`
 - 대본 말투 검사기는 caption 전체 이모지 2개 초과, 금지 문장부호와 초성 말을 검사한다. 위반은 재생성과 경고에 사용한다. 문장 끝 부호·말끝 반복·마지막 장면 안내는 검사하지 않는다. `src/core/script-style.ts` `src/engine/routes/script.ts` `git:cbba5b1:`
 - 053 테스트 코드가 있으나 `pnpm verify` 실행 출력과 0.3.4 설치본에서 기본 프롬프트를 확인한 증거는 코드에서 못 찾음. `tests/core/script-prompt.test.ts` `tests/core/script-style.test.ts` `architecture/changes/053-script-prompt-captions/plan.md` `git:cbba5b1:`
