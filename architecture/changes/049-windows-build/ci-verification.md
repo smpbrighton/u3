@@ -49,3 +49,7 @@ CI 빌드 설정은 `rawvideo` encoder와 `image2pipe` muxer를 활성화한다.
 - 기존 실패 로그 `windows-ci-run1.log:1237–1243`에서 MRX 배경 WAV가 0 bytes였다. `writeFloatWav`는 WAV Transform의 `finish`에서 반환하며 파일 WriteStream의 완료를 기다리지 않는다. Mac에서 반환 직후 동기 읽기로 같은 결함을 재현했다(`out/mrx-write-fail.log`: 실제 0, 기대 176444 bytes). Windows native 시험에 반환 직후 입력·목소리·배경 WAV의 전체 길이와 RIFF/data 길이 단언을 먼저 추가했다.
 - 같은 로그 1262–1269의 Whisper 600초 초과에는 다운로드·변환·추론 단계 정보가 없다. native 시험에 다운로드 진행률, SHA-256 확인 완료, CLI 시작/종료, JSON 읽기 완료 진단을 추가했다. 다운로드 180초와 변환·추론 390초의 취소 신호로 실패 단계를 구분한다. 기존 600초 제한과 실제 한국어 단어 결과 단언은 유지한다.
 - Windows Whisper 빌드 로그 181행은 `/arch:SSE4.2`만 사용한다. AVX·AVX2·FMA·F16C를 끈 상태다. 이는 추론 지연의 후보이며, 다운로드 지연과 구분하기 전에는 원인으로 확정하지 않는다.
+- 회귀 단언 커밋 `2ca4c8f` 전에 Mac `pnpm verify`가 통과했다(`out/windows-fix-test-verify.log`). 이후 MRX는 pipeline으로 파일 WriteStream의 완료·닫기와 오류 전파를 기다리도록 수정했다. 동일한 Mac 재현 명령이 176444 bytes와 data 176400 bytes를 확인하고 통과했다(`out/mrx-write-pass.log`).
+- 로그 1200–1215의 workflow 정규식 실패는 CRLF를 LF로 정규화했다. 권한 단언은 유지했다. 로그 1249–1257의 DPAPI 실패는 Windows PowerShell의 Security 모듈 로드 실패다. 시험에서 CI와 같은 `pwsh`를 사용하고 PowerShell 오류를 종료 코드 실패로 처리했다. helper 제품 코드는 수정하지 않았다.
+- 로그 1180·1221의 두 5초 초과에는 각각 1197행 EBUSY와 1234행 ENOTEMPTY가 뒤따른다. 배속 시험은 세 속도의 결과를 이미 출력했고, 음성 준비 시험에서는 종료되지 않은 비동기 요청이 정리된 파일을 읽어 ENOENT를 냈다(899행). 두 시험의 제한만 30초로 늘렸다. 정리 동작과 제품 코드는 바꾸지 않았다. Windows 재실행으로 인과관계를 확인한다.
+- Whisper native 실행에는 stderr 진단도 남긴다. 앱 일반 실행에는 출력하지 않는다. 취소 실패 메시지는 마지막 stderr 2000자를 포함한다. 모델·fixture·한국어 결과 단언과 CLI 인자·Windows 빌드 옵션은 유지했다.

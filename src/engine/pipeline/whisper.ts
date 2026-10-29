@@ -14,7 +14,10 @@ export type WhisperRunner = (options: { bin: string; args: string[]; signal?: Ab
 export const runWhisperCli: WhisperRunner = ({ bin, args, signal }) => new Promise((resolve, reject) => {
   const child = spawn(bin, args, { ...SPAWN_OPTIONS, stdio: ["ignore", "ignore", "pipe"] });
   let stderr = "";
-  child.stderr.setEncoding("utf8").on("data", chunk => { stderr = (stderr + chunk).slice(-12_000); });
+  child.stderr.setEncoding("utf8").on("data", chunk => {
+    stderr = (stderr + chunk).slice(-12_000);
+    if (process.env.U3_WINDOWS_NATIVE === "1") console.error(`[whisper-cli] ${chunk.trimEnd()}`);
+  });
   const abort = () => child.kill("SIGTERM");
   signal?.addEventListener("abort", abort, { once: true });
   child.on("error", error => {
@@ -23,7 +26,7 @@ export const runWhisperCli: WhisperRunner = ({ bin, args, signal }) => new Promi
   });
   child.on("close", code => {
     signal?.removeEventListener("abort", abort);
-    if (signal?.aborted) reject(new Error("받아 적기를 취소했습니다"));
+    if (signal?.aborted) reject(new Error(`받아 적기를 취소했습니다: ${stderr.trim().slice(-2000)}`));
     else if (code !== 0) reject(new Error(`whisper-cli가 실패했습니다 (종료 코드 ${code}): ${stderr.trim().slice(-500)}`));
     else resolve();
   });

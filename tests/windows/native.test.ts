@@ -132,7 +132,7 @@ describe.skipIf(!enabled)("Windows packaged native", () => {
     expect((await call("read")).stdout).toBe(key);
     expect((await call("write", "replacement")).code).toBe(0);
     expect((await call("read")).stdout).toBe("replacement");
-    const acl = await execute("powershell.exe", ["-NoProfile", "-NonInteractive", "-Command", "$acl=Get-Acl -LiteralPath $env:U3_NATIVE_KEY_FILE; $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value; foreach($rule in $acl.Access) { if($rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value -ne $sid) { exit 1 } }; if(-not $acl.AreAccessRulesProtected) {exit 2}"], { windowsHide: true, env: { ...process.env, U3_NATIVE_KEY_FILE: file } });
+    const acl = await execute("pwsh", ["-NoProfile", "-NonInteractive", "-Command", "$ErrorActionPreference='Stop'; $acl=Get-Acl -LiteralPath $env:U3_NATIVE_KEY_FILE; $sid=[Security.Principal.WindowsIdentity]::GetCurrent().User.Value; foreach($rule in $acl.Access) { if($rule.IdentityReference.Translate([Security.Principal.SecurityIdentifier]).Value -ne $sid) { exit 1 } }; if(-not $acl.AreAccessRulesProtected) {exit 2}"], { windowsHide: true, env: { ...process.env, U3_NATIVE_KEY_FILE: file } });
     expect(acl.stderr).toBe("");
     await writeFile(file, "corrupt");
     expect(await call("read")).toEqual({ code: 1, stdout: "", stderr: "" });

@@ -37,7 +37,7 @@ describe("047 음성 준비 API", () => {
     expect((await x.prepare(2)).result).toEqual(a.result);
     await writeFile(x.file, Buffer.concat([before, Buffer.alloc(2)]));
     const changed = await x.prepare(2); expect(changed.status).toBe("done"); expect((changed.result as { version: string }).version).not.toBe((a.result as { version: string }).version);
-  });
+  }, 30_000);
   it("다른 heavy-media 작업이 끝난 뒤 실행하며 취소는 이전 Timeline을 보존한다", async () => {
     const x = await setup(); let release!: () => void;
     const other = x.jobs.start({ kind: "separate", key: "heavy-media", label: "분리" }, async () => { await new Promise<void>(r => { release = r; }); return done(); });

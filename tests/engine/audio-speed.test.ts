@@ -38,7 +38,7 @@ describe.skipIf(!existsSync(ffmpeg))("047 번들 ffmpeg 음성 배속", () => {
     expect(await audioVersion(sourceAbs)).not.toBe(version);
     const next = await prepareSpeedAudio({ projectDir: root, sourceAbs, sourceId: "tone", speed: 2 });
     expect(next.durationSec).toBeCloseTo(1.5, 1);
-  });
+  }, 30_000);
   it("실패·취소는 임시 파일만 없애고 1배속은 원본을 사용한다", async () => {
     const root = await mkdtemp(path.join(os.tmpdir(), "u3-audio-failure-")); roots.push(root);
     const sourceAbs = path.join(root, "tone.wav"); await writeFile(sourceAbs, tone());

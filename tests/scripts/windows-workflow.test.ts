@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import path from "node:path";
 import { expect, it } from "vitest";
 
-const workflow = readFileSync(path.join(import.meta.dirname, "../../.github/workflows/windows-build.yml"), "utf8");
+const workflow = readFileSync(path.join(import.meta.dirname, "../../.github/workflows/windows-build.yml"), "utf8").replace(/\r\n/g, "\n");
 function job(name: string): string {
   const start = workflow.indexOf(`\n  ${name}:\n`);
   const next = workflow.slice(start + 1).search(/\n  [a-z-]+:\n/);

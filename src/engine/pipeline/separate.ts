@@ -1,6 +1,7 @@
 import * as ort from "onnxruntime-node";
 import { createReadStream, createWriteStream } from "node:fs";
 import { mkdir } from "node:fs/promises";
+import { pipeline } from "node:stream/promises";
 import path from "node:path";
 import { Reader, Writer } from "wav";
 import { HOP, istft, N_FFTS, stft } from "./stft";
@@ -103,16 +104,13 @@ export function pcm16ToFloat32(pcm: Buffer): Float32Array {
 
 export async function writeFloatWav(file: string, data: Float32Array, channels = CHANNELS, rate = SAMPLE_RATE): Promise<void> {
   await mkdir(path.dirname(file), { recursive: true });
-  await new Promise<void>((resolve, reject) => {
-    const writer = new Writer({ channels, sampleRate: rate, bitDepth: 32, format: 3 });
-    writer.on("error", reject);
-    writer.on("finish", resolve);
-    writer.pipe(createWriteStream(file));
-    const pcm = Buffer.allocUnsafe(data.length * 4);
-    for (let i = 0; i < data.length; i++) pcm.writeFloatLE(data[i]!, i * 4);
-    writer.write(pcm);
-    writer.end();
-  });
+  const writer = new Writer({ channels, sampleRate: rate, bitDepth: 32, format: 3 });
+  const written = pipeline(writer, createWriteStream(file));
+  const pcm = Buffer.allocUnsafe(data.length * 4);
+  for (let i = 0; i < data.length; i++) pcm.writeFloatLE(data[i]!, i * 4);
+  writer.end(pcm);
+  // Transform의 finish만으로는 파일 쓰기·닫기가 끝나지 않는다.
+  await written;
 }
 
 async function modelChunkSeparator(modelPath: string): Promise<{ separate: ChunkSeparator; close: () => Promise<void> }> {
