@@ -6,6 +6,7 @@ import type { z } from "zod";
 import { BUNDLED_PROMPT_DEFAULTS, PROMPT_SCHEMA, PromptDefaultsFile, type PromptDefaults } from "../src/core/default-prompts";
 
 // revision 1 파일에는 말투·성격이 없다. 읽기만 허용하고 본문 비교에서 다른 것으로 본다.
+// revision 3 이하의 captionGuide 누락은 공통 스키마에서 빈 지침으로 읽는다.
 const RemotePromptFile = PromptDefaultsFile.partial({ tone: true, persona: true });
 type RemotePrompts = z.infer<typeof RemotePromptFile>;
 export function parseRemote(value: unknown): RemotePrompts {
@@ -14,7 +15,7 @@ export function parseRemote(value: unknown): RemotePrompts {
 
 export function decidePublish(remote: RemotePrompts | null, local: PromptDefaults): "unchanged" | "publish" {
   if (!remote) return "publish";
-  const sameText = remote.script === local.script && remote.tone === local.tone && remote.persona === local.persona && remote.carouselTopic === local.carouselTopic && remote.carouselVideo === local.carouselVideo;
+  const sameText = remote.script === local.script && remote.tone === local.tone && remote.persona === local.persona && remote.carouselTopic === local.carouselTopic && remote.carouselVideo === local.carouselVideo && remote.captionGuide === local.captionGuide;
   if (remote.revision === local.revision && sameText) return "unchanged";
   if (remote.revision >= local.revision && !sameText) throw new Error("기본 프롬프트를 바꿨으면 PROMPT_REVISION 을 올리세요");
   return "publish";

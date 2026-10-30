@@ -1,10 +1,10 @@
 import { z } from "zod";
-import { DEFAULT_SCRIPT_PROMPT, DEFAULT_SCRIPT_TONE, DEFAULT_SCRIPT_PERSONA } from "./script-prompt";
+import { DEFAULT_SCRIPT_PROMPT, DEFAULT_SCRIPT_TONE, DEFAULT_SCRIPT_PERSONA, DEFAULT_CAPTION_GUIDE } from "./script-prompt";
 import { DEFAULT_CAROUSEL_TOPIC_PROMPT, DEFAULT_CAROUSEL_VIDEO_PROMPT } from "./carousel-prompt";
 
 export const PROMPT_SCHEMA = 1;
-export const PROMPT_REVISION = 3;
-export const PROMPT_TEXT_HASH = "2342499d73061e8753645b61718ff9a9815f027e1a34ebd6b1f09386e5b00654";
+export const PROMPT_REVISION = 4;
+export const PROMPT_TEXT_HASH = "3c0659a4392874b583a1656b3624758ef77c9cb62d372783a5d2b08410094eb5";
 
 const PromptText = z.string().trim().min(1).max(20_000);
 export const PromptDefaultsFile = z.object({
@@ -15,6 +15,7 @@ export const PromptDefaultsFile = z.object({
   persona: z.string().trim().min(1).max(4000),
   carouselTopic: PromptText,
   carouselVideo: PromptText,
+  captionGuide: z.string().trim().max(20_000).default(""),
 });
 export type PromptDefaults = z.infer<typeof PromptDefaultsFile>;
 
@@ -26,4 +27,5 @@ export const BUNDLED_PROMPT_DEFAULTS: PromptDefaults = {
   persona: DEFAULT_SCRIPT_PERSONA,
   carouselTopic: DEFAULT_CAROUSEL_TOPIC_PROMPT,
   carouselVideo: DEFAULT_CAROUSEL_VIDEO_PROMPT,
+  captionGuide: DEFAULT_CAPTION_GUIDE.trim(),
 };

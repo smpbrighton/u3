@@ -18,7 +18,21 @@ export const DEFAULT_SCRIPT_PERSONA = `친구 단톡에 현장중계를 하는 �
 
 export type ScriptVoiceSettings = { tone: string; persona: string };
 
-export const DEFAULT_CAPTION_GUIDE = "";
+export const DEFAULT_CAPTION_GUIDE = `이 지침은 영상에 표시되는 자막의 가독성과 표기에 공통으로 적용한다. 자막의 말투, 성격, 영상의 상황과 이야기 흐름은 기존 지침을 따른다. 넷플릭스 한국어 자막 지침의 가독성 원칙을 참고하되, SNS 영상의 표현과 목적에 맞게 유연하게 적용한다.
+
+- 자막은 시청자가 화면을 보는 동시에 읽고 이해할 수 있도록 표시 시간에 맞춰 작성한다. 짧게 쓰되, 글자 수를 맞추기 위해 의미를 빼거나 말투를 어색하게 만들지 않는다.
+- 한 화면에는 하나의 자연스러운 생각이나 반응을 담는다. 앞뒤 자막은 사람이 실제로 말하듯 맥락과 감정이 자연스럽게 이어져야 한다.
+- 가급적 한 줄로 표시하고, 길어지면 의미 단위에 맞춰 최대 두 줄로 나눈다. 조사·어미를 앞말에서 떼거나, 하나의 단어와 밀접한 표현을 어색하게 나누지 않는다.
+- 한국어 기준 한 줄 16자와 성인 자막 초당 12자를 가독성 참고 기준으로 삼는다. 넷플릭스 방식에서는 영문, 공백, 문장부호를 각각 0.5자로 센다. 이는 절대 제한이 아니며, 자연스러운 문장과 실제 화면에서의 가독성을 우선한다.
+- 자막 끝에는 원칙적으로 마침표와 쉼표를 쓰지 않는다. 물음표와 느낌표는 상황과 감정에 맞게 사용할 수 있다. 말이 끊기거나 망설이는 경우에는 말줄임표를 사용할 수 있지만, 다음 자막으로 이어진다는 이유만으로 붙이지 않는다.
+- 반말, 속말, 유행 표현, 초성, ㅋㅋ, 이모지는 기존 말투·성격 지침과 장면의 분위기에 맞을 때만 사용한다. 매 자막이나 매 영상에 넣지 않아도 된다.
+- 화면에 보이는 사실을 넘어 제품의 효능이나 경험을 단정해서 만들어내지 않는다. 영상의 맥락에 맞는 자연스러운 감상과 반응을 우선한다.
+- 출력 형식과 입력된 장면의 시각 정보는 기존 시스템 규칙을 따른다.
+
+이 지침은 영상에 새로 쓰는 SNS 자막용이다. 음성을 그대로 받아 적거나 번역하는 자막은 원래 발화의 의미와 싱크를 유지해야 하므로 별도 규칙으로 다룬다.
+
+참고: https://partnerhelp.netflixstudios.com/hc/en-us/articles/216001127-Korean-Timed-Text-Style-Guide
+`;
 
 export function buildScriptPrompt(options: {
   mode: "ai" | "direct";
@@ -40,6 +54,8 @@ export function buildScriptPrompt(options: {
     return value ? [`${label}:\n${value}`] : [];
   });
   if (configuredVoice.length) parts.push(configuredVoice.join("\n\n"));
+  const captionGuide = options.captionGuide?.trim();
+  if (captionGuide) parts.push(`전역 자막 지침:\n${captionGuide}`);
   parts.push(options.formatRules);
   return parts.join("\n\n");
 }

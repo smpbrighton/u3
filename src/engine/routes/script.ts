@@ -126,6 +126,7 @@ export function registerScriptRoutes(app: Hono, context: AppContext): void {
         basePrompt: promptState(settings, defaults, "script").prompt,
         userPrompt,
         voice,
+        captionGuide: defaults.captionGuide,
         formatRules: formatScriptInputGuide(inputs, frameTimes, emotions),
       });
       const result = await runAndRecord(prompt, request.images, true);
