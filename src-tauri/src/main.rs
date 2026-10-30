@@ -170,7 +170,14 @@ fn start_engine(_app: &tauri::AppHandle, previous_exit: Option<&str>) -> Result<
 
 #[cfg(any(not(debug_assertions), test))]
 fn plain_path(path: PathBuf) -> PathBuf {
-    unimplemented!()
+    let Some(value) = path.to_str() else { return path; };
+    if let Some(unc) = value.strip_prefix(r"\\?\UNC\") {
+        PathBuf::from(format!(r"\\{unc}"))
+    } else if let Some(plain) = value.strip_prefix(r"\\?\") {
+        PathBuf::from(plain)
+    } else {
+        path
+    }
 }
 
 #[cfg(any(not(debug_assertions), test))]
@@ -204,10 +211,10 @@ fn bundled_engine_command(resources: &std::path::Path, token: &str) -> Result<Co
 #[cfg(not(debug_assertions))]
 fn start_engine(app: &tauri::AppHandle, previous_exit: Option<&str>) -> Result<(EngineChild, EngineConnection), Box<dyn std::error::Error>> {
     let token = uuid::Uuid::new_v4().to_string();
-    let resources = app.path().resource_dir()?.join("resources");
+    let resources = plain_path(app.path().resource_dir()?).join("resources");
     let mut command = bundled_engine_command(&resources, &token)?;
     #[cfg(windows)]
-    command.env("U3_DATA_DIR", app.path().app_local_data_dir()?);
+    command.env("U3_DATA_DIR", plain_path(app.path().app_local_data_dir()?));
     previous_exit_env(&mut command, previous_exit);
     connect_engine(command, token)
 }
