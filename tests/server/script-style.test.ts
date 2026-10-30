@@ -5,6 +5,7 @@ import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { CodexScript } from "../../src/core/schema";
 import { checkScriptStyle } from "../../src/core/script-style";
+import { DEFAULT_CAPTION_GUIDE } from "../../src/core/script-prompt";
 import { createApp } from "../../src/engine/app";
 import { Jobs } from "../../src/engine/jobs";
 import { readUsage } from "../../src/engine/pipeline/usage";
@@ -72,7 +73,7 @@ describe("대본 검사와 한 번 재생성", () => {
   });
 
   it("위반 목록을 원래 프롬프트 뒤에 붙여 한 번만 다시 생성한다", async () => {
-    const draft = script("좋아요. ㅋㅋ");
+    const draft = script("좋아요!!");
     const regenerated = script("직접 써 봤어. 너는 어때? 😊");
     runScript.mockImplementationOnce(async request => {
       await request.prepareImages();
@@ -85,6 +86,7 @@ describe("대본 검사와 한 번 재생성", () => {
     expect(first.prompt).toContain("사용자 요청");
     expect(first.prompt).toContain("말투 설정");
     expect(first.prompt).toContain("성격 설정");
+    expect(first.prompt).toContain(`전역 자막 지침:\n${DEFAULT_CAPTION_GUIDE.trim()}`);
     expect(second.images).toEqual(["frame.png"]);
     expect(first.transcribe).toBeTypeOf("function");
     expect(second.transcribe).toBeUndefined();
@@ -94,9 +96,9 @@ describe("대본 검사와 한 번 재생성", () => {
   });
 
   it.each([
-    ["좋아요. ㅋㅋ", "좋아요. ㅎㅎ ㅇㅈ", "좋아요. ㅋㅋ"],
-    ["좋아요. ㅋㅋ", "좋아요. ㅎㅎ ㅇㅈ", "좋아요. ㅋㅋ"],
-    ["좋아 ㅋㅋ", "좋아 ㅎㅎ ㅇㅈ", "좋아 ㅋㅋ"],
+    ["좋아요!!", "좋아요!! ?!", "좋아요!!"],
+    ["좋아요!! ?!", "좋아요!!", "좋아요!!"],
+    ["좋아요!!", "좋아?!", "좋아요!!"],
   ])("두 결과에도 위반이 남으면 위반 수가 적은 결과를 저장한다: %s → %s", async (first, second, chosen) => {
     runScript.mockResolvedValueOnce(result(script(first))).mockResolvedValueOnce(result(script(second)));
     const done = await recommend();
@@ -107,7 +109,7 @@ describe("대본 검사와 한 번 재생성", () => {
   });
 
   it("재생성 호출이 실패하면 초안과 남은 위반을 보존한다", async () => {
-    const draft = script("좋아요 ㅋㅋ");
+    const draft = script("좋아요!!");
     runScript.mockResolvedValueOnce(result(draft)).mockRejectedValueOnce(new Error("Codex 실패"));
     const done = await recommend();
     expect(runScript).toHaveBeenCalledTimes(2);
@@ -118,7 +120,7 @@ describe("대본 검사와 한 번 재생성", () => {
   });
 
   it("재생성 결과의 입력 범위가 잘못되면 초안을 보존한다", async () => {
-    const draft = script("좋아요 ㅋㅋ");
+    const draft = script("좋아요!!");
     runScript.mockResolvedValueOnce(result(draft)).mockResolvedValueOnce(result(script("직접 써 봤어.", 2)));
     const done = await recommend();
     expect(runScript).toHaveBeenCalledTimes(2);
@@ -148,4 +150,33 @@ it("현재 원격 말투·성격을 대본에 넣는다", async () => {
   const prompt = runScript.mock.calls[0]![0].prompt;
   expect(prompt).toContain("말투:\n원격 말투");
   expect(prompt).toContain("성격:\n원격 성격");
+});
+
+it.each(["bundled", "remote"] as const)("대본·말투·성격을 고쳐도 %s 전역 자막 지침을 합치고 설정을 보존한다", async source => {
+  const defaults = source === "remote" ? { ...BUNDLED_PROMPT_DEFAULTS, captionGuide: "원격 전역 자막 규칙" } : undefined;
+  runScript.mockResolvedValue(result(script("직접 써 봤어")));
+  const settings = { scriptPrompt: "고친 대본", scriptTone: "고친 말투", scriptPersona: "고친 성격" };
+  const done = await recommend(defaults, settings);
+  const prompt = runScript.mock.calls[0]![0].prompt;
+  const guide = source === "remote" ? "원격 전역 자막 규칙" : DEFAULT_CAPTION_GUIDE.trim();
+  expect(prompt).toContain(`고친 대본\n\n사용자 요청:\n사용자 요청\n\n말투:\n고친 말투\n\n성격:\n고친 성격\n\n전역 자막 지침:\n${guide}\n\n입력 항목 번호`);
+  const savedSettings = await new Store(done.root).readSettings();
+  expect(savedSettings).toMatchObject({ ...settings, scriptReview: "읽지 않을 옛 검수 설정" });
+  expect(savedSettings).not.toHaveProperty("captionGuide");
+});
+
+it("빈 원격 전역 자막 지침은 대본에 넣지 않는다", async () => {
+  runScript.mockResolvedValue(result(script("직접 써 봤어")));
+  const defaults = { ...BUNDLED_PROMPT_DEFAULTS, captionGuide: "" };
+  await recommend(defaults);
+  expect(runScript.mock.calls[0]![0].prompt).not.toContain("전역 자막 지침:");
+});
+
+it("말줄임표와 초성을 쓴 자막은 재생성하지 않는다", async () => {
+  const draft = script("잠깐… 이건... ㅋㅋ ㄹㅇ");
+  runScript.mockResolvedValue(result(draft));
+  const done = await recommend();
+  expect(runScript).toHaveBeenCalledTimes(1);
+  expect(done.result.styleWarnings).toEqual([]);
+  expect(done.saved).toEqual(draft);
 });

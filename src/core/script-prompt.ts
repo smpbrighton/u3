@@ -18,12 +18,15 @@ export const DEFAULT_SCRIPT_PERSONA = `친구 단톡에 현장중계를 하는 �
 
 export type ScriptVoiceSettings = { tone: string; persona: string };
 
+export const DEFAULT_CAPTION_GUIDE = "";
+
 export function buildScriptPrompt(options: {
   mode: "ai" | "direct";
   basePrompt: string;
   formatRules: string;
   userPrompt?: string;
   voice?: ScriptVoiceSettings;
+  captionGuide?: string;
 }): string {
   const parts = [options.basePrompt];
   if (options.mode === "direct" && options.userPrompt?.trim()) {

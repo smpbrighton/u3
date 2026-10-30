@@ -26,11 +26,11 @@ describe("대본 말투 검사", () => {
     }
   });
 
-  it.each(["?!", "!!", "...", "…"])("금지 문장부호 %s를 잡는다", punctuation => {
+  it.each(["?!", "!!"])("금지 문장부호 %s를 잡는다", punctuation => {
     expect(checkScriptStyle(script(`정말 다르네${punctuation}`))).toContainEqual(expect.stringContaining("금지 문장부호"));
   });
 
-  it.each(["ㅋㅋ 신기하네.", "ㅎㅎ 신기하네.", "ㄹㅇ 신기하네.", "ㅇㅈ 신기하네.", "ᄏᄏ 신기하네."])("초성 말을 잡는다: %s", caption => {
-    expect(checkScriptStyle(script(caption))).toContainEqual(expect.stringContaining("초성 말"));
+  it.each(["...", "…", "ㅋㅋ", "ㅎㅎ", "ㄹㅇ", "ㅇㅈ", "ᄏᄏ"])("전역 자막 지침이 허용하는 말줄임표와 초성 %s에는 경고하지 않는다", expression => {
+    expect(checkScriptStyle(script(`정말 다르네 ${expression}`))).toEqual([]);
   });
 });
