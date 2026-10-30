@@ -197,3 +197,12 @@
 - `index.md`
 - intent·spec·review·plan 승인과 결정 대체는 기존 페이지의 출처와 결정 링크에 통합했다. 별도 페이지는 없다. `git:2ef7bdf:` `git:af38a13:` `git:50ba99e:` `git:30b5ad6:`
 - 실패 테스트·구현·회귀 테스트·검증 기록은 기존 페이지에 통합했다. 별도 페이지는 없다. `git:d52a2d3:` `git:ba33c59:` `git:1a33e3e:` `git:24485e2:` `git:6fcb919:` `git:83a16ca:`
+
+## [2026-10-30] ingest | 061 Windows 엔진 경로 · 062 전역 자막 지침 · release 1.0.1
+- `pages/concept-windows-build.md`
+- `pages/concept-remote-prompts.md`
+- `pages/concept-timeline-editing.md`
+- `pages/concept-updates.md`
+- `index.md`
+- 061과 062의 계획·실패 테스트·구현은 기존 페이지에 통합했다. 별도 페이지는 없다. `git:51a9e81:` `git:d6fd4fb:` `git:5a5cd5a:` `git:6562d73:` `git:1f03d5f:` `git:318af07:`
+- release 1.0.1 버전 반영은 릴리스 페이지에 통합했다. 별도 페이지는 없다. `git:a767caf:`

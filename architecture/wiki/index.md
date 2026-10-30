@@ -7,8 +7,8 @@
 - [엔진 종료](pages/entity-engine-shutdown.md) — sidecar 종료·재시작과 요청 및 연결 실패 로그의 검증 상태.
 
 ## concept
-- [Windows 빌드와 검증](pages/concept-windows-build.md) — 플랫폼 빌드, Windows CI와 릴리스 실행 증거 및 미검증 상태.
-- [원격 기본 프롬프트](pages/concept-remote-prompts.md) — 다섯 기본값의 받기·캐시·사용자 설정과 공개 검증 상태.
+- [Windows 빌드와 검증](pages/concept-windows-build.md) — 플랫폼 빌드, 엔진 경로와 Windows 실행 증거 및 미검증 상태.
+- [원격 기본 프롬프트](pages/concept-remote-prompts.md) — 기본값과 전역 자막 지침의 받기·캐시·사용자 설정과 공개 검증 상태.
 - [Codex 호환성](pages/concept-codex-compat.md) — 실행 경로, 계정 모델 선택·재시도와 검증 상태.
 - [compositor dylib 경로](pages/concept-compositor-dylib.md) — 패키징·서명 전 경로 검사와 실행 검증 상태.
 - [화면 셸과 설정](pages/concept-ui-shell.md) — 공통 화면, 테마, 프롬프트 자동 저장과 검증 상태.

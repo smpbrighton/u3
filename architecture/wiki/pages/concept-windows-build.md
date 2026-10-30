@@ -24,6 +24,9 @@ Windows x64 빌드는 플랫폼별 Node·compositor·ONNX 리소스와 NSIS 설�
 - 사용자 제공 사실에 따르면 `v1.0.0` 태그 [run 40825453652](https://github.com/smpbrighton/u3/actions/runs/40825453652)의 `windows-release`는 패키징·native·설치 검증·updater 서명·draft 업로드를 통과했다. CI 실행 원문은 코드에서 못 찾음. `.github/workflows/windows-build.yml` `git:72bdd03:`
 - 같은 run의 `publish`는 onnxruntime-node postinstall의 Linux CUDA 패키지 다운로드 실패로 멈췄다. 이후 publish 설치 단계는 `ONNXRUNTIME_NODE_INSTALL: skip`을 설정하며 회귀 테스트가 선언을 검사한다. 수정 후 해당 workflow 실행 증거는 코드에서 못 찾음. `.github/workflows/windows-build.yml` `tests/scripts/windows-workflow.test.ts` `git:9bcb94e:` `git:cf31bbc:`
 
+- 설치 엔진 시작은 리소스 경로와 Windows 데이터 경로의 `\\?\` 접두어를 제거한다. UNC 경로는 일반 UNC 경로로 바꾸고 다른 경로는 유지한다. `src-tauri/src/main.rs` `git:5a5cd5a:`
+- 세션이 061의 `pnpm verify` 종료 코드 0과 `✓ verify passed`를 확인했다. 사용자 제공 실행 증거에 따르면 PR #4의 [Windows 빌드 run 41051550438](https://github.com/smpbrighton/u3/actions/runs/41051550438) 설치본을 Windows 11 사용자 세션에서 실행했을 때 엔진 node.exe가 127.0.0.1 포트에서 대기했고 `engine.log`에 새 시작 줄이 생겼다. CI와 실행 로그 원문은 코드에서 못 찾음. 화면 오류 부재와 stderr 확인 증거도 코드에서 못 찾음. `architecture/changes/061-windows-engine-verbatim-path/plan.md` `src-tauri/src/main.rs` `git:5a5cd5a:`
+
 ## 관계
 - [U3 데스크톱 앱](entity-desktop-app.md)
 - [자동 업데이트와 릴리스](concept-updates.md)

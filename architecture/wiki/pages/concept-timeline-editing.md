@@ -24,7 +24,7 @@ U3 타임라인은 영상·자막·음성·효과음 트랙을 저장하고, 영
 
 - 대본 기본 프롬프트는 친구에게 보내는 속말과 장면별 새 반응을 요청하며, 말투·성격 기본값 또는 사용자가 저장한 값을 대본 생성에 포함한다. `src/core/script-prompt.ts` `src/engine/routes/script.ts` `src/engine/prompt-settings.ts` `git:517cf59:`
 - 기본 대본 프롬프트의 변경에 맞춰 core·서버 테스트를 수정했다. 이 커밋의 테스트 실행 출력과 실제 대본 생성 검증 증거는 코드에서 못 찾음. `tests/core/script-prompt.test.ts` `tests/server/script-prompt.test.ts` `git:4087bdb:`
-- 대본 말투 검사기는 caption 전체 이모지 2개 초과, 금지 문장부호와 초성 말을 검사한다. 위반은 재생성과 경고에 사용한다. 문장 끝 부호·말끝 반복·마지막 장면 안내는 검사하지 않는다. `src/core/script-style.ts` `src/engine/routes/script.ts` `git:cbba5b1:`
+- 대본 말투 검사기는 caption 전체 이모지 2개 초과와 `?!`·`!!`를 검사한다. 말줄임표와 초성 말은 검사하지 않는다. 위반은 재생성과 경고에 사용한다. 문장 끝 부호·말끝 반복·마지막 장면 안내는 검사하지 않는다. `src/core/script-style.ts` `src/engine/routes/script.ts` `git:318af07:`
 - 053 테스트 코드가 있으나 `pnpm verify` 실행 출력과 0.3.4 설치본에서 기본 프롬프트를 확인한 증거는 코드에서 못 찾음. `tests/core/script-prompt.test.ts` `tests/core/script-style.test.ts` `architecture/changes/053-script-prompt-captions/plan.md` `git:cbba5b1:`
 - 위반이 있으면 위반 목록을 붙여 한 번 재생성한다. 두 결과 중 위반이 적은 결과를 저장하고 남은 경고를 표시한다. 재생성 실패 시 초안과 경고를 유지한다. `src/engine/routes/script.ts` `src/ui/screens/Script.tsx` `git:a4eeca8:`
 - 기존 자막 검수 설정을 화면과 API에서 제거했다. 저장 파일의 기존 `scriptReview` 값은 보존한다. 직접 저장한 대본 프롬프트에는 새 기본값이 자동 적용되지 않는다. `src/engine/routes/system.ts` `src/ui/screens/Settings.tsx` `tests/server/script-voice.test.ts` `architecture/changes/039-script-voice/plan.md`
@@ -46,6 +46,9 @@ U3 타임라인은 영상·자막·음성·효과음 트랙을 저장하고, 영
 - 자막 크기 조절은 같은 줄의 다른 자막과 영상 길이 및 최소 0.1초 범위에서 양쪽 끝을 조절한다. 오디오 크기 조절은 배속을 반영해 원본 파일 경계로 제한하며 부동소수점 경계 오차도 보정한다. 편집 오류는 표시하고 편집기를 다시 마운트한다. `src/core/timeline/ops.ts` `src/ui/studio/Timeline.tsx` `git:541dbef:`
 - 058 이전에는 오디오 trim이 `doEdit`의 예외 처리 밖에서 실행됐다. 파일 길이를 넘기는 효과음 조절 예외가 interactjs 종료 콜백 밖으로 전파된 것이 커서 고착의 원인이라는 설명은 추정이며 실기 미확인이다. `git:541dbef:` `architecture/changes/058-timeline-trim-fixes/plan.md`
 - 057 Slider 드래그 뒤 실행 취소는 UI 테스트로만 확인했고 실기 확인은 막혔다. 058 효과음 커서 고착과 자막 늘리기도 설치본 실기 확인이 남았다. 058의 `pnpm verify` 실행 증거는 코드에서 못 찾음. `architecture/changes/057-engine-restart-undo/verify.log` `architecture/changes/058-timeline-trim-fixes/plan.md` `tests/ui/studio-history-gesture.test.tsx` `tests/ui/timeline-resize.test.tsx` `git:541dbef:`
+
+- 대본 프롬프트는 전역 자막 지침이 비어 있지 않으면 사용자 요청·말투·성격 뒤와 형식 규칙 앞에 합친다. 재생성에도 같은 프롬프트를 사용하며 캐러셀 기획에는 합치지 않는다. `src/core/script-prompt.ts` `src/engine/routes/script.ts` `src/engine/routes/carousels.ts` `git:318af07:`
+- 세션이 062의 `pnpm verify` 종료 코드 0을 확인했다. Windows 실제 대본 생성은 Codex 로그인 필요로 미검증이다. 실행 출력은 코드에서 못 찾음. `architecture/changes/062-global-caption-guide/plan.md` `git:318af07:`
 
 ## 관계
 - [원격 기본 프롬프트](concept-remote-prompts.md)

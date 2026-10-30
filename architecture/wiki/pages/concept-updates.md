@@ -29,6 +29,9 @@
 
 - 1.0.0 릴리스 커밋은 네 버전 설정을 변경했다. 사용자 제공 사실에 따르면 [run 40825453652](https://github.com/smpbrighton/u3/actions/runs/40825453652)의 Windows 패키징·native·설치 검증·updater 서명·draft 업로드는 통과했지만 publish는 Linux CUDA 패키지 다운로드 실패로 멈췄다. 실제 공개와 수정 후 publish 성공 증거는 코드에서 못 찾음. `package.json` `src-tauri/Cargo.toml` `src-tauri/Cargo.lock` `src-tauri/tauri.conf.json` `.github/workflows/windows-build.yml` `git:72bdd03:` `git:cf31bbc:`
 
+- `release 1.0.1` 커밋은 패키지와 Tauri 버전을 1.0.1로 맞춘다. 릴리스 공개 실행 증거는 코드에서 못 찾음. `package.json` `src-tauri/tauri.conf.json` `git:a767caf:`
+- 1.0.2 릴리스와 정식 Windows 설치본 확인은 아직 실행하지 않았다. `architecture/changes/062-global-caption-guide/plan.md` `git:6562d73:`
+
 ## 관계
 - [Windows 빌드와 검증](concept-windows-build.md)
 - [원격 기본 프롬프트](concept-remote-prompts.md)
