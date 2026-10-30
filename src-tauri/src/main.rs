@@ -8,7 +8,6 @@ mod updater;
 
 use serde::Serialize;
 use std::io::{BufRead, BufReader, Error, ErrorKind};
-#[cfg(debug_assertions)]
 use std::path::PathBuf;
 use std::process::{Child, Command, Stdio};
 use std::sync::{Mutex, atomic::{AtomicBool, Ordering}};
@@ -170,6 +169,11 @@ fn start_engine(_app: &tauri::AppHandle, previous_exit: Option<&str>) -> Result<
 }
 
 #[cfg(any(not(debug_assertions), test))]
+fn plain_path(path: PathBuf) -> PathBuf {
+    unimplemented!()
+}
+
+#[cfg(any(not(debug_assertions), test))]
 fn bundled_engine_command(resources: &std::path::Path, token: &str) -> Result<Command, Error> {
     let library = resources.join("library");
     let chrome = resources.join("chrome").join(
@@ -328,6 +332,35 @@ fn macos_menu<M: Manager<tauri::Wry>>(manager: &M) -> tauri::Result<Menu<tauri::
 #[cfg(test)]
 mod bundled_engine_tests {
     use super::*;
+
+    #[test]
+    fn plain_path_strips_verbatim_drive_prefix() {
+        assert_eq!(
+            plain_path(PathBuf::from(r"\\?\C:\Users\sumin\AppData\Local\U3\resources")),
+            PathBuf::from(r"C:\Users\sumin\AppData\Local\U3\resources"),
+        );
+    }
+
+    #[test]
+    fn plain_path_converts_verbatim_unc_prefix() {
+        assert_eq!(
+            plain_path(PathBuf::from(r"\\?\UNC\server\share\U3")),
+            PathBuf::from(r"\\server\share\U3"),
+        );
+    }
+
+    #[test]
+    fn plain_path_preserves_plain_windows_path() {
+        assert_eq!(plain_path(PathBuf::from(r"C:\plain")), PathBuf::from(r"C:\plain"));
+    }
+
+    #[test]
+    fn plain_path_preserves_macos_path() {
+        assert_eq!(
+            plain_path(PathBuf::from("/Applications/U3.app/Contents/Resources")),
+            PathBuf::from("/Applications/U3.app/Contents/Resources"),
+        );
+    }
 
     #[test]
     fn restart_budget_allows_three_restarts_in_five_minutes() {
