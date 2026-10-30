@@ -26,7 +26,7 @@
 - 편집 모델: 자막 레이어 여러 개(메인·서브 두 줄, 레이어 스타일·위치, 폰트 세 가지), 여러 영상 트랙(영상 1 은 본 화면만 빈틈 없음, 짤은 기본으로 영상 2 이상 작은 창), 모든 화면 클립 투명도, 워터마크·타이틀 바(설정 기본값 + 영상별 값), 효과음 트랙 여러 개, `@xzdarcy/react-timeline-editor` + 앱이 만든 자르기·실행 취소 → [0016](decisions/0016-caption-layers-opacity-brand.md), 단축키 기본값·재정의 → [0030](decisions/0030-studio-shortcut-settings.md)
 - 자막 클립 재정의·자막 편집기: 클립마다 색·크기 배율·굵게·등장 효과·강조색을 레이어 위에 덮고 `*단어*` 는 강조 표기, 스튜디오 「자막」 탭에서 목록·이전·다음·구간 슬라이더로 편집 → [0028](decisions/0028-caption-clip-style.md)
 - 클립 배속: 영상·음성 0.5–2.0배, 영상은 Remotion 재생률, 음성은 원본 보존 atempo WAV, 자막 시각 유지 → [0031](decisions/0031-playback-speed.md)
-- 기본 프롬프트: 대본·말투·성격·캐러셀 기획 기본 프롬프트는 GitHub `prompts` prerelease 에서 받아 캐시, 고친 프롬프트는 유지하고 새 기본값만 표시, 실패 시 캐시·앱 내장값, 입력 1초 뒤 자동 저장 → [0035](decisions/0035-remote-default-prompts-voice.md)
+- 기본 프롬프트: 대본·말투·성격·캐러셀 기획 기본 프롬프트와 전역 자막 지침은 GitHub `prompts` prerelease 에서 받아 캐시, 고친 프롬프트는 유지하고 새 기본값만 표시, 전역 자막 지침은 설정과 관계없이 대본 프롬프트에 항상 합침, 실패 시 캐시·앱 내장값, 입력 1초 뒤 자동 저장 → [0037](decisions/0037-remote-prompts-caption-guide.md)
 - 장면 검토: 자동 생성 클립은 `sceneIndex` 를 갖고 스튜디오 「장면」 탭에서 장면별 짤(후보 5)·효과음을 바꾸거나 빼거나 넣음, 2 대본 뒤 첫 탭 → [0029](decisions/0029-scene-review.md)
 - 타이틀 바 내용: 설정에서 글·이미지 기본값, 영상별 재정의, 새 영상에 AI 제목 자동 채움 없음 → [0020](decisions/0020-title-bar-content.md)
 - 자동 업데이트: GitHub Releases(`smpbrighton/u3`)의 서명된 업데이트를 받아 다시 시작·종료 때 적용, Mac Developer ID 공증·Windows 전용 minisign, 기본 draft→두 플랫폼 확인→공개·긴급 --mac-only → [0021](decisions/0021-auto-update.md) · [0033](decisions/0033-release-flow.md)

@@ -1,6 +1,6 @@
 # 0035 기본 프롬프트 원격 갱신(말투·성격 포함)
 
-Status: accepted
+Status: superseded-by 0037
 Source: changes/056-voice-default-prompts/plan.md
 Supersedes: 0034
 
